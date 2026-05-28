@@ -6019,15 +6019,11 @@
     }
 
     async function comfyApiFetch(path, options) {
-      const comfyEndpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "http://127.0.0.1:8188").trim().replace(/\/+$/, "");
       const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-      const base = isLocalhost ? "/api/comfy" : "/api/comfy?path=" + encodeURIComponent(path.replace(/^\//, ""));
-      const url = isLocalhost ? (base + path) : base;
-      const headers = Object.assign({}, (options && options.headers) || {});
       if (!isLocalhost) {
-        headers["x-comfy-endpoint"] = comfyEndpoint;
+        throw new Error("ComfyUI is only available on localhost. Switch to http://localhost:3000 and run npm run dev.");
       }
-      const response = await fetch(url, Object.assign({}, options, { headers }));
+      const response = await fetch("/api/comfy" + path, options || {});
       if (!response.ok) {
         const text = await response.text();
         throw new Error("ComfyUI request failed (" + response.status + "): " + text);
