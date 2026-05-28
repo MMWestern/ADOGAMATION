@@ -58,18 +58,17 @@ function processIncludes(content) {
   });
 }
 
-const CONFIG_SCRIPT = `<script>
-window.__SUPABASE_URL__ = ${JSON.stringify(envConfig.SUPABASE_URL || "")};
-window.__SUPABASE_ANON_KEY__ = ${JSON.stringify(envConfig.SUPABASE_ANON_KEY || "")};
-</script>`;
-
-function injectConfig(html) {
-  return html.replace('<?!= include(\'Client\'); ?>', CONFIG_SCRIPT + '\n<?!= include(\'Client\'); ?>');
-}
+var ENV_JS_CONTENT = 'window.__SUPABASE_URL__=' + JSON.stringify(envConfig.SUPABASE_URL || '') + ';\n' +
+  'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envConfig.SUPABASE_ANON_KEY || '') + ';\n';
 
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/Index.html";
+  if (urlPath === "/env.js") {
+    res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
+    res.end(ENV_JS_CONTENT);
+    return;
+  }
 
   const filePath = path.join(ROOT, urlPath);
   const ext = path.extname(filePath);
@@ -93,7 +92,7 @@ const server = http.createServer((req, res) => {
       res.end("Error reading file");
       return;
     }
-    const processed = injectConfig(processIncludes(raw));
+    const processed = processIncludes(raw);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(processed);
   } else {
