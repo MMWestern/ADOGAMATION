@@ -67,6 +67,8 @@ copyStaticAssets(ROOT, DIST);
 
 // Generate env.js with Supabase credentials from environment variables
 console.log("Generating env.js...");
+const supabaseKeys = Object.keys(process.env).filter(k => k.includes("SUPABASE"));
+console.log("  SUPABASE env var keys found:", supabaseKeys.length ? supabaseKeys.join(", ") : "(none)");
 const envUrl = process.env.SUPABASE_URL || "";
 const envKey = process.env.SUPABASE_ANON_KEY || "";
 const envJs = 'window.__SUPABASE_URL__=' + JSON.stringify(envUrl) + ';\n' +
