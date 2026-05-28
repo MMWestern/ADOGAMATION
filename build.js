@@ -65,6 +65,15 @@ function copyStaticAssets(src, dest) {
 }
 copyStaticAssets(ROOT, DIST);
 
+// Generate env.js with Supabase credentials from environment variables
+console.log("Generating env.js...");
+const envUrl = process.env.SUPABASE_URL || "";
+const envKey = process.env.SUPABASE_ANON_KEY || "";
+const envJs = 'window.__SUPABASE_URL__=' + JSON.stringify(envUrl) + ';\n' +
+              'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envKey) + ';\n';
+fs.writeFileSync(path.join(DIST, "env.js"), envJs, "utf8");
+console.log(`  env.js -> dist/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"})`);
+
 // Copy data files
 const dataDir = path.join(ROOT, "data");
 if (fs.existsSync(dataDir)) {
