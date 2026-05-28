@@ -19,6 +19,9 @@ ALTER TABLE series_locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE series_location_books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE series_continuity_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE book_creator_pockets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE series_continuity_character_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE series_continuity_location_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE series_continuity_project_links ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- POLICIES — allow all operations for authenticated users
@@ -61,6 +64,15 @@ CREATE POLICY "Authenticated full access" ON series_continuity_entries
   FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
 CREATE POLICY "Authenticated full access" ON book_creator_pockets
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated full access" ON series_continuity_character_links
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated full access" ON series_continuity_location_links
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated full access" ON series_continuity_project_links
   FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
 -- ============================================
