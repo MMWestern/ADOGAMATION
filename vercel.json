@@ -1,6 +1,4 @@
 {
-  "framework": null,
   "buildCommand": "node build.js",
-  "outputDirectory": "dist",
-  "ignoreCommand": "exit 0"
+  "outputDirectory": "dist"
 }
