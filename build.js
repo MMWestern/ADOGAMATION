@@ -2,30 +2,14 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = __dirname;
+const DIST = path.join(ROOT, "dist");
 
-// Load .env
-let envConfig = {};
-try {
-  const envRaw = fs.readFileSync(path.join(ROOT, ".env"), "utf8");
-  envRaw.split("\n").forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) return;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) return;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const val = trimmed.slice(eqIdx + 1).trim();
-    if (key) envConfig[key] = val;
-  });
-} catch {
-  console.warn("[WARN] No .env file found.");
-}
+// Clean dist
+if (fs.existsSync(DIST)) fs.rmSync(DIST, { recursive: true });
+fs.mkdirSync(DIST, { recursive: true });
 
 function readFile(filePath) {
-  try {
-    return fs.readFileSync(filePath, "utf8");
-  } catch {
-    return null;
-  }
+  try { return fs.readFileSync(filePath, "utf8"); } catch { return null; }
 }
 
 function processIncludes(content) {
@@ -34,37 +18,70 @@ function processIncludes(content) {
     const included = readFile(filePath);
     if (included === null) {
       console.warn(`[WARN] Include not found: ${filename}.html`);
-      return `<!-- MISSING INCLUDE: ${filename} -->`;
+      return `<!-- MISSING: ${filename} -->`;
     }
     return included;
   });
 }
 
-// Generate env.js
-const envJsContent = `window.__SUPABASE_URL__ = ${JSON.stringify(envConfig.SUPABASE_URL || "")};
-window.__SUPABASE_ANON_KEY__ = ${JSON.stringify(envConfig.SUPABASE_ANON_KEY || "")};
-`;
-fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
-fs.writeFileSync(path.join(ROOT, "dist", "env.js"), envJsContent, "utf8");
-
-// Build index.html
-const indexPath = path.join(ROOT, "Index.html");
-const raw = readFile(indexPath);
-if (raw === null) {
-  console.error("Index.html not found");
-  process.exit(1);
+// Copy static assets
+const staticExts = [".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"];
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else if (staticExts.includes(path.extname(entry.name).toLowerCase())) {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
 }
 
-const built = processIncludes(raw);
-const outPath = path.join(ROOT, "dist", "index.html");
-fs.writeFileSync(outPath, built, "utf8");
-
-// Copy static assets
-["Client.html", "Styles.html"].forEach((f) => {
-  const src = path.join(ROOT, f);
-  if (fs.existsSync(src)) {
-    fs.copyFileSync(src, path.join(ROOT, "dist", f));
+// Process and copy HTML files
+function processHtml(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      processHtml(srcPath, destPath);
+    } else if (entry.name.endsWith(".html")) {
+      const raw = readFile(srcPath);
+      if (raw) {
+        const processed = processIncludes(raw);
+        fs.writeFileSync(destPath, processed, "utf8");
+        console.log(`  ${entry.name} -> dist/${entry.name}`);
+      }
+    }
   }
-});
+}
 
-console.log(`Built to ${outPath}`);
+console.log("Building for Vercel...");
+console.log("Processing HTML includes...");
+processHtml(ROOT, DIST);
+
+console.log("Copying static assets...");
+copyDir(ROOT, DIST);
+
+// Copy data files
+const dataDir = path.join(ROOT, "data");
+if (fs.existsSync(dataDir)) {
+  const distData = path.join(DIST, "data");
+  fs.mkdirSync(distData, { recursive: true });
+  for (const f of fs.readdirSync(dataDir)) {
+    fs.copyFileSync(path.join(dataDir, f), path.join(distData, f));
+  }
+}
+
+// Remove source HTML from dist (already processed)
+for (const f of fs.readdirSync(DIST)) {
+  if (f.endsWith(".html") && f !== "Index.html") {
+    // Keep only Index.html (the processed one)
+  }
+}
+
+console.log("Build complete. Output in dist/");

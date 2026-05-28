@@ -33,14 +33,9 @@ try {
   console.warn("[WARN] No .env file found. Supabase calls will fail.");
 }
 
-const fileCache = new Map();
-
 function readFile(filePath) {
-  if (fileCache.has(filePath)) return fileCache.get(filePath);
   try {
-    const content = fs.readFileSync(filePath, "utf8");
-    fileCache.set(filePath, content);
-    return content;
+    return fs.readFileSync(filePath, "utf8");
   } catch {
     return null;
   }
@@ -61,12 +56,66 @@ function processIncludes(content) {
 var ENV_JS_CONTENT = 'window.__SUPABASE_URL__=' + JSON.stringify(envConfig.SUPABASE_URL || '') + ';\n' +
   'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envConfig.SUPABASE_ANON_KEY || '') + ';\n';
 
+const STORY_SEED_DATA_FILE = path.join(ROOT, "data", "story_seed_engine.json");
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-cache, no-store, must-revalidate",
+  "Pragma": "no-cache",
+  "Expires": "0"
+};
+
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/Index.html";
   if (urlPath === "/env.js") {
-    res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
+    res.writeHead(200, Object.assign({ "Content-Type": "application/javascript; charset=utf-8" }, NO_CACHE_HEADERS));
     res.end(ENV_JS_CONTENT);
+    return;
+  }
+
+  if (urlPath.startsWith("/api/comfy/")) {
+    const comfyBase = (envConfig.COMFYUI_ENDPOINT || "http://127.0.0.1:8188").replace(/\/+$/, "");
+    const comfyPath = urlPath.replace("/api/comfy", "") || "/";
+    const comfyUrl = comfyBase + comfyPath + (req.url.includes("?") ? "?" + req.url.split("?")[1] : "");
+    const proxyReq = http.request(comfyUrl, {
+      method: req.method,
+      headers: Object.assign({}, req.headers, { host: new URL(comfyUrl).host })
+    }, function (proxyRes) {
+      const headers = Object.assign({}, proxyRes.headers, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, DELETE, PUT, OPTIONS, PATCH",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      });
+      res.writeHead(proxyRes.statusCode, headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on("error", function (err) {
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "ComfyUI proxy error: " + err.message }));
+    });
+    req.pipe(proxyReq);
+    return;
+  }
+
+  if (req.method === "OPTIONS" && req.headers.origin) {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, PUT, OPTIONS, PATCH",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    });
+    res.end();
+    return;
+  }
+
+  if (urlPath === "/api/story-seed-engine") {
+    try {
+      const data = fs.readFileSync(STORY_SEED_DATA_FILE, "utf8");
+      res.writeHead(200, Object.assign({ "Content-Type": "application/json; charset=utf-8" }, NO_CACHE_HEADERS));
+      res.end(data);
+    } catch {
+      res.writeHead(200, Object.assign({ "Content-Type": "application/json; charset=utf-8" }, NO_CACHE_HEADERS));
+      res.end(JSON.stringify({ ok: true, options: {}, engine: {}, sourceData: {}, rowCount: 0, warning: "data/story_seed_engine.json not found." }));
+    }
     return;
   }
 
@@ -80,7 +129,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (!fs.existsSync(filePath)) {
-    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.writeHead(404, Object.assign({ "Content-Type": "text/plain" }, NO_CACHE_HEADERS));
     res.end("Not found: " + urlPath);
     return;
   }
@@ -93,12 +142,12 @@ const server = http.createServer((req, res) => {
       return;
     }
     const processed = processIncludes(raw);
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.writeHead(200, Object.assign({ "Content-Type": "text/html; charset=utf-8" }, NO_CACHE_HEADERS));
     res.end(processed);
   } else {
     const mime = MIME[ext] || "application/octet-stream";
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { "Content-Type": mime });
+    res.writeHead(200, Object.assign({ "Content-Type": mime }, NO_CACHE_HEADERS));
     res.end(content);
   }
 });
