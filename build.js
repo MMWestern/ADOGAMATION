@@ -2,11 +2,11 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = __dirname;
-const DIST = path.join(ROOT, "dist");
+const DIST = path.join(ROOT, "build");
 
-// Clean dist (with retries for Windows long-path issues)
+// Clean build dir
 if (fs.existsSync(DIST)) {
-  fs.rmSync(DIST, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  fs.rmSync(DIST, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 }
 fs.mkdirSync(DIST, { recursive: true });
 
@@ -28,7 +28,7 @@ function processIncludes(content) {
 
 const HTML_FILES = ["Index.html", "Client.html", "Styles.html"];
 const STATIC_EXTS = new Set([".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"]);
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".env"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".env"]);
 
 console.log("Building for Vercel...");
 
@@ -41,7 +41,7 @@ for (const htmlFile of HTML_FILES) {
     const raw = readFile(srcPath);
     const processed = processIncludes(raw);
     fs.writeFileSync(destPath, processed, "utf8");
-    console.log(`  ${htmlFile} -> dist/${htmlFile}`);
+    console.log(`  ${htmlFile} -> build/${htmlFile}`);
   } else {
     console.warn(`[WARN] ${htmlFile} not found`);
   }
@@ -74,7 +74,7 @@ const envKey = process.env.SUPABASE_ANON_KEY || "";
 const envJs = 'window.__SUPABASE_URL__=' + JSON.stringify(envUrl) + ';\n' +
               'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envKey) + ';\n';
 fs.writeFileSync(path.join(DIST, "env.js"), envJs, "utf8");
-console.log(`  env.js -> dist/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"})`);
+console.log(`  env.js -> build/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"})`);
 
 // Copy data files
 const dataDir = path.join(ROOT, "data");
@@ -86,4 +86,4 @@ if (fs.existsSync(dataDir)) {
   }
 }
 
-console.log("Build complete. Output in dist/");
+console.log("Build complete. Output in build/");
