@@ -1,0 +1,2575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADOGMATION PRESS DASHBOARD</title>
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <h1>ADOGMATION PRESS DASHBOARD</h1>
+        <div class="muted">Stories · Actions · Dreams</div>
+      </div>
+      <div class="topbar-actions settings-menu-wrap">
+        <button id="resourceEditorSaveButton" type="button" class="primary" style="height:38px;font-size:12px;padding:4px 14px;display:none;">Save</button>
+        <svg id="resourceAutoSaveTimerCircle" class="auto-save-timer" width="28" height="28" viewBox="0 0 16 16" aria-hidden="true" style="display:none;">
+          <circle class="auto-save-timer-bg" cx="8" cy="8" r="6" fill="none" stroke-width="2" />
+          <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
+        </svg>
+        <span id="resourceUnsavedIndicator" class="markdown-unsaved-indicator" hidden title="Resource save status">&#9679;</span>
+        <svg id="topbarAutoSaveTimerCircle" class="auto-save-timer" width="28" height="28" viewBox="0 0 16 16" aria-hidden="true" hidden>
+          <circle class="auto-save-timer-bg" cx="8" cy="8" r="6" fill="none" stroke-width="2" />
+          <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
+        </svg>
+        <div class="settings-menu-wrap">
+          <button id="topbarAiMenuButton" class="settings-cog-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="topbarAiMenu" title="AI tools">AI</button>
+          <div id="topbarAiMenu" class="settings-menu" aria-hidden="true">
+            <button id="topbarAITestButton" class="settings-menu-item" type="button">AI Test</button>
+            <button id="topbarBookCreatorButton" class="settings-menu-item" type="button">Book Creator</button>
+            <button id="topbarStorySeedButton" class="settings-menu-item" type="button">Story Seed</button>
+          </div>
+        </div>
+        <button id="settingsMenuButton" class="settings-cog-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenuDropdown" title="Dashboard settings">⚙</button>
+        <div id="settingsMenuDropdown" class="settings-menu" aria-hidden="true">
+          <button id="newButton" class="settings-menu-item primary-action" type="button">New Project</button>
+          <button id="aiSettingsButton" class="settings-menu-item" type="button">AI Settings</button>
+          <button id="topThemeButton" class="settings-menu-item" type="button">Theme Settings</button>
+          <button id="topHelpButton" class="settings-menu-item" type="button">Help</button>
+          <button id="darkModeButton" class="settings-menu-item" type="button">Dark Mode</button>
+          <button id="scheduleTemplatesButton" class="settings-menu-item" type="button">Schedule Templates</button>
+          <button id="marketingTemplatesButton" class="settings-menu-item" type="button">Marketing Templates</button>
+          <button id="seriesAuditButton" class="settings-menu-item" type="button">Series Audit</button>
+          <button id="mainAutoSaveButton" class="settings-menu-item" type="button">Auto-save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="panel sidebar">
+        <div id="searchPanelContent">
+          <div class="section">
+            <label class="label" for="searchInput">Search</label>
+            <input id="searchInput" type="text" placeholder="Search title, series, pen name, genre..." />
+          </div>
+
+          <div class="section">
+            <label class="label" for="seriesFilter">Series</label>
+            <select id="seriesFilter"></select>
+          </div>
+
+          <div class="section">
+            <label class="label" for="penNameFilter">Pen Name</label>
+            <select id="penNameFilter"></select>
+          </div>
+
+          <div class="section">
+            <label class="label" for="genreFilter">Genre</label>
+            <select id="genreFilter"></select>
+          </div>
+
+          <div class="section">
+            <label class="label" for="formatFilter">Format</label>
+            <select id="formatFilter"></select>
+          </div>
+
+          <div class="section">
+            <label class="label" for="statusFilter">Status</label>
+            <select id="statusFilter"></select>
+          </div>
+
+          <div class="section">
+            <label class="label" for="priorityFilter">Priority</label>
+            <select id="priorityFilter"></select>
+          </div>
+
+          <div class="section">
+            <div class="label">Quick Views</div>
+            <div class="quick-actions">
+              <button data-quick-view="today">Today Focus</button>
+              <button data-quick-view="writing">Writing Now</button>
+              <button data-quick-view="high">High Priority</button>
+              <button id="clearFiltersButton">Clear Filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="resourceTreePanel" class="resource-tree-panel" hidden>
+          <div class="resource-tree-header">
+            <h3>Resources Library</h3>
+            <button id="resourceTreeAddButton" type="button" title="New Resource">+</button>
+          </div>
+          <div id="resourceTreeContainer" class="resource-tree-container">
+            <div class="landing-empty" style="padding:8px;">No resources yet.</div>
+          </div>
+        </div>
+
+        <div id="writingCodexPanel" class="writing-codex-panel" hidden>
+          <div class="writing-codex-top">
+            <div id="writingCodexInfoPanel" class="writing-codex-info-panel">
+              <img id="writingCodexInfoImage" class="writing-codex-info-image" alt="Project cover" />
+              <div class="writing-codex-info-copy">
+                <div class="writing-codex-info-title" id="writingCodexInfoTitle">Select a Project</div>
+                <div class="writing-codex-info-series" id="writingCodexInfoSeries">No series</div>
+                <div class="writing-codex-info-grid">
+                  <div class="writing-codex-info-label">Genre</div>
+                  <div class="writing-codex-info-value" id="writingCodexInfoGenre">—</div>
+                  <div class="writing-codex-info-label">Author</div>
+                  <div class="writing-codex-info-value" id="writingCodexInfoAuthor">—</div>
+                  <div class="writing-codex-info-label">Words</div>
+                  <div class="writing-codex-info-value" id="writingCodexInfoWords">0w</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="writing-sidebar-tabs">
+            <button id="writingSidebarTabChapters" type="button" class="writing-sidebar-tab is-active">&#128214; Chapters</button>
+            <button id="writingSidebarTabCodex" type="button" class="writing-sidebar-tab">&#128196; Codex</button>
+          </div>
+          <div id="writingCodexView" class="writing-sidebar-view">
+            <div class="writing-codex-search-row">
+              <input id="writingCodexSearchInput" type="text" placeholder="Search all entries..." />
+              <button id="writingCodexSearchClear" type="button" class="writing-codex-search-icon writing-codex-search-clear" aria-label="Clear" hidden>&#10005;</button>
+              <button type="button" class="writing-codex-search-icon" aria-label="Filter">&#8981;</button>
+              <button type="button" class="writing-codex-search-icon" aria-label="Settings">&#9881;</button>
+            </div>
+            <div class="writing-codex-filter-row">
+              <button id="writingCodexFilterAll" type="button" class="writing-codex-filter is-active" data-codex-filter="all">All</button>
+              <button id="writingCodexFilterCharacters" type="button" class="writing-codex-filter" data-codex-filter="characters">Characters</button>
+              <button id="writingCodexFilterLocations" type="button" class="writing-codex-filter" data-codex-filter="locations">Locations</button>
+              <button id="writingCodexFilterContinuity" type="button" class="writing-codex-filter" data-codex-filter="continuity">Continuity</button>
+              <button id="writingCodexFilterLore" type="button" class="writing-codex-filter" data-codex-filter="lore">Lore</button>
+            </div>
+            <div id="writingCodexList" class="writing-codex-list">
+              <div class="landing-empty" style="padding:10px 12px;color:#777884;background:transparent;border-color:#303038;">Select a series-based project to load codex entries.</div>
+            </div>
+          </div>
+          <div id="writingChaptersView" class="writing-sidebar-view" hidden>
+            <div class="writing-codex-chapter-header">
+              Chapters
+            </div>
+            <div class="writing-codex-search-row">
+              <input id="writingChapterSearchInput" type="text" placeholder="Search chapters..." />
+              <button id="writingChapterSearchClear" type="button" class="writing-codex-search-icon writing-codex-search-clear" aria-label="Clear" hidden>&#10005;</button>
+              <button type="button" class="writing-codex-search-icon" aria-label="Settings">&#9881;</button>
+            </div>
+            <div id="writingChapterList" class="writing-codex-list">
+              <div class="landing-empty" style="padding:10px 12px;color:#777884;background:transparent;border-color:#303038;">No chapter sections loaded yet.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="planInfoPanelSidebar" class="writing-codex-panel" hidden>
+          <div class="writing-codex-top">
+            <div id="planInfoPanel" class="writing-codex-info-panel">
+              <img id="planInfoImage" class="writing-codex-info-image" alt="Project cover" />
+              <div class="writing-codex-info-copy">
+                <div class="writing-codex-info-title" id="planInfoTitle">Select a Project</div>
+                <div class="writing-codex-info-series" id="planInfoSeries">No series</div>
+                <div class="writing-codex-info-grid">
+                  <div class="writing-codex-info-label">Genre</div>
+                  <div class="writing-codex-info-value" id="planInfoGenre">—</div>
+                  <div class="writing-codex-info-label">Author</div>
+                  <div class="writing-codex-info-value" id="planInfoAuthor">—</div>
+                  <div class="writing-codex-info-label">Words</div>
+                  <div class="writing-codex-info-value" id="planInfoWords">0w</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel">
+        <div class="main-tab-bar">
+          <button id="mainTabWriting" class="main-tab is-active" type="button" data-main-tab="writing">PROJECTS</button>
+          <button id="mainTabPlan" class="main-tab" type="button" data-main-tab="plan">PLAN</button>
+          <button id="mainTabWorkspace" class="main-tab" type="button" data-main-tab="workspace">WRITING</button>
+          <button id="mainTabSeriesKnowledge" class="main-tab" type="button" data-main-tab="seriesknowledge">KNOWLEDGE</button>
+          <button id="mainTabPublishing" class="main-tab" type="button" data-main-tab="publishing">PUBLISHING</button>
+          <button id="mainTabMarketing" class="main-tab" type="button" data-main-tab="marketing">MARKETING</button>
+          <button id="mainTabResources" class="main-tab" type="button" data-main-tab="resources">RESOURCES</button>
+        </div>
+
+        <div id="mainTabContentWriting" class="main-tab-content">
+          <div id="landingDashboard" class="landing-dashboard">
+          <section class="landing-hero">
+            <div class="landing-hero-copy">
+              <div class="tiny landing-kicker">Home</div>
+              <h2>Publishing Dashboard</h2>
+              <p class="muted">A quick view of what needs doing today, what is moving through the pipeline, and where each series is sitting right now.</p>
+            </div>
+            <div id="landingHeroStats" class="landing-hero-stats"></div>
+          </section>
+
+          <section class="landing-series-section">
+            <div class="landing-section-heading landing-series-heading">
+              <div class="landing-series-heading-copy">
+                <strong>Series Rolodex</strong>
+                <span class="tiny">Click a series card to filter the table</span>
+              </div>
+              <div id="landingSeriesAlpha" class="landing-series-alpha" aria-label="Series alphabet selector"></div>
+            </div>
+            <div id="landingSeriesDeck" class="landing-series-deck"></div>
+          </section>
+
+          <section class="landing-resource-grid">
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Selected Series Hub</strong>
+                <span class="tiny">All books in the selected series</span>
+              </div>
+              <div id="landingSelectedProject" class="landing-selected-project"></div>
+              <div id="landingResourceButtons" class="landing-resource-buttons"></div>
+            </div>
+
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Series Info Panel</strong>
+                <span class="tiny">Series summary and shared documents</span>
+              </div>
+              <div id="landingQuickAccess" class="landing-quick-access"></div>
+            </div>
+          </section>
+
+          <section class="landing-board">
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Today</strong>
+                <span class="tiny">Most urgent next steps</span>
+              </div>
+              <div id="landingTodayList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Writing Now</strong>
+                <span class="tiny">Drafts and active manuscripts</span>
+              </div>
+              <div id="landingWritingList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>In Development</strong>
+                <span class="tiny">Projects being shaped and prepared</span>
+              </div>
+              <div id="landingDevelopmentList" class="landing-task-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="projects-header">
+          <div>
+            <h2>Projects</h2>
+            <div class="muted" id="resultCount">0 visible results</div>
+          </div>
+          <div class="tiny">Click a row to edit</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>B#</th>
+                <th>Title</th>
+                <th>Series</th>
+                <th>Pen Name</th>
+                <th>Genre</th>
+                <th>Format</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Next Step</th>
+              </tr>
+            </thead>
+            <tbody id="projectsTableBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state" hidden>No projects match the current filters.</div>
+        </div>
+      </div>
+
+      <div id="mainTabContentWorkspace" class="main-tab-content" hidden>
+        <div class="writing-workspace-shell">
+          <div class="writing-workspace-topbar">
+            <div class="writing-workspace-title-block">
+              <div class="tiny">Writing Workspace</div>
+              <h2 id="writingWorkspaceTitle">Select a project to begin writing</h2>
+              <div id="writingWorkspaceMeta" class="muted">Choose a book in Projects mode, then switch back here.</div>
+            </div>
+            <div class="writing-workspace-controls">
+              <select id="writingWorkspaceScopeSelect" class="writing-workspace-scope"></select>
+              <div id="writingWorkspaceSaveState" class="writing-workspace-save-state is-idle">No draft loaded</div>
+              <button id="writingWorkspaceSaveButton" type="button" class="writing-workspace-ghost-button">Save</button>
+              <button id="writingWorkspaceFormatButton" type="button" class="writing-workspace-ghost-button">Format</button>
+              <button id="writingWorkspaceFocusButton" type="button" class="writing-workspace-ghost-button">Focus</button>
+              <button id="writingWorkspaceSpellcheckToggle" type="button" class="writing-workspace-ghost-button" aria-pressed="true">Spell: On</button>
+            </div>
+          </div>
+
+          <div id="writingWorkspaceFormatPanel" class="writing-workspace-format-panel" hidden>
+            <div class="writing-format-group">
+              <div class="tiny">Typography</div>
+              <div class="writing-format-row">
+                <select id="writingWorkspaceFontFamily">
+                  <option value="'Georgia', serif">Classic Serif</option>
+                  <option value="'Times New Roman', serif">Times</option>
+                  <option value="'Palatino Linotype', serif">Palatino</option>
+                </select>
+                <select id="writingWorkspaceFontSize">
+                  <option value="16">Small</option>
+                  <option value="18" selected>Medium</option>
+                  <option value="20">Large</option>
+                  <option value="22">XL</option>
+                </select>
+                <select id="writingWorkspaceLineHeight">
+                  <option value="1.5">Tight</option>
+                  <option value="1.75" selected>Comfortable</option>
+                  <option value="2">Spacious</option>
+                </select>
+              </div>
+            </div>
+            <div class="writing-format-group">
+              <div class="tiny">Formatting</div>
+              <div class="writing-format-row">
+                <button id="writingFormatBold" type="button">Bold</button>
+                <button id="writingFormatItalic" type="button">Italic</button>
+                <button id="writingFormatH1" type="button">H1</button>
+                <button id="writingFormatH2" type="button">H2</button>
+                <button id="writingFormatH3" type="button">H3</button>
+                <button id="writingFormatNormal" type="button">P</button>
+                <button id="writingFormatQuote" type="button">Quote</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="writing-workspace-editor-wrap">
+            <div id="writingWorkspaceEmpty" class="writing-workspace-empty">Select a project to load its manuscript view.</div>
+            <div id="writingWorkspaceChapterHeader" class="writing-workspace-chapter-header" hidden>
+              <span class="writing-workspace-chapter-number" id="writingWorkspaceChapterNumber">CHAPTER 1</span>
+              <span class="writing-workspace-chapter-sep">—</span>
+              <span class="writing-workspace-chapter-title" id="writingWorkspaceChapterTitle" contenteditable="true" spellcheck="false">Untitled</span>
+            </div>
+            <div id="writingWorkspaceEditor" class="writing-workspace-editor" contenteditable="true" spellcheck="true" lang="en-GB" autocomplete="on" autocorrect="on" autocapitalize="sentences"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mainTabContentPlan" class="main-tab-content" hidden>
+        <div class="plan-panel">
+          <div class="plan-sub-tabs" role="tablist" aria-label="Planning section">
+            <button id="planSubTabOutline" class="plan-sub-tab is-active" type="button" data-plan-tab="outline" aria-pressed="true">Outlines</button>
+            <button id="planSubTabCharacterArcs" class="plan-sub-tab" type="button" data-plan-tab="character-arcs" aria-pressed="false">Character Arcs</button>
+            <button id="planSubTabBrainstorm" class="plan-sub-tab" type="button" data-plan-tab="brainstorm" aria-pressed="false">Brainstorming</button>
+            <button id="planSubTabWorldBuild" class="plan-sub-tab" type="button" data-plan-tab="world-build" aria-pressed="false">World Building</button>
+          </div>
+
+          <div class="plan-tab-content-area">
+            <div id="planTabOutline" class="plan-tab-pane">
+              <div class="plan-empty-state" id="planOutlineEmpty">
+                <div class="plan-empty-icon">&#128196;</div>
+                <div class="plan-empty-title">No outline yet</div>
+                <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
+              </div>
+              <div id="planOutlineContent" class="plan-editor-area" hidden>
+                <div class="plan-editor-toolbar">
+                  <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
+                </div>
+                <div id="planOutlineGrid" class="plan-outline-grid"></div>
+              </div>
+            </div>
+
+            <div id="planTabCharacterArcs" class="plan-tab-pane" hidden>
+              <div class="plan-empty-state" id="planCharacterArcsEmpty">
+                <div class="plan-empty-icon">&#128101;</div>
+                <div class="plan-empty-title">Character arcs</div>
+                <div class="plan-empty-body">Track how each character changes across the story. Select a project to load its characters and define their arcs.</div>
+              </div>
+              <div id="planCharacterArcsContent" class="plan-editor-area" hidden>
+                <textarea id="planCharacterArcsEditor" class="plan-textarea" placeholder="Describe character arcs, motivations, and transformations..."></textarea>
+              </div>
+            </div>
+
+            <div id="planTabBrainstorm" class="plan-tab-pane" hidden>
+              <div class="plan-empty-state" id="planBrainstormEmpty">
+                <div class="plan-empty-icon">&#128161;</div>
+                <div class="plan-empty-title">Brainstorming board</div>
+                <div class="plan-empty-body">Jot ideas, what-if scenarios, and loose thoughts. Everything here is searchable and can be promoted into proper story elements.</div>
+              </div>
+              <div id="planBrainstormContent" class="plan-editor-area" hidden>
+                <textarea id="planBrainstormEditor" class="plan-textarea" placeholder="Drop ideas here..."></textarea>
+              </div>
+            </div>
+
+            <div id="planTabWorldBuild" class="plan-tab-pane" hidden>
+              <div class="plan-empty-state" id="planWorldBuildEmpty">
+                <div class="plan-empty-icon">&#127758;</div>
+                <div class="plan-empty-title">World building</div>
+                <div class="plan-empty-body">Map locations, cultures, histories, and systems. This feeds directly into the codex for reference while writing.</div>
+              </div>
+              <div id="planWorldBuildContent" class="plan-editor-area" hidden>
+                <textarea id="planWorldBuildEditor" class="plan-textarea" placeholder="Describe locations, cultures, magic systems, histories..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="planCodexTagModal" class="plan-codex-tag-modal" hidden>
+          <div class="plan-codex-tag-card">
+            <div class="plan-codex-tag-header">
+              <div>Tag Codex Entry</div>
+              <button type="button" class="plan-codex-tag-close" id="planCodexTagClose">&#10005;</button>
+            </div>
+            <div class="plan-codex-tag-filter">
+              <input type="text" id="planCodexTagSearch" placeholder="Search codex..." />
+            </div>
+            <div class="plan-codex-tag-list" id="planCodexTagList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mainTabContentSeriesknowledge" class="main-tab-content" hidden>
+        <div id="skMainPanel" class="series-knowledge-panel">
+          <div class="sk-main-header">
+            <div>
+              <div class="muted">Selected Series</div>
+              <div id="resourceSeriesKnowledgeSeriesName" class="resource-series-knowledge-title">No series selected</div>
+              <div id="resourceSeriesKnowledgeProjectName" class="tiny">Choose a project to edit its shared series knowledge.</div>
+            </div>
+            <button id="resourceSeriesKnowledgeSaveButton" type="button" class="primary" style="display:none;">Save Knowledge</button>
+          </div>
+
+          <div class="series-knowledge-sub-tabs" role="tablist" aria-label="Knowledge section">
+            <button id="skSubTabLore" class="series-knowledge-sub-tab is-active" type="button" data-sk-tab="lore" aria-pressed="true">Lore</button>
+            <button id="skSubTabCharacters" class="series-knowledge-sub-tab" type="button" data-sk-tab="characters" aria-pressed="false">Characters</button>
+            <button id="skSubTabLocations" class="series-knowledge-sub-tab" type="button" data-sk-tab="locations" aria-pressed="false">Locations</button>
+            <button id="skSubTabContinuity" class="series-knowledge-sub-tab" type="button" data-sk-tab="continuity" aria-pressed="false">Continuity</button>
+          </div>
+
+          <div class="sk-tab-content-area">
+            <div id="skTabLore" class="series-knowledge-tab-pane">
+              <label class="resource-series-knowledge-field" style="flex:1;min-height:0;">
+                <span>Lore And Rules</span>
+                <textarea id="resourceSeriesKnowledgeLore" placeholder="Magic systems, factions, history, tone rules, technology limits..." style="flex:1;min-height:80px;"></textarea>
+              </label>
+            </div>
+
+            <div id="skTabCharacters" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skCharacterAddButton" type="button">+ Add Character</button>
+              </div>
+              <div id="skCharacterList" class="world-entity-list"></div>
+            </div>
+
+            <div id="skTabLocations" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skLocationAddButton" type="button">+ Add Location</button>
+              </div>
+              <div id="skLocationList" class="world-entity-list"></div>
+            </div>
+
+            <div id="skTabContinuity" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skContinuityAddButton" type="button">+ Add Entry</button>
+              </div>
+              <div id="skContinuityList" class="world-entity-list"></div>
+            </div>
+
+            <div id="resourceSeriesKnowledgeStatus" class="status-bar">Series knowledge ready.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mainTabContentPublishing" class="main-tab-content" hidden>
+        <div class="publishing-dashboard">
+          <section class="landing-hero">
+            <div class="landing-hero-copy">
+              <div class="tiny landing-kicker">Publishing</div>
+              <h2>Publishing Tools</h2>
+              <p class="muted">Formatting checklists, submission trackers, ISBN management, and release planning.</p>
+            </div>
+            <div id="publishingHeroStats" class="landing-hero-stats"></div>
+          </section>
+
+          <section class="landing-board">
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Pending Releases</strong>
+                <span class="tiny">Books approaching publication</span>
+              </div>
+              <div id="publishingReleaseList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Formatting</strong>
+                <span class="tiny">Books needing formatting passes</span>
+              </div>
+              <div id="publishingFormatList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Submissions</strong>
+                <span class="tiny">Active submissions and responses</span>
+              </div>
+              <div id="publishingSubmissionList" class="landing-task-list"></div>
+            </div>
+          </section>
+
+          <section id="publishingTimeline" class="timeline-section">
+            <div class="landing-section-heading">
+              <strong>Publication Timeline</strong>
+              <span class="tiny">Milestones and marketing events across all projects</span>
+            </div>
+            <div class="timeline-filters">
+              <select id="timelineSeriesFilter"><option value="All">All Series</option></select>
+              <select id="timelineProjectFilter"><option value="All">All Projects</option></select>
+              <label class="timeline-ghost-toggle" title="Show non-matching events faded">
+                <input type="checkbox" id="timelineGhostToggle" />
+                <span class="timeline-ghost-slider">Ghost</span>
+              </label>
+            </div>
+            <div class="timeline-card-list"></div>
+          </section>
+
+          <section class="landing-resource-grid">
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Release Checklist</strong>
+                <span class="tiny">Pre-publication tasks per project</span>
+              </div>
+              <div id="publishingChecklist" class="publishing-checklist">
+                <div class="landing-empty">Select a completed project to view its release checklist.</div>
+              </div>
+            </div>
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Quick Links</strong>
+                <span class="tiny">Publishing resources and services</span>
+              </div>
+              <div id="publishingQuickLinks" class="landing-quick-access"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="mainTabContentMarketing" class="main-tab-content" hidden>
+        <div class="marketing-dashboard">
+          <section class="landing-hero">
+            <div class="landing-hero-copy">
+              <div class="tiny landing-kicker">Marketing</div>
+              <h2>Marketing Hub</h2>
+              <p class="muted">Social media planning, promotional assets, review outreach, and campaign tracking.</p>
+            </div>
+            <div id="marketingHeroStats" class="landing-hero-stats"></div>
+          </section>
+
+          <section class="landing-board">
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Active Campaigns</strong>
+                <span class="tiny">Ongoing promotions and launches</span>
+              </div>
+              <div id="marketingCampaignList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Assets Needed</strong>
+                <span class="tiny">Covers, blurbs, and promotional copy</span>
+              </div>
+              <div id="marketingAssetsList" class="landing-task-list"></div>
+            </div>
+            <div class="landing-board-column">
+              <div class="landing-section-heading">
+                <strong>Review Outreach</strong>
+                <span class="tiny">ARC reviews and blogger contacts</span>
+              </div>
+              <div id="marketingReviewList" class="landing-task-list"></div>
+            </div>
+          </section>
+
+          <section id="marketingTimeline" class="timeline-section">
+            <div class="landing-section-heading">
+              <strong>Marketing Timeline</strong>
+              <span class="tiny">Campaigns, launches, and promotional events</span>
+            </div>
+            <div class="timeline-filters">
+              <select id="marketingTimelineSeriesFilter"><option value="All">All Series</option></select>
+              <select id="marketingTimelineProjectFilter"><option value="All">All Projects</option></select>
+              <label class="timeline-ghost-toggle" title="Show non-matching events faded">
+                <input type="checkbox" id="marketingTimelineGhostToggle" />
+                <span class="timeline-ghost-slider">Ghost</span>
+              </label>
+            </div>
+            <div class="timeline-card-list"></div>
+          </section>
+
+          <section class="landing-resource-grid">
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Marketing Calendar</strong>
+                <span class="tiny">Upcoming marketing activities</span>
+              </div>
+              <div id="marketingCalendar" class="publishing-checklist">
+                <div class="landing-empty">No marketing activities planned yet.</div>
+              </div>
+            </div>
+            <div class="landing-resource-panel">
+              <div class="landing-section-heading">
+                <strong>Quick Links</strong>
+                <span class="tiny">Marketing resources and services</span>
+              </div>
+              <div id="marketingQuickLinks" class="landing-quick-access"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="mainTabContentResources" class="main-tab-content" hidden>
+        <div class="resource-editor-panel">
+          <div id="resourceEditorEmpty" class="resource-editor-empty"></div>
+          <div id="resourceEditorContent" class="resource-editor-content" hidden>
+            <div id="resourceEditorLoadingIndicator" class="resource-editor-loading-indicator" hidden aria-hidden="true">
+              <div class="resource-editor-loading-spinner"></div>
+              <div class="resource-editor-loading-label">Loading resource...</div>
+            </div>
+            <div class="resource-editor-hero landing-hero-copy">
+              <input id="resourceEditorTitle" type="text" placeholder="Resource title" class="resource-editor-title-input" />
+              <div class="resource-editor-meta-row">
+                <input id="resourceEditorCategory" type="text" list="resourceCategoryList" placeholder="Category (optional)" class="resource-editor-category-input" />
+                <datalist id="resourceCategoryList"></datalist>
+                <span id="resourceEditorWordCount" class="tiny">0 words</span>
+                <span id="resourceEditorStatus" class="tiny" style="color:var(--text-muted);"></span>
+                <button id="resourceEditorPreviewToggle" type="button" class="resource-editor-preview-toggle" aria-pressed="false">Preview</button>
+              </div>
+            </div>
+            <div class="resource-workspace">
+              <section id="resourceEditorPane" class="resource-pane">
+                <div class="resource-editor-section-heading">
+                  <strong>Markdown</strong>
+                  <span class="tiny">Write or paste markdown-formatted text</span>
+                </div>
+                <div class="resource-pane-grid">
+                  <div class="resource-heading-panel">
+                    <div class="resource-heading-panel-header">
+                      <strong>Headings</strong>
+                      <span class="tiny">Source</span>
+                    </div>
+                    <div id="resourceSourceHeadingList" class="resource-heading-list"></div>
+                  </div>
+                  <div class="resource-editor-body">
+                    <textarea id="resourceEditorTextarea" placeholder="Write your markdown content here..."></textarea>
+                  </div>
+                </div>
+              </section>
+
+              <section id="resourcePreviewPane" class="resource-pane" hidden>
+                <div class="resource-editor-section-heading">
+                  <strong>Preview</strong>
+                  <span class="tiny">Rendered markdown output</span>
+                </div>
+                <div class="resource-pane-grid">
+                  <div class="resource-heading-panel">
+                    <div class="resource-heading-panel-header">
+                      <strong>Headings</strong>
+                      <span class="tiny">Preview</span>
+                    </div>
+                    <div id="resourcePreviewHeadingList" class="resource-heading-list"></div>
+                  </div>
+                  <div id="resourceEditorPreview" class="resource-editor-preview markdown-ai-test-output ok"></div>
+                </div>
+              </section>
+            </div>
+            <div class="resource-status-bar-row">
+              <div id="resourceStatusBar" class="status-bar">Resources ready.</div>
+              <button id="resourceOpenErrorLogButton" type="button" class="status-log-button">Full Log</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+      <section class="panel details">
+        <div id="resourceInspectorPanel" class="resource-inspector-panel" hidden>
+          <div class="resource-inspector-header">
+            <div>
+              <div class="muted">Resources Tools</div>
+              <h3>Dropdown Options</h3>
+            </div>
+            <div class="tiny">Shared dropdown values for project fields</div>
+          </div>
+
+          <div id="resourceInspectorOptionsPane" class="resource-inspector-pane">
+            <div class="resource-inspector-toolbar">
+              <div class="resource-inspector-filter-group">
+                <label class="label" for="resourceInspectorTypeFilter">Filter</label>
+                <select id="resourceInspectorTypeFilter">
+                  <option value="all">All Types</option>
+                </select>
+              </div>
+              <div id="resourceInspectorCount" class="tiny resource-inspector-count">0 options</div>
+              <button id="resourceInspectorAddRowButton" type="button">Add Row</button>
+              <button id="resourceInspectorSeedButton" type="button">Seed From Projects</button>
+              <button id="resourceInspectorSaveButton" type="button" class="primary">Save Options</button>
+            </div>
+
+            <div class="resource-inspector-table-wrap">
+              <table class="resource-inspector-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Remove</th>
+                  </tr>
+                </thead>
+                <tbody id="resourceInspectorTableBody"></tbody>
+              </table>
+            </div>
+
+            <div id="resourceInspectorStatus" class="status-bar">Inspector options ready.</div>
+          </div>
+
+        </div>
+
+        <div id="seriesKnowledgeFormsPanel" class="resource-inspector-panel" hidden>
+          <div id="skCharacterForm" class="world-entity-form" hidden>
+            <input id="skCharacterId" type="hidden" value="0" />
+            <div class="details-header">
+              <div class="details-media">
+                <div class="sk-entity-image-wrap">
+                  <img id="skCharacterImage" class="sk-entity-image" src="" alt="" style="display:none;" />
+                  <div id="skCharacterImagePlaceholder" class="sk-entity-image-placeholder">&#128100;</div>
+                </div>
+              </div>
+              <div class="details-header-form" style="gap:4px;">
+                <div class="muted" id="skCharacterTypeLabel">Character</div>
+                <div class="sk-entity-title" id="skCharacterNameDisplay">New Character</div>
+                <div id="skCharacterRoleBadge" class="sk-entity-role-badge" style="display:none;"></div>
+                <div>
+                  <label class="label" for="skCharacterImageUrl">Image URL</label>
+                  <input id="skCharacterImageUrl" type="text" placeholder="https://..." />
+                </div>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skCharacterName">Name</label>
+                <input id="skCharacterName" type="text" placeholder="Character name" />
+              </div>
+              <div style="flex:1;">
+                <label class="label" for="skCharacterRole">Role</label>
+                <select id="skCharacterRole">
+                  <option value="">Select role...</option>
+                  <option value="Protagonist">Protagonist</option>
+                  <option value="Antagonist">Antagonist</option>
+                  <option value="Deuteragonist">Deuteragonist</option>
+                  <option value="Mentor">Mentor</option>
+                  <option value="Love Interest">Love Interest</option>
+                  <option value="Sidekick">Sidekick</option>
+                  <option value="Villain">Villain</option>
+                  <option value="Foil">Foil</option>
+                  <option value="Confidant">Confidant</option>
+                  <option value="Comic Relief">Comic Relief</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skCharacterArchetype">Archetype</label>
+                <input id="skCharacterArchetype" type="text" placeholder="e.g. The Hero, The Mentor, The Shadow" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="skCharacterDescription">Description</label>
+              <textarea id="skCharacterDescription" placeholder="Physical appearance, personality notes"></textarea>
+            </div>
+            <div>
+              <label class="label" for="skCharacterMotivation">Motivation / Arc</label>
+              <textarea id="skCharacterMotivation" placeholder="Character arc, goals, internal conflict"></textarea>
+            </div>
+            <div>
+              <label class="label" for="skCharacterBackstory">Backstory / History</label>
+              <textarea id="skCharacterBackstory" placeholder="Pre-story context and timeline notes"></textarea>
+            </div>
+            <div>
+              <label class="label">Appears In Books</label>
+              <div id="skCharacterBookLinks" class="compact-checkbox-grid"></div>
+            </div>
+            <div>
+              <label class="label">Relationships</label>
+              <div id="skCharacterRelationships" class="entity-picker-row"></div>
+              <div id="skCharacterRelationshipForm" style="display:flex;gap:4px;margin-top:4px;">
+                <select id="skCharacterRelOther" style="flex:1;font-size:11px;padding:4px 6px;">
+                  <option value="">Select character...</option>
+                </select>
+                <select id="skCharacterRelType" style="flex:1;font-size:11px;padding:4px 6px;">
+                  <option value="">Type...</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Ally">Ally</option>
+                  <option value="Rival">Rival</option>
+                  <option value="Enemy">Enemy</option>
+                  <option value="Mentor">Mentor</option>
+                  <option value="Student">Student</option>
+                  <option value="Lover">Lover</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Family">Family</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Child">Child</option>
+                  <option value="Partner">Partner</option>
+                  <option value="Subordinate">Subordinate</option>
+                  <option value="Superior">Superior</option>
+                  <option value="Other">Other</option>
+                </select>
+                <button id="skCharacterRelAddButton" type="button" style="font-size:10px;padding:4px 8px;">Add</button>
+              </div>
+            </div>
+            <div class="world-entity-form-actions">
+              <button id="skCharacterFormCancelButton" type="button">Cancel</button>
+              <button id="skCharacterFormDeleteButton" type="button" style="color:#991b1b;">Delete</button>
+              <button id="skCharacterFormSaveButton" type="button" class="primary">Save Character</button>
+            </div>
+          </div>
+
+          <div id="skLocationForm" class="world-entity-form" hidden>
+            <input id="skLocationId" type="hidden" value="0" />
+            <div class="details-header">
+              <div class="details-media">
+                <div class="sk-entity-image-wrap">
+                  <img id="skLocationImage" class="sk-entity-image" src="" alt="" style="display:none;" />
+                  <div id="skLocationImagePlaceholder" class="sk-entity-image-placeholder">&#127758;</div>
+                </div>
+              </div>
+              <div class="details-header-form" style="gap:4px;">
+                <div class="muted" id="skLocationTypeLabel">Location</div>
+                <div class="sk-entity-title" id="skLocationNameDisplay">New Location</div>
+                <div id="skLocationTypeBadge" class="sk-entity-role-badge" style="display:none;"></div>
+                <div>
+                  <label class="label" for="skLocationImageUrl">Image URL</label>
+                  <input id="skLocationImageUrl" type="text" placeholder="https://..." />
+                </div>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skLocationName">Name</label>
+                <input id="skLocationName" type="text" placeholder="Location name" />
+              </div>
+              <div style="flex:1;">
+                <label class="label" for="skLocationType">Type</label>
+                <input id="skLocationType" type="text" placeholder="City, forest, building, planet..." />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="skLocationDescription">Description</label>
+              <textarea id="skLocationDescription" placeholder="Atmosphere, geography, key features"></textarea>
+            </div>
+            <div>
+              <label class="label" for="skLocationSignificance">Significance</label>
+              <textarea id="skLocationSignificance" placeholder="Why this location matters to the series"></textarea>
+            </div>
+            <div>
+              <label class="label" for="skLocationEvents">Notable Events</label>
+              <textarea id="skLocationEvents" placeholder="Key story events that happened here"></textarea>
+            </div>
+            <div>
+              <label class="label">Appears In Books</label>
+              <div id="skLocationBookLinks" class="compact-checkbox-grid"></div>
+            </div>
+            <div class="world-entity-form-actions">
+              <button id="skLocationFormCancelButton" type="button">Cancel</button>
+              <button id="skLocationFormDeleteButton" type="button" style="color:#991b1b;">Delete</button>
+              <button id="skLocationFormSaveButton" type="button" class="primary">Save Location</button>
+            </div>
+          </div>
+
+          <div id="skContinuityForm" class="world-entity-form" hidden>
+            <input id="skContinuityId" type="hidden" value="0" />
+            <div class="details-header">
+              <div class="details-media">
+                <div class="sk-entity-image-wrap">
+                  <img id="skContinuityImage" class="sk-entity-image" src="" alt="" style="display:none;" />
+                  <div id="skContinuityImagePlaceholder" class="sk-entity-image-placeholder">&#128203;</div>
+                </div>
+              </div>
+              <div class="details-header-form" style="gap:4px;">
+                <div class="muted" id="skContinuityTypeLabel">Continuity Entry</div>
+                <div class="sk-entity-title" id="skContinuityTitleDisplay">New Entry</div>
+                <div id="skContinuitySeverityBadge" class="sk-entity-role-badge" style="display:none;"></div>
+                <div>
+                  <label class="label" for="skContinuityImageUrl">Image URL</label>
+                  <input id="skContinuityImageUrl" type="text" placeholder="https://..." />
+                </div>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skContinuityTitle">Title</label>
+                <input id="skContinuityTitle" type="text" placeholder="Brief title for this watchout" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="skContinuityDescription">Description</label>
+              <textarea id="skContinuityDescription" placeholder="What needs to stay consistent, what is at risk of breaking..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;">
+                <label class="label" for="skContinuitySeverity">Severity</label>
+                <select id="skContinuitySeverity">
+                  <option value="minor">Minor</option>
+                  <option value="major">Major</option>
+                  <option value="plot_hole">Plot Hole</option>
+                </select>
+              </div>
+              <div style="flex:1;display:flex;align-items:end;padding-bottom:4px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                  <input id="skContinuityResolved" type="checkbox" style="width:15px;height:15px;accent-color:#6366f1;" />
+                  Resolved
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="label">Linked Characters</label>
+              <div id="skContinuityCharPicks" class="entity-picker-row"></div>
+              <select id="skContinuityCharAdd" style="font-size:11px;padding:4px 6px;margin-top:4px;">
+                <option value="">Link a character...</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Linked Locations</label>
+              <div id="skContinuityLocPicks" class="entity-picker-row"></div>
+              <select id="skContinuityLocAdd" style="font-size:11px;padding:4px 6px;margin-top:4px;">
+                <option value="">Link a location...</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Affected Books</label>
+              <div id="skContinuityProjectPicks" class="entity-picker-row"></div>
+              <select id="skContinuityProjectAdd" style="font-size:11px;padding:4px 6px;margin-top:4px;">
+                <option value="">Link a book...</option>
+              </select>
+            </div>
+            <div class="world-entity-form-actions">
+              <button id="skContinuityFormCancelButton" type="button">Cancel</button>
+              <button id="skContinuityFormDeleteButton" type="button" style="color:#991b1b;">Delete</button>
+              <button id="skContinuityFormSaveButton" type="button" class="primary">Save Entry</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="writingInspectorPanel" class="resource-inspector-panel" hidden>
+          <div class="resource-inspector-header">
+            <div>
+              <div class="muted">Writing Inspector</div>
+              <h3 id="writingInspectorHeading">Chapter / Outline</h3>
+            </div>
+            <div class="tiny" id="writingInspectorMeta">No manuscript loaded</div>
+          </div>
+
+          <div class="writing-inspector-card">
+            <div class="tiny writing-inspector-label">Current Scope</div>
+            <div id="writingInspectorScopeTitle" class="writing-inspector-title">Everything</div>
+            <div id="writingInspectorScopeNote" class="writing-inspector-copy">Load a manuscript and choose a chapter or act from the dropdown.</div>
+          </div>
+
+          <div class="writing-inspector-card">
+            <div class="tiny writing-inspector-label">Outline Notes</div>
+            <div id="writingInspectorOutline" class="writing-inspector-copy">Chapter and outline details will appear here as you move through the manuscript.</div>
+          </div>
+
+          <div class="writing-inspector-card">
+            <div class="tiny writing-inspector-label">Selected Codex Entry</div>
+            <div id="writingInspectorCodexTitle" class="writing-inspector-title">Nothing selected</div>
+            <div id="writingInspectorCodexBody" class="writing-inspector-copy">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
+          </div>
+        </div>
+
+        <div id="projectInspectorPanel">
+        <div class="muted">Selected Project</div>
+
+        <div class="details-header" style="margin-top:8px;">
+          <div class="details-media">
+            <div class="detail-image-mode-switch" role="tablist" aria-label="Project image view">
+              <button id="detailImageModeProject" class="detail-image-mode-button is-active" type="button" data-image-mode="project" aria-pressed="true">Project</button>
+              <button id="detailImageModeSeries" class="detail-image-mode-button" type="button" data-image-mode="series" aria-pressed="false">Series</button>
+            </div>
+            <div id="detailSeriesImageWrap" class="detail-series-image-wrap clickable-image" hidden>
+              <img id="detailSeriesImage" class="detail-series-image" alt="Series image preview" />
+            </div>
+            <div id="detailImageWrap" class="detail-image-wrap clickable-image">
+              <img id="detailImage" class="detail-image" alt="Project image preview" />
+            </div>
+            <div>
+              <div class="label">Live Status</div>
+              <div id="detailPills" class="pill-row"></div>
+            </div>
+          </div>
+
+          <div class="details-header-form">
+            <div>
+              <label class="label" for="detailTitleInput">Title</label>
+              <input id="detailTitleInput" type="text" />
+            </div>
+
+            <div>
+              <div class="label-row">
+                <label class="label" for="detailSeries">Series</label>
+                <button id="detailSeriesBrowseButton" class="detail-inline-button" type="button">View Series</button>
+              </div>
+              <input id="detailSeries" type="text" list="detailSeriesList" placeholder="Type existing or new series" />
+              <datalist id="detailSeriesList"></datalist>
+            </div>
+
+            <div class="compact-row">
+              <div>
+                <label class="label" for="detailBookNumber">B#</label>
+                <input id="detailBookNumber" type="number" min="0" step="1" />
+              </div>
+              <div>
+                <label class="label" for="detailPenName">Pen Name</label>
+                <select id="detailPenName"></select>
+              </div>
+            </div>
+
+            <div class="compact-row compact-row-small">
+              <div>
+                <label class="label" for="detailGenre">Genre</label>
+                <select id="detailGenre"></select>
+              </div>
+              <div>
+                <label class="label" for="detailFormat">Format</label>
+                <select id="detailFormat"></select>
+              </div>
+            </div>
+
+            <div class="compact-row compact-row-small">
+              <div>
+                <label class="label" for="detailStatus">Status</label>
+                <select id="detailStatus"></select>
+              </div>
+              <div>
+                <label class="label" for="detailPriority">Priority</label>
+                <select id="detailPriority"></select>
+              </div>
+            </div>
+
+            <div>
+              <label class="label" for="detailNextStep">Next Step</label>
+              <select id="detailNextStep"></select>
+            </div>
+
+            <div class="compact-row">
+              <div>
+                <label class="label" for="detailPublishDate">Publish Date</label>
+                <input id="detailPublishDate" type="date" />
+              </div>
+              <div>
+                <label class="label" for="detailScheduleTemplate">Schedule</label>
+                <select id="detailScheduleTemplate"></select>
+              </div>
+              <div>
+                <label class="label" for="detailMarketingTemplate">Marketing Plan</label>
+                <select id="detailMarketingTemplate"><option value="">— None —</option></select>
+              </div>
+            </div>
+
+            <div>
+              <div class="label-row">
+                <label class="label">Campaigns</label>
+                <button id="addCampaignButton" class="detail-inline-button" type="button">+ Add</button>
+                <button id="viewCampaignTasksButton" class="detail-inline-button" type="button" style="margin-left:4px;">View Tasks</button>
+              </div>
+              <div id="campaignList" class="campaign-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="muted">Archive tools & links</div>
+            <div id="linkHealthPills" class="link-health-row"></div>
+          </div>
+          <button id="toggleLinksButton" class="toggle-button" type="button">Show Archive Tools</button>
+        </div>
+
+        <div id="linksPanel" class="collapsible">
+          <div class="details-grid" style="margin-top:0;">
+            <button class="links-section-heading" type="button" data-link-section="main">Legacy</button>
+
+            <div>
+              <label class="label" for="detailWorkspaceUrl">Google Workspace Archive Link (Optional)</label>
+              <input id="detailWorkspaceUrl" type="url" placeholder="Optional old workspace folder link" />
+            </div>
+
+            <div class="tiny legacy-links-note">
+              Writing and series documents now live in Supabase. These archive tools are only here for older Google Drive and Google Docs material you still want to keep around.
+            </div>
+
+            <div class="legacy-workspace-actions">
+              <button id="workspaceButton">Create Google Archive Workspace</button>
+              <button id="openWorkspaceButton">Open Google Archive Workspace</button>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailOutlineUrl">Outline Legacy Link (Optional)</label>
+                <input id="detailOutlineUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailOutlineUrl" data-doc-key="outline_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailOutlineTemplateUrl">Outline Template Legacy Link (Optional)</label>
+                <input id="detailOutlineTemplateUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailOutlineTemplateUrl" data-doc-key="outline_template_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailBrainstormUrl">Brainstorm Legacy Link (Optional)</label>
+                <input id="detailBrainstormUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailBrainstormUrl" data-doc-key="brainstorm_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailCharactersUrl">Characters Legacy Link (Optional)</label>
+                <input id="detailCharactersUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailCharactersUrl" data-doc-key="characters_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailWorldBuildUrl">World Build Legacy Link (Optional)</label>
+                <input id="detailWorldBuildUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailWorldBuildUrl" data-doc-key="world_build_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailConceptUrl">Concept Legacy Link (Optional)</label>
+                <input id="detailConceptUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailConceptUrl" data-doc-key="concept_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailNotesUrl">Notes Legacy Link (Optional)</label>
+                <input id="detailNotesUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailNotesUrl" data-doc-key="notes_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <button class="links-section-heading" type="button" data-link-section="images">Images</button>
+
+            <div class="image-link-row">
+              <div>
+                <label id="detailImageUrlLabel" class="label" for="detailImageUrl">Project Image URL</label>
+                <input id="detailImageUrl" type="url" />
+              </div>
+              <div class="image-link-actions">
+                <button id="selectDriveImageButton" type="button">Select Image</button>
+                <button id="uploadLocalImageButton" type="button">Upload Image</button>
+                <input id="localImageFileInput" class="image-picker-hidden-input" type="file" accept="image/*" />
+              </div>
+            </div>
+
+            <button class="links-section-heading" type="button" data-link-section="edit">Edit</button>
+
+            <div class="doc-link-row">
+              <div>
+                <label class="label" for="detailDraftUrl">Draft Legacy Link (Optional)</label>
+                <input id="detailDraftUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailDraftUrl" data-doc-key="draft_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row" hidden>
+              <div>
+                <label class="label" for="detailDevEditUrl">Development Edit Legacy Link (Optional)</label>
+                <input id="detailDevEditUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailDevEditUrl" data-doc-key="dev_edit_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row" hidden>
+              <div>
+                <label class="label" for="detailLineEditUrl">Line Edit Legacy Link (Optional)</label>
+                <input id="detailLineEditUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailLineEditUrl" data-doc-key="line_edit_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="doc-link-row" hidden>
+              <div>
+                <label class="label" for="detailCopyEditUrl">Copy Edit Legacy Link (Optional)</label>
+                <input id="detailCopyEditUrl" type="url" placeholder="Optional old Google Doc link" />
+              </div>
+              <div class="doc-link-actions">
+                <button class="doc-change-button" type="button" data-link-input="detailCopyEditUrl" data-doc-key="copy_edit_doc_url">Legacy Link</button>
+              </div>
+            </div>
+
+            <div class="series-owned-panel">
+              <div class="series-owned-panel-header">
+                <div>
+                  <div class="series-owned-panel-title">Shared Series Assets</div>
+                  <div class="series-owned-panel-copy">These fields belong to the series and save separately from the project form.</div>
+                </div>
+                <button id="detailEditSeriesSummaryButton" class="doc-open-button" type="button">Edit Series Summary</button>
+              </div>
+
+              <div id="detailSeriesSummaryPreview" class="series-owned-summary-preview">No series summary has been written yet.</div>
+
+              <div class="series-owned-row">
+                <div>
+                  <label class="label" for="detailSeriesImageUrl">Series Image URL</label>
+                  <input id="detailSeriesImageUrl" type="url" />
+                </div>
+                <div class="series-owned-actions">
+                  <button id="detailSelectSeriesImageButton" type="button">Select Image</button>
+                  <button id="detailSaveSeriesImageButton" class="doc-create-button" type="button">Save Image</button>
+                </div>
+              </div>
+
+              <div class="series-owned-note">Shared series documents are Supabase-backed in this build. Legacy links are optional archive references and save separately.</div>
+
+              <div class="doc-link-row">
+                <div>
+                  <label class="label" for="detailSeriesOutlineUrl">Series Outline Legacy Link (Optional)</label>
+                  <input id="detailSeriesOutlineUrl" type="url" placeholder="Optional old Google Doc link" />
+                </div>
+                <div class="doc-link-actions">
+                  <button class="series-link-save-button" type="button" data-link-input="detailSeriesOutlineUrl" data-doc-key="series_outline_doc_url">Save Link</button>
+                </div>
+              </div>
+
+              <div class="doc-link-row">
+                <div>
+                  <label class="label" for="detailSeriesBrainstormUrl">Series Brainstorm Legacy Link (Optional)</label>
+                  <input id="detailSeriesBrainstormUrl" type="url" placeholder="Optional old Google Doc link" />
+                </div>
+                <div class="doc-link-actions">
+                  <button class="series-link-save-button" type="button" data-link-input="detailSeriesBrainstormUrl" data-doc-key="series_brainstorm_doc_url">Save Link</button>
+                </div>
+              </div>
+
+              <div class="doc-link-row">
+                <div>
+                  <label class="label" for="detailSeriesCharactersUrl">Series Characters Legacy Link (Optional)</label>
+                  <input id="detailSeriesCharactersUrl" type="url" placeholder="Optional old Google Doc link" />
+                </div>
+                <div class="doc-link-actions">
+                  <button class="series-link-save-button" type="button" data-link-input="detailSeriesCharactersUrl" data-doc-key="series_characters_doc_url">Save Link</button>
+                </div>
+              </div>
+
+              <div class="doc-link-row">
+                <div>
+                  <label class="label" for="detailSeriesWorldBuildUrl">Series World Build Legacy Link (Optional)</label>
+                  <input id="detailSeriesWorldBuildUrl" type="url" placeholder="Optional old Google Doc link" />
+                </div>
+                <div class="doc-link-actions">
+                  <button class="series-link-save-button" type="button" data-link-input="detailSeriesWorldBuildUrl" data-doc-key="series_world_build_doc_url">Save Link</button>
+                </div>
+              </div>
+
+              <div class="doc-link-row">
+                <div>
+                  <label class="label" for="detailSeriesNotesUrl">Series Notes Legacy Link (Optional)</label>
+                  <input id="detailSeriesNotesUrl" type="url" placeholder="Optional old Google Doc link" />
+                </div>
+                <div class="doc-link-actions">
+                  <button class="series-link-save-button" type="button" data-link-input="detailSeriesNotesUrl" data-doc-key="series_notes_doc_url">Save Link</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div>
+            <div class="markdown-field-header">
+              <label class="label" for="detailSummary">Summary</label>
+            </div>
+            <textarea id="detailSummary"></textarea>
+          </div>
+
+          <div class="toolbar-row trio">
+            <button id="saveButton" class="primary">Save Now</button>
+            <button id="openImageButton">Open Image</button>
+          </div>
+        </div>
+
+        <div class="status-bar-row">
+          <div id="statusBar" class="status-bar">Booting...</div>
+          <button id="openErrorLogButton" type="button" class="status-log-button">Full Log</button>
+        </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="writingCodexModal" class="modal writing-codex-modal" aria-hidden="true">
+    <div class="modal-card writing-codex-modal-card">
+      <div class="modal-body writing-codex-modal-body">
+        <div class="writing-codex-modal-kicker"><span class="writing-codex-modal-kicker-icon">&#9673;</span><span id="writingCodexModalType">Codex Entry</span></div>
+        <div class="writing-codex-modal-hero">
+          <div class="writing-codex-modal-hero-copy">
+            <input id="writingCodexModalTitle" class="writing-codex-modal-title-input" type="text" placeholder="Entry title" />
+            <div id="writingCodexModalBadgeWrap" class="writing-codex-modal-badge-wrap">
+              <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
+              <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select" hidden></select>
+              <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
+                <option value="minor">minor</option>
+                <option value="moderate">moderate</option>
+                <option value="major">major</option>
+                <option value="critical">critical</option>
+              </select>
+            </div>
+          </div>
+          <div class="writing-codex-modal-avatar-shell">
+            <img id="writingCodexModalImage" class="writing-codex-modal-image" alt="" />
+            <div id="writingCodexModalAvatarFallback" class="writing-codex-modal-avatar-fallback">CE</div>
+          </div>
+        </div>
+        <div class="writing-codex-modal-tabs">
+          <button id="writingCodexTabDetails" type="button" class="writing-codex-modal-tab is-active">Details</button>
+          <button type="button" class="writing-codex-modal-tab" disabled>Research</button>
+          <button id="writingCodexTabRelations" type="button" class="writing-codex-modal-tab" hidden>Relations</button>
+          <button type="button" class="writing-codex-modal-tab" disabled>Mentions</button>
+          <button type="button" class="writing-codex-modal-tab" disabled>Tracking</button>
+        </div>
+        <div id="writingCodexModalStatus" class="writing-codex-modal-status muted">Loading entry...</div>
+        <div id="writingCodexModalForm" class="writing-codex-modal-form">
+          <div id="writingCodexModalPrimaryGroup" class="writing-codex-modal-group">
+            <label id="writingCodexModalPrimaryLabel" class="label" for="writingCodexModalPrimary">Description</label>
+            <div id="writingCodexModalPrimaryHelp" class="writing-codex-modal-help">Write about all the necessary details. Be specific, but concise.</div>
+            <textarea id="writingCodexModalPrimary" class="writing-codex-modal-textarea" placeholder="Add the core details for this entry..."></textarea>
+          </div>
+          <div id="writingCodexModalSecondaryGroup" class="writing-codex-modal-group">
+            <label id="writingCodexModalSecondaryLabel" class="label" for="writingCodexModalSecondary">Secondary Notes</label>
+            <div id="writingCodexModalSecondaryHelp" class="writing-codex-modal-help">Add supporting detail for this entry.</div>
+            <textarea id="writingCodexModalSecondary" class="writing-codex-modal-textarea is-compact" placeholder=""></textarea>
+            <select id="writingCodexModalSecondarySelect" class="writing-codex-modal-select" hidden></select>
+          </div>
+          <div id="writingCodexModalTertiaryGroup" class="writing-codex-modal-group">
+            <label id="writingCodexModalTertiaryLabel" class="label" for="writingCodexModalTertiary">Additional Notes</label>
+            <div id="writingCodexModalTertiaryHelp" class="writing-codex-modal-help">Any additional history or context that should travel with the entry.</div>
+            <textarea id="writingCodexModalTertiary" class="writing-codex-modal-textarea is-compact" placeholder=""></textarea>
+          </div>
+          <div id="writingCodexModalImageGroup" class="writing-codex-modal-group">
+            <label class="label" for="writingCodexModalImageUrl">Image URL</label>
+            <input id="writingCodexModalImageUrl" type="text" placeholder="https://..." />
+          </div>
+          <div id="writingCodexModalResolvedGroup" class="writing-codex-modal-checkbox-row" hidden>
+            <label><input id="writingCodexModalResolved" type="checkbox" /> Mark this continuity note as resolved</label>
+          </div>
+        </div>
+        <div id="writingCodexRelationsPanel" class="writing-codex-relations-panel" hidden>
+          <div id="writingCodexRelationsEmpty" class="writing-codex-relations-empty">No relationships linked yet.</div>
+          <div id="writingCodexRelationsList" class="writing-codex-relations-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer writing-codex-modal-footer">
+        <div id="writingCodexModalWordCount" class="writing-codex-modal-word-count">0 words</div>
+        <div class="writing-codex-modal-footer-actions">
+          <button id="writingCodexModalCopyButton" type="button" class="ghost-button">Copy</button>
+          <button id="writingCodexModalSaveButton" type="button" class="primary-button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiSettingsModal" class="modal" aria-hidden="true">
+    <div class="modal-card ai-settings-card">
+      <div class="modal-header">
+        <h3>AI Settings</h3>
+        <div class="muted">Configure OpenRouter, LM Studio, or Ollama connections. This only sets up access; writing tools come next.</div>
+      </div>
+
+      <div class="modal-body ai-settings-body">
+        <div class="ai-settings-layout">
+          <div class="ai-provider-nav" aria-label="AI providers">
+            <button type="button" data-ai-provider="openrouter">OpenRouter</button>
+            <button type="button" data-ai-provider="lmstudio">LM Studio</button>
+            <button type="button" data-ai-provider="ollama">Ollama</button>
+          </div>
+
+          <div class="ai-settings-panel">
+            <div class="compact-row">
+              <div>
+                <label class="label" for="aiDefaultProvider">Default Provider</label>
+                <select id="aiDefaultProvider">
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="lmstudio">LM Studio</option>
+                  <option value="ollama">Ollama</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="aiActiveProviderBadge">Current Panel</label>
+                <div id="aiActiveProviderBadge" class="ai-provider-badge">OpenRouter</div>
+              </div>
+            </div>
+
+            <div id="aiOpenRouterPanel" class="ai-provider-panel" data-ai-panel="openrouter">
+              <div class="ai-provider-heading">
+                <h4>OpenRouter</h4>
+                <div class="tiny">Cloud models through OpenRouter's OpenAI-compatible API.</div>
+              </div>
+              <div>
+                <label class="label" for="aiOpenRouterApiKey">API Key</label>
+                <input id="aiOpenRouterApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
+                <label class="ai-inline-check"><input id="aiOpenRouterClearKey" type="checkbox" /> Clear saved OpenRouter API key</label>
+              </div>
+              <div class="ai-model-row">
+                <div>
+                  <label class="label" for="aiOpenRouterModel">Model</label>
+                  <input id="aiOpenRouterModel" type="text" placeholder="e.g. anthropic/claude-3.5-sonnet" list="aiOpenRouterModelList" />
+                  <datalist id="aiOpenRouterModelList"></datalist>
+                </div>
+                <button id="aiOpenRouterFetchModelsButton" type="button">Fetch Models</button>
+              </div>
+            </div>
+
+            <div id="aiLmStudioPanel" class="ai-provider-panel" data-ai-panel="lmstudio" hidden>
+              <div class="ai-provider-heading">
+                <h4>LM Studio</h4>
+                <div class="tiny">OpenAI-compatible local server. Default endpoint: http://localhost:1234/v1</div>
+              </div>
+              <div>
+                <label class="label" for="aiLmStudioEndpoint">Endpoint</label>
+                <input id="aiLmStudioEndpoint" type="url" placeholder="http://localhost:1234/v1" />
+                <label class="ai-inline-check"><input id="aiLmStudioUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
+              </div>
+              <div class="ai-model-row">
+                <div>
+                  <label class="label" for="aiLmStudioModel">Model</label>
+                  <input id="aiLmStudioModel" type="text" placeholder="Select or type model name" list="aiLmStudioModelList" />
+                  <datalist id="aiLmStudioModelList"></datalist>
+                </div>
+                <button id="aiLmStudioFetchModelsButton" type="button">Fetch Models</button>
+              </div>
+            </div>
+
+            <div id="aiOllamaPanel" class="ai-provider-panel" data-ai-panel="ollama" hidden>
+              <div class="ai-provider-heading">
+                <h4>Ollama</h4>
+                <div class="tiny">Ollama local API. Default endpoint: http://localhost:11434</div>
+              </div>
+              <div>
+                <label class="label" for="aiOllamaEndpoint">Endpoint</label>
+                <input id="aiOllamaEndpoint" type="url" placeholder="http://localhost:11434" />
+                <label class="ai-inline-check"><input id="aiOllamaUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
+              </div>
+              <div class="ai-model-row">
+                <div>
+                  <label class="label" for="aiOllamaModel">Model</label>
+                  <input id="aiOllamaModel" type="text" placeholder="Select or type model name" list="aiOllamaModelList" />
+                  <datalist id="aiOllamaModelList"></datalist>
+                </div>
+                <button id="aiOllamaFetchModelsButton" type="button">Fetch Models</button>
+              </div>
+            </div>
+
+            <div class="ai-settings-note">
+              Local endpoints can use browser/direct mode so your browser calls LAN or localhost services such as LM Studio or Ollama. If browser mode fails, check the server URL and CORS settings, or type the model name manually.
+            </div>
+
+            <div id="aiSettingsStatus" class="status-bar">AI settings not loaded yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="aiSettingsTestButton" type="button">Test Connection</button>
+        <button id="aiSettingsCloseButton" type="button">Close</button>
+        <button id="aiSettingsSaveButton" class="primary" type="button">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiConnectionTestModal" class="modal" aria-hidden="true">
+    <div class="modal-card ai-test-card">
+      <div class="modal-header">
+        <h3>AI Connection Test</h3>
+        <div class="muted">Checks the selected provider using the current settings form values.</div>
+      </div>
+      <div class="modal-body ai-test-body">
+        <div id="aiConnectionTestBody" class="ai-test-result">Connection test not started.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="aiConnectionTestCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="newProjectModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Create New Project</h3>
+        <div class="muted">Set the basic project details before creating the row.</div>
+      </div>
+
+      <div class="modal-body">
+        <div>
+          <label class="label" for="modalProjectTitle">Project Title</label>
+          <input id="modalProjectTitle" type="text" placeholder="e.g. The Clockmaker of Bramble Lane" />
+        </div>
+
+        <div>
+          <label class="label" for="modalProjectSeries">Series</label>
+          <input id="modalProjectSeries" type="text" list="modalSeriesList" placeholder="Type existing or new series" />
+          <datalist id="modalSeriesList"></datalist>
+        </div>
+
+        <div class="compact-row">
+          <div>
+            <label class="label" for="modalProjectBookNumber">B#</label>
+            <input id="modalProjectBookNumber" type="number" min="0" step="1" placeholder="e.g. 1" />
+          </div>
+          <div>
+            <label class="label" for="modalProjectPenName">Pen Name</label>
+            <select id="modalProjectPenName"></select>
+          </div>
+        </div>
+
+        <div class="compact-row">
+          <div>
+            <label class="label" for="modalProjectGenre">Genre</label>
+            <select id="modalProjectGenre"></select>
+          </div>
+          <div>
+            <label class="label" for="modalProjectFormat">Format</label>
+            <select id="modalProjectFormat"></select>
+          </div>
+        </div>
+
+        <div class="compact-row">
+          <div>
+            <label class="label" for="modalProjectStatus">Status</label>
+            <select id="modalProjectStatus"></select>
+          </div>
+          <div>
+            <label class="label" for="modalProjectPriority">Priority</label>
+            <select id="modalProjectPriority"></select>
+          </div>
+        </div>
+
+        <div>
+          <label class="label" for="modalProjectNextStep">Next Step</label>
+          <select id="modalProjectNextStep"></select>
+        </div>
+
+        <div>
+          <label class="label" for="modalProjectSummary">Summary</label>
+          <textarea id="modalProjectSummary" placeholder="Short one-paragraph summary..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelNewProjectButton" type="button">Cancel</button>
+        <button id="confirmNewProjectButton" class="primary" type="button">Create Project</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div id="imagePickerModal" class="modal" aria-hidden="true">
+    <div class="modal-card image-picker-card">
+      <div class="modal-header">
+        <h3>Select Project Image</h3>
+        <div class="muted">Choose an existing library image, or upload a local image.</div>
+      </div>
+      <div class="modal-body">
+        <div class="image-picker-actions image-picker-actions-v62">
+          <div class="image-picker-primary-actions">
+            <button id="refreshDriveImagesButton" type="button">Refresh Images</button>
+            <button id="uploadFromPickerButton" type="button">Upload Local Image</button>
+            <button id="openImageGeneratorButton" type="button">Generate with AI</button>
+            <button id="optimizeLegacyImagesButton" type="button">Optimize Legacy Images</button>
+            <button id="deleteSelectedImageButton" type="button">Delete Selected Image</button>
+          </div>
+          <div class="image-picker-view-switch" aria-label="Image picker view mode">
+            <button id="imagePickerListViewButton" type="button" data-image-view="list">List</button>
+            <button id="imagePickerSmallViewButton" type="button" data-image-view="small">Small Image</button>
+            <button id="imagePickerLargeViewButton" type="button" data-image-view="large">Large Image</button>
+          </div>
+          <div id="imagePickerStatus" class="tiny image-picker-status">Images will load from the project image library.</div>
+        </div>
+        <div id="imagePickerGrid" class="image-picker-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelImagePickerButton" type="button">Cancel</button>
+        <button id="applySelectedImageButton" class="primary" type="button">Use Selected Image</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="seriesBooksModal" class="modal" aria-hidden="true">
+    <div class="modal-card series-books-modal-card">
+      <div class="modal-header">
+        <h3 id="seriesBooksTitle">Series Books</h3>
+        <div id="seriesBooksSubtitle" class="muted">Switch to another project in this series.</div>
+      </div>
+      <div class="modal-body series-books-body">
+        <div id="seriesBooksStatus" class="status-bar">Loading series books...</div>
+        <div id="seriesBooksList" class="series-books-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="seriesBooksCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageGeneratorModal" class="modal" aria-hidden="true">
+    <div class="modal-card image-generator-card">
+      <div class="modal-header">
+        <h3>AI Cover Generator</h3>
+        <div class="muted">Local ComfyUI poster generation using the selected book summary and a few design controls.</div>
+      </div>
+      <div class="modal-body image-generator-body">
+        <div class="image-generator-grid">
+          <div class="image-generator-form">
+            <div class="compact-row">
+              <div>
+                <label class="label" for="imageGeneratorProjectTitle">Project</label>
+                <input id="imageGeneratorProjectTitle" type="text" readonly />
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorEndpoint">ComfyUI Endpoint</label>
+                <input id="imageGeneratorEndpoint" type="text" value="http://127.0.0.1:8188" />
+              </div>
+            </div>
+
+            <div>
+              <label class="label" for="imageGeneratorSummary">Summary</label>
+              <textarea id="imageGeneratorSummary" class="image-generator-summary" placeholder="Book summary, hook, or cover brief..."></textarea>
+            </div>
+
+            <div class="image-generator-controls">
+              <div>
+                <label class="label" for="imageGeneratorStyle">Style</label>
+                <select id="imageGeneratorStyle">
+                  <option value="cinematic">Cinematic Poster</option>
+                  <option value="fantasy">Painted Fantasy</option>
+                  <option value="thriller">Dark Thriller</option>
+                  <option value="romance">Commercial Romance</option>
+                  <option value="middlegrade">Middle Grade Adventure</option>
+                  <option value="gothic">Gothic Drama</option>
+                  <option value="scifi">Science Fiction Epic</option>
+                  <option value="cozy">Cozy Illustrated</option>
+                  <option value="literary">Literary Prestige</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorMood">Mood</label>
+                <select id="imageGeneratorMood">
+                  <option value="mysterious">Mysterious</option>
+                  <option value="hopeful">Hopeful</option>
+                  <option value="epic">Epic</option>
+                  <option value="tense">Tense</option>
+                  <option value="dreamlike">Dreamlike</option>
+                  <option value="ominous">Ominous</option>
+                  <option value="whimsical">Whimsical</option>
+                  <option value="melancholic">Melancholic</option>
+                  <option value="adventurous">Adventurous</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorPalette">Palette</label>
+                <select id="imageGeneratorPalette">
+                  <option value="rich-cinematic">Rich Cinematic</option>
+                  <option value="warm-gold">Warm Gold</option>
+                  <option value="cool-neon">Cool Neon</option>
+                  <option value="muted-literary">Muted Literary</option>
+                  <option value="high-contrast">High Contrast</option>
+                  <option value="forest-ember">Forest & Ember</option>
+                  <option value="moonlit-silver">Moonlit Silver</option>
+                  <option value="rose-cream">Rose & Cream</option>
+                  <option value="autumn-harvest">Autumn Harvest</option>
+                  <option value="ocean-depths">Ocean Depths</option>
+                  <option value="violet-gold">Violet & Gold</option>
+                  <option value="crimson-ivory">Crimson & Ivory</option>
+                  <option value="desert-sun">Desert Sun</option>
+                  <option value="jade-obsidian">Jade & Obsidian</option>
+                  <option value="lavender-dusk">Lavender Dusk</option>
+                  <option value="ice-fire">Ice & Fire</option>
+                  <option value="sepia-smoke">Sepia Smoke</option>
+                  <option value="midnight-rose">Midnight Rose</option>
+                  <option value="copper-petrol">Copper & Petrol</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorFocus">Focus</label>
+                <select id="imageGeneratorFocus">
+                  <option value="character">Character-Led</option>
+                  <option value="scene">Scene-Led</option>
+                  <option value="symbolic">Symbolic</option>
+                  <option value="ensemble">Ensemble</option>
+                  <option value="object">Object / Relic</option>
+                  <option value="architecture">Location / Architecture</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorTypography">Typography</label>
+                <select id="imageGeneratorTypography">
+                  <option value="title-only">Title Only</option>
+                  <option value="title-tagline">Title + Tagline</option>
+                  <option value="no-text">No Text</option>
+                  <option value="title-author">Title + Author</option>
+                  <option value="series-title">Series + Title</option>
+                  <option value="series-only">Series Text Only</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorTextPlacement">Text Placement</label>
+                <select id="imageGeneratorTextPlacement">
+                  <option value="none">No Preference</option>
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorFontStyle">Font Style</label>
+                <select id="imageGeneratorFontStyle">
+                  <option value="none">No Preference</option>
+                  <option value="cinematic-serif">Cinematic Serif</option>
+                  <option value="classic-roman">Classic Roman</option>
+                  <option value="bold-sans">Bold Sans</option>
+                  <option value="elegant-script">Elegant Script</option>
+                  <option value="gothic-ornate">Gothic Ornate</option>
+                  <option value="storybook-decorative">Storybook Decorative</option>
+                  <option value="hand-drawn">Hand Drawn</option>
+                  <option value="kids-story-book">Kids Story Book</option>
+                  <option value="minimal-modern">Minimal Modern</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorAmount">Generate Amount</label>
+                <select id="imageGeneratorAmount">
+                  <option value="1">1 Render</option>
+                  <option value="2">2 Renders</option>
+                  <option value="3">3 Renders</option>
+                  <option value="4">4 Renders</option>
+                </select>
+              </div>
+              <div>
+                <label class="label" for="imageGeneratorSize">Poster Size</label>
+                <select id="imageGeneratorSize">
+                  <option value="768x1152">768 × 1152</option>
+                  <option value="832x1248">832 × 1248</option>
+                  <option value="1024x1536">1024 × 1536</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="image-generator-series-tools">
+              <div class="image-generator-series-tools-row">
+                <label class="image-generator-series-option">
+                  <input id="imageGeneratorUseSeriesSummaries" type="checkbox" />
+                  <span>Use all book summaries in this series</span>
+                </label>
+                <div class="image-generator-series-tools-actions">
+                  <button id="imageGeneratorOpenComfyButton" type="button">Open ComfyUI</button>
+                  <button id="imageGeneratorLoadFromImageButton" type="button">Load From Selected Image</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="label" for="imageGeneratorPromptPreview">Prompt Preview</label>
+              <textarea id="imageGeneratorPromptPreview" class="image-generator-prompt-preview" readonly></textarea>
+            </div>
+          </div>
+
+          <div class="image-generator-preview-panel">
+            <div class="label">Generated Preview</div>
+            <div class="image-generator-preview-wrap">
+              <div id="imageGeneratorSpinner" class="image-generator-spinner" hidden aria-hidden="true"></div>
+              <img id="imageGeneratorPreviewImage" class="image-generator-preview-image" alt="Generated cover preview" hidden />
+              <div id="imageGeneratorPreviewEmpty" class="image-generator-preview-empty">No image generated yet.</div>
+            </div>
+            <div class="image-generator-history-panel">
+              <div class="tiny">Recent generations</div>
+              <div id="imageGeneratorHistory" class="image-generator-history" aria-label="Recent generated images"></div>
+            </div>
+            <div id="imageGeneratorStatus" class="status-bar">Ready to generate.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="imageGeneratorPreviewButton" type="button">Preview Prompt</button>
+        <button id="imageGeneratorRunButton" class="primary" type="button">Generate</button>
+        <button id="imageGeneratorUseButton" type="button" disabled>Use Generated Image</button>
+        <button id="imageGeneratorCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownEditorModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-modal-card">
+      <div class="modal-header markdown-editor-modal-header">
+        <div class="markdown-editor-header-copy">
+          <h3 id="markdownEditorTitle">Markdown Cell Editor</h3>
+          <div class="markdown-editor-identity" aria-label="Selected book">
+            <span id="markdownEditorSeries" class="markdown-editor-series">No series</span>
+            <span id="markdownEditorProject" class="markdown-editor-book-title">No project selected</span>
+            <span id="markdownEditorColumn" class="markdown-badge">No column selected</span>
+          </div>
+        </div>
+        <div class="markdown-header-actions">
+          <button id="markdownUndoButton" type="button">Undo</button>
+          <button id="markdownRedoButton" type="button">Redo</button>
+          <div class="settings-menu-wrap markdown-ai-menu-wrap">
+            <button id="markdownAiMenuButton" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="markdownAiMenu">AI</button>
+            <div id="markdownAiMenu" class="settings-menu markdown-ai-menu" aria-hidden="true">
+              <button id="markdownAITestButton" class="settings-menu-item" type="button">AI Test</button>
+              <button id="markdownBookCreatorButton" class="settings-menu-item" type="button">Book Creator</button>
+              <button id="markdownStorySeedButton" class="settings-menu-item" type="button">Story Seed</button>
+            </div>
+          </div>
+          <button id="markdownCancelButton" type="button">Cancel</button>
+          <button id="markdownSaveButton" class="primary" type="button">Save</button>
+          <svg id="autoSaveTimerCircle" class="auto-save-timer" width="28" height="28" viewBox="0 0 16 16" aria-hidden="true" hidden>
+            <circle class="auto-save-timer-bg" cx="8" cy="8" r="6" fill="none" stroke-width="2" />
+            <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
+          </svg>
+          <span id="markdownUnsavedIndicator" class="markdown-unsaved-indicator" hidden>● Unsaved</span>
+          <div class="settings-menu-wrap markdown-settings-menu-wrap">
+            <button id="markdownSettingsButton" class="settings-cog-button markdown-settings-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="markdownSettingsMenu" title="Markdown editor settings">&#9881;</button>
+            <div id="markdownSettingsMenu" class="settings-menu markdown-settings-menu" aria-hidden="true">
+              <button id="markdownSettingsNewButton" class="settings-menu-item primary-action" type="button">New Project</button>
+              <button id="markdownSettingsAiButton" class="settings-menu-item" type="button">AI Settings</button>
+              <button id="markdownSettingsThemeButton" class="settings-menu-item" type="button">Theme Settings</button>
+              <button id="markdownSettingsHelpButton" class="settings-menu-item" type="button">Help</button>
+              <button id="markdownSettingsDarkModeButton" class="settings-menu-item" type="button">Dark Mode</button>
+              <button id="markdownSettingsAutoSaveButton" class="settings-menu-item" type="button">Auto-save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body markdown-modal-body">
+        <div class="markdown-doc-control-row">
+          <div class="tiny">Markdown is saved as plain text.</div>
+          <div id="markdownEditTabs" class="markdown-edit-tabs" hidden></div>
+        </div>
+
+        <div id="markdownEditorGrid" class="markdown-editor-grid">
+          <div class="markdown-heading-panel">
+            <div id="markdownProjectInfoPanel" class="markdown-project-info-panel">
+              <img id="markdownProjectInfoImage" class="markdown-project-info-image" alt="Project cover" />
+              <div class="markdown-project-info-copy">
+                <div id="markdownProjectInfoTitle" class="markdown-project-info-title">No project selected</div>
+                <div id="markdownProjectInfoSeries" class="markdown-project-info-series">No series</div>
+                <div class="markdown-project-info-grid">
+                  <div class="markdown-project-info-label">Genre</div>
+                  <div id="markdownProjectInfoGenre" class="markdown-project-info-value">—</div>
+                  <div class="markdown-project-info-label">Author</div>
+                  <div id="markdownProjectInfoAuthor" class="markdown-project-info-value">—</div>
+                  <div class="markdown-project-info-label">Words</div>
+                  <div id="markdownProjectInfoWords" class="markdown-project-info-value">0w</div>
+                </div>
+              </div>
+            </div>
+            <div class="markdown-heading-panel-header">
+              <div class="label">Chapters / Headings</div>
+              <button id="markdownNewChapterButton" class="markdown-chapter-add-button" type="button" hidden>New Chapter</button>
+            </div>
+            <div id="markdownHeadingList" class="markdown-heading-list">
+              <div class="tiny">Use #, ##, or ### headings to build navigation.</div>
+            </div>
+          </div>
+
+          <div class="markdown-editor-pane">
+            <div class="markdown-editor-top-strip">
+              <div class="markdown-editor-title-strip">
+                <label class="label" for="markdownEditorTextarea">Markdown Editor</label>
+                <span id="markdownActiveHeading" class="markdown-active-heading" title="Current heading">Current section: —</span>
+                <button id="markdownSpellcheckToggleButton" class="spellcheck-toggle is-on" type="button" aria-pressed="true">Spell Check: On</button>
+                <button id="markdownSyncHeadingsButton" class="markdown-promote-button" type="button" hidden>Sync Headings</button>
+                <button id="markdownPromoteButton" class="markdown-promote-button" type="button" hidden>Send → Next Stage</button>
+              </div>
+            </div>
+
+            <div class="markdown-textarea-wrap has-heading-gutter">
+              <div id="markdownHeadingGutter" class="markdown-heading-gutter" aria-hidden="true"></div>
+              <pre id="markdownEditorHighlight" class="markdown-editor-highlight" aria-hidden="true"></pre>
+              <textarea id="markdownEditorTextarea" spellcheck="true" lang="en-GB" autocomplete="on" autocorrect="on" autocapitalize="sentences" inputmode="text"></textarea>
+            </div>
+          </div>
+
+          <div id="markdownPreviewWrap" class="markdown-preview-wrap">
+            <div class="markdown-reference-header">
+              <div id="markdownPreviewLabel" class="label">Reference</div>
+              <div class="markdown-reference-actions">
+                <div id="markdownReferenceTabs" class="markdown-reference-tabs"></div>
+              </div>
+            </div>
+            <div class="markdown-reference-layout">
+              <div id="markdownReferenceHeadingList" class="markdown-reference-nav"></div>
+              <div id="markdownPreview" class="markdown-preview"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <div id="markdownPromotionModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-promotion-modal-card">
+      <div class="modal-header">
+        <h3 id="markdownPromotionTitle">Send to Next Stage</h3>
+        <div id="markdownPromotionDescription" class="muted">This copies the current editor text into the next-stage document.</div>
+      </div>
+
+      <div class="modal-body markdown-promotion-body">
+        <div class="markdown-promotion-summary">
+          <div>
+            <span class="label">From</span>
+            <strong id="markdownPromotionSource">Draft</strong>
+          </div>
+          <div class="markdown-promotion-arrow">→</div>
+          <div>
+            <span class="label">To</span>
+            <strong id="markdownPromotionTarget">Development Edit</strong>
+          </div>
+        </div>
+        <div id="markdownPromotionWarning" class="markdown-promotion-warning">
+          This will overwrite the current Development Edit document body. Full version backup is not enabled yet, so use this only when you are ready to create or refresh the Development Edit copy.
+        </div>
+        <div id="markdownPromotionStatus" class="status-bar warn">Ready to send to the next stage.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="markdownPromotionCancelButton" type="button">Cancel</button>
+        <button id="markdownPromotionConfirmButton" class="primary" type="button">Send to Next Stage</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="markdownThemeModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-theme-modal-card">
+      <div class="modal-header">
+        <h3>Editor Theme Colours</h3>
+        <div class="muted">Choose subtle accent colours for each markdown document type. These are saved in this browser.</div>
+      </div>
+
+      <div class="modal-body markdown-theme-body">
+        <div class="markdown-theme-grid">
+          <label class="markdown-theme-row" for="themeColorDraft"><span>Draft</span><input id="themeColorDraft" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorDevEdit"><span>Development Edit</span><input id="themeColorDevEdit" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorLineEdit"><span>Line Edit</span><input id="themeColorLineEdit" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorCopyEdit"><span>Copy Edit</span><input id="themeColorCopyEdit" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorOutline"><span>Outline</span><input id="themeColorOutline" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorOutlineTemplate"><span>Outline Template</span><input id="themeColorOutlineTemplate" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorBrainstorm"><span>Brainstorm</span><input id="themeColorBrainstorm" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorNotes"><span>Notes</span><input id="themeColorNotes" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorCharacters"><span>Characters</span><input id="themeColorCharacters" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorWorldBuild"><span>World Build</span><input id="themeColorWorldBuild" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorConcept"><span>Concept</span><input id="themeColorConcept" type="color" /></label>
+          <label class="markdown-theme-row" for="themeColorImageInUse"><span>Image In Use Glow</span><input id="themeColorImageInUse" type="color" /></label>
+          <label class="markdown-theme-row markdown-theme-row-range" for="themeImageInUseOpacity"><span>Image Glow Opacity</span><input id="themeImageInUseOpacity" type="range" min="0" max="0.9" step="0.02" /></label>
+        </div>
+        <div class="markdown-help-tip">The active document colour is used for the editor strip, heading navigation, gutter markers, and document tabs.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="markdownThemeResetButton" type="button">Reset Defaults</button>
+        <button id="markdownThemeCloseButton" type="button">Close</button>
+        <button id="markdownThemeSaveButton" class="primary" type="button">Save Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownHelpModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-help-modal-card">
+      <div class="modal-header">
+        <h3>Markdown Editor Help</h3>
+        <div class="muted">Hints, shortcuts, and workflow tips for the editor window.</div>
+      </div>
+
+      <div class="modal-body markdown-help-body">
+        <div id="markdownHelpNav" class="markdown-help-nav" aria-label="Help topics">
+          <button type="button" data-help-topic="overview">Overview</button>
+          <button type="button" data-help-topic="formatting">Formatting</button>
+          <button type="button" data-help-topic="spellcheck">Spellcheck</button>
+          <button type="button" data-help-topic="navigation">Chapters & Navigation</button>
+          <button type="button" data-help-topic="references">Right Panel References</button>
+          <button type="button" data-help-topic="saving">Saving & Storage</button>
+          <button type="button" data-help-topic="shortcuts">Shortcuts</button>
+        </div>
+
+        <div id="markdownHelpContent" class="markdown-help-content">
+          <div class="tiny">Choose a help topic.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="markdownHelpCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownAutoSaveModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Auto-save Settings</h3>
+        <div class="muted">Automatically save the current document at a set interval.</div>
+      </div>
+      <div class="modal-body">
+        <label class="auto-save-row">
+          <input id="autoSaveEnabled" type="checkbox" />
+          <span>Enable auto-save</span>
+        </label>
+        <label class="auto-save-row">
+          <span>Interval</span>
+          <select id="autoSaveInterval">
+            <option value="60000">1 minute</option>
+            <option value="120000">2 minutes</option>
+            <option value="300000" selected>5 minutes</option>
+            <option value="600000">10 minutes</option>
+            <option value="1800000">30 minutes</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </label>
+        <label class="auto-save-row" id="autoSaveCustomRow" hidden>
+          <span>Custom minutes</span>
+          <input id="autoSaveCustomMinutes" type="number" min="1" max="120" value="3" />
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="markdownAutoSaveCloseButton" type="button">Close</button>
+        <button id="markdownAutoSaveSaveButton" class="primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="markdownAITestModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-ai-test-card">
+      <div class="modal-header">
+        <h3>Editor AI Test</h3>
+        <div class="muted">Test your selected AI provider against the current editor text. This does not edit or replace your draft.</div>
+      </div>
+      <div class="modal-body markdown-ai-test-body">
+        <div class="markdown-ai-test-top">
+          <div><label class="label">Provider</label><div id="markdownAITestProviderBadge" class="ai-provider-badge">Not loaded</div></div>
+          <div><label class="label">Model</label><div id="markdownAITestModelBadge" class="ai-provider-badge">Not selected</div></div>
+          <div><label class="label">Context</label><div id="markdownAITestContextBadge" class="ai-provider-badge">No context</div></div>
+        </div>
+        <div class="markdown-ai-test-options">
+          <div><label class="label" for="markdownAITestSystemPrompt">System Prompt</label><textarea id="markdownAITestSystemPrompt" class="markdown-ai-small-textarea">You are a helpful fiction-writing assistant. Be concise, practical, and preserve the author's voice.</textarea></div>
+          <div><label class="label" for="markdownAITestUserPrompt">Test Prompt</label><textarea id="markdownAITestUserPrompt" class="markdown-ai-small-textarea">Give me a brief editorial note on this passage and suggest one improvement.</textarea></div>
+        </div>
+        <div class="markdown-ai-params-row">
+          <div><label class="label" for="markdownAITestTemperature">Temperature</label><input id="markdownAITestTemperature" type="number" min="0" max="2" step="0.1" value="0.7" /></div>
+          <div><label class="label" for="markdownAITestMaxTokens">Max Tokens</label><input id="markdownAITestMaxTokens" type="number" min="64" max="4096" step="64" value="512" /></div>
+          <div><label class="label" for="markdownAITestContextLimit">Context Limit</label><input id="markdownAITestContextLimit" type="number" min="500" max="30000" step="500" value="6000" /></div>
+        </div>
+        <div class="markdown-ai-local-context-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Local Context</div>
+            <div class="tiny">Choose selected text, the whole open document, or one H1/H2 section.</div>
+          </div>
+          <select id="markdownAILocalContextSelect"></select>
+        </div>
+        <div class="markdown-ai-context-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Project Context</div>
+            <div class="tiny">Optional linked docs to include with the selected passage.</div>
+          </div>
+          <div id="markdownAIContextSources" class="markdown-ai-context-sources">
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="project_summary" />Project Summary</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_doc_url" />Outline</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_template_doc_url" />Outline Template</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="brainstorm_doc_url" />Brainstorm</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="characters_doc_url" />Characters</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="world_build_doc_url" />World Build</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="concept_doc_url" />Concept</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="notes_doc_url" />Notes</label>
+          </div>
+        </div>
+        <div class="markdown-ai-prompt-preview-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Prompt Preview</div>
+            <div class="tiny">Shows the request built from these settings before anything is sent.</div>
+          </div>
+          <pre id="markdownAITestPromptPreview" class="markdown-ai-prompt-preview">No prompt preview has been generated yet.</pre>
+        </div>
+        <div><label class="label">AI Response</label><div id="markdownAITestOutput" class="markdown-ai-test-output">No AI test has been run yet.</div></div>
+        <div id="markdownAITestStatus" class="status-bar">AI editor test ready.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="markdownAITestConnectionButton" type="button">Test Connection</button>
+        <button id="markdownAITestPreviewButton" type="button">Preview Prompt</button>
+        <button id="markdownAITestSendButton" class="primary" type="button">Send Test Prompt</button>
+        <button id="markdownAITestCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bookCreatorModal" class="modal" aria-hidden="true">
+    <div class="modal-card book-creator-card">
+      <div class="modal-header">
+        <h3>Book Creator</h3>
+        <div class="muted">Build an outline from the selected project using the Red Pants Press automation pockets.</div>
+      </div>
+      <div class="modal-body book-creator-body">
+        <div class="book-creator-grid">
+          <div>
+            <label class="label" for="bookCreatorAutomationType">Automation</label>
+            <select id="bookCreatorAutomationType">
+              <option value="outline">Create Outline</option>
+              <option value="template">Create Outline Template</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorBookType">Book Type</label>
+            <select id="bookCreatorBookType"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorTitle">Working Title</label>
+            <input id="bookCreatorTitle" type="text" />
+          </div>
+          <div>
+            <label class="label" for="bookCreatorGenre">Genre</label>
+            <select id="bookCreatorGenre"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorBookSeries">Book Series</label>
+            <select id="bookCreatorBookSeries"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorVoice">Author Voice</label>
+            <select id="bookCreatorVoice"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorKnowledgePack">Knowledge Pack</label>
+            <select id="bookCreatorKnowledgePack"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorEmotionGraph">Emotional Graph</label>
+            <select id="bookCreatorEmotionGraph"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorRenderContract">Render Contract</label>
+            <select id="bookCreatorRenderContract"></select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorUseExistingOutline">Use Existing Outline</label>
+            <select id="bookCreatorUseExistingOutline">
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorUseExistingChapterBreakdown">Use Existing Chapter Breakdown</label>
+            <select id="bookCreatorUseExistingChapterBreakdown">
+              <option value="NO">NO</option>
+              <option value="YES">YES</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="bookCreatorChapterCount">Target Chapters</label>
+            <input id="bookCreatorChapterCount" type="number" min="1" max="200" step="1" placeholder="Auto" />
+          </div>
+        </div>
+
+        <div>
+          <label class="label" for="bookCreatorBrainDump">Braindump / Notes</label>
+          <textarea id="bookCreatorBrainDump" class="book-creator-notes" placeholder="Paste the raw story idea, notes, partial outline, or chapter sketch here."></textarea>
+        </div>
+
+        <div class="book-creator-run-controls">
+          <div>
+            <label class="label" for="bookCreatorTemperature">Temperature</label>
+            <input id="bookCreatorTemperature" type="number" min="0" max="2" step="0.05" value="0.45" />
+          </div>
+          <div>
+            <label class="label" for="bookCreatorStepMaxTokens">Step Max Tokens</label>
+            <input id="bookCreatorStepMaxTokens" type="number" min="256" max="16000" step="256" value="2048" />
+          </div>
+          <div>
+            <label class="label" for="bookCreatorFinalMaxTokens">Final / Template Max Tokens</label>
+            <input id="bookCreatorFinalMaxTokens" type="number" min="512" max="16000" step="512" value="4096" />
+          </div>
+        </div>
+
+        <div class="book-creator-options-row">
+          <label class="label" for="bookCreatorContextSources">Context Sources</label>
+          <div id="bookCreatorContextSources">
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="project_summary" checked />Project Summary</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="brainstorm_doc_url" />Brainstorm</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="concept_doc_url" checked />Concept</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="notes_doc_url" checked />Notes</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="characters_doc_url" />Characters</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="world_build_doc_url" />World Build</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="outline_template_doc_url" />Outline Template</label>
+            <label data-book-creator-context-wrap><input type="checkbox" data-book-creator-context="outline_doc_url" />Existing Outline</label>
+          </div>
+        </div>
+
+        <div class="book-creator-library-tools">
+          <div id="bookCreatorLibraryStatus" class="book-creator-library-status warn">
+            Checking for Book Creator pockets when the modal opens.
+          </div>
+          <button id="bookCreatorRefreshPocketsButton" type="button">Refresh Pockets</button>
+        </div>
+
+        <div class="book-creator-options-row">
+          <label id="bookCreatorSaveOutlineWrap"><input id="bookCreatorSaveOutline" type="checkbox" checked /><span id="bookCreatorSaveOutlineLabel">Save final outline to Outline doc</span></label>
+          <label id="bookCreatorSaveWorldGuideWrap"><input id="bookCreatorSaveWorldGuide" type="checkbox" />Save generated world guide to World Build doc</label>
+          <div id="bookCreatorAutomationSaveHint" class="book-creator-save-hint"></div>
+        </div>
+
+        <div class="book-creator-panels">
+          <div class="book-creator-preview-panel">
+            <div class="book-creator-panel-heading">
+              <label class="label">Prompt Preview</label>
+              <button id="bookCreatorPreviewExpandButton" type="button">Bigger Preview</button>
+            </div>
+            <div id="bookCreatorPromptPreview" class="markdown-ai-prompt-preview book-creator-prompt-preview">No book creator prompt preview has been generated yet.</div>
+          </div>
+          <div class="book-creator-output-panel">
+            <label id="bookCreatorOutputLabel" class="label">Outline Output</label>
+            <div id="bookCreatorOutput" class="markdown-ai-test-output">No outline has been generated yet.</div>
+          </div>
+        </div>
+
+        <div id="bookCreatorProgressLog" class="book-creator-progress-log">
+          Run progress will appear here when an automation starts.
+        </div>
+
+        <div id="bookCreatorStatus" class="status-bar">Book Creator ready.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="bookCreatorPreviewButton" type="button">Preview Prompt</button>
+        <button id="bookCreatorRunButton" class="primary" type="button">Run Outline Chain</button>
+        <button id="bookCreatorCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="storySeedModal" class="modal" aria-hidden="true">
+    <div class="modal-card story-seed-card">
+      <div class="modal-header">
+        <h3>Story Seed</h3>
+        <div class="muted">Use the engine sheets to build a sharper brief, then let the active AI provider turn it into three strong story seeds.</div>
+      </div>
+      <div class="modal-body story-seed-body">
+        <div class="story-seed-library-tools">
+          <div id="storySeedLibraryStatus" class="book-creator-library-status warn">
+            Loading Story Seed options from the sheet when the modal opens.
+          </div>
+          <button id="storySeedRefreshButton" type="button">Refresh Options</button>
+        </div>
+
+        <div id="storySeedError" class="status-bar error" hidden>Story Seed options could not be loaded.</div>
+
+        <div class="story-seed-grid">
+          <div>
+            <label class="label" for="storySeedPrimaryGenre">Primary Genre</label>
+            <select id="storySeedPrimaryGenre"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedSecondaryGenre">Secondary Modifier</label>
+            <select id="storySeedSecondaryGenre"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedToneModifier">Tone</label>
+            <select id="storySeedToneModifier"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedIntensityBand">Intensity Band</label>
+            <select id="storySeedIntensityBand"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedAudience">Audience / Market</label>
+            <select id="storySeedAudience"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedCharacterArc">Character Arc</label>
+            <select id="storySeedCharacterArc"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedStoryArc">Story Arc</label>
+            <select id="storySeedStoryArc"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedRelationshipArc">Relationship Arc</label>
+            <select id="storySeedRelationshipArc"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedLocationType">Setting Engine</label>
+            <select id="storySeedLocationType"></select>
+          </div>
+          <div>
+            <label class="label" for="storySeedEndingType">Ending Type</label>
+            <select id="storySeedEndingType"></select>
+          </div>
+        </div>
+
+        <div id="storySeedGuidance" class="story-seed-guidance">
+          Choose a primary genre to load the engine guidance.
+        </div>
+
+        <div class="story-seed-panels">
+          <div class="story-seed-output-panel">
+            <div class="story-seed-panel-heading">
+              <label class="label">Engine Brief</label>
+              <div class="tiny">Sheet-backed brief and guardrails</div>
+            </div>
+            <div id="storySeedOutput" class="markdown-ai-test-output">No engine brief has been built yet.</div>
+          </div>
+          <div class="story-seed-output-panel">
+            <div class="story-seed-panel-heading">
+              <label class="label">Seed Options</label>
+              <div id="storySeedProviderBadge" class="ai-provider-badge">AI not loaded</div>
+            </div>
+            <div id="storySeedAiOutput" class="markdown-ai-test-output">No AI story seeds have been generated yet.</div>
+          </div>
+        </div>
+
+        <div id="storySeedStatus" class="status-bar">Story Seed ready.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="storySeedBuildBriefButton" type="button">Build Brief</button>
+        <button id="storySeedGenerateButton" class="primary" type="button">Generate 3 Seeds</button>
+        <button id="storySeedCloseButton" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="scheduleTemplatesModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card">
+      <div class="modal-header">
+        <h3>Schedule Templates</h3>
+        <div class="muted">Manage milestone templates used when a book reaches Publish Ready. Changes apply to new schedules only.</div>
+      </div>
+      <div class="modal-body schedule-templates-body">
+        <div class="schedule-templates-toolbar">
+          <select id="scheduleTemplateSelector" class="schedule-template-select"></select>
+          <button id="scheduleTemplateNewButton" type="button">New Template</button>
+          <button id="scheduleTemplateDeleteButton" type="button">Delete</button>
+        </div>
+        <div id="scheduleTemplateEditor" class="schedule-template-editor">
+          <div>
+            <label class="label" for="scheduleTemplateNameInput">Template Name</label>
+            <input id="scheduleTemplateNameInput" type="text" />
+          </div>
+          <div class="schedule-milestone-list-heading">
+            <strong>Milestones</strong>
+            <button id="scheduleMilestoneAddButton" type="button">+ Add Milestone</button>
+          </div>
+          <div id="scheduleMilestoneList" class="schedule-milestone-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="scheduleTemplatesCloseButton" type="button">Close</button>
+        <button id="scheduleTemplatesSaveButton" class="primary" type="button">Save Templates</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="marketingTemplatesModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card">
+      <div class="modal-header">
+        <h3>Marketing Plan Templates</h3>
+        <div class="muted">Manage marketing campaign templates auto-generated when a book reaches Publish Ready. Each entry becomes a task in the generated campaign.</div>
+      </div>
+      <div class="modal-body schedule-templates-body">
+        <div class="schedule-templates-toolbar">
+          <select id="marketingTemplateSelector" class="schedule-template-select"></select>
+          <button id="marketingTemplateNewButton" type="button">New Template</button>
+          <button id="marketingTemplateDeleteButton" type="button">Delete</button>
+        </div>
+        <div id="marketingTemplateEditor" class="schedule-template-editor">
+          <div>
+            <label class="label" for="marketingTemplateNameInput">Template Name</label>
+            <input id="marketingTemplateNameInput" type="text" />
+          </div>
+          <div class="schedule-milestone-list-heading">
+            <strong>Campaign Entries</strong>
+            <button id="marketingEntryAddButton" type="button">+ Add Entry</button>
+          </div>
+          <div id="marketingEntryList" class="schedule-milestone-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="marketingTemplatesCloseButton" type="button">Close</button>
+        <button id="marketingTemplatesSaveButton" class="primary" type="button">Save Templates</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="campaignTasksModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card" style="max-width:680px;">
+      <div class="modal-header">
+        <h3>Campaign Tasks <span id="campaignTasksProjectTitle" class="muted"></span></h3>
+        <div class="muted">All campaign tasks for this project, sorted by due date.</div>
+      </div>
+      <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
+        <div id="campaignTasksBody"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="campaignTasksCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="seriesAuditModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card series-audit-modal-card">
+      <div class="modal-header">
+        <h3>Series Migration Audit</h3>
+        <div class="muted">Review unused or mismatched series records before doing any cleanup.</div>
+      </div>
+      <div class="modal-body schedule-templates-body series-audit-body">
+        <div id="seriesAuditSummary" class="series-audit-summary">Running audit...</div>
+        <div class="series-audit-section">
+          <div class="schedule-milestone-list-heading">
+            <strong>Orphan Series</strong>
+            <span class="tiny">Series rows with no linked projects</span>
+          </div>
+          <div id="seriesAuditOrphanList" class="series-audit-list"></div>
+        </div>
+        <div class="series-audit-section">
+          <div class="schedule-milestone-list-heading">
+            <strong>Other Issues</strong>
+            <span class="tiny">Only shown when the audit finds anything else</span>
+          </div>
+          <div id="seriesAuditOtherIssues" class="series-audit-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="seriesAuditExportButton" type="button">Export</button>
+        <button id="seriesAuditRefreshButton" type="button">Refresh Audit</button>
+        <button id="seriesAuditCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="newResourceModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>New Resource</h3>
+        <div class="muted">Create a new writing aid, reference doc, or general resource.</div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label class="label" for="newResourceTitle">Title</label>
+          <input id="newResourceTitle" type="text" placeholder="e.g. Character Arc Template" />
+        </div>
+        <div>
+          <label class="label" for="newResourceCategory">Category</label>
+          <div style="display:flex;gap:8px;align-items:start;">
+            <input id="newResourceCategory" type="text" list="resourceCategoryList" placeholder="e.g. Writing Aids" style="flex:1;" />
+            <datalist id="resourceCategoryList"></datalist>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelNewResourceButton" type="button">Cancel</button>
+        <button id="confirmNewResourceButton" class="primary" type="button">Create Resource</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteResourceModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>Delete Resource</h3>
+        <div class="muted">This action cannot be undone.</div>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="deleteResourceName"></strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelDeleteResourceButton" type="button">Cancel</button>
+        <button id="confirmDeleteResourceButton" class="primary" type="button" style="background:#b91c1c;border-color:#b91c1c;">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="errorLogModal" class="modal" aria-hidden="true">
+    <div class="modal-card error-log-modal-card">
+      <div class="modal-header">
+        <h3>Error & Status Log</h3>
+        <div class="muted">A running log of status updates, warnings, and browser-side errors for this session.</div>
+      </div>
+      <div class="modal-body error-log-body">
+        <div class="error-log-toolbar">
+          <div id="errorLogSummary" class="tiny">No log entries yet.</div>
+          <div class="error-log-filters" role="group" aria-label="Error log filters">
+            <button id="errorLogFilterAll" type="button" class="error-log-filter is-active" data-log-filter="all">All</button>
+            <button id="errorLogFilterError" type="button" class="error-log-filter" data-log-filter="error">Errors</button>
+            <button id="errorLogFilterWarn" type="button" class="error-log-filter" data-log-filter="warn">Warnings</button>
+            <button id="errorLogFilterOk" type="button" class="error-log-filter" data-log-filter="ok">Success</button>
+          </div>
+        </div>
+        <div id="errorLogList" class="error-log-list">
+          <div class="empty-state">No log entries yet.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="clearErrorLogButton" type="button">Clear</button>
+        <button id="exportErrorLogButton" type="button">Export</button>
+        <button id="closeErrorLogButton" class="primary" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownContextMenu" class="markdown-context-menu" role="menu" aria-label="Markdown formatting menu">
+    <button type="button" data-md-action="ai-test">AI Test</button>
+    <button type="button" data-md-action="spellcheck-selection">Check Selection</button>
+    <button type="button" data-md-action="spellcheck-full">Check Full Document</button>
+    <button type="button" data-md-format="clear">Clear Formatting</button>
+    <button type="button" data-md-action="undo">Undo</button>
+    <button type="button" data-md-action="redo">Redo</button>
+    <button type="button" data-md-format="h1">Heading 1</button>
+    <button type="button" data-md-format="h2">Heading 2</button>
+    <button type="button" data-md-format="h3">Heading 3</button>
+    <button type="button" data-md-format="bold">Bold</button>
+    <button type="button" data-md-format="italic">Italic</button>
+    <button type="button" data-md-format="quote">Quote</button>
+    <button type="button" data-md-format="bullet">Bullet list</button>
+    <button type="button" data-md-format="numbered">Numbered list</button>
+    <button type="button" data-md-format="link">Link</button>
+  </div>
+
+  <?!= include('Client'); ?>
+</body>
+</html>

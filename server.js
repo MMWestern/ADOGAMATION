@@ -1,0 +1,86 @@
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+
+const PORT = 3000;
+const ROOT = __dirname;
+
+const MIME = {
+  ".html": "text/html",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+};
+
+// Cache for frequently read files
+const fileCache = new Map();
+
+function readFile(filePath) {
+  if (fileCache.has(filePath)) return fileCache.get(filePath);
+  try {
+    const content = fs.readFileSync(filePath, "utf8");
+    fileCache.set(filePath, content);
+    return content;
+  } catch {
+    return null;
+  }
+}
+
+function processIncludes(content) {
+  return content.replace(/<\?!= include\(['"]([^'"]+)['"]\); \?>/g, (_, filename) => {
+    const filePath = path.join(ROOT, filename + ".html");
+    const included = readFile(filePath);
+    if (included === null) {
+      console.warn(`[404] Include not found: ${filename}.html`);
+      return `<!-- MISSING INCLUDE: ${filename} -->`;
+    }
+    return included;
+  });
+}
+
+const server = http.createServer((req, res) => {
+  let urlPath = req.url.split("?")[0];
+  if (urlPath === "/") urlPath = "/Index.html";
+
+  const filePath = path.join(ROOT, urlPath);
+  const ext = path.extname(filePath);
+
+  // Security: prevent directory traversal
+  if (!filePath.startsWith(ROOT)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not found: " + urlPath);
+    return;
+  }
+
+  if (ext === ".html") {
+    const raw = readFile(filePath);
+    if (raw === null) {
+      res.writeHead(500);
+      res.end("Error reading file");
+      return;
+    }
+    const processed = processIncludes(raw);
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(processed);
+  } else {
+    const mime = MIME[ext] || "application/octet-stream";
+    const content = fs.readFileSync(filePath);
+    res.writeHead(200, { "Content-Type": mime });
+    res.end(content);
+  }
+});
+
+server.listen(PORT, () => {
+  console.log(`Writing app dev server running at http://localhost:${PORT}`);
+  console.log(`Serving from: ${ROOT}`);
+});

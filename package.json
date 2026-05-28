@@ -1,0 +1,11 @@
+{
+  "name": "writing-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Migration from Google Apps Script to standalone web app",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node build.js",
+    "start": "node server.js"
+  }
+}
