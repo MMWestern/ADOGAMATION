@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { exec } = require("child_process");
 
 const PORT = 3000;
 const ROOT = __dirname;
@@ -153,9 +154,16 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Writing app dev server running at http://localhost:${PORT}`);
+  const url = `http://localhost:${PORT}`;
+  console.log(`Writing app dev server running at ${url}`);
   console.log(`Serving from: ${ROOT}`);
   if (envConfig.SUPABASE_URL) {
     console.log("Supabase config loaded from .env");
   }
+  // Auto-open browser
+  const open = process.platform === "win32" ? "start" : process.platform === "darwin" ? "open" : "xdg-open";
+  exec(`${open} ${url}`, (err) => {
+    if (err) console.log(`Could not auto-open browser. Navigate to ${url} manually.`);
+    else console.log("Browser opened.");
+  });
 });
