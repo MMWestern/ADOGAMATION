@@ -10,6 +10,342 @@
     const IMAGE_GENERATOR_SETTINGS_CACHE_KEY = "writing_dashboard_image_generator_settings_v1";
     const PROJECT_IMAGE_FOLDER_ID = "1pIO-N2ny4LpGIFhdp0VZW7VBA0IOaQfb";
 
+    const SUPABASE_URL = window.__SUPABASE_URL__ || "";
+    const SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || "";
+    const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabaseJs !== "undefined")
+      ? supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    // --- Supabase Runner (drop-in replacement for google.script.run) ---
+    var _sbSuccess = null, _sbFailure = null;
+    var supabaseRunner = {
+      withSuccessHandler: function (fn) { _sbSuccess = fn; return this; },
+      withFailureHandler: function (fn) { _sbFailure = fn; return this; }
+    };
+    var _sbHandlers = function () {
+      var s = _sbSuccess, f = _sbFailure;
+      _sbSuccess = null; _sbFailure = null;
+      return { success: s, failure: f };
+    };
+    var _sbImpl = {};
+    function _sbDefine(name, impl) { _sbImpl[name] = impl; }
+
+    function _sbExec(impl, args, successFn, failureFn) {
+      try {
+        var result = impl.apply(null, args);
+        if (result && typeof result.then === 'function') {
+          result.then(function (data) { if (successFn) successFn(data); })
+            .catch(function (err) { if (failureFn) failureFn(err); else console.error('SB error:', err); });
+        } else {
+          if (successFn) successFn(result);
+        }
+      } catch (err) {
+        if (failureFn) failureFn(err);
+        else console.error('SB error:', err);
+      }
+    }
+
+    // Proxy: intercept method calls to dispatch to _sbImpl or fall back to GAS
+    supabaseRunner = new Proxy(supabaseRunner, {
+      get: function (target, prop) {
+        if (prop === 'withSuccessHandler' || prop === 'withFailureHandler') return target[prop];
+        var impl = _sbImpl[prop];
+        if (impl) {
+          return function () {
+            var args = Array.prototype.slice.call(arguments);
+            var h = _sbHandlers();
+            _sbExec(impl, args, h.success, h.failure);
+            return target;
+          };
+        }
+        // Fall back to google.script.run
+        return function () {
+          var args = Array.prototype.slice.call(arguments);
+          var h = _sbHandlers();
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            var runner = google.script.run;
+            if (h.success) runner = runner.withSuccessHandler(h.success);
+            if (h.failure) runner = runner.withFailureHandler(h.failure);
+            runner[prop].apply(runner, args);
+          } else {
+            var msg = 'No implementation for ' + prop;
+            console.error(msg);
+            if (h.failure) h.failure(new Error(msg));
+          }
+          return target;
+        };
+      }
+    });
+
+    // --- Helper to map project rows from Supabase to client format (mirrors Code.gs) ---
+    function mapSupabaseProjectToClient_(row) {
+      var series = row && row.series && typeof row.series === 'object' ? row.series : {};
+      return {
+        rowNumber: Number(row && row.id || 0),
+        series_id: Number(series.id || row && row.series_id || 0),
+        project_id: String(row && row.legacy_project_id || row && row.id || '').trim(),
+        title: String(row && row.title || '').trim(),
+        series: String(series.name || '').trim(),
+        'b#': row && row.book_number != null ? row.book_number : '',
+        pen_name: String(row && row.pen_name || '').trim(),
+        genre: String(row && row.genre || '').trim(),
+        format: String(row && row.format || '').trim(),
+        status: String(row && row.status || '').trim(),
+        priority: String(row && row.priority || '').trim(),
+        next_step: String(row && row.next_step || '').trim(),
+        short_summary: String(row && row.short_summary || '').trim(),
+        series_summary: String(series.summary || '').trim(),
+        workspace_url: String(row && row.legacy_workspace_url || '').trim(),
+        image: String(row && row.project_image_url || '').trim(),
+        series_image: String(series.series_image_url || '').trim(),
+        draft_doc_url: '',
+        dev_edit_doc_url: '',
+        line_edit_doc_url: '',
+        copy_edit_doc_url: '',
+        outline_doc_url: '',
+        outline_template_doc_url: '',
+        brainstorm_doc_url: '',
+        notes_doc_url: '',
+        characters_doc_url: '',
+        world_build_doc_url: '',
+        concept_doc_url: '',
+        series_outline_doc_url: '',
+        series_brainstorm_doc_url: '',
+        series_characters_doc_url: '',
+        series_world_build_doc_url: '',
+        series_notes_doc_url: '',
+        schedule_template: String(row && row.schedule_template || '').trim(),
+        marketing_template: String(row && row.marketing_template || '').trim(),
+        publish_date: String(row && row.publish_date || '').trim(),
+        publish_ready_date: String(row && row.publish_ready_date || '').trim(),
+        schedule_milestones: row && row.schedule_milestones ? row.schedule_milestones : [],
+        campaigns: row && row.campaigns ? row.campaigns : [],
+        last_updated: String(row && row.updated_at || row && row.created_at || '').trim()
+      };
+    }
+
+    function sortSupabaseProjectRowsForClient_(rows) {
+      return rows.slice().sort(function (a, b) {
+        var seriesA = String(a.series || '').trim().toLowerCase();
+        var seriesB = String(b.series || '').trim().toLowerCase();
+        if (seriesA !== seriesB) return seriesA < seriesB ? -1 : 1;
+        var bnA = a['b#']; var bnB = b['b#'];
+        if (bnA && bnB && bnA !== bnB) return Number(bnA) - Number(bnB);
+        var titleA = String(a.title || '').trim().toLowerCase();
+        var titleB = String(b.title || '').trim().toLowerCase();
+        return titleA < titleB ? -1 : titleA > titleB ? 1 : 0;
+      });
+    }
+
+    function getUniqueColumnValuesFromRows_(rows, key) {
+      var seen = {};
+      return rows.reduce(function (out, row) {
+        var value = String(row && row[key] || '').trim();
+        if (!value || seen[value]) return out;
+        seen[value] = true;
+        out.push(value);
+        return out;
+      }, []).sort(function (a, b) { return a.localeCompare(b); });
+    }
+
+    // --- Core Supabase method implementations ---
+    var SUPABASE_PROJECT_SELECT = [
+      "id", "legacy_project_id", "legacy_workspace_url", "title", "book_number",
+      "pen_name", "genre", "format", "status", "priority", "next_step",
+      "short_summary", "project_image_url", "schedule_template", "marketing_template",
+      "publish_date", "publish_ready_date", "schedule_milestones", "campaigns",
+      "created_at", "updated_at", "outline",
+      "series:series_id(id,name,summary,series_image_url)"
+    ];
+
+    _sbDefine('getProjectsJsonForClient', function () {
+      return supabase.from('projects').select(SUPABASE_PROJECT_SELECT.join(',')).limit(5000).order('id')
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data.map(mapSupabaseProjectToClient_);
+          return JSON.stringify({
+            ok: true,
+            build: 'SUPABASE_DIRECT_V1',
+            count: rows.length,
+            rows: sortSupabaseProjectRowsForClient_(rows),
+            nextStepOptions: getUniqueColumnValuesFromRows_(rows, 'next_step')
+          });
+        });
+    });
+
+    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "legacy_doc_urls"];
+
+    _sbDefine('getSupabaseSeriesMetaJsonFromClient', function () {
+      return supabase.from('series').select(SUPABASE_SERIES_META_SELECT.join(',')).limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseSeriesMetaJsonFromClient', function (seriesId, payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      return supabase.from('series').update(payload).eq('id', seriesId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveProjectJsonFromClient', function (payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      var record = {
+        title: payload.title,
+        book_number: payload['b#'],
+        pen_name: payload.pen_name,
+        genre: payload.genre,
+        format: payload.format,
+        status: payload.status,
+        priority: payload.priority,
+        next_step: payload.next_step,
+        short_summary: payload.short_summary,
+        legacy_workspace_url: payload.workspace_url,
+        project_image_url: payload.image
+      };
+      return supabase.from('projects').update(record).eq('id', payload.rowNumber)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectOutlineJsonFromClient', function (projectId, outlineJson) {
+      return supabase.from('projects').update({ outline: JSON.parse(outlineJson) }).eq('id', projectId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectOutlineJsonFromClient', function (projectId) {
+      return supabase.from('projects').select('outline').eq('id', projectId).single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, outline: res.data && res.data.outline ? res.data.outline : null });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectSectionDocumentJsonFromClient', function (projectId, docType) {
+      return supabase.from('document_sections').select('*').eq('project_id', projectId).eq('doc_type', docType).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectSectionDocumentJsonFromClient', function (projectId, docType, title, sectionsJson) {
+      // Remove old sections, insert new ones
+      var sections = JSON.parse(sectionsJson);
+      var upsertRows = sections.map(function (s) {
+        return {
+          project_id: projectId,
+          doc_type: docType,
+          section_key: s.sectionKey || s.key || '',
+          title: s.title || '',
+          text: s.text || '',
+          sort_order: s.sortOrder || 0
+        };
+      });
+      return supabase.from('document_sections').upsert(upsertRows, { onConflict: 'project_id,doc_type,section_key' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectDocumentJsonFromClient', function (projectId, docType, title, markdownText) {
+      return supabase.from('documents').upsert({
+        project_id: projectId, doc_type: docType, title: title, content: markdownText
+      }, { onConflict: 'project_id,doc_type' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectDocumentJsonFromClient', function (projectId, docType) {
+      return supabase.from('documents').select('*').eq('project_id', projectId).eq('doc_type', docType).single()
+        .then(function (res) {
+          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          return JSON.stringify({ ok: true, row: res.data || null });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectAllSectionBodiesJsonFromClient', function (projectId, docType) {
+      return supabase.from('document_sections').select('section_key,text').eq('project_id', projectId).eq('doc_type', docType).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectSectionBodyJsonFromClient', function (projectId, docType, sectionKey) {
+      return supabase.from('document_sections').select('text').eq('project_id', projectId).eq('doc_type', docType).eq('section_key', sectionKey).single()
+        .then(function (res) {
+          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          return JSON.stringify({ ok: true, text: res.data ? res.data.text : '' });
+        });
+    });
+
+    _sbDefine('createProjectJsonFromClient', function (payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      return supabase.from('projects').insert({
+        title: payload.title,
+        pen_name: payload.pen_name,
+        genre: payload.genre,
+        format: payload.format,
+        status: payload.status,
+        priority: payload.priority,
+        next_step: payload.next_step
+      }).select('id').single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, id: res.data && res.data.id });
+        });
+    });
+
+    // --- Override callAppsScriptJson to try Supabase first ---
+    function callAppsScriptJson(methodName, args) {
+      return new Promise(function (resolve, reject) {
+        var impl = _sbImpl[methodName];
+        if (impl && supabase) {
+          _sbExec(impl, args || [], function (json) {
+            try {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result && result.ok === false) throw new Error(result.error || (methodName + ' failed.'));
+              resolve(result);
+            } catch (error) {
+              reject(error);
+            }
+          }, function (error) {
+            reject(error && error.message ? new Error(error.message) : error);
+          });
+        } else if (typeof google !== 'undefined' && google.script && google.script.run) {
+          var runner = google.script.run
+            .withSuccessHandler(function (json) {
+              try {
+                var result = typeof json === 'string' ? JSON.parse(json) : json;
+                if (result && result.ok === false) throw new Error(result.error || (methodName + ' failed.'));
+                resolve(result);
+              } catch (error) {
+                reject(error);
+              }
+            })
+            .withFailureHandler(function (error) {
+              reject(error && error.message ? new Error(error.message) : error);
+            });
+          runner[methodName].apply(runner, args || []);
+        } else {
+          reject(new Error('No implementation for ' + methodName));
+        }
+      });
+    }
+
     const DEFAULT_STATUS_OPTIONS = ["Idea", "Concept", "Planning", "Draft", "Writing", "Editing", "Complete", "Publish Ready", "Published"];
     const DEFAULT_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
     const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
@@ -3924,7 +4260,7 @@
 
     function loadInspectorOptions() {
       const fallback = deriveInspectorOptionsFromProjects();
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
         appState.inspectorOptionsLoaded = true;
         renderResourceInspectorPanel();
@@ -3932,7 +4268,7 @@
         return;
       }
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const payload = parseServerResult(json);
@@ -3964,13 +4300,13 @@
       appState.inspectorOptions = options;
       renderResourceInspectorPanel();
       populateFilters();
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setResourceInspectorStatus("Inspector options updated locally.", "ok");
         return;
       }
       if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = true;
       setResourceInspectorStatus("Saving inspector options...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = false;
           try {
@@ -4898,7 +5234,7 @@
         const blob = await response.blob();
         const bundle = await buildOptimizedImageUploadBundle(blob, getNextImageGeneratorFileName("webp"));
         setImageGeneratorStatus("Uploading generated image to Drive...", "warn");
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -5584,7 +5920,7 @@
       if (!opts.silent) {
         setStatus("Loading chapter...", "warn");
       }
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -5656,7 +5992,7 @@
         return;
       }
       setStatus("Loading remaining chapters before save...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -5825,7 +6161,7 @@
 
     function loadGoogleDocIntoCache(docUrl, label, callbacks) {
       const opts = callbacks || {};
-      if (!docUrl || typeof google === "undefined" || !google.script || !google.script.run) return;
+      if (!docUrl || (!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       const cached = getCachedDoc(docUrl);
       if (cached && cached.loading) {
         addPendingDocLoadCallback(docUrl, opts);
@@ -5837,7 +6173,7 @@
       }
       addPendingDocLoadCallback(docUrl, opts);
       markDocLoading(docUrl, true);
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -5867,7 +6203,7 @@
       const entity = getSupabaseDocEntityInfo(selected, field);
       const opts = callbacks || {};
       if (!selected || !config || !entity) return;
-      if (typeof google === "undefined" || !google.script || !google.script.run) return;
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
 
       const cacheKey = getSupabaseProjectDocCacheKey(entity.entityId, config.docType, entity.scope);
       if (!cacheKey) return;
@@ -5893,7 +6229,7 @@
 
       addPendingDocLoadCallback(cacheKey, opts);
       markDocLoading(cacheKey, true);
-      const runner = google.script.run
+      const runner = supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -5937,7 +6273,7 @@
     }
 
     function preloadProjectDocs(project) {
-      if (!project || typeof google === "undefined" || !google.script || !google.script.run) return;
+      if (!project || (!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       GOOGLE_DOC_MARKDOWN_FIELDS.forEach(function (field) {
         if (isSupabaseProjectMarkdownField(field)) {
           const config = getSupabaseProjectMarkdownConfig(field);
@@ -5969,7 +6305,7 @@
     }
 
     function preloadReferencePanelSelections(project, activeField) {
-      if (!project || typeof google === "undefined" || !google.script || !google.script.run) return;
+      if (!project || (!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       getReferenceFieldsForActiveEditor(activeField).forEach(function (field) {
         const url = String(project[field.urlKey] || "").trim();
         const activeUrl = String(activeField && project[activeField.urlKey] || "").trim();
@@ -6166,7 +6502,7 @@
       const label = field ? field.label : "Linked Doc";
       setStatus("Creating " + label + " doc...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -6332,11 +6668,11 @@
 
     function persistImageGeneratorSettingsForAsset(fileRecord) {
       if (!fileRecord || !fileRecord.id) return;
-      if (typeof google === "undefined" || !google.script || !google.script.run) return;
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       const settings = fileRecord.generatorSettings && typeof fileRecord.generatorSettings === "object"
         ? fileRecord.generatorSettings
         : captureImageGeneratorSettings();
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function () {})
         .withFailureHandler(function (error) {
           console.warn("IMAGE GENERATOR SETTINGS PERSIST FAILED", error);
@@ -6346,7 +6682,7 @@
 
     function backfillLegacyImageGeneratorSettingsToAssets(files) {
       if (!Array.isArray(files) || !files.length) return 0;
-      if (typeof google === "undefined" || !google.script || !google.script.run) return 0;
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return 0;
       const store = readImageGeneratorSettingsStore();
       const legacyImages = store && store.images && typeof store.images === "object" ? store.images : {};
       let queued = 0;
@@ -6558,7 +6894,7 @@
         setImagePickerStatus("Refreshing cached library images...", "warn");
       }
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           appState.imagePicker.isLoading = false;
           try {
@@ -6630,7 +6966,7 @@
 
       buildOptimizedImageUploadBundle(file, file.name)
         .then(function (bundle) {
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             appState.imagePicker.isUploading = false;
             try {
@@ -6681,27 +7017,8 @@
         });
     }
 
-    function callAppsScriptJson(methodName, args) {
-      return new Promise(function (resolve, reject) {
-        const runner = google.script.run
-          .withSuccessHandler(function (json) {
-            try {
-              const result = parseServerResult(json);
-              if (result && result.ok === false) throw new Error(result.error || (methodName + " failed."));
-              resolve(result);
-            } catch (error) {
-              reject(error);
-            }
-          })
-          .withFailureHandler(function (error) {
-            reject(error && error.message ? new Error(error.message) : error);
-          });
-        runner[methodName].apply(runner, args || []);
-      });
-    }
-
     function loadSeriesMeta() {
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         appState.seriesMetaById = {};
         appState.seriesMigrationReport = null;
         return Promise.resolve({});
@@ -9130,7 +9447,7 @@
       const workspaceUrl = project.workspace_url;
       if (appState.dashboardLinksByWorkspace[workspaceUrl]) return;
       appState.dashboardLinksByWorkspace[workspaceUrl] = { loading: true };
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           const data = JSON.parse(json);
           appState.dashboardLinksByWorkspace[workspaceUrl] = data && data.ok && data.links ? data.links : { error: "No links returned" };
@@ -9194,7 +9511,7 @@
       };
       payload[field] = url;
       setStatus("Saving series doc link...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           var result = JSON.parse(json);
           if (result && result.ok) {
@@ -9289,7 +9606,7 @@
         series_image: nextImageUrl
       };
       setStatus("Saving series image...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           var result = JSON.parse(json);
           if (result && result.ok) {
@@ -9354,7 +9671,7 @@
         series_summary: summary
       };
       setStatus("Saving series summary...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           var result = JSON.parse(json);
           if (result && result.ok) {
@@ -10368,12 +10685,12 @@
         setStatus("Loading projects...", "warn");
       }
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
-        setStatus("google.script.run not available.", "error");
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
+        setStatus("supabaseRunner not available.", "error");
         return;
       }
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const payload = parseServerResult(json);
@@ -10463,7 +10780,7 @@
 
       setStatus(isAutosave ? "Autosaving in background..." : "Saving changes...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           appState.isSaving = false;
 
@@ -10615,7 +10932,7 @@
       el.confirmNewProjectButton.disabled = true;
       setStatus("Creating new project...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           appState.isCreating = false;
           el.confirmNewProjectButton.disabled = false;
@@ -10662,7 +10979,7 @@
       setWorkspaceBusy(true);
       setStatus("Building Google archive workspace...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           setWorkspaceBusy(false);
           try {
@@ -10741,7 +11058,7 @@
     function sortProjects() {
       setStatus("Sorting sheet...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -12821,7 +13138,7 @@
         return;
       }
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setStatus("Spellcheck needs the deployed Apps Script backend.", "error");
         return;
       }
@@ -12830,7 +13147,7 @@
       if (el.markdownSpellcheckButton) el.markdownSpellcheckButton.disabled = true;
       if (el.markdownSpellcheckSelectionButton) el.markdownSpellcheckSelectionButton.disabled = true;
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (el.markdownSpellcheckButton) el.markdownSpellcheckButton.disabled = false;
           if (el.markdownSpellcheckSelectionButton) el.markdownSpellcheckSelectionButton.disabled = false;
@@ -13263,11 +13580,11 @@
           reject(new Error("No Google Doc URL is available for " + (label || "this document") + "."));
           return;
         }
-        if (typeof google === "undefined" || !google.script || !google.script.run) {
+        if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
           reject(new Error("Apps Script backend is not available."));
           return;
         }
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -13299,13 +13616,13 @@
           reject(new Error("No Supabase document target is available for " + ((field && field.label) || "this document") + "."));
           return;
         }
-        if (typeof google === "undefined" || !google.script || !google.script.run) {
+        if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
           reject(new Error("Apps Script backend is not available."));
           return;
         }
         const title = String(entity.entityLabel || (entity.scope === "series" ? "Series" : "Project")).trim() + " - " + (field.label || config.label || "Document");
         const cacheKey = getSupabaseProjectDocCacheKey(entity.entityId, config.docType, entity.scope);
-        const runner = google.script.run
+        const runner = supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -13724,7 +14041,7 @@
       }
       setStatus((opts.statusPrefix || "Saving") + " " + label + " Google Doc...", opts.background ? "warn" : "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (!opts.background) {
             el.markdownSaveButton.disabled = false;
@@ -13818,7 +14135,7 @@
       }
       setStatus((opts.statusPrefix || "Saving") + " " + label + " to Supabase...", opts.background ? "warn" : "warn");
 
-      const runner = google.script.run
+      const runner = supabaseRunner
         .withSuccessHandler(function (json) {
           if (!opts.background) {
             el.markdownSaveButton.disabled = false;
@@ -14951,7 +15268,7 @@
       setStorySeedLibraryStatus("Loading Story Seed engine...", "warn", [
         "Pulling genres, arc tables, hybrid rules, and element rows from the linked engine sheets."
       ]);
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         const emptyOptions = createEmptyStorySeedOptions();
         appState.storySeed.libraryLoaded = true;
         appState.storySeed.options = emptyOptions;
@@ -14963,7 +15280,7 @@
         return Promise.resolve(emptyOptions);
       }
       return new Promise(function (resolve) {
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -15092,7 +15409,7 @@
       setStorySeedError("");
       setStorySeedStatus("Building Story Seed brief...", "warn");
       setStorySeedOutput("Reading the engine sheets and building a usable brief...", "warn");
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         appState.storySeed.isGenerating = false;
         appState.storySeed.isBuildingBrief = false;
         if (!appState.storySeed.isGeneratingAi) setStorySeedButtonsDisabled(false);
@@ -15101,7 +15418,7 @@
         return Promise.resolve(null);
       }
       return new Promise(function (resolve) {
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -15346,7 +15663,7 @@
       setBookCreatorLibraryStatus("Checking pocket library...", "warn", [
         "Checking Supabase for Book Creator pockets first."
       ]);
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         useEmptyBookCreatorPockets();
         setBookCreatorLibraryStatus("Pocket library check is unavailable in local preview.", "warn", [
           "Apps Script will load Supabase pockets, with a legacy sheet fallback, after deployment."
@@ -15354,7 +15671,7 @@
         return Promise.resolve(getActiveBookCreatorPockets());
       }
       return new Promise(function (resolve) {
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -15454,8 +15771,8 @@
           ? 'Reading "' + BOOK_CREATOR_POCKET_SHEET_NAME + '" and syncing usable rows into Supabase.'
           : 'Pulling the latest rows from "' + BOOK_CREATOR_POCKET_SHEET_NAME + '".'
       ]);
-      if (shouldSyncToSupabase && typeof google !== "undefined" && google.script && google.script.run) {
-        google.script.run
+      if (shouldSyncToSupabase && typeof google !== "undefined" && google.script && supabaseRunner) {
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -16499,11 +16816,11 @@
     function saveBookCreatorTextToDoc(docUrl, text, label) {
       return new Promise(function (resolve, reject) {
         if (!docUrl) { resolve(null); return; }
-        if (typeof google === "undefined" || !google.script || !google.script.run) {
+        if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
           reject(new Error("Apps Script backend is not available to save " + label + "."));
           return;
         }
-        google.script.run
+        supabaseRunner
           .withSuccessHandler(function (json) {
             try {
               const result = parseServerResult(json);
@@ -16876,7 +17193,7 @@
           resolve(cached);
           return;
         }
-        if (typeof google === "undefined" || !google.script || !google.script.run) {
+        if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
           reject(new Error("Apps Script backend is not available to load " + label + "."));
           return;
         }
@@ -17056,8 +17373,8 @@
       const provider = payload.provider || "openrouter";
       if (shouldUseBrowserAI(provider, payload)) return callLocalAIFromBrowser(payload);
       return new Promise(function (resolve, reject) {
-        if (typeof google === "undefined" || !google.script || !google.script.run) { reject(new Error("Apps Script backend is not available.")); return; }
-        google.script.run
+        if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) { reject(new Error("Apps Script backend is not available.")); return; }
+        supabaseRunner
           .withSuccessHandler(function (json) { try { const result = parseServerResult(json); if (result.ok === false) throw new Error(result.error || "AI call failed."); resolve(result); } catch (err) { reject(err); } })
           .withFailureHandler(function (error) { reject(error); })
           .callAICompletionJsonFromClient(JSON.stringify(payload));
@@ -17236,12 +17553,12 @@
     }
 
     function loadAISettings() {
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setAISettingsStatus("AI settings need the deployed Apps Script backend.", "error");
         return;
       }
       setAISettingsStatus("Loading AI settings...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = parseServerResult(json);
@@ -17265,7 +17582,7 @@
       if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.disabled = true;
       setAISettingsStatus("Saving AI settings...", "warn");
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           appState.aiSettings.isSaving = false;
           if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.disabled = false;
@@ -17388,7 +17705,7 @@
       }
 
       setAISettingsStatus("Fetching " + providerLabel(payload.provider) + " models via Apps Script...", "warn");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           finishFetch();
           try {
@@ -17463,7 +17780,7 @@
         return;
       }
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           finishTest();
           try {
@@ -17973,8 +18290,8 @@
     }
 
     function loadResourcesList(callback) {
-      if (typeof google === "undefined" || !google.script || !google.script.run) return;
-      google.script.run
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
+      supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             const result = JSON.parse(json);
@@ -18121,7 +18438,7 @@
       renderResourcePreview();
       updateResourceWordCount();
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) return;
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       var requestKey = "resource:" + String(targetId) + ":" + String(Date.now()) + ":" + String(Math.random()).slice(2);
       appState.resourceLoadRequestKey = requestKey;
       setCachedDoc(cacheKey, {
@@ -18133,7 +18450,7 @@
       });
       setStatus("Loading resource...", "warn");
       setResourceEditorLoading(true, "Loading...");
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (appState.resourceLoadRequestKey !== requestKey || Number(appState.selectedResourceId || 0) !== targetId) return;
           try {
@@ -18322,7 +18639,7 @@
         return;
       }
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         if (!opts.silent) setStatus("Apps Script backend is not available.", "error");
         if (typeof opts.onFailure === "function") opts.onFailure(new Error("Apps Script backend is not available."));
         return;
@@ -18331,7 +18648,7 @@
       if (opts.isActive !== false && el.resourceEditorSaveButton) el.resourceEditorSaveButton.disabled = true;
       if (opts.isActive !== false && el.resourceEditorStatus) el.resourceEditorStatus.textContent = "Saving...";
 
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (opts.isActive !== false && el.resourceEditorSaveButton) el.resourceEditorSaveButton.disabled = false;
           try {
@@ -18504,13 +18821,13 @@
         return;
       }
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setStatus("Apps Script backend is not available.", "error");
         return;
       }
 
       if (el.confirmNewResourceButton) el.confirmNewResourceButton.disabled = true;
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (el.confirmNewResourceButton) el.confirmNewResourceButton.disabled = false;
           try {
@@ -18545,13 +18862,13 @@
         return;
       }
 
-      if (typeof google === "undefined" || !google.script || !google.script.run) {
+      if ((!supabase && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setStatus("Apps Script backend is not available.", "error");
         return;
       }
 
       if (el.confirmDeleteResourceButton) el.confirmDeleteResourceButton.disabled = true;
-      google.script.run
+      supabaseRunner
         .withSuccessHandler(function (json) {
           if (el.confirmDeleteResourceButton) el.confirmDeleteResourceButton.disabled = false;
           try {
@@ -18979,7 +19296,7 @@
               title: project.title,
               series: project.series
             };
-            google.script.run
+            supabaseRunner
               .withSuccessHandler(function (json) {
                 var result = JSON.parse(json);
                 if (result && result.ok) {

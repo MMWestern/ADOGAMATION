@@ -16,7 +16,23 @@ const MIME = {
   ".ico": "image/x-icon",
 };
 
-// Cache for frequently read files
+// Load .env
+let envConfig = {};
+try {
+  const envRaw = fs.readFileSync(path.join(ROOT, ".env"), "utf8");
+  envRaw.split("\n").forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) return;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const val = trimmed.slice(eqIdx + 1).trim();
+    if (key) envConfig[key] = val;
+  });
+} catch {
+  console.warn("[WARN] No .env file found. Supabase calls will fail.");
+}
+
 const fileCache = new Map();
 
 function readFile(filePath) {
@@ -42,6 +58,15 @@ function processIncludes(content) {
   });
 }
 
+const CONFIG_SCRIPT = `<script>
+window.__SUPABASE_URL__ = ${JSON.stringify(envConfig.SUPABASE_URL || "")};
+window.__SUPABASE_ANON_KEY__ = ${JSON.stringify(envConfig.SUPABASE_ANON_KEY || "")};
+</script>`;
+
+function injectConfig(html) {
+  return html.replace('<?!= include(\'Client\'); ?>', CONFIG_SCRIPT + '\n<?!= include(\'Client\'); ?>');
+}
+
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/Index.html";
@@ -49,7 +74,6 @@ const server = http.createServer((req, res) => {
   const filePath = path.join(ROOT, urlPath);
   const ext = path.extname(filePath);
 
-  // Security: prevent directory traversal
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403);
     res.end("Forbidden");
@@ -69,7 +93,7 @@ const server = http.createServer((req, res) => {
       res.end("Error reading file");
       return;
     }
-    const processed = processIncludes(raw);
+    const processed = injectConfig(processIncludes(raw));
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(processed);
   } else {
@@ -83,4 +107,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`Writing app dev server running at http://localhost:${PORT}`);
   console.log(`Serving from: ${ROOT}`);
+  if (envConfig.SUPABASE_URL) {
+    console.log("Supabase config loaded from .env");
+  }
 });
