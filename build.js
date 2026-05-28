@@ -4,8 +4,10 @@ const path = require("path");
 const ROOT = __dirname;
 const DIST = path.join(ROOT, "dist");
 
-// Clean dist
-if (fs.existsSync(DIST)) fs.rmSync(DIST, { recursive: true });
+// Clean dist (with retries for Windows long-path issues)
+if (fs.existsSync(DIST)) {
+  fs.rmSync(DIST, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}
 fs.mkdirSync(DIST, { recursive: true });
 
 function readFile(filePath) {
@@ -24,10 +26,9 @@ function processIncludes(content) {
   });
 }
 
-// Only copy these specific files/dirs
 const HTML_FILES = ["Index.html", "Client.html", "Styles.html"];
-const STATIC_DIRS = ["node_modules"];
-const STATIC_FILES = [".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"];
+const STATIC_EXTS = new Set([".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".env"]);
 
 console.log("Building for Vercel...");
 
@@ -46,19 +47,18 @@ for (const htmlFile of HTML_FILES) {
   }
 }
 
-// Copy static assets (only from specific directories)
+// Copy static assets from specific subdirectories only
 console.log("Copying static assets...");
 function copyStaticAssets(src, dest) {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (SKIP_DIRS.has(entry.name)) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      // Skip node_modules and .git
-      if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist") continue;
       copyStaticAssets(srcPath, destPath);
-    } else if (STATIC_FILES.includes(path.extname(entry.name).toLowerCase())) {
+    } else if (STATIC_EXTS.has(path.extname(entry.name).toLowerCase())) {
       fs.copyFileSync(srcPath, destPath);
     }
   }

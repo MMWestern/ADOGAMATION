@@ -1,18 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "dist/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/env.js", "dest": "/api/env.js" },
-    { "src": "/(.*)", "dest": "/dist/$1" }
+  "buildCommand": "node build.js",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/env.js", "destination": "/api/env.js" }
   ]
 }
