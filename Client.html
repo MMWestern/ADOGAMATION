@@ -6019,11 +6019,17 @@
     }
 
     async function comfyApiFetch(path, options) {
+      const comfyEndpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "").trim().replace(/\/+$/, "");
       const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-      if (!isLocalhost) {
-        throw new Error("ComfyUI is only available on localhost. Switch to http://localhost:3000 and run npm run dev.");
+      const headers = Object.assign({}, (options && options.headers) || {});
+      if (comfyEndpoint && !isLocalhost) {
+        headers["x-comfy-endpoint"] = comfyEndpoint;
+      } else if (!comfyEndpoint && !isLocalhost) {
+        throw new Error("Set your ComfyUI endpoint in AI Settings (e.g. https://your-id.ngrok.io).");
       }
-      const response = await fetch("/api/comfy" + path, options || {});
+      const proxyBase = isLocalhost ? "/api/comfy" : "/api/comfy?path=" + encodeURIComponent(path.replace(/^\//, ""));
+      const url = isLocalhost ? ("/api/comfy" + path) : proxyBase;
+      const response = await fetch(url, Object.assign({}, options || {}, { headers }));
       if (!response.ok) {
         const text = await response.text();
         throw new Error("ComfyUI request failed (" + response.status + "): " + text);

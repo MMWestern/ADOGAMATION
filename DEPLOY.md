@@ -71,6 +71,24 @@ data/               ← Story seed engine JSON
 - **Dashboard**: `https://supabase.com/dashboard/project/bmssizjfkowberhhpyff`
 - **Tables**: projects, series, documents, document_sections, image_assets, general_resources, series_characters, series_locations, series_continuity_entries, book_creator_pockets
 
+## ComfyUI (AI Image Generation)
+
+ComfyUI runs locally on your machine. Two ways to use it:
+
+### Option A — Localhost only
+1. Start ComfyUI: `python main.py --listen 0.0.0.0` (default port 8188)
+2. Run `npm run dev` → access `http://localhost:3000`
+3. Endpoint stays as default `/api/comfy` (dev server proxies it)
+
+### Option B — From Vercel via ngrok
+1. Install ngrok: `npm i -g ngrok` or download from [ngrok.com](https://ngrok.com)
+2. Start ComfyUI on port 8188
+3. Run `ngrok http 8188` → gives you a public URL like `https://abc123.ngrok.io`
+4. In the app → AI Settings → set ComfyUI Endpoint to the ngrok URL
+5. The Vercel serverless proxy (`api/comfy.js`) forwards requests through ngrok to your local ComfyUI
+
+> ngrok free tier gives you a random URL each time. Paid plan lets you use a fixed subdomain.
+
 ## Redeploy
 
 Push to `main` triggers auto-deploy. Manual: Vercel → Deployments → ⋯ → Redeploy.
