@@ -24,48 +24,46 @@ function processIncludes(content) {
   });
 }
 
-// Copy static assets
-const staticExts = [".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"];
-function copyDir(src, dest) {
+// Only copy these specific files/dirs
+const HTML_FILES = ["Index.html", "Client.html", "Styles.html"];
+const STATIC_DIRS = ["node_modules"];
+const STATIC_FILES = [".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"];
+
+console.log("Building for Vercel...");
+
+// Process HTML includes
+console.log("Processing HTML includes...");
+for (const htmlFile of HTML_FILES) {
+  const srcPath = path.join(ROOT, htmlFile);
+  const destPath = path.join(DIST, htmlFile);
+  if (fs.existsSync(srcPath)) {
+    const raw = readFile(srcPath);
+    const processed = processIncludes(raw);
+    fs.writeFileSync(destPath, processed, "utf8");
+    console.log(`  ${htmlFile} -> dist/${htmlFile}`);
+  } else {
+    console.warn(`[WARN] ${htmlFile} not found`);
+  }
+}
+
+// Copy static assets (only from specific directories)
+console.log("Copying static assets...");
+function copyStaticAssets(src, dest) {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
-    } else if (staticExts.includes(path.extname(entry.name).toLowerCase())) {
+      // Skip node_modules and .git
+      if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "dist") continue;
+      copyStaticAssets(srcPath, destPath);
+    } else if (STATIC_FILES.includes(path.extname(entry.name).toLowerCase())) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
 }
-
-// Process and copy HTML files
-function processHtml(src, dest) {
-  if (!fs.existsSync(src)) return;
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      processHtml(srcPath, destPath);
-    } else if (entry.name.endsWith(".html")) {
-      const raw = readFile(srcPath);
-      if (raw) {
-        const processed = processIncludes(raw);
-        fs.writeFileSync(destPath, processed, "utf8");
-        console.log(`  ${entry.name} -> dist/${entry.name}`);
-      }
-    }
-  }
-}
-
-console.log("Building for Vercel...");
-console.log("Processing HTML includes...");
-processHtml(ROOT, DIST);
-
-console.log("Copying static assets...");
-copyDir(ROOT, DIST);
+copyStaticAssets(ROOT, DIST);
 
 // Copy data files
 const dataDir = path.join(ROOT, "data");
@@ -74,13 +72,6 @@ if (fs.existsSync(dataDir)) {
   fs.mkdirSync(distData, { recursive: true });
   for (const f of fs.readdirSync(dataDir)) {
     fs.copyFileSync(path.join(dataDir, f), path.join(distData, f));
-  }
-}
-
-// Remove source HTML from dist (already processed)
-for (const f of fs.readdirSync(DIST)) {
-  if (f.endsWith(".html") && f !== "Index.html") {
-    // Keep only Index.html (the processed one)
   }
 }
 
