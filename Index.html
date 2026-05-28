@@ -12,12 +12,14 @@
   <div id="authOverlay" style="display:none;position:fixed;inset:0;z-index:99999;background:#1a1a2e;align-items:center;justify-content:center;">
     <div style="background:#16213e;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;width:90%;text-align:center;">
       <h2 style="color:#fff;margin:0 0 8px;">ADOGMATION PRESS</h2>
-      <p style="color:#888;margin:0 0 24px;font-size:14px;">Enter your email to receive a magic login link</p>
-      <form onsubmit="_handleMagicLink(event)">
-        <input id="authEmail" type="email" placeholder="your@email.com" required
+      <p style="color:#888;margin:0 0 24px;font-size:14px;">Sign in to your account</p>
+      <form onsubmit="_handleLogin(event)">
+        <input id="authEmail" type="email" placeholder="Email" required
           style="width:100%;padding:12px 16px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#fff;font-size:16px;outline:none;box-sizing:border-box;" />
+        <input id="authPassword" type="password" placeholder="Password" required
+          style="width:100%;padding:12px 16px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#fff;font-size:16px;outline:none;box-sizing:border-box;margin-top:12px;" />
         <button type="submit"
-          style="width:100%;padding:12px;margin-top:16px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:16px;cursor:pointer;">Send Magic Link</button>
+          style="width:100%;padding:12px;margin-top:16px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:16px;cursor:pointer;">Login</button>
       </form>
       <p id="authMessage" style="margin-top:16px;font-size:14px;color:#888;"></p>
     </div>

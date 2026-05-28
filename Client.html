@@ -30,20 +30,22 @@
       if (overlay) overlay.style.display = 'none';
     }
 
-    function _handleMagicLink(e) {
+    function _handleLogin(e) {
       e.preventDefault();
       var emailInput = document.getElementById('authEmail');
+      var passInput = document.getElementById('authPassword');
       var msgEl = document.getElementById('authMessage');
       var email = (emailInput.value || '').trim();
-      if (!email) return;
-      msgEl.textContent = 'Sending magic link...';
+      var password = passInput.value || '';
+      if (!email || !password) return;
+      msgEl.textContent = 'Logging in...';
       msgEl.style.color = '#aaa';
-      sbClient.auth.signInWithOtp({ email: email }).then(function (res) {
+      sbClient.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
         if (res.error) {
           msgEl.textContent = 'Error: ' + res.error.message;
           msgEl.style.color = '#f66';
         } else {
-          msgEl.textContent = 'Check your email for the login link!';
+          msgEl.textContent = 'Success!';
           msgEl.style.color = '#6f6';
         }
       });
