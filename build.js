@@ -26,24 +26,29 @@ function processIncludes(content) {
   });
 }
 
-const HTML_FILES = ["Index.html", "Client.html", "Styles.html"];
+const HTML_FILES = [
+  { src: "Index.html", dest: "index.html" },
+  { src: "Client.html", dest: "Client.html" },
+  { src: "Styles.html", dest: "Styles.html" }
+];
 const STATIC_EXTS = new Set([".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"]);
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".env"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", "api", "migrations", ".env"]);
+const SKIP_FILES = new Set(["build.js", "dev-server.js", "package.json", "vercel.json", ".gitignore", "CHANGELOG.md"]);
 
 console.log("Building for Vercel...");
 
 // Process HTML includes
 console.log("Processing HTML includes...");
-for (const htmlFile of HTML_FILES) {
-  const srcPath = path.join(ROOT, htmlFile);
-  const destPath = path.join(DIST, htmlFile);
+for (const { src, dest } of HTML_FILES) {
+  const srcPath = path.join(ROOT, src);
+  const destPath = path.join(DIST, dest);
   if (fs.existsSync(srcPath)) {
     const raw = readFile(srcPath);
     const processed = processIncludes(raw);
     fs.writeFileSync(destPath, processed, "utf8");
-    console.log(`  ${htmlFile} -> build/${htmlFile}`);
+    console.log(`  ${src} -> build/${dest}`);
   } else {
-    console.warn(`[WARN] ${htmlFile} not found`);
+    console.warn(`[WARN] ${src} not found`);
   }
 }
 
@@ -53,7 +58,7 @@ function copyStaticAssets(src, dest) {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    if (SKIP_DIRS.has(entry.name)) continue;
+    if (SKIP_DIRS.has(entry.name) || SKIP_FILES.has(entry.name)) continue;
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
