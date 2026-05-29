@@ -3822,9 +3822,10 @@
       }
       empty.hidden = true;
       content.hidden = false;
-      var characters = project && Number(project.series_id || 0)
-        ? (skCache.characters && skCache.characters[Number(project.series_id)] || [])
-        : [];
+      var seriesId = Number(project && project.series_id || 0);
+      var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+      var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+      var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
       var globalChapterNum = 0;
       grid.innerHTML = acts.map(function (act) {
         var chapterCount = (act.children || []).length;
@@ -3858,11 +3859,7 @@
                   (chapter.children || []).map(function (scene) {
                     var wc = Number(scene.targetWordCount || 0);
                     var wcLabel = wc ? wc.toLocaleString() : "—";
-                    var charTags = (scene.characterIds || []).map(function (cid) {
-                      var charObj = characters.find(function (c) { return Number(c.id) === Number(cid); });
-                      var name = charObj ? String(charObj.name || "").trim() : "?";
-                      return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-char-id="' + escapeHtml(cid) + '">' + escapeHtml(name) + '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-char-id="' + escapeHtml(cid) + '">&#10005;</span></span>';
-                    }).join("");
+                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
                         '<span class="plan-scene-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(scene.id) + '">' + escapeHtml(scene.title || "") + '</span>' +
@@ -3891,7 +3888,7 @@
                           '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="Main plot function..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="mainPlotFunction">' + escapeHtml(scene.mainPlotFunction || "") + '</span>' +
                         '</div>' +
                       '</div>' +
-                      '<div class="plan-scene-tags">' + charTags +
+                      '<div class="plan-scene-tags">' + codexTags +
                         '<span class="plan-scene-tag-add" data-scene-id="' + escapeHtml(scene.id) + '">+ Codex</span>' +
                       '</div>' +
                     '</div>';
@@ -3972,17 +3969,48 @@
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
           var sceneId = this.getAttribute("data-scene-id");
-          var charId = Number(this.getAttribute("data-char-id") || 0);
-          if (!sceneId || !charId) return;
+          var codexId = Number(this.getAttribute("data-codex-id") || 0);
+          var codexType = String(this.getAttribute("data-codex-type") || "").trim();
+          if (!sceneId || !codexId || !codexType) return;
           var outline = getPlanOutline();
           var scene = findPlanNodeById(outline, sceneId);
-          if (scene && scene.characterIds) {
-            scene.characterIds = scene.characterIds.filter(function (id) { return Number(id) !== charId; });
+          if (scene) {
+            if (scene.codexEntries) {
+              scene.codexEntries = scene.codexEntries.filter(function (e) {
+                return !(Number(e.id || 0) === codexId && String(e.type || "").trim() === codexType);
+              });
+            }
+            scene.characterIds = (scene.characterIds || []).filter(function (id) {
+              return !(Number(id) === codexId && codexType === "characters");
+            });
             renderPlanOutline();
             schedulePlanOutlineSave();
           }
         });
       });
+    }
+
+    function getPlanSceneCodexTags(scene, characters, locations, continuity) {
+      var tags = [];
+      (scene.codexEntries || []).forEach(function (entry) {
+        var id = Number(entry.id || 0);
+        var type = String(entry.type || "").trim();
+        var arr = type === "characters" ? characters : type === "locations" ? locations : type === "continuity" ? continuity : null;
+        var obj = arr ? arr.find(function (x) { return Number(x.id || 0) === id; }) : null;
+        var name = obj ? String(obj.name || obj.title || "").trim() : "?";
+        tags.push({ id: id, type: type, name: name });
+      });
+      (scene.characterIds || []).forEach(function (cid) {
+        var id = Number(cid || 0);
+        if (!id || tags.some(function (t) { return t.id === id && t.type === "characters"; })) return;
+        var charObj = characters.find(function (c) { return Number(c.id) === id; });
+        tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?" });
+      });
+      return tags.map(function (t) {
+        return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">' +
+          escapeHtml(t.name) +
+          '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
+      }).join("");
     }
 
     var _planCodexTagTargetSceneId = "";
@@ -4014,10 +4042,13 @@
       var q = String(query || "").trim().toLowerCase();
       var entries = [];
       (skCache.characters && skCache.characters[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "character" });
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "characters" });
       });
       (skCache.locations && skCache.locations[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "location" });
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "locations" });
+      });
+      (skCache.continuity && skCache.continuity[seriesId] || []).forEach(function (c) {
+        entries.push({ id: c.id, name: String(c.title || "").trim(), type: "continuity" });
       });
       entries.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       if (q) {
@@ -4038,13 +4069,17 @@
       el.planCodexTagList.querySelectorAll(".plan-codex-tag-item").forEach(function (item) {
         item.addEventListener("click", function () {
           var cid = Number(this.getAttribute("data-codex-id") || 0);
-          if (!_planCodexTagTargetSceneId || !cid) return;
+          var ctype = String(this.getAttribute("data-codex-type") || "").trim();
+          if (!_planCodexTagTargetSceneId || !cid || !ctype) return;
           var outline = getPlanOutline();
           var scene = findPlanNodeById(outline, _planCodexTagTargetSceneId);
           if (scene) {
-            scene.characterIds = scene.characterIds || [];
-            if (!scene.characterIds.includes(cid)) {
-              scene.characterIds.push(cid);
+            scene.codexEntries = scene.codexEntries || [];
+            var exists = scene.codexEntries.some(function (e) {
+              return Number(e.id || 0) === cid && String(e.type || "").trim() === ctype;
+            });
+            if (!exists) {
+              scene.codexEntries.push({ id: cid, type: ctype });
               renderPlanOutline();
               schedulePlanOutlineSave();
             }
