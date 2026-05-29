@@ -3403,47 +3403,6 @@
     var _dragOverTarget = null;
     var _dragOverBefore = false;
     var _dragConfirmChapter = null, _dragConfirmCount = 0;
-    var _dragDebugEl = null;
-    function _dragDebugShow(e, chapter, before, triggered) {
-      if (!_dragDebugEl) {
-        _dragDebugEl = document.createElement("div");
-        _dragDebugEl.id = "dragDebug";
-        _dragDebugEl.style.cssText = "position:fixed;z-index:99999;background:rgba(0,0,0,0.9);color:#0f0;font:12px monospace;padding:8px 12px;border-radius:6px;pointer-events:none;white-space:pre;line-height:1.5;border:1px solid #0f0;";
-        document.body.appendChild(_dragDebugEl);
-      }
-      var chId = chapter ? chapter.getAttribute("data-chapter-id") : "none";
-      var chTitle = chapter ? (chapter.querySelector(".plan-chapter-title") || {}).textContent || "?" : "?";
-      var rect = chapter ? chapter.getBoundingClientRect() : null;
-      var pct = rect ? ((e.clientX - rect.left) / rect.width * 100).toFixed(1) : "-";
-      _dragDebugEl.innerHTML =
-        "Cursor: " + e.clientX + ", " + e.clientY + "\n" +
-        "Chapter: " + chId + " (" + chTitle + ")\n" +
-        "Position: " + pct + "% from left\n" +
-        "Before: " + before + "  Triggered: " + triggered + "\n" +
-        "Target: " + (_dragOverTarget ? _dragOverTarget.getAttribute("data-chapter-id") : "null") + "\n" +
-        "ETarget: " + (e.target.className || e.target.tagName);
-      _dragDebugEl.style.left = (e.clientX + 20) + "px";
-      _dragDebugEl.style.top = (e.clientY + 20) + "px";
-      document.querySelectorAll(".plan-chapter.debug-hit").forEach(function (c) { c.classList.remove("debug-hit"); });
-      document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
-      if (chapter) {
-        chapter.classList.add("debug-hit");
-        var splitH = document.createElement("div");
-        splitH.className = "debug-split";
-        splitH.style.cssText = "position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
-        var splitV = document.createElement("div");
-        splitV.className = "debug-split";
-        splitV.style.cssText = "position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
-        chapter.style.position = "relative";
-        chapter.appendChild(splitH);
-        chapter.appendChild(splitV);
-      }
-    }
-    function _dragDebugClear() {
-      if (_dragDebugEl) { _dragDebugEl.remove(); _dragDebugEl = null; }
-      document.querySelectorAll(".plan-chapter.debug-hit").forEach(function (c) { c.classList.remove("debug-hit"); });
-      document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
-    }
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
       el.resourceSeriesKnowledgeStatus.textContent = message || "";
@@ -4088,7 +4047,6 @@
         });
         ch.addEventListener("dragend", function () {
           _draggedChapterId = null; _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0;
-          _dragDebugClear();
           document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
         ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
@@ -4105,7 +4063,7 @@
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
-          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
+          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; return; }
           var chapterRect = chapter.getBoundingClientRect();
           var best = chapter, bestDist = Math.abs(e.clientX - (chapterRect.left + chapterRect.width / 2));
           g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (c) {
@@ -4117,7 +4075,7 @@
           });
           chapter = best;
           if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
-          if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
+          if (_dragConfirmCount < 2) { return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
@@ -4125,14 +4083,13 @@
             var min = Math.min(dL, dR, dT, dB);
             var before = (min === dR || min === dB);
             _dragOverTarget = chapter;
-            _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
             var ref = before ? chapter : chapter.nextElementSibling;
             _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
           } else {
-            _dragDebugShow(e, chapter, _dragOverBefore, "no:latched");
+            // latched
           }
         });
         g.addEventListener("dragleave", function (e) {
@@ -4142,7 +4099,6 @@
           e.preventDefault();
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
-          _dragDebugClear();
           if (!_draggedChapterId) return;
           var actEl = this.closest(".plan-act");
           var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
