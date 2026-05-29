@@ -4033,9 +4033,10 @@
           _draggedChapterId = this.getAttribute("data-chapter-id");
           _dragOverTarget = null;
           var clone = this.cloneNode(true);
+          var r = this.getBoundingClientRect();
           clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
           document.body.appendChild(clone);
-          e.dataTransfer.setDragImage(clone, 100, 20);
+          e.dataTransfer.setDragImage(clone, e.clientX - r.left, e.clientY - r.top);
           setTimeout(function () { clone.remove(); }, 0);
           e.dataTransfer.effectAllowed = "move";
           e.dataTransfer.setData("text/plain", _draggedChapterId);
@@ -4086,8 +4087,9 @@
           if (!_draggedChapterId) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
-          var chapter = e.target.closest(".plan-chapter");
-          if (!chapter || chapter === dragged) { _dragOverTarget = null; return; }
+          var chs = g.querySelectorAll(".plan-chapter:not(.dragging)"), chapter = null, minD = Infinity, cr;
+          chs.forEach(function (c) { cr = c.getBoundingClientRect(); var d = (e.clientX - (cr.left+cr.width/2))**2 + (e.clientY - (cr.top+cr.height/2))**2; if (d < minD) { minD = d; chapter = c; } });
+          if (!chapter) { _dragOverTarget = null; return; }
           var rect = chapter.getBoundingClientRect();
           var before = (e.clientX - rect.left) < rect.width / 2;
           if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
