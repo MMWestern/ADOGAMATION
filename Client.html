@@ -4139,6 +4139,7 @@
           if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
+            var colOverride = false;
             if (_dragLastColLeft !== null) {
               var diffRow = Math.abs(rect.top - _dragLastRowTop) > 50;
               var diffCol = Math.abs(rect.left - _dragLastColLeft) > 50;
@@ -4151,17 +4152,17 @@
                     if (d < bestDist) { bestDist = d; best = c; }
                   }
                 });
-                if (best) { chapter = best; rect = chapter.getBoundingClientRect(); _dragConfirmChapter = chapter; _dragConfirmCount = 2; }
+                if (best) { chapter = best; rect = chapter.getBoundingClientRect(); _dragConfirmChapter = chapter; _dragConfirmCount = 2; colOverride = true; }
               }
             }
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
             var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
             var min = Math.min(dL, dR, dT, dB);
-            var before = (min === dR || min === dB);
+            var before = colOverride ? true : (min === dR || min === dB);
             _dragOverTarget = chapter;
             _dragLastColLeft = rect.left;
             _dragLastRowTop = rect.top;
-            _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
+            _dragDebugShow(e, chapter, before, colOverride ? "COL-MATCH" : "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
