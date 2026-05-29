@@ -3402,6 +3402,7 @@
     var _draggedChapterId = null;
     var _dragOverTarget = null;
     var _dragOverBefore = false;
+    var _dragConfirmChapter = null, _dragConfirmCount = 0;
     var _dragDebugEl = null;
     function _dragDebugShow(e, chapter, before, triggered) {
       if (!_dragDebugEl) {
@@ -4071,6 +4072,7 @@
           if (!e.target.closest(".plan-chapter-drag-handle") && e.target !== this) { e.preventDefault(); return; }
           _draggedChapterId = this.getAttribute("data-chapter-id");
           _dragOverTarget = null;
+          _dragConfirmChapter = null; _dragConfirmCount = 0;
           var clone = this.cloneNode(true);
           var r = this.getBoundingClientRect();
           clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
@@ -4082,7 +4084,7 @@
           this.classList.add("dragging");
         });
         ch.addEventListener("dragend", function () {
-          _draggedChapterId = null; _dragOverTarget = null;
+          _draggedChapterId = null; _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0;
           _dragDebugClear();
           document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
@@ -4129,7 +4131,9 @@
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
-          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragDebugShow(e, null, "-", "no:gap"); return; }
+          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
+          if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
+          if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
