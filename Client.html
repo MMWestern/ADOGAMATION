@@ -4088,9 +4088,9 @@
           if (!_draggedChapterId || Date.now() - _dragCooldown < 20) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
-          var chapter = e.target.closest(".plan-chapter");
+          var chapter = null;
+          (document.elementsFromPoint(e.clientX, e.clientY) || []).some(function (el) { var c = el.closest(".plan-chapter"); if (c && c !== dragged) { chapter = c; return true; } });
           if (!chapter) { _dragOverTarget = null; return; }
-          if (chapter !== dragged) {
             var rect = chapter.getBoundingClientRect();
             var before = (e.clientX - rect.left) < rect.width / 2;
             if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
