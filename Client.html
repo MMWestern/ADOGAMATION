@@ -3860,7 +3860,7 @@
               var chNum = globalChapterNum;
               return '<div class="plan-chapter" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
                 '<div class="plan-chapter-header">' +
-                  '<span class="plan-chapter-number">CH ' + chNum + '</span>' +
+                  '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
                   '<div class="plan-chapter-actions">' +
                     '<button type="button" class="plan-chapter-action" data-action="move-up" data-node-id="' + escapeHtml(chapter.id) + '">&#9650;</button>' +
@@ -3876,8 +3876,7 @@
                     var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
-                        '<span class="plan-scene-number">S ' + sceneNum + '</span>' +
-                        '<span class="plan-scene-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(scene.id) + '">' + escapeHtml(scene.title || "") + '</span>' +
+                        '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
                         '<div class="plan-scene-actions">' +
                           '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
                           '<button type="button" class="plan-scene-action" data-action="move-down" data-node-id="' + escapeHtml(scene.id) + '">&#9660;</button>' +
