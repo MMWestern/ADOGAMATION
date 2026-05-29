@@ -1146,6 +1146,7 @@
     }
 
     .writing-codex-entry-avatar {
+      position: relative;
       width: 30px;
       height: 30px;
       border-radius: 999px;
@@ -1160,6 +1161,14 @@
       line-height: 1;
       flex-shrink: 0;
       margin-top: 1px;
+      overflow: hidden;
+    }
+
+    .writing-codex-entry-dot {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      opacity: 0.25;
     }
 
     .writing-codex-entry-content {
@@ -1552,6 +1561,33 @@
       z-index: 2;
       background: #151518;
       padding-top: 2px;
+      align-items: center;
+    }
+
+    .writing-codex-modal-color-wrap {
+      margin-left: auto;
+    }
+
+    .writing-codex-modal-color-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid #3a3a42;
+      border-radius: 6px;
+      background: #1a1a20;
+      color: #f2f2f4;
+      font-size: 11px;
+      padding: 3px 22px 3px 8px;
+      cursor: pointer;
+      font-family: inherit;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777884'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      min-width: 80px;
+    }
+
+    .writing-codex-modal-color-select option {
+      background: #1a1a20;
+      color: #f2f2f4;
     }
 
     .writing-codex-modal-tab {
@@ -2921,6 +2957,15 @@
 
     .plan-scene-tag-remove:hover {
       color: #f87171;
+    }
+
+    .writing-codex-tag-color {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      margin-right: 3px;
+      vertical-align: middle;
     }
 
     .plan-new-scene-btn {

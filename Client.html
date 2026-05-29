@@ -817,7 +817,8 @@
         description: String(parsed.description || '').trim(),
         motivation_arc: String(parsed.motivation_arc || parsed.motivationArc || '').trim(),
         backstory: String(parsed.backstory || '').trim(),
-        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim()
       };
       var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
       var saveOp = charId
@@ -899,7 +900,8 @@
         image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
         description: String(parsed.description || '').trim(), significance: String(parsed.significance || '').trim(),
         notable_events: String(parsed.notable_events || parsed.notableEvents || '').trim(),
-        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim()
       };
       var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
       var saveOp = locId
@@ -958,7 +960,8 @@
         description: String(parsed.description || '').trim(),
         severity: String(parsed.severity || 'minor').trim(),
         resolved: !!parsed.resolved,
-        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim()
       };
       var op = entryId
         ? sbClient.from('series_continuity_entries').update(payload).eq('id', entryId).select().single()
@@ -2415,6 +2418,7 @@
       writingCodexModalTertiary: document.getElementById("writingCodexModalTertiary"),
       writingCodexModalImageGroup: document.getElementById("writingCodexModalImageGroup"),
       writingCodexModalImageUrl: document.getElementById("writingCodexModalImageUrl"),
+      writingCodexModalColor: document.getElementById("writingCodexModalColor"),
       writingCodexModalResolvedGroup: document.getElementById("writingCodexModalResolvedGroup"),
       writingCodexModalResolved: document.getElementById("writingCodexModalResolved"),
       writingCodexRelationsPanel: document.getElementById("writingCodexRelationsPanel"),
@@ -3998,16 +4002,18 @@
         var arr = type === "characters" ? characters : type === "locations" ? locations : type === "continuity" ? continuity : null;
         var obj = arr ? arr.find(function (x) { return Number(x.id || 0) === id; }) : null;
         var name = obj ? String(obj.name || obj.title || "").trim() : "?";
-        tags.push({ id: id, type: type, name: name });
+        var color = obj ? String(obj.color || "").trim() : "";
+        tags.push({ id: id, type: type, name: name, color: color });
       });
       (scene.characterIds || []).forEach(function (cid) {
         var id = Number(cid || 0);
         if (!id || tags.some(function (t) { return t.id === id && t.type === "characters"; })) return;
         var charObj = characters.find(function (c) { return Number(c.id) === id; });
-        tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?" });
+        tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
       });
       return tags.map(function (t) {
-        return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">' +
+        var colorStyle = t.color ? ' style="border-left:3px solid ' + escapeHtml(t.color) + ';padding-left:4px;"' : "";
+        return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
           escapeHtml(t.name) +
           '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
       }).join("");
@@ -8679,7 +8685,8 @@
           type: "characters",
           title: String(item.name || "Unnamed").trim() || "Unnamed",
           body: String(item.description || item.motivation_arc || item.role_archetype || "").trim(),
-          badge: String(item.role_archetype || item.archetype || "").trim()
+          badge: String(item.role_archetype || item.archetype || "").trim(),
+          color: String(item.color || "").trim()
         });
       });
 
@@ -8689,7 +8696,8 @@
           type: "locations",
           title: String(item.name || "Unnamed").trim() || "Unnamed",
           body: String(item.description || item.significance || item.type || "").trim(),
-          badge: String(item.type || "").trim()
+          badge: String(item.type || "").trim(),
+          color: String(item.color || "").trim()
         });
       });
 
@@ -8699,7 +8707,8 @@
           type: "continuity",
           title: String(item.title || "Untitled").trim() || "Untitled",
           body: String(item.description || "").trim(),
-          badge: String(item.severity || "").trim()
+          badge: String(item.severity || "").trim(),
+          color: String(item.color || "").trim()
         });
       });
 
@@ -8966,6 +8975,10 @@
         el.writingCodexModalImageGroup.hidden = type === "lore";
         el.writingCodexModalImageUrl.value = String(payload && payload.image_url || "").trim();
       }
+      if (el.writingCodexModalColor) {
+        el.writingCodexModalColor.hidden = type === "lore";
+        el.writingCodexModalColor.value = String((payload && payload.color) || entry.color || "").trim();
+      }
       if (el.writingCodexModalResolvedGroup && el.writingCodexModalResolved) {
         el.writingCodexModalResolvedGroup.hidden = type !== "continuity";
         el.writingCodexModalResolved.checked = !!(payload && payload.resolved);
@@ -9106,6 +9119,7 @@
         ).trim();
         payload.backstory = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
       } else if (type === "locations") {
         payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
@@ -9114,12 +9128,14 @@
         payload.significance = String(el.writingCodexModalSecondary && el.writingCodexModalSecondary.value || "").trim();
         payload.notable_events = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
       } else if (type === "continuity") {
         payload.title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.severity = String(el.writingCodexModalSeveritySelect && el.writingCodexModalSeveritySelect.value || "minor").trim() || "minor";
         payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
         payload.resolved = !!(el.writingCodexModalResolved && el.writingCodexModalResolved.checked);
         payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
         payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
@@ -9219,8 +9235,11 @@
         var words = title.split(/\s+/).filter(Boolean);
         var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
         var badge = String(entry.badge || "").trim();
-        return "<button type='button' class='writing-codex-entry" + active + "' data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
-          "<div class='writing-codex-entry-avatar'>" + escapeHtml(initials) + "</div>" +
+        var color = String(entry.color || "").trim();
+        var colorAttr = color ? ' data-color="' + escapeHtml(color) + '"' : "";
+        var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+        return "<button type='button' class='writing-codex-entry" + active + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
+          "<div class='writing-codex-entry-avatar'>" + dotHtml + escapeHtml(initials) + "</div>" +
           "<div class='writing-codex-entry-content'>" +
             "<div class='writing-codex-entry-top'>" +
               "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
