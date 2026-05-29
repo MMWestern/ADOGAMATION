@@ -4085,7 +4085,7 @@
         g.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
-          if (!_draggedChapterId || Date.now() - _dragCooldown < 80) return;
+          if (!_draggedChapterId || Date.now() - _dragCooldown < 20) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
