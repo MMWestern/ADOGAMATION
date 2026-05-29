@@ -4059,11 +4059,10 @@
             rec.el.style.transform = "translate(" + dx + "px," + dy + "px)";
           }
         });
-        requestAnimationFrame(function () {
-          items.forEach(function (rec) {
-            rec.el.style.transition = "transform 250ms ease-out";
-            rec.el.style.transform = "";
-          });
+        document.body.offsetHeight;
+        items.forEach(function (rec) {
+          rec.el.style.transition = "transform 250ms ease-out";
+          rec.el.style.transform = "";
         });
       }
 
