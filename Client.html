@@ -3400,6 +3400,7 @@
     var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, continuityId: 0 };
     var skHasAutoSelected = false;
     var _draggedChapterId = null;
+    var _dragGhost = null;
 
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
@@ -4005,6 +4006,15 @@
         });
       });
 
+      function _initDragGhost(grid) {
+        if (!_dragGhost) {
+          _dragGhost = document.createElement("div");
+          _dragGhost.className = "plan-chapter-ghost";
+        }
+        _dragGhost.hidden = false;
+        return _dragGhost;
+      }
+
       grid.querySelectorAll(".plan-chapter").forEach(function (ch) {
         ch.addEventListener("dragstart", function (e) {
           if (!e.target.closest(".plan-chapter-drag-handle") && e.target !== this) {
@@ -4018,8 +4028,9 @@
         });
         ch.addEventListener("dragend", function () {
           _draggedChapterId = null;
-          grid.querySelectorAll(".plan-chapter.dragging, .plan-chapter.drag-over").forEach(function (c) {
-            c.classList.remove("dragging", "drag-over");
+          if (_dragGhost) { _dragGhost.remove(); _dragGhost = null; }
+          grid.querySelectorAll(".plan-chapter.dragging").forEach(function (c) {
+            c.classList.remove("dragging");
           });
         });
         ch.addEventListener("dragover", function (e) {
@@ -4027,16 +4038,26 @@
           e.dataTransfer.dropEffect = "move";
         });
         ch.addEventListener("dragenter", function (e) {
-          e.preventDefault();
-          var id = this.getAttribute("data-chapter-id");
-          if (id !== _draggedChapterId) this.classList.add("drag-over");
+          if (!this.contains(e.relatedTarget)) {
+            var id = this.getAttribute("data-chapter-id");
+            if (id !== _draggedChapterId) {
+              var ghost = _initDragGhost();
+              var grid = this.closest(".plan-chapter-grid");
+              grid.insertBefore(ghost, this);
+              ghost.hidden = false;
+            }
+          }
         });
         ch.addEventListener("dragleave", function (e) {
-          if (!this.contains(e.relatedTarget)) this.classList.remove("drag-over");
+          if (!_dragGhost) return;
+          var id = this.getAttribute("data-chapter-id");
+          if (id !== _draggedChapterId && !this.contains(e.relatedTarget)) {
+            _dragGhost.hidden = true;
+          }
         });
         ch.addEventListener("drop", function (e) {
           e.preventDefault();
-          this.classList.remove("drag-over");
+          if (_dragGhost) _dragGhost.hidden = true;
           var targetId = this.getAttribute("data-chapter-id");
           if (!_draggedChapterId || _draggedChapterId === targetId) return;
           var outline = getPlanOutline();
@@ -4067,8 +4088,17 @@
         g.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
+          if (!e.target.closest(".plan-chapter") && _draggedChapterId) {
+            var ghost = _initDragGhost();
+            g.appendChild(ghost);
+            ghost.hidden = false;
+          }
+        });
+        g.addEventListener("dragleave", function (e) {
+          if (_dragGhost && !this.contains(e.relatedTarget)) _dragGhost.hidden = true;
         });
         g.addEventListener("drop", function (e) {
+          if (_dragGhost) _dragGhost.hidden = true;
           if (e.target.closest(".plan-chapter")) return;
           if (!_draggedChapterId) return;
           var actEl = this.closest(".plan-act");

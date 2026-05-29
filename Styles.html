@@ -2830,9 +2830,16 @@
     .plan-chapter.dragging {
       opacity: 0.35;
     }
-    .plan-chapter.drag-over {
-      border-top: 2px solid #60a5fa;
-      padding-top: 8px;
+    .plan-chapter-ghost {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.15);
+      pointer-events: none;
     }
     .plan-chapter-drag-handle {
       cursor: grab;
