@@ -4089,35 +4089,6 @@
           document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
         ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-        ch.addEventListener("drop", function (e) {
-          e.preventDefault();
-          var dragged = document.querySelector(".plan-chapter.dragging");
-          if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
-          _dragDebugClear();
-          var targetId = this.getAttribute("data-chapter-id");
-          if (!_draggedChapterId || _draggedChapterId === targetId) return;
-          var outline = getPlanOutline();
-          var sourceChapter, targetChapter, sourceAct, targetAct, srcIdx, tgtIdx;
-          outline.acts.forEach(function (act) {
-            var chapters = act.children || [];
-            var si = chapters.findIndex(function (c) { return c.id === _draggedChapterId; });
-            if (si !== -1) { sourceChapter = chapters[si]; sourceAct = act; srcIdx = si; }
-            var ti = chapters.findIndex(function (c) { return c.id === targetId; });
-            if (ti !== -1) { targetChapter = chapters[ti]; targetAct = act; tgtIdx = ti; }
-          });
-          if (!sourceChapter || !targetChapter) return;
-          if (sourceAct === targetAct) {
-            if (srcIdx === tgtIdx) return;
-            sourceAct.children.splice(srcIdx, 1);
-            sourceAct.children.splice(srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx, 0, sourceChapter);
-          } else {
-            sourceAct.children.splice(srcIdx, 1);
-            targetAct.children.splice(tgtIdx, 0, sourceChapter);
-          }
-          renderPlanOutline();
-          syncOutlineToSegments();
-          schedulePlanOutlineSave();
-        });
       });
 
       grid.querySelectorAll(".plan-chapter-grid").forEach(function (g) {
@@ -4165,7 +4136,7 @@
           if (!this.contains(e.relatedTarget)) _dragOverTarget = null;
         });
         g.addEventListener("drop", function (e) {
-          if (e.target.closest(".plan-chapter")) return;
+          e.preventDefault();
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
           _dragDebugClear();
@@ -4173,18 +4144,23 @@
           var actEl = this.closest(".plan-act");
           var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
           if (!targetActId) return;
+          var domIds = [];
+          this.querySelectorAll(".plan-chapter").forEach(function (c) { var id = c.getAttribute("data-chapter-id"); if (id) domIds.push(id); });
           var outline = getPlanOutline();
-          var sourceChapter, sourceAct, srcIdx;
+          var sourceAct = null, srcIdx = -1;
           outline.acts.forEach(function (act) {
-            var chapters = act.children || [];
-            var si = chapters.findIndex(function (c) { return c.id === _draggedChapterId; });
-            if (si !== -1) { sourceChapter = chapters[si]; sourceAct = act; srcIdx = si; }
+            var si = (act.children || []).findIndex(function (c) { return c.id === _draggedChapterId; });
+            if (si !== -1) { sourceAct = act; srcIdx = si; }
           });
-          if (!sourceChapter) return;
+          if (!sourceAct || srcIdx === -1) return;
           var targetAct = outline.acts.find(function (a) { return a.id === targetActId; });
           if (!targetAct) return;
+          var allCh = {};
+          outline.acts.forEach(function (act) { (act.children || []).forEach(function (c) { allCh[c.id] = c; }); });
           sourceAct.children.splice(srcIdx, 1);
-          targetAct.children.push(sourceChapter);
+          var newChildren = [];
+          domIds.forEach(function (id) { if (allCh[id]) newChildren.push(allCh[id]); });
+          targetAct.children = newChildren;
           renderPlanOutline();
           syncOutlineToSegments();
           schedulePlanOutlineSave();
