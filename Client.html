@@ -3403,6 +3403,7 @@
     var _dragOverTarget = null;
     var _dragOverBefore = false;
     var _dragLastX = 0, _dragLastY = 0;
+    var _dragEntryChapter = null, _dragEntryCount = 0;
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
       el.resourceSeriesKnowledgeStatus.textContent = message || "";
@@ -4087,9 +4088,8 @@
           if (!_draggedChapterId) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
-          var chs = g.querySelectorAll(".plan-chapter:not(.dragging)"), chapter = null, minD = Infinity, cr;
-          chs.forEach(function (c) { cr = c.getBoundingClientRect(); var d = (e.clientX - (cr.left+cr.width/2))**2 + (e.clientY - (cr.top+cr.height/2))**2; if (d < minD) { minD = d; chapter = c; } });
-          if (!chapter) { _dragOverTarget = null; return; }
+          var chapter = e.target.closest(".plan-chapter");
+          if (!chapter || chapter === dragged) { _dragOverTarget = null; return; }
           var rect = chapter.getBoundingClientRect();
           var before = (e.clientX - rect.left) < rect.width / 2;
           if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
