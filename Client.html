@@ -4131,10 +4131,28 @@
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
-          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
+          if (!chapter || chapter === dragged) { _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
           if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
+            if (_dragOverTarget) {
+              var prevRect = _dragOverTarget.getBoundingClientRect();
+              var currRect = chapter.getBoundingClientRect();
+              var diffRow = Math.abs(prevRect.top - currRect.top) > 50;
+              var diffCol = Math.abs(prevRect.left - currRect.left) > 50;
+              if (diffRow && diffCol) {
+                var targetLeft = prevRect.left;
+                var best = null, bestDist = Infinity;
+                g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (c) {
+                  var r = c.getBoundingClientRect();
+                  if (Math.abs(r.left - targetLeft) < 50) {
+                    var d = Math.abs(r.top - currRect.top);
+                    if (d < bestDist) { bestDist = d; best = c; }
+                  }
+                });
+                if (best) { chapter = best; _dragConfirmChapter = chapter; _dragConfirmCount = 2; }
+              }
+            }
             var rect = chapter.getBoundingClientRect();
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
             var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
