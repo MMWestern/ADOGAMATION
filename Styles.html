@@ -2827,6 +2827,31 @@
       color: #e2e8f0;
     }
 
+    .plan-chapter.dragging {
+      opacity: 0.35;
+    }
+    .plan-chapter.drag-over {
+      border-top: 2px solid #60a5fa;
+      padding-top: 8px;
+    }
+    .plan-chapter-drag-handle {
+      cursor: grab;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 3px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .plan-chapter-drag-handle:hover {
+      color: #e2e8f0;
+      background: #1e293b;
+    }
+    .plan-chapter-drag-handle:active {
+      cursor: grabbing;
+    }
+
     .plan-scene-list {
       display: flex;
       flex-direction: column;

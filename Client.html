@@ -3399,6 +3399,7 @@
     var skCurrentSeriesId = 0;
     var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, continuityId: 0 };
     var skHasAutoSelected = false;
+    var _draggedChapterId = null;
 
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
@@ -3858,8 +3859,9 @@
             (act.children || []).map(function (chapter) {
               globalChapterNum += 1;
               var chNum = globalChapterNum;
-              return '<div class="plan-chapter" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
+              return '<div class="plan-chapter" draggable="true" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
                 '<div class="plan-chapter-header">' +
+                  '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
                   '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
                   '<div class="plan-chapter-actions">' +
@@ -4000,6 +4002,93 @@
             renderPlanOutline();
             schedulePlanOutlineSave();
           }
+        });
+      });
+
+      grid.querySelectorAll(".plan-chapter").forEach(function (ch) {
+        ch.addEventListener("dragstart", function (e) {
+          if (!e.target.closest(".plan-chapter-drag-handle") && e.target !== this) {
+            e.preventDefault();
+            return;
+          }
+          _draggedChapterId = this.getAttribute("data-chapter-id");
+          this.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", _draggedChapterId);
+        });
+        ch.addEventListener("dragend", function () {
+          _draggedChapterId = null;
+          grid.querySelectorAll(".plan-chapter.dragging, .plan-chapter.drag-over").forEach(function (c) {
+            c.classList.remove("dragging", "drag-over");
+          });
+        });
+        ch.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        });
+        ch.addEventListener("dragenter", function (e) {
+          e.preventDefault();
+          var id = this.getAttribute("data-chapter-id");
+          if (id !== _draggedChapterId) this.classList.add("drag-over");
+        });
+        ch.addEventListener("dragleave", function (e) {
+          if (!this.contains(e.relatedTarget)) this.classList.remove("drag-over");
+        });
+        ch.addEventListener("drop", function (e) {
+          e.preventDefault();
+          this.classList.remove("drag-over");
+          var targetId = this.getAttribute("data-chapter-id");
+          if (!_draggedChapterId || _draggedChapterId === targetId) return;
+          var outline = getPlanOutline();
+          var sourceChapter, targetChapter, sourceAct, targetAct, srcIdx, tgtIdx;
+          outline.acts.forEach(function (act) {
+            var chapters = act.children || [];
+            var si = chapters.findIndex(function (c) { return c.id === _draggedChapterId; });
+            if (si !== -1) { sourceChapter = chapters[si]; sourceAct = act; srcIdx = si; }
+            var ti = chapters.findIndex(function (c) { return c.id === targetId; });
+            if (ti !== -1) { targetChapter = chapters[ti]; targetAct = act; tgtIdx = ti; }
+          });
+          if (!sourceChapter || !targetChapter) return;
+          if (sourceAct === targetAct) {
+            if (srcIdx === tgtIdx) return;
+            sourceAct.children.splice(srcIdx, 1);
+            sourceAct.children.splice(srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx, 0, sourceChapter);
+          } else {
+            sourceAct.children.splice(srcIdx, 1);
+            targetAct.children.splice(tgtIdx, 0, sourceChapter);
+          }
+          renderPlanOutline();
+          syncOutlineToSegments();
+          schedulePlanOutlineSave();
+        });
+      });
+
+      grid.querySelectorAll(".plan-chapter-grid").forEach(function (g) {
+        g.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        });
+        g.addEventListener("drop", function (e) {
+          if (e.target.closest(".plan-chapter")) return;
+          if (!_draggedChapterId) return;
+          var actEl = this.closest(".plan-act");
+          var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
+          if (!targetActId) return;
+          var outline = getPlanOutline();
+          var sourceChapter, sourceAct, srcIdx;
+          outline.acts.forEach(function (act) {
+            var chapters = act.children || [];
+            var si = chapters.findIndex(function (c) { return c.id === _draggedChapterId; });
+            if (si !== -1) { sourceChapter = chapters[si]; sourceAct = act; srcIdx = si; }
+          });
+          if (!sourceChapter) return;
+          var targetAct = outline.acts.find(function (a) { return a.id === targetActId; });
+          if (!targetAct) return;
+          sourceAct.children.splice(srcIdx, 1);
+          targetAct.children.push(sourceChapter);
+          renderPlanOutline();
+          syncOutlineToSegments();
+          schedulePlanOutlineSave();
         });
       });
     }
