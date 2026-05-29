@@ -3830,6 +3830,14 @@
       var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
       var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
       var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+      // If codex data isn't loaded yet, trigger load and re-render when available
+      var _planRenderedWithData = !seriesId || characters.length || locations.length || continuity.length;
+      if (!_planRenderedWithData) {
+        loadSeriesKnowledgeForSelectedProject(false).finally(function () {
+          if (!el.planOutlineGrid) return;
+          renderPlanOutline();
+        });
+      }
       var globalChapterNum = 0;
       grid.innerHTML = acts.map(function (act) {
         var chapterCount = (act.children || []).length;
