@@ -3429,7 +3429,7 @@
         chapter.classList.add("debug-hit");
         var split = document.createElement("div");
         split.className = "debug-split";
-        split.style.cssText = "position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
+        split.style.cssText = "position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
         chapter.style.position = "relative";
         chapter.appendChild(split);
       }
@@ -4129,7 +4129,7 @@
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
-            var before = (e.clientX - rect.left) < rect.width / 2;
+            var before = e.clientY < rect.top + rect.height / 2;
             _dragOverTarget = chapter;
             _dragOverBefore = before;
             _dragDebugShow(e, chapter, before, "YES");
