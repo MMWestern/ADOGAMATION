@@ -3402,6 +3402,7 @@
     var _draggedChapterId = null;
     var _dragOverTarget = null;
     var _dragOverBefore = false;
+    var _dragCooldown = 0;
 
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
@@ -4008,6 +4009,7 @@
       });
 
       function _flipMulti(grids, fn) {
+        _dragCooldown = Date.now();
         var items = [];
         grids.forEach(function (g) { g.querySelectorAll(".plan-chapter").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); }); });
         fn();
@@ -4083,13 +4085,15 @@
         g.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
-          if (!_draggedChapterId) return;
+          if (!_draggedChapterId || Date.now() - _dragCooldown < 80) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
           if (chapter && chapter !== dragged) {
             var rect = chapter.getBoundingClientRect();
-            var before = e.clientX < rect.left + rect.width / 2;
+            var pct = (e.clientX - rect.left) / rect.width;
+            if (pct < 0.2 || pct > 0.8) return;
+            var before = pct < 0.5;
             if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
               _dragOverTarget = chapter;
               _dragOverBefore = before;
