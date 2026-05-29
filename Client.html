@@ -6018,14 +6018,32 @@
       updateModalScrollLock();
     }
 
+    function getComfyBaseUrl() {
+      const raw = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "").trim().replace(/\/+$/, "");
+      if (/^https?:\/\//i.test(raw)) return raw;
+      return "http://127.0.0.1:8188";
+    }
+
     async function comfyApiFetch(path, options) {
       const comfyEndpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "").trim().replace(/\/+$/, "");
       const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+
+      if (useBrowserDirect) {
+        const base = getComfyBaseUrl();
+        const response = await fetch(base + path, options || {});
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error("ComfyUI request failed (" + response.status + "): " + text);
+        }
+        return response;
+      }
+
       const headers = Object.assign({}, (options && options.headers) || {});
       if (comfyEndpoint && !isLocalhost) {
         headers["x-comfy-endpoint"] = comfyEndpoint;
       } else if (!comfyEndpoint && !isLocalhost) {
-        throw new Error("Set your ComfyUI endpoint in AI Settings (e.g. https://your-id.ngrok.io).");
+        throw new Error("Set your ComfyUI endpoint in AI Settings (e.g. https://your-id.ngrok.io), or enable browser/direct mode.");
       }
       const proxyBase = isLocalhost ? "/api/comfy" : "/api/comfy?path=" + encodeURIComponent(path.replace(/^\//, ""));
       const url = isLocalhost ? ("/api/comfy" + path) : proxyBase;
@@ -6049,7 +6067,10 @@
     }
 
     function openComfyUiFromGenerator() {
-      const endpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "http://127.0.0.1:8188").trim().replace(/\/+$/, "");
+      const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+      const endpoint = useBrowserDirect
+        ? getComfyBaseUrl()
+        : String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "http://127.0.0.1:8188").trim().replace(/\/+$/, "");
       if (!endpoint) {
         setImageGeneratorStatus("Add a ComfyUI endpoint first.", "warn");
         return;
@@ -6060,7 +6081,10 @@
     function getComfyViewUrl(imageMeta) {
       const filename = String(imageMeta && imageMeta.filename || "").trim();
       if (!filename) return "";
-      const endpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "/api/comfy").trim().replace(/\/+$/, "");
+      const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+      const endpoint = useBrowserDirect
+        ? getComfyBaseUrl()
+        : String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "/api/comfy").trim().replace(/\/+$/, "");
       const params = new URLSearchParams({
         filename: String(imageMeta.filename || ""),
         subfolder: String(imageMeta.subfolder || ""),

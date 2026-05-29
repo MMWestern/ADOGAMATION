@@ -73,18 +73,30 @@ data/               ← Story seed engine JSON
 
 ## ComfyUI (AI Image Generation)
 
-ComfyUI runs locally on your machine. Two ways to use it:
+ComfyUI runs locally on your machine. Three ways to use it:
 
-### Option A — Localhost only
+### Option A — Localhost only (via dev-server proxy)
 1. Start ComfyUI: `python main.py --listen 0.0.0.0` (default port 8188)
 2. Run `npm run dev` → access `http://localhost:3000`
 3. Endpoint stays as default `/api/comfy` (dev server proxies it)
 
-### Option B — From Vercel via ngrok
+### Option B — From Vercel via browser/direct
+1. Start ComfyUI on port 8188
+2. In the app → Image Generator → check "Use browser/direct local connection"
+   (this is checked by default)
+3. The browser calls `http://127.0.0.1:8188` directly — no Vercel proxy needed
+
+> **CORS**: The browser blocks requests to `localhost` from a different origin (Vercel)
+> unless ComfyUI sends CORS headers. Start ComfyUI with:
+> ```
+> python main.py --cors-headers "*"
+> ```
+
+### Option C — From Vercel via ngrok (proxy mode)
 1. Install ngrok: `npm i -g ngrok` or download from [ngrok.com](https://ngrok.com)
 2. Start ComfyUI on port 8188
 3. Run `ngrok http 8188` → gives you a public URL like `https://abc123.ngrok.io`
-4. In the app → AI Settings → set ComfyUI Endpoint to the ngrok URL
+4. Uncheck "Use browser/direct local connection" and set the Endpoint to the ngrok URL
 5. The Vercel serverless proxy (`api/comfy.js`) forwards requests through ngrok to your local ComfyUI
 
 > ngrok free tier gives you a random URL each time. Paid plan lets you use a fixed subdomain.
