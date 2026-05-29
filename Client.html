@@ -4088,16 +4088,9 @@
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; return; }
-          var rect = chapter.getBoundingClientRect();
-          var nearLeft = (e.clientX - rect.left) < rect.width * 0.05;
-          var nearRight = (rect.right - e.clientX) < rect.width * 0.05;
-          var before;
-          if (chapter === _dragOverTarget) {
-            if (_dragOverBefore) { before = !nearRight; } else { before = nearLeft; }
-          } else {
-            if (nearLeft) { before = true; } else if (nearRight) { before = false; } else { return; }
-          }
-          if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
+          if (chapter !== _dragOverTarget) {
+            var rect = chapter.getBoundingClientRect();
+            var before = (e.clientX - rect.left) < rect.width / 2;
             _dragOverTarget = chapter;
             _dragOverBefore = before;
             var grids = [g];
