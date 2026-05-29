@@ -3423,8 +3423,8 @@
         "Before: " + before + "  Triggered: " + triggered + "\n" +
         "Target: " + (_dragOverTarget ? _dragOverTarget.getAttribute("data-chapter-id") : "null") + "\n" +
         "ETarget: " + (e.target.className || e.target.tagName);
-      _dragDebugEl.style.left = (e.clientX + 20) + "px";
-      _dragDebugEl.style.top = (e.clientY + 20) + "px";
+      _dragDebugEl.style.left = "10px";
+      _dragDebugEl.style.top = "10px";
       document.querySelectorAll(".plan-chapter.debug-hit").forEach(function (c) { c.classList.remove("debug-hit"); });
       document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
       if (chapter) {
