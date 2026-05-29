@@ -2831,15 +2831,13 @@
       opacity: 0.35;
     }
     .plan-chapter-ghost {
+      position: fixed;
       background: rgba(255, 255, 255, 0.1);
-      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border: 2px dashed rgba(255, 255, 255, 0.35);
       border-radius: 8px;
-      min-height: 120px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255, 255, 255, 0.15);
       pointer-events: none;
+      z-index: 100;
+      box-sizing: border-box;
     }
     .plan-chapter-drag-handle {
       cursor: grab;
