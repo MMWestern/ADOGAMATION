@@ -2828,16 +2828,15 @@
     }
 
     .plan-chapter.dragging {
-      opacity: 0.35;
-    }
-    .plan-chapter-ghost {
-      position: fixed;
-      background: rgba(255, 255, 255, 0.1);
-      border: 2px dashed rgba(255, 255, 255, 0.35);
+      background: rgba(100, 116, 139, 0.2);
+      border: 1px dashed rgba(100, 116, 139, 0.4);
       border-radius: 8px;
-      pointer-events: none;
-      z-index: 100;
-      box-sizing: border-box;
+      min-height: 120px;
+    }
+    .plan-chapter.dragging .plan-chapter-header,
+    .plan-chapter.dragging .plan-scene-list,
+    .plan-chapter.dragging .plan-new-scene-btn {
+      visibility: hidden;
     }
     .plan-chapter-drag-handle {
       cursor: grab;
