@@ -3843,6 +3843,7 @@
         var chapterCount = (act.children || []).length;
         var sceneCount = (act.children || []).reduce(function (sum, ch) { return sum + (ch.children || []).length; }, 0);
         var countLabel = chapterCount + " chapter" + (chapterCount === 1 ? "" : "s") + ", " + sceneCount + " scene" + (sceneCount === 1 ? "" : "s");
+        var sceneNum = 0;
         return '<div class="plan-act' + (act.collapsed ? " collapsed" : "") + '" data-act-id="' + escapeHtml(act.id) + '">' +
           '<div class="plan-act-header" data-act-id="' + escapeHtml(act.id) + '">' +
             '<span class="plan-act-chevron">&#9660;</span>' +
@@ -3869,11 +3870,13 @@
                 '</div>' +
                 '<div class="plan-scene-list">' +
                   (chapter.children || []).map(function (scene) {
+                    sceneNum += 1;
                     var wc = Number(scene.targetWordCount || 0);
                     var wcLabel = wc ? wc.toLocaleString() : "—";
                     var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
+                        '<span class="plan-scene-number">S ' + sceneNum + '</span>' +
                         '<span class="plan-scene-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(scene.id) + '">' + escapeHtml(scene.title || "") + '</span>' +
                         '<div class="plan-scene-actions">' +
                           '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
