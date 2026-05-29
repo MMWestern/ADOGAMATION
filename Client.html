@@ -4089,7 +4089,8 @@
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
-          if (chapter && chapter !== dragged) {
+          if (!chapter) { _dragOverTarget = null; return; }
+          if (chapter !== dragged) {
             var rect = chapter.getBoundingClientRect();
             var pctX = (e.clientX - rect.left) / rect.width;
             var pctY = (e.clientY - rect.top) / rect.height;
