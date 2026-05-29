@@ -4012,7 +4012,7 @@
         tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
       });
       return tags.map(function (t) {
-        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + '44"' : "";
+        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + '88"' : "";
         return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
           escapeHtml(t.name) +
           '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
