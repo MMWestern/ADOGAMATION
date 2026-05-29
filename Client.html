@@ -3427,11 +3427,15 @@
       document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
       if (chapter) {
         chapter.classList.add("debug-hit");
-        var split = document.createElement("div");
-        split.className = "debug-split";
-        split.style.cssText = "position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
+        var splitH = document.createElement("div");
+        splitH.className = "debug-split";
+        splitH.style.cssText = "position:absolute;left:0;right:0;top:50%;height:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
+        var splitV = document.createElement("div");
+        splitV.className = "debug-split";
+        splitV.style.cssText = "position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(255,0,0,0.6);pointer-events:none;z-index:10;";
         chapter.style.position = "relative";
-        chapter.appendChild(split);
+        chapter.appendChild(splitH);
+        chapter.appendChild(splitV);
       }
     }
     function _dragDebugClear() {
@@ -4128,17 +4132,17 @@
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter !== _dragOverTarget) {
+            var rect = chapter.getBoundingClientRect();
+            var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
+            var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
+            var min = Math.min(dL, dR, dT, dB);
+            var before = (min === dL || min === dB);
             _dragOverTarget = chapter;
+            _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
-            var ref = chapter;
-            if (dragged.nextElementSibling === chapter) {
-              ref = chapter.nextElementSibling;
-              _dragDebugShow(e, chapter, false, "YES (after)");
-            } else {
-              _dragDebugShow(e, chapter, true, "YES (before)");
-            }
+            var ref = before ? chapter : chapter.nextElementSibling;
             _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
           } else {
             _dragDebugShow(e, chapter, _dragOverBefore, "no:latched");
