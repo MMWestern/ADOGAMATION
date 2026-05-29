@@ -89,7 +89,11 @@ ComfyUI runs locally on your machine. Three ways to use it:
 > **CORS**: The browser blocks requests to `localhost` from a different origin (Vercel)
 > unless ComfyUI sends CORS headers. Start ComfyUI with:
 > ```
-> python main.py --cors-headers "*"
+> python main.py --enable-cors-header "*"
+> ```
+> Or lock it to just your Vercel domain:
+> ```
+> python main.py --enable-cors-header https://adogamation.vercel.app
 > ```
 
 ### Option C — From Vercel via ngrok (proxy mode)
