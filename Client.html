@@ -3403,7 +3403,6 @@
     var _dragOverTarget = null;
     var _dragOverBefore = false;
     var _dragConfirmChapter = null, _dragConfirmCount = 0;
-    var _dragLastColLeft = null, _dragLastRowTop = null;
     var _dragDebugEl = null;
     function _dragDebugShow(e, chapter, before, triggered) {
       if (!_dragDebugEl) {
@@ -3423,8 +3422,8 @@
         "Before: " + before + "  Triggered: " + triggered + "\n" +
         "Target: " + (_dragOverTarget ? _dragOverTarget.getAttribute("data-chapter-id") : "null") + "\n" +
         "ETarget: " + (e.target.className || e.target.tagName);
-      _dragDebugEl.style.left = "10px";
-      _dragDebugEl.style.top = "10px";
+      _dragDebugEl.style.left = (e.clientX + 20) + "px";
+      _dragDebugEl.style.top = (e.clientY + 20) + "px";
       document.querySelectorAll(".plan-chapter.debug-hit").forEach(function (c) { c.classList.remove("debug-hit"); });
       document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
       if (chapter) {
@@ -4074,7 +4073,6 @@
           _draggedChapterId = this.getAttribute("data-chapter-id");
           _dragOverTarget = null;
           _dragConfirmChapter = null; _dragConfirmCount = 0;
-          _dragLastColLeft = null; _dragLastRowTop = null;
           var clone = this.cloneNode(true);
           var r = this.getBoundingClientRect();
           clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
@@ -4087,7 +4085,6 @@
         });
         ch.addEventListener("dragend", function () {
           _draggedChapterId = null; _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0;
-          _dragLastColLeft = null; _dragLastRowTop = null;
           _dragDebugClear();
           document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
@@ -4139,31 +4136,12 @@
           if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
-            var physicalChapter = chapter;
-            var colOverride = false;
-            if (_dragLastColLeft !== null) {
-              var diffRow = Math.abs(rect.top - _dragLastRowTop) > 50;
-              var diffCol = Math.abs(rect.left - _dragLastColLeft) > 50;
-              if (diffRow && diffCol) {
-                var best = null, bestDist = Infinity;
-                g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (c) {
-                  var r = c.getBoundingClientRect();
-                  if (Math.abs(r.left - _dragLastColLeft) < 50) {
-                    var d = Math.abs(r.top - rect.top);
-                    if (d < bestDist) { bestDist = d; best = c; }
-                  }
-                });
-                if (best) { chapter = best; rect = chapter.getBoundingClientRect(); _dragConfirmChapter = physicalChapter; _dragConfirmCount = 2; colOverride = true; }
-              }
-            }
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
             var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
             var min = Math.min(dL, dR, dT, dB);
-            var before = colOverride ? true : (min === dR || min === dB);
-            _dragOverTarget = physicalChapter;
-            _dragLastColLeft = rect.left;
-            _dragLastRowTop = rect.top;
-            _dragDebugShow(e, chapter, before, colOverride ? "COL-MATCH" : "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
+            var before = (min === dR || min === dB);
+            _dragOverTarget = chapter;
+            _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
