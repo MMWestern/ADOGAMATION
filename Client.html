@@ -4103,16 +4103,6 @@
               var ref = before ? chapter : chapter.nextElementSibling;
               _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
             }
-          } else if (!chapter && _draggedChapterId) {
-            var last = g.querySelector(".plan-chapter:not(.dragging):last-child");
-            if (last && last !== _dragOverTarget) {
-              _dragOverTarget = last;
-              _dragOverBefore = false;
-              var grids = [g];
-              var srcGrid = dragged.parentNode;
-              if (srcGrid && srcGrid !== g) grids.push(srcGrid);
-              _flipMulti(grids, function () { g.appendChild(dragged); });
-            }
           }
         });
         g.addEventListener("dragleave", function (e) {
