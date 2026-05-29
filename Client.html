@@ -4132,6 +4132,16 @@
           if (!dragged) return;
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
+          var chapterRect = chapter.getBoundingClientRect();
+          if (e.clientX < chapterRect.left || e.clientX > chapterRect.right) {
+            var fix = null;
+            g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (c) {
+              if (fix) return;
+              var r = c.getBoundingClientRect();
+              if (Math.abs(r.top - chapterRect.top) < 50 && e.clientX >= r.left && e.clientX <= r.right) fix = c;
+            });
+            if (fix) { chapter = fix; chapterRect = chapter.getBoundingClientRect(); }
+          }
           if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
           if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
