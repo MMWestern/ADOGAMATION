@@ -2493,6 +2493,7 @@
     }
 
     .plan-codex-tag-avatar {
+      position: relative;
       width: 20px;
       height: 20px;
       border-radius: 50%;
@@ -2504,6 +2505,14 @@
       font-weight: 700;
       color: #94a3b8;
       flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .plan-codex-tag-dot {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      opacity: 0.3;
     }
 
     .plan-codex-tag-name {
@@ -2930,6 +2939,10 @@
     .plan-scene-tag:hover {
       background: #334155;
       color: #e2e8f0;
+    }
+
+    .plan-scene-tag[data-color]:hover {
+      opacity: 0.75;
     }
 
     .plan-scene-tag-add {

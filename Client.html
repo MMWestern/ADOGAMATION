@@ -4012,7 +4012,7 @@
         tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
       });
       return tags.map(function (t) {
-        var colorStyle = t.color ? ' style="border-left:3px solid ' + escapeHtml(t.color) + ';padding-left:4px;"' : "";
+        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + '44"' : "";
         return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
           escapeHtml(t.name) +
           '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
@@ -4048,13 +4048,13 @@
       var q = String(query || "").trim().toLowerCase();
       var entries = [];
       (skCache.characters && skCache.characters[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "characters" });
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "characters", color: String(c.color || "").trim() });
       });
       (skCache.locations && skCache.locations[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "locations" });
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "locations", color: String(c.color || "").trim() });
       });
       (skCache.continuity && skCache.continuity[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.title || "").trim(), type: "continuity" });
+        entries.push({ id: c.id, name: String(c.title || "").trim(), type: "continuity", color: String(c.color || "").trim() });
       });
       entries.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       if (q) {
@@ -4066,8 +4066,10 @@
       }
       el.planCodexTagList.innerHTML = entries.map(function (entry) {
         var initials = String(entry.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join("") || "?";
+        var color = String(entry.color || "").trim();
+        var dotHtml = color ? '<span class="plan-codex-tag-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
         return '<div class="plan-codex-tag-item" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
-          '<div class="plan-codex-tag-avatar">' + escapeHtml(initials) + '</div>' +
+          '<div class="plan-codex-tag-avatar">' + dotHtml + escapeHtml(initials) + '</div>' +
           '<div class="plan-codex-tag-name">' + escapeHtml(entry.name || "Untitled") + '</div>' +
           '<div class="plan-codex-tag-type">' + escapeHtml(entry.type) + '</div>' +
           '</div>';
@@ -20031,6 +20033,46 @@
         if (target.closest("#writingCodexPanel")) return;
         closeWritingCodexModal();
       });
+
+      if (el.writingCodexModalColor) {
+        bindUiOnce(el.writingCodexModalColor, "writing-codex-modal-color", "change", function () {
+          var color = String(this.value || "").trim();
+          var key = String(appState.writingWorkspace.selectedCodexKey || "");
+          if (!key) return;
+          var parts = key.split("::");
+          var id = Number(parts[1] || 0);
+          if (!id) return;
+          var proj = getSelectedProject();
+          var seriesId = Number(proj && proj.series_id || 0);
+          if (!seriesId) return;
+          var src;
+          if (parts[0] === "character") src = skCache.characters && skCache.characters[seriesId];
+          else if (parts[0] === "location") src = skCache.locations && skCache.locations[seriesId];
+          else if (parts[0] === "continuity") src = skCache.continuity && skCache.continuity[seriesId];
+          if (src) {
+            var obj = src.find(function (x) { return Number(x.id || 0) === id; });
+            if (obj) obj.color = color;
+          }
+          var btn = el.writingCodexList && el.writingCodexList.querySelector('[data-writing-codex-key="' + key + '"]');
+          if (!btn) return;
+          if (color) { btn.setAttribute("data-color", color); }
+          else { btn.removeAttribute("data-color"); }
+          var avatar = btn.querySelector(".writing-codex-entry-avatar");
+          if (!avatar) return;
+          var dot = avatar.querySelector(".writing-codex-entry-dot");
+          if (color) {
+            if (dot) { dot.style.background = color; }
+            else {
+              var d = document.createElement("span");
+              d.className = "writing-codex-entry-dot";
+              d.style.background = color;
+              avatar.insertBefore(d, avatar.firstChild);
+            }
+          } else {
+            if (dot) dot.remove();
+          }
+        });
+      }
 
       if (el.writingChapterList) {
         bindUiOnce(el.writingChapterList, "writing-chapter-select", "click", function (event) {
