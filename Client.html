@@ -4138,13 +4138,12 @@
             var rect = chapter.getBoundingClientRect();
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
             var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
-            var inBottomZone = dT > rect.height * 0.8;
+            var min = Math.min(dL, dR, dT, dB);
             var before;
-            if (inBottomZone) {
+            if ((min === dL || min === dR) && dB < min * 2) {
               before = true;
-              _dragDebugShow(e, chapter, before, "YES (U-priority)");
+              _dragDebugShow(e, chapter, before, "YES (corner-U)");
             } else {
-              var min = Math.min(dL, dR, dT, dB);
               before = (min === dR || min === dB);
               _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             }
