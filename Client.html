@@ -4128,16 +4128,13 @@
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter !== _dragOverTarget) {
-            var rect = chapter.getBoundingClientRect();
-            var before = e.clientY < rect.top + rect.height / 2;
             _dragOverTarget = chapter;
-            _dragOverBefore = before;
-            _dragDebugShow(e, chapter, before, "YES");
+            _dragOverBefore = true;
+            _dragDebugShow(e, chapter, true, "YES");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
-            var ref = before ? chapter : chapter.nextElementSibling;
-            _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
+            _flipMulti(grids, function () { g.insertBefore(dragged, chapter); });
           } else {
             _dragDebugShow(e, chapter, _dragOverBefore, "no:latched");
           }
