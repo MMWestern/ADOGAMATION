@@ -4088,20 +4088,18 @@
           if (!_draggedChapterId || Date.now() - _dragCooldown < 20) return;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (!dragged) return;
-          var chapter = null;
-          (document.elementsFromPoint(e.clientX, e.clientY) || []).some(function (el) { var c = el.closest(".plan-chapter"); if (c && c !== dragged) { chapter = c; return true; } });
-          if (!chapter) { _dragOverTarget = null; return; }
-            var rect = chapter.getBoundingClientRect();
-            var before = (e.clientX - rect.left) < rect.width / 2;
-            if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
-              _dragOverTarget = chapter;
-              _dragOverBefore = before;
-              var grids = [g];
-              var srcGrid = dragged.parentNode;
-              if (srcGrid && srcGrid !== g) grids.push(srcGrid);
-              var ref = before ? chapter : chapter.nextElementSibling;
-              _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
-            }
+          var chapter = e.target.closest(".plan-chapter");
+          if (!chapter || chapter === dragged) { _dragOverTarget = null; return; }
+          var rect = chapter.getBoundingClientRect();
+          var before = (e.clientX - rect.left) < rect.width / 2;
+          if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
+            _dragOverTarget = chapter;
+            _dragOverBefore = before;
+            var grids = [g];
+            var srcGrid = dragged.parentNode;
+            if (srcGrid && srcGrid !== g) grids.push(srcGrid);
+            var ref = before ? chapter : chapter.nextElementSibling;
+            _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
           }
         });
         g.addEventListener("dragleave", function (e) {
