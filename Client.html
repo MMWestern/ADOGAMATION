@@ -4005,16 +4005,22 @@
         });
       });
 
-      function _flipGrid(grid) {
+      function _flipMulti(grids, fn) {
         var items = [];
-        grid.querySelectorAll(".plan-chapter").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); });
+        grids.forEach(function (g) { g.querySelectorAll(".plan-chapter").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); }); });
+        fn();
+        items.forEach(function (rec) {
+          var nr = rec.el.getBoundingClientRect();
+          var dx = rec.rect.left - nr.left, dy = rec.rect.top - nr.top;
+          if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+            rec.el.style.transition = "none";
+            rec.el.style.transform = "translate(" + dx + "px," + dy + "px)";
+          }
+        });
         requestAnimationFrame(function () {
           items.forEach(function (rec) {
-            var nr = rec.el.getBoundingClientRect();
-            var dx = rec.rect.left - nr.left, dy = rec.rect.top - nr.top;
-            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-              rec.el.animate([{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "translate(0,0)" }], { duration: 250, easing: "ease-out" });
-            }
+            rec.el.style.transition = "transform 250ms ease-out";
+            rec.el.style.transform = "";
           });
         });
       }
@@ -4034,7 +4040,7 @@
         });
         ch.addEventListener("dragend", function () {
           _draggedChapterId = null;
-          grid.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); });
+          grid.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
         ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
         ch.addEventListener("dragenter", function (e) {
@@ -4043,14 +4049,11 @@
             if (id !== _draggedChapterId) {
               var dragged = grid.querySelector(".plan-chapter.dragging");
               if (dragged && dragged.parentNode === this.parentNode) {
-                this.parentNode.insertBefore(dragged, this);
-                _flipGrid(this.parentNode);
+                _flipMulti([this.parentNode], function () { this.parentNode.insertBefore(dragged, this); }.bind(this));
               } else if (dragged) {
                 var srcGrid = dragged.parentNode;
                 var tgtGrid = this.parentNode;
-                tgtGrid.insertBefore(dragged, this);
-                _flipGrid(srcGrid);
-                _flipGrid(tgtGrid);
+                _flipMulti([srcGrid, tgtGrid], function () { tgtGrid.insertBefore(dragged, this); }.bind(this));
               }
             }
           }
@@ -4058,7 +4061,7 @@
         ch.addEventListener("drop", function (e) {
           e.preventDefault();
           var dragged = grid.querySelector(".plan-chapter.dragging");
-          if (dragged) dragged.classList.remove("dragging");
+          if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
           var targetId = this.getAttribute("data-chapter-id");
           if (!_draggedChapterId || _draggedChapterId === targetId) return;
           var outline = getPlanOutline();
