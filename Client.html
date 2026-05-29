@@ -3771,23 +3771,28 @@
             var scenes = chapters[j].children || [];
             if (!scenes.length) return "";
             var project = getSelectedProject();
-            var characters = project && Number(project.series_id || 0)
-              ? (skCache.characters && skCache.characters[Number(project.series_id)] || [])
-              : [];
-            var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene) {
+            var seriesId = project && Number(project.series_id || 0) ? Number(project.series_id) : 0;
+            var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+            var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+            var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+            var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
               var parts = [];
-              if (scene.purpose) parts.push("<strong>Purpose:</strong> " + escapeHtml(scene.purpose));
-              if (scene.pov) parts.push("<strong>POV:</strong> " + escapeHtml(scene.pov));
-              if (scene.targetWordCount) parts.push("<strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words");
-              if (scene.mainPlotFunction) parts.push("<strong>Plot:</strong> " + escapeHtml(scene.mainPlotFunction));
-              var tags = (scene.characterIds || []).map(function (cid) {
-                var charObj = characters.find(function (c) { return Number(c.id) === Number(cid); });
-                return charObj ? escapeHtml(String(charObj.name || "").trim()) : "";
-              }).filter(Boolean);
-              if (tags.length) parts.push("<strong>Characters:</strong> " + tags.join(", "));
-              return "<div style='margin-bottom:6px;padding:4px 6px;background:#0f1419;border:1px solid #1e293b;border-radius:4px;'>" +
-                "<div style='font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:2px;'>" + escapeHtml(scene.title || "Scene") + "</div>" +
-                (parts.length ? "<div style='font-size:10px;color:#64748b;line-height:1.35;'>" + parts.join("<br/>") + "</div>" : "") +
+              parts.push("<div style='font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:4px;'>SCENE " + (sIdx + 1) + (scene.title ? " - " + escapeHtml(scene.title) : "") + "</div>");
+              var sceneText = stripHtmlTags(scene.text || "").trim();
+              if (sceneText) {
+                var lines = sceneText.split("\n").map(function (l) { return String(l || "").trim(); }).filter(Boolean);
+                parts.push("<div style='font-size:10px;color:#94a3b8;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
+              }
+              if (scene.purpose) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Purpose:</strong> " + escapeHtml(scene.purpose) + "</div>");
+              if (scene.pov) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + escapeHtml(scene.pov) + "</div>");
+              if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
+              if (scene.mainPlotFunction) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Plot:</strong> " + escapeHtml(scene.mainPlotFunction) + "</div>");
+              var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
+              if (codexTags) {
+                parts.push("<div style='display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;'>" + codexTags + "</div>");
+              }
+              return "<div style='margin-bottom:8px;padding:6px 8px;background:#0f1419;border:1px solid #1e293b;border-radius:4px;'>" +
+                parts.join("") +
                 "</div>";
             }).join("") + "</div>";
             return html;
@@ -3908,8 +3913,6 @@
                   '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
                   '<div class="plan-chapter-actions">' +
-                    '<button type="button" class="plan-chapter-action" data-action="move-up" data-node-id="' + escapeHtml(chapter.id) + '">&#9650;</button>' +
-                    '<button type="button" class="plan-chapter-action" data-action="move-down" data-node-id="' + escapeHtml(chapter.id) + '">&#9660;</button>' +
                     '<button type="button" class="plan-chapter-action" data-action="delete" data-node-id="' + escapeHtml(chapter.id) + '">&#10005;</button>' +
                   '</div>' +
                 '</div>' +
