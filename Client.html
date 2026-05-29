@@ -3402,8 +3402,6 @@
     var _draggedChapterId = null;
     var _dragOverTarget = null;
     var _dragOverBefore = false;
-    var _dragLastX = 0, _dragLastY = 0;
-    var _dragEntryChapter = null, _dragEntryCount = 0;
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
       el.resourceSeriesKnowledgeStatus.textContent = message || "";
@@ -4091,13 +4089,17 @@
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; return; }
           var rect = chapter.getBoundingClientRect();
-          var before = (e.clientX - rect.left) < rect.width / 2;
+          var nearLeft = (e.clientX - rect.left) < rect.width * 0.05;
+          var nearRight = (rect.right - e.clientX) < rect.width * 0.05;
+          var before;
+          if (chapter === _dragOverTarget) {
+            if (_dragOverBefore) { before = !nearRight; } else { before = nearLeft; }
+          } else {
+            if (nearLeft) { before = true; } else if (nearRight) { before = false; } else { return; }
+          }
           if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
-            if (_dragOverTarget && Math.abs(e.clientX - _dragLastX) < 5 && Math.abs(e.clientY - _dragLastY) < 5) return;
             _dragOverTarget = chapter;
             _dragOverBefore = before;
-            _dragLastX = e.clientX;
-            _dragLastY = e.clientY;
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
