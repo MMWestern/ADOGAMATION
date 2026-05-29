@@ -3422,8 +3422,8 @@
         "Before: " + before + "  Triggered: " + triggered + "\n" +
         "Target: " + (_dragOverTarget ? _dragOverTarget.getAttribute("data-chapter-id") : "null") + "\n" +
         "ETarget: " + (e.target.className || e.target.tagName);
-      _dragDebugEl.style.left = (e.clientX + 20) + "px";
-      _dragDebugEl.style.top = (e.clientY + 20) + "px";
+      _dragDebugEl.style.left = (e.clientX + 30) + "px";
+      _dragDebugEl.style.top = (e.clientY - 10) + "px";
       document.querySelectorAll(".plan-chapter.debug-hit").forEach(function (c) { c.classList.remove("debug-hit"); });
       document.querySelectorAll(".plan-chapter .debug-split").forEach(function (s) { s.remove(); });
       if (chapter) {
@@ -4133,7 +4133,7 @@
           var chapter = e.target.closest(".plan-chapter");
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
-          if (_dragConfirmCount < 2) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
+          if (_dragConfirmCount < 3) { _dragDebugShow(e, chapter, "-", "no:confirm(" + _dragConfirmCount + ")"); return; }
           if (chapter !== _dragOverTarget) {
             var rect = chapter.getBoundingClientRect();
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
