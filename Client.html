@@ -4135,7 +4135,7 @@
             var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
             var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
             var min = Math.min(dL, dR, dT, dB);
-            var before = (min === dL || min === dB);
+            var before = (min === dR || min === dB);
             _dragOverTarget = chapter;
             _dragDebugShow(e, chapter, before, "YES (" + (min===dL?"L":min===dR?"R":min===dT?"D":"U") + ")");
             var grids = [g];
