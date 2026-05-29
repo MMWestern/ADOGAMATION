@@ -4129,12 +4129,17 @@
           if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragDebugShow(e, null, "-", "no:gap"); return; }
           if (chapter !== _dragOverTarget) {
             _dragOverTarget = chapter;
-            _dragOverBefore = true;
-            _dragDebugShow(e, chapter, true, "YES");
             var grids = [g];
             var srcGrid = dragged.parentNode;
             if (srcGrid && srcGrid !== g) grids.push(srcGrid);
-            _flipMulti(grids, function () { g.insertBefore(dragged, chapter); });
+            var ref = chapter;
+            if (dragged.nextElementSibling === chapter) {
+              ref = chapter.nextElementSibling;
+              _dragDebugShow(e, chapter, false, "YES (after)");
+            } else {
+              _dragDebugShow(e, chapter, true, "YES (before)");
+            }
+            _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
           } else {
             _dragDebugShow(e, chapter, _dragOverBefore, "no:latched");
           }
