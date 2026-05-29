@@ -4045,7 +4045,7 @@
 
       function _flipMulti(grids, fn) {
         var items = [];
-        grids.forEach(function (g) { g.querySelectorAll(".plan-chapter").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); }); });
+        grids.forEach(function (g) { g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); }); });
         fn();
         items.forEach(function (rec) {
           var nr = rec.el.getBoundingClientRect();
