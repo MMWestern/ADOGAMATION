@@ -3400,6 +3400,8 @@
     var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, continuityId: 0 };
     var skHasAutoSelected = false;
     var _draggedChapterId = null;
+    var _dragOverTarget = null;
+    var _dragOverBefore = false;
 
     function setResourceSeriesKnowledgeStatus(message, mode) {
       if (!el.resourceSeriesKnowledgeStatus) return;
@@ -4029,6 +4031,7 @@
         ch.addEventListener("dragstart", function (e) {
           if (!e.target.closest(".plan-chapter-drag-handle") && e.target !== this) { e.preventDefault(); return; }
           _draggedChapterId = this.getAttribute("data-chapter-id");
+          _dragOverTarget = null;
           var clone = this.cloneNode(true);
           clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
           document.body.appendChild(clone);
@@ -4039,28 +4042,13 @@
           this.classList.add("dragging");
         });
         ch.addEventListener("dragend", function () {
-          _draggedChapterId = null;
-          grid.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
+          _draggedChapterId = null; _dragOverTarget = null;
+          document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
         });
         ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-        ch.addEventListener("dragenter", function (e) {
-          if (!this.contains(e.relatedTarget)) {
-            var id = this.getAttribute("data-chapter-id");
-            if (id !== _draggedChapterId) {
-              var dragged = grid.querySelector(".plan-chapter.dragging");
-              if (dragged && dragged.parentNode === this.parentNode) {
-                _flipMulti([this.parentNode], function () { this.parentNode.insertBefore(dragged, this); }.bind(this));
-              } else if (dragged) {
-                var srcGrid = dragged.parentNode;
-                var tgtGrid = this.parentNode;
-                _flipMulti([srcGrid, tgtGrid], function () { tgtGrid.insertBefore(dragged, this); }.bind(this));
-              }
-            }
-          }
-        });
         ch.addEventListener("drop", function (e) {
           e.preventDefault();
-          var dragged = grid.querySelector(".plan-chapter.dragging");
+          var dragged = document.querySelector(".plan-chapter.dragging");
           if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
           var targetId = this.getAttribute("data-chapter-id");
           if (!_draggedChapterId || _draggedChapterId === targetId) return;
@@ -4089,14 +4077,47 @@
       });
 
       grid.querySelectorAll(".plan-chapter-grid").forEach(function (g) {
+        g.addEventListener("dragenter", function (e) {
+          if (!this.contains(e.relatedTarget)) _dragOverTarget = null;
+        });
         g.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
+          if (!_draggedChapterId) return;
+          var dragged = document.querySelector(".plan-chapter.dragging");
+          if (!dragged) return;
+          var chapter = e.target.closest(".plan-chapter");
+          if (chapter && chapter !== dragged) {
+            var rect = chapter.getBoundingClientRect();
+            var before = e.clientX < rect.left + rect.width / 2;
+            if (chapter !== _dragOverTarget || before !== _dragOverBefore) {
+              _dragOverTarget = chapter;
+              _dragOverBefore = before;
+              var grids = [g];
+              var srcGrid = dragged.parentNode;
+              if (srcGrid && srcGrid !== g) grids.push(srcGrid);
+              var ref = before ? chapter : chapter.nextElementSibling;
+              _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
+            }
+          } else if (!chapter && _draggedChapterId) {
+            var last = g.querySelector(".plan-chapter:not(.dragging):last-child");
+            if (last && last !== _dragOverTarget) {
+              _dragOverTarget = last;
+              _dragOverBefore = false;
+              var grids = [g];
+              var srcGrid = dragged.parentNode;
+              if (srcGrid && srcGrid !== g) grids.push(srcGrid);
+              _flipMulti(grids, function () { g.appendChild(dragged); });
+            }
+          }
+        });
+        g.addEventListener("dragleave", function (e) {
+          if (!this.contains(e.relatedTarget)) _dragOverTarget = null;
         });
         g.addEventListener("drop", function (e) {
           if (e.target.closest(".plan-chapter")) return;
-          var dragged = g.querySelector(".plan-chapter.dragging");
-          if (dragged) dragged.classList.remove("dragging");
+          var dragged = document.querySelector(".plan-chapter.dragging");
+          if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
           if (!_draggedChapterId) return;
           var actEl = this.closest(".plan-act");
           var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
