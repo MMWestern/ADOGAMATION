@@ -1384,20 +1384,18 @@
           <button id="writingCodexTabRelations" type="button" class="writing-codex-modal-tab" hidden>Relations</button>
           <button type="button" class="writing-codex-modal-tab" disabled>Mentions</button>
           <button type="button" class="writing-codex-modal-tab" disabled>Tracking</button>
-          <div class="writing-codex-modal-color-wrap">
-            <select id="writingCodexModalColor" class="writing-codex-modal-color-select" title="Color tag">
-              <option value="">&#9679; None</option>
-              <option value="#ef4444" style="color:#ef4444">&#9679; Red</option>
-              <option value="#f97316" style="color:#f97316">&#9679; Orange</option>
-              <option value="#f59e0b" style="color:#f59e0b">&#9679; Amber</option>
-              <option value="#22c55e" style="color:#22c55e">&#9679; Green</option>
-              <option value="#14b8a6" style="color:#14b8a6">&#9679; Teal</option>
-              <option value="#3b82f6" style="color:#3b82f6">&#9679; Blue</option>
-              <option value="#6366f1" style="color:#6366f1">&#9679; Indigo</option>
-              <option value="#a855f7" style="color:#a855f7">&#9679; Purple</option>
-              <option value="#ec4899" style="color:#ec4899">&#9679; Pink</option>
-              <option value="#f43f5e" style="color:#f43f5e">&#9679; Rose</option>
-            </select>
+          <div id="writingCodexModalColor" class="writing-codex-color-dots" title="Color tag">
+            <button type="button" class="writing-codex-color-dot is-active" data-color="" style="background:#3a3a42" title="None"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#6366f1" style="background:#6366f1" title="Indigo"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+            <button type="button" class="writing-codex-color-dot" data-color="#f43f5e" style="background:#f43f5e" title="Rose"></button>
           </div>
         </div>
         <div id="writingCodexModalStatus" class="writing-codex-modal-status muted">Loading entry...</div>

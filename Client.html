@@ -4012,7 +4012,7 @@
         tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
       });
       return tags.map(function (t) {
-        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd"' : "";
+        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
         return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
           escapeHtml(t.name) +
           '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
@@ -4068,7 +4068,7 @@
         var initials = String(entry.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join("") || "?";
         var color = String(entry.color || "").trim();
         var dotHtml = color ? '<span class="plan-codex-tag-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
-        return '<div class="plan-codex-tag-item" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
+        return '<div class="plan-codex-tag-item' + (color ? ' has-color' : '') + '" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
           '<div class="plan-codex-tag-avatar">' + dotHtml + escapeHtml(initials) + '</div>' +
           '<div class="plan-codex-tag-name">' + escapeHtml(entry.name || "Untitled") + '</div>' +
           '<div class="plan-codex-tag-type">' + escapeHtml(entry.type) + '</div>' +
@@ -8865,6 +8865,12 @@
       }
     }
 
+    function getActiveColor() {
+      if (!el.writingCodexModalColor) return "";
+      var active = el.writingCodexModalColor.querySelector(".writing-codex-color-dot.is-active");
+      return active ? String(active.getAttribute("data-color") || "").trim() : "";
+    }
+
     function countWords(text) {
       return String(text || "").trim().split(/\s+/).filter(Boolean).length;
     }
@@ -8983,7 +8989,10 @@
       }
       if (el.writingCodexModalColor) {
         el.writingCodexModalColor.hidden = type === "lore";
-        el.writingCodexModalColor.value = String((payload && payload.color) || entry.color || "").trim();
+        var curColor = String((payload && payload.color) || entry.color || "").trim();
+        el.writingCodexModalColor.querySelectorAll(".writing-codex-color-dot").forEach(function (dot) {
+          dot.classList.toggle("is-active", String(dot.getAttribute("data-color") || "") === curColor);
+        });
       }
       if (el.writingCodexModalResolvedGroup && el.writingCodexModalResolved) {
         el.writingCodexModalResolvedGroup.hidden = type !== "continuity";
@@ -9125,7 +9134,7 @@
         ).trim();
         payload.backstory = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
-        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
+        payload.color = getActiveColor();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
       } else if (type === "locations") {
         payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
@@ -9134,14 +9143,14 @@
         payload.significance = String(el.writingCodexModalSecondary && el.writingCodexModalSecondary.value || "").trim();
         payload.notable_events = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
-        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
+        payload.color = getActiveColor();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
       } else if (type === "continuity") {
         payload.title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.severity = String(el.writingCodexModalSeveritySelect && el.writingCodexModalSeveritySelect.value || "minor").trim() || "minor";
         payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
-        payload.color = String(el.writingCodexModalColor && el.writingCodexModalColor.value || "").trim();
+        payload.color = getActiveColor();
         payload.resolved = !!(el.writingCodexModalResolved && el.writingCodexModalResolved.checked);
         payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
         payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
@@ -20039,8 +20048,12 @@
       });
 
       if (el.writingCodexModalColor) {
-        bindUiOnce(el.writingCodexModalColor, "writing-codex-modal-color", "change", function () {
-          var color = String(this.value || "").trim();
+        el.writingCodexModalColor.addEventListener("click", function (event) {
+          var dot = event.target && event.target.classList && event.target.classList.contains("writing-codex-color-dot") ? event.target : null;
+          if (!dot) return;
+          el.writingCodexModalColor.querySelectorAll(".writing-codex-color-dot").forEach(function (d) { d.classList.remove("is-active"); });
+          dot.classList.add("is-active");
+          var color = String(dot.getAttribute("data-color") || "").trim();
           var key = String(appState.writingWorkspace.selectedCodexKey || "");
           if (!key) return;
           var parts = key.split("::");
