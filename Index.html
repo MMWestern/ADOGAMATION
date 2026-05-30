@@ -156,10 +156,8 @@
             </div>
             <div class="writing-codex-filter-row">
               <button id="writingCodexFilterAll" type="button" class="writing-codex-filter is-active" data-codex-filter="all">All</button>
-              <button id="writingCodexFilterCharacters" type="button" class="writing-codex-filter" data-codex-filter="characters">Characters</button>
-              <button id="writingCodexFilterLocations" type="button" class="writing-codex-filter" data-codex-filter="locations">Locations</button>
-              <button id="writingCodexFilterContinuity" type="button" class="writing-codex-filter" data-codex-filter="continuity">Continuity</button>
-              <button id="writingCodexFilterLore" type="button" class="writing-codex-filter" data-codex-filter="lore">Lore</button>
+              <button id="writingCodexFilterSeries" type="button" class="writing-codex-filter" data-codex-filter="series">Series</button>
+              <button id="writingCodexFilterBook" type="button" class="writing-codex-filter" data-codex-filter="book">Book</button>
             </div>
             <div id="writingCodexList" class="writing-codex-list">
               <div class="landing-empty" style="padding:10px 12px;color:#777884;background:transparent;border-color:#303038;">Select a series-based project to load codex entries.</div>
@@ -1386,6 +1384,12 @@
               <option value="moderate">moderate</option>
               <option value="major">major</option>
               <option value="critical">critical</option>
+            </select>
+          </div>
+          <div id="writingCodexModalScopeWrap" class="writing-codex-modal-scope-wrap">
+            <select id="writingCodexModalScopeSelect" class="writing-codex-modal-scope-select">
+              <option value="book">This book</option>
+              <option value="series">All books in series</option>
             </select>
           </div>
           </div>
