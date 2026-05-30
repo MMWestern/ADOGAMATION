@@ -2650,7 +2650,9 @@
       skCharacterRoleBadge: document.getElementById("skCharacterRoleBadge"),
       skCharacterArchetypeBadge: document.getElementById("skCharacterArchetypeBadge"),
       skCharacterArchetype: document.getElementById("skCharacterArchetype"),
-      skCharacterColorDots: document.getElementById("skCharacterColorDots"),
+      skCharacterColorPicker: document.getElementById("skCharacterColorPicker"),
+      skCharacterColorTrigger: document.getElementById("skCharacterColorTrigger"),
+      skCharacterColorDropdown: document.getElementById("skCharacterColorDropdown"),
       skCharacterImageUrl: document.getElementById("skCharacterImageUrl"),
       skCharacterImage: document.getElementById("skCharacterImage"),
       skCharacterImagePlaceholder: document.getElementById("skCharacterImagePlaceholder"),
@@ -9184,17 +9186,26 @@
     }
 
     function getSkCharacterActiveColor() {
-      if (!el.skCharacterColorDots) return "";
-      var active = el.skCharacterColorDots.querySelector(".writing-codex-color-dot.is-active");
-      return active ? String(active.getAttribute("data-color") || "").trim() : "";
+      if (!el.skCharacterColorTrigger) return "";
+      var bg = el.skCharacterColorTrigger.style.background || "";
+      return bg === "#3a3a42" ? "" : bg;
     }
 
     function setSkCharacterActiveColor(color) {
-      if (!el.skCharacterColorDots) return;
+      if (!el.skCharacterColorTrigger) return;
       var safe = String(color || "").trim();
-      el.skCharacterColorDots.querySelectorAll(".writing-codex-color-dot").forEach(function (d) {
-        d.classList.toggle("is-active", String(d.getAttribute("data-color") || "") === safe);
-      });
+      var bg = safe || "#3a3a42";
+      el.skCharacterColorTrigger.style.background = bg;
+      var name = document.getElementById("skCharacterNameDisplay");
+      if (name) {
+        if (safe) {
+          name.style.borderLeft = "3px solid " + safe;
+          name.style.paddingLeft = "8px";
+        } else {
+          name.style.borderLeft = "";
+          name.style.paddingLeft = "";
+        }
+      }
     }
 
     function countWords(text) {
@@ -20458,12 +20469,20 @@
         });
       }
 
-      if (el.skCharacterColorDots) {
-        el.skCharacterColorDots.addEventListener("click", function (event) {
-          var dot = event.target && event.target.classList && event.target.classList.contains("writing-codex-color-dot") ? event.target : null;
+      if (el.skCharacterColorPicker) {
+        el.skCharacterColorPicker.addEventListener("click", function (event) {
+          var dot = event.target && event.target.classList && event.target.classList.contains("sk-color-option") ? event.target : null;
           if (!dot) return;
-          el.skCharacterColorDots.querySelectorAll(".writing-codex-color-dot").forEach(function (d) { d.classList.remove("is-active"); });
-          dot.classList.add("is-active");
+          var color = String(dot.getAttribute("data-color") || "").trim();
+          setSkCharacterActiveColor(color);
+          el.skCharacterColorDropdown.hidden = true;
+        });
+        el.skCharacterColorTrigger.addEventListener("click", function (event) {
+          event.stopPropagation();
+          el.skCharacterColorDropdown.hidden = !el.skCharacterColorDropdown.hidden;
+        });
+        document.addEventListener("click", function () {
+          if (el.skCharacterColorDropdown) el.skCharacterColorDropdown.hidden = true;
         });
       }
 
