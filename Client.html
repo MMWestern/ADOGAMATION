@@ -9176,7 +9176,6 @@
         el.writingCodexModalPrimary,
         el.writingCodexModalSecondary,
         el.writingCodexModalTertiary,
-        el.writingCodexModalImageUrl,
         el.writingCodexModalResolved,
         el.writingCodexModalSaveButton
       ].forEach(function (node) {
@@ -9239,15 +9238,13 @@
 
     function updateWritingCodexModalPreview() {
       if (!el.writingCodexModalImage || !el.writingCodexModalAvatarFallback) return;
-      var url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+      var url = String(el.writingCodexModalImage.src || "").trim();
       var title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
       var initials = title.split(/\s+/).filter(Boolean).slice(0, 2).map(function (part) {
         return part.charAt(0).toUpperCase();
       }).join("") || "CE";
       el.writingCodexModalAvatarFallback.textContent = initials;
-      if (url) {
-        el.writingCodexModalImage.src = url;
-        el.writingCodexModalImage.alt = title ? title + " image" : "Codex entry image";
+      if (url && url !== window.location.href) {
         el.writingCodexModalImage.style.display = "block";
         el.writingCodexModalAvatarFallback.style.display = "none";
       } else {
@@ -9413,9 +9410,15 @@
           ? String(payload && payload.backstory || "").trim()
           : String(payload && payload.notable_events || "").trim();
       }
-      if (el.writingCodexModalImageGroup && el.writingCodexModalImageUrl) {
-        el.writingCodexModalImageGroup.hidden = type === "lore";
-        el.writingCodexModalImageUrl.value = String(payload && payload.image_url || "").trim();
+      if (el.writingCodexModalImage) {
+        var imgUrl = String(payload && payload.image_url || "").trim();
+        if (imgUrl && imgUrl !== window.location.href) {
+          el.writingCodexModalImage.src = imgUrl;
+          el.writingCodexModalImage.style.display = "block";
+        } else {
+          el.writingCodexModalImage.removeAttribute("src");
+          el.writingCodexModalImage.style.display = "none";
+        }
       }
       if (el.writingCodexModalColor) {
         el.writingCodexModalColor.hidden = type === "lore";
@@ -9467,6 +9470,7 @@
       setWritingCodexModalMeta(type === "lore" ? "Shared guide" : "Ready to edit");
       setWritingCodexModalLoading(false, "");
       if (el.writingCodexModalTitle) el.writingCodexModalTitle.disabled = type === "lore";
+      if (el.writingCodexTabRelations) el.writingCodexTabRelations.hidden = type !== "characters";
       renderWritingCodexRelations(entry, extra || {});
       setWritingCodexModalTab("details");
       updateWritingCodexModalPreview();
@@ -9619,7 +9623,7 @@
           ""
         ).trim();
         payload.backstory = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
-        payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
         payload.color = getActiveColor();
         payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
       } else if (type === "locations") {
@@ -9628,14 +9632,14 @@
         payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
         payload.significance = String(el.writingCodexModalSecondary && el.writingCodexModalSecondary.value || "").trim();
         payload.notable_events = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
-        payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
         payload.color = getActiveColor();
         payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
       } else if (type === "continuity") {
         payload.title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.severity = String(el.writingCodexModalSeveritySelect && el.writingCodexModalSeveritySelect.value || "minor").trim() || "minor";
         payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
-        payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
         payload.color = getActiveColor();
         payload.resolved = !!(el.writingCodexModalResolved && el.writingCodexModalResolved.checked);
         payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
@@ -20561,11 +20565,11 @@
         });
       }
 
-      [el.writingCodexModalTitle, el.writingCodexModalPrimary, el.writingCodexModalSecondary, el.writingCodexModalTertiary, el.writingCodexModalImageUrl].forEach(function (node) {
+      [el.writingCodexModalTitle, el.writingCodexModalPrimary, el.writingCodexModalSecondary, el.writingCodexModalTertiary].forEach(function (node) {
         if (!node) return;
         bindUiOnce(node, "writing-codex-modal-live", "input", function () {
           updateWritingCodexModalWordCount();
-          if (node === el.writingCodexModalTitle || node === el.writingCodexModalImageUrl) {
+          if (node === el.writingCodexModalTitle) {
             updateWritingCodexModalPreview();
           }
         });
