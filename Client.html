@@ -879,6 +879,32 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, locations: res.data || [] }); });
     });
 
+    _sbDefine('listSeriesCharacterBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_characters').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_character_books').select('character_id,project_id').in('character_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
+    _sbDefine('listSeriesLocationBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_locations').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_location_books').select('location_id,project_id').in('location_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
     _sbDefine('getSupabaseSeriesLocationJsonFromClient', function (locationId) {
       var safeId = Number(locationId || 0);
       if (!safeId) throw new Error('Location id is required.');
@@ -4611,14 +4637,31 @@
     function loadSkCharacters(seriesId) {
       if (!seriesId) return Promise.resolve([]);
       skCache.characterDetails = {};
-      return callAppsScriptJson("listSupabaseSeriesCharactersJsonFromClient", [seriesId])
-        .then(function (result) {
-          var list = result && result.characters ? result.characters : [];
-          skCache.characters[seriesId] = list;
-          renderSkCharacterList();
-          populateSkCharacterSelectors();
-          return list;
-        })
+      return Promise.all([
+        callAppsScriptJson("listSupabaseSeriesCharactersJsonFromClient", [seriesId]),
+        callAppsScriptJson("listSeriesCharacterBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+      ]).then(function (results) {
+        var list = results[0] && results[0].characters ? results[0].characters : [];
+        var links = results[1] && results[1].links ? results[1].links : [];
+        var linksByChar = {};
+        links.forEach(function (lk) {
+          var cid = Number(lk.character_id || 0);
+          if (!cid) return;
+          if (!linksByChar[cid]) linksByChar[cid] = [];
+          linksByChar[cid].push({ project_id: Number(lk.project_id || 0) });
+        });
+        list.forEach(function (ch) {
+          var cid = Number(ch.id || 0);
+          if (linksByChar[cid]) {
+            ch.bookLinks = linksByChar[cid];
+            skCache.characterDetails[cid] = { bookLinks: linksByChar[cid] };
+          }
+        });
+        skCache.characters[seriesId] = list;
+        renderSkCharacterList();
+        populateSkCharacterSelectors();
+        return list;
+      })
         .catch(function () {});
     }
 
@@ -4926,14 +4969,31 @@
     function loadSkLocations(seriesId) {
       if (!seriesId) return Promise.resolve([]);
       skCache.locationDetails = {};
-      return callAppsScriptJson("listSupabaseSeriesLocationsJsonFromClient", [seriesId])
-        .then(function (result) {
-          var list = result && result.locations ? result.locations : [];
-          skCache.locations[seriesId] = list;
-          renderSkLocationList();
-          populateSkLocationSelectors();
-          return list;
-        })
+      return Promise.all([
+        callAppsScriptJson("listSupabaseSeriesLocationsJsonFromClient", [seriesId]),
+        callAppsScriptJson("listSeriesLocationBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+      ]).then(function (results) {
+        var list = results[0] && results[0].locations ? results[0].locations : [];
+        var links = results[1] && results[1].links ? results[1].links : [];
+        var linksByLoc = {};
+        links.forEach(function (lk) {
+          var lid = Number(lk.location_id || 0);
+          if (!lid) return;
+          if (!linksByLoc[lid]) linksByLoc[lid] = [];
+          linksByLoc[lid].push({ project_id: Number(lk.project_id || 0) });
+        });
+        list.forEach(function (loc) {
+          var lid = Number(loc.id || 0);
+          if (linksByLoc[lid]) {
+            loc.bookLinks = linksByLoc[lid];
+            skCache.locationDetails[lid] = { bookLinks: linksByLoc[lid] };
+          }
+        });
+        skCache.locations[seriesId] = list;
+        renderSkLocationList();
+        populateSkLocationSelectors();
+        return list;
+      })
         .catch(function () {});
     }
 
@@ -9383,9 +9443,11 @@
           var link = bookLinks[0];
           linkedBookId = Number(typeof link === "object" ? (link.project_id || link.id) : link);
         }
-        if (!linkedBookId && scopeVal === "book") linkedBookId = currentBookId;
         var allProjects = getSkProjectsForSeries();
         var opts = '<option value="series"' + (scopeVal === "series" ? " selected" : "") + '>All books in series</option>';
+        if (scopeVal === "book" && !linkedBookId) {
+          opts += '<option value="book:0" selected>Unassigned</option>';
+        }
         allProjects.forEach(function (p) {
           var pid = Number(p.project_id || p.id || 0);
           var ptitle = String(p.title || "Untitled").trim();
@@ -9450,6 +9512,7 @@
       }
       var cachedPayload = getWritingCodexCachedPayload(seriesId, entry.type, id);
       var cachedExtra = getWritingCodexCachedExtra(entry.type, id);
+      if (!cachedPayload) setWritingCodexModalLoading(true, "Loading entry...");
       loadSkSeriesProjects(seriesId).then(function () {
         if (String(appState.writingWorkspace.codexModalKey || "") !== String(entry.key || "")) return;
         if (cachedPayload) {
@@ -9457,20 +9520,16 @@
           if (el.writingCodexModalStatus) el.writingCodexModalStatus.textContent = "Ready to edit";
         }
       });
-      if (cachedPayload) {
-        populateWritingCodexModal(entry, cachedPayload, cachedExtra);
-        if (el.writingCodexModalStatus) {
-          el.writingCodexModalStatus.textContent = "Ready to edit";
-        }
-      } else {
-        setWritingCodexModalLoading(true, "Loading entry...");
-      }
       var loaderName = entry.type === "characters"
         ? "getSupabaseSeriesCharacterJsonFromClient"
         : entry.type === "locations"
           ? "getSupabaseSeriesLocationJsonFromClient"
           : "getSupabaseSeriesContinuityEntryJsonFromClient";
+      var projectsReady = loadSkSeriesProjects(seriesId);
       callAppsScriptJson(loaderName, [id])
+        .then(function (result) {
+          return projectsReady.then(function () { return result; });
+        })
         .then(function (result) {
           if (String(appState.writingWorkspace.codexModalKey || "") !== String(entry.key || "")) return;
           if (!result || !result.ok) throw new Error("Unable to load codex details.");
@@ -9537,6 +9596,7 @@
       } else if (scopeRaw.indexOf("book:") === 0) {
         payload.scope = "book";
         scopeBookId = Number(scopeRaw.split(":")[1] || 0);
+        if (!scopeBookId) scopeBookId = Number(project && (project.project_id || project.id) || 0);
       } else {
         payload.scope = "book";
         scopeBookId = Number(project && (project.project_id || project.id) || 0);
