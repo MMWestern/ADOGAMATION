@@ -9002,6 +9002,7 @@
       }
 
       (skCache.characters && skCache.characters[seriesId] || []).forEach(function (item) {
+        var detail = skCache.characterDetails && skCache.characterDetails[item.id] || {};
         entries.push({
           key: "character::" + String(item.id || ""),
           type: "characters",
@@ -9012,11 +9013,12 @@
           role: String(item.role_archetype || "").trim(),
           archetype: String(item.archetype || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
-          bookLinks: item.bookLinks || []
+          bookLinks: detail.bookLinks || item.bookLinks || []
         });
       });
 
       (skCache.locations && skCache.locations[seriesId] || []).forEach(function (item) {
+        var detail = skCache.locationDetails && skCache.locationDetails[item.id] || {};
         entries.push({
           key: "location::" + String(item.id || ""),
           type: "locations",
@@ -9025,7 +9027,7 @@
           badge: String(item.type || "").trim(),
           color: String(item.color || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
-          bookLinks: item.bookLinks || []
+          bookLinks: detail.bookLinks || item.bookLinks || []
         });
       });
 
@@ -9555,6 +9557,15 @@
       callAppsScriptJson(saverName, [seriesId, JSON.stringify(payload)])
         .then(function (result) {
           var saved = result && (result.character || result.location || result.entry) ? (result.character || result.location || result.entry) : payload;
+          if (type !== "continuity") {
+            var returnedLinks = result && Array.isArray(result.bookLinks) ? result.bookLinks : [];
+            if (returnedLinks.length) saved.bookLinks = returnedLinks;
+            else if (payload.bookLinks && payload.bookLinks.length) saved.bookLinks = payload.bookLinks;
+          } else {
+            var returnedProjIds = result && Array.isArray(result.linkedProjectIds) ? result.linkedProjectIds : [];
+            if (returnedProjIds.length) saved.linkedProjectIds = returnedProjIds;
+            else if (payload.linkedProjectIds && payload.linkedProjectIds.length) saved.linkedProjectIds = payload.linkedProjectIds;
+          }
           var list = skCache[type] && skCache[type][seriesId] ? skCache[type][seriesId] : [];
           var savedId = Number(saved.id || id || 0);
           var nextList = list.filter(function (item) { return Number(item.id || 0) !== savedId; });
@@ -9564,7 +9575,21 @@
           });
           if (!skCache[type]) skCache[type] = {};
           skCache[type][seriesId] = nextList;
-          populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra || {});
+          if (type === "characters" && saved.bookLinks) {
+            if (!skCache.characterDetails) skCache.characterDetails = {};
+            skCache.characterDetails[savedId] = { bookLinks: saved.bookLinks };
+          } else if (type === "locations" && saved.bookLinks) {
+            if (!skCache.locationDetails) skCache.locationDetails = {};
+            skCache.locationDetails[savedId] = { bookLinks: saved.bookLinks };
+          } else if (type === "continuity" && saved.linkedProjectIds) {
+            if (!skCache.continuityDetails) skCache.continuityDetails = {};
+            skCache.continuityDetails[savedId] = { linkedProjectIds: saved.linkedProjectIds };
+          }
+          var updatedExtra = Object.assign({}, appState.writingWorkspace.codexModalExtra || {});
+          if (saved.bookLinks) updatedExtra.bookLinks = saved.bookLinks;
+          if (saved.linkedProjectIds) updatedExtra.linkedProjectIds = saved.linkedProjectIds;
+          appState.writingWorkspace.codexModalExtra = updatedExtra;
+          populateWritingCodexModal(entry, saved, updatedExtra);
           renderWritingCodexList(project);
           updateWritingInspectorCodex(project);
           if (type === "characters" && typeof renderSkCharacterList === "function") {
