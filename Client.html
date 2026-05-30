@@ -9183,20 +9183,19 @@
 
     function getActiveColor() {
       if (!el.writingCodexModalColorTrigger) return "";
-      var bg = el.writingCodexModalColorTrigger.style.background || "";
-      return bg === "#3a3a42" ? "" : bg;
+      return el.writingCodexModalColorTrigger.getAttribute("data-color") || "";
     }
 
     function getSkCharacterActiveColor() {
       if (!el.skCharacterColorTrigger) return "";
-      var bg = el.skCharacterColorTrigger.style.background || "";
-      return bg === "#3a3a42" ? "" : bg;
+      return el.skCharacterColorTrigger.getAttribute("data-color") || "";
     }
 
     function setSkCharacterActiveColor(color) {
       if (!el.skCharacterColorTrigger) return;
       var safe = String(color || "").trim();
       var bg = safe || "#3a3a42";
+      el.skCharacterColorTrigger.setAttribute("data-color", safe);
       el.skCharacterColorTrigger.style.background = bg;
       var name = document.getElementById("skCharacterNameDisplay");
       if (name) name.style.color = safe || "";
@@ -9353,6 +9352,7 @@
         el.writingCodexModalColor.hidden = type === "lore";
         var curColor = String((payload && payload.color) || entry.color || "").trim();
         if (el.writingCodexModalColorTrigger) {
+          el.writingCodexModalColorTrigger.setAttribute("data-color", curColor);
           el.writingCodexModalColorTrigger.style.background = curColor || "#3a3a42";
         }
       }
@@ -20425,6 +20425,7 @@
           if (!option) return;
           var color = String(option.getAttribute("data-color") || "").trim();
           if (el.writingCodexModalColorTrigger) {
+            el.writingCodexModalColorTrigger.setAttribute("data-color", color);
             el.writingCodexModalColorTrigger.style.background = color || "#3a3a42";
           }
           if (el.writingCodexModalColorDropdown) {
