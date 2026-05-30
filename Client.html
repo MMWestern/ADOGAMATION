@@ -1263,10 +1263,107 @@
       });
     }
 
-    const DEFAULT_STATUS_OPTIONS = ["Idea", "Concept", "Planning", "Draft", "Writing", "Editing", "Complete", "Publish Ready", "Published"];
-    const DEFAULT_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
-    const DEFAULT_CHARACTER_ROLES = ["Protagonist", "Antagonist", "Deuteragonist", "Mentor", "Love Interest", "Sidekick", "Villain", "Foil", "Familiar", "Confidant", "Comic Relief", "Other"];
-    const DEFAULT_CHARACTER_ARCHETYPES = ["The Hero", "The Mentor", "The Shadow", "The Herald", "The Trickster", "The Shapeshifter", "The Guardian", "The Ally", "The Innocent", "The Sage", "The Rebel", "The Lover", "The Jester"];
+    const DEFAULT_STATUS_OPTIONS = [
+      { value: "Idea", description: "A preliminary concept not yet in development." },
+      { value: "Concept", description: "An early-stage idea with some structure and direction established." },
+      { value: "Planning", description: "Outlining structure, characters, and research before writing begins." },
+      { value: "Draft", description: "First-draft writing in progress." },
+      { value: "Writing", description: "Active composition with revisions happening alongside new content." },
+      { value: "Editing", description: "Content complete; focused on revision, proofreading, and polish." },
+      { value: "Complete", description: "Final version ready for readers." },
+      { value: "Publish Ready", description: "Formatted, proofed, and prepared for publication." },
+      { value: "Published", description: "Released to readers and available for purchase or access." }
+    ];
+    const DEFAULT_PRIORITY_OPTIONS = [
+      { value: "Low", description: "Non-urgent work with flexible deadlines." },
+      { value: "Medium", description: "Standard priority with reasonable deadlines." },
+      { value: "High", description: "Important work requiring focused attention soon." },
+      { value: "Critical", description: "Urgent work requiring immediate attention." }
+    ];
+    const DEFAULT_CHARACTER_ROLES = [
+      { value: "Protagonist", description: "The main character driving the story forward." },
+      { value: "Antagonist", description: "The primary opposing force creating conflict for the protagonist." },
+      { value: "Deuteragonist", description: "A secondary main character whose arc runs parallel to the protagonist." },
+      { value: "Mentor", description: "A wise guide who provides knowledge and training to the hero." },
+      { value: "Love Interest", description: "A character who forms a romantic connection with another main character." },
+      { value: "Sidekick", description: "A loyal companion who supports and assists the main character." },
+      { value: "Villain", description: "A malicious character whose evil actions oppose the hero." },
+      { value: "Foil", description: "A character whose traits contrast with another to highlight specific qualities." },
+      { value: "Familiar", description: "A supernatural animal or spirit companion that aids a witch, wizard, or magical being." },
+      { value: "Confidant", description: "A trusted character who provides counsel and a safe space for the protagonist." },
+      { value: "Comic Relief", description: "A humorous character who lightens tense moments and provides levity." },
+      { value: "Other", description: "Any role not covered by standard categories." }
+    ];
+    const DEFAULT_GENRE_OPTIONS = [
+      { value: "Fantasy", description: "Stories set in imaginary worlds with magic, mythical creatures, and epic quests." },
+      { value: "Science Fiction", description: "Speculative narratives exploring futuristic technology, space travel, and societal change." },
+      { value: "Romance", description: "Stories centered on emotional relationships and romantic love with emotionally satisfying endings." },
+      { value: "Mystery", description: "Puzzle-like narratives focused on solving a crime or uncovering hidden truths." },
+      { value: "Thriller", description: "High-stakes stories with suspense, tension, and rapid pacing throughout." },
+      { value: "Horror", description: "Stories designed to evoke fear, dread, and unease through supernatural or psychological terror." },
+      { value: "Literary Fiction", description: "Character-driven works emphasizing thematic depth, prose craft, and human experience." },
+      { value: "Historical Fiction", description: "Stories set in a specific historical period, blending real events with fictional characters." },
+      { value: "Young Adult", description: "Coming-of-age stories targeting teenage readers with relatable protagonists and themes." },
+      { value: "Fantasy Romance", description: "Romantic narratives set in magical worlds with fantasy elements and love stories." },
+      { value: "Paranormal Romance", description: "Romance stories involving supernatural beings like vampires, werewolves, and ghosts." },
+      { value: "Urban Fantasy", description: "Fantasy stories set in contemporary urban environments with hidden magical societies." },
+      { value: "Epic Fantasy", description: "Large-scale fantasy with sprawling worlds, complex politics, and heroic journeys." },
+      { value: "Dark Fantasy", description: "Fantasy blending horror elements with grim themes and moral ambiguity." },
+      { value: "Cozy Mystery", description: "Lighthearted mystery with an amateur sleuth, small-town setting, and no graphic violence." },
+      { value: "Psychological Thriller", description: "Suspense focused on mental states, unreliable narrators, and psychological manipulation." },
+      { value: "Dystopian", description: "Stories set in oppressive societies exploring themes of control, resistance, and survival." },
+      { value: "Apocalyptic", description: "Narratives about civilization-ending events and the struggle to survive." },
+      { value: "Slice of Life", description: "Quiet, character-focused stories about everyday experiences and relationships." },
+      { value: "Adventure", description: "Fast-paced stories centered on exploration, action, and physical challenges." },
+      { value: "Fairy Tale Retelling", description: "Modern reimaginings of classic fairy tales with fresh perspectives." },
+      { value: "Mythic Fiction", description: "Stories drawing on mythology and folklore to explore universal human themes." },
+      { value: "Magical Realism", description: "Literary fiction where magical elements exist naturally in an otherwise realistic world." },
+      { value: "Space Opera", description: "Sweeping sci-fi adventures with interstellar empires, alien species, and epic conflict." },
+      { value: "Cyberpunk", description: "High-tech dystopian sci-fi exploring AI, hackers, and corporate control." },
+      { value: "Steampunk", description: "Alternate-history sci-fi with Victorian-era aesthetics and steam-powered technology." },
+      { value: "Time Travel", description: "Narratives exploring the consequences of moving through time and altered timelines." },
+      { value: "Superhero", description: "Stories about individuals with extraordinary abilities facing moral and physical challenges." },
+      { value: "LGBTQ+ Fiction", description: "Stories centering queer experiences, identities, and relationships." },
+      { value: "Women's Fiction", description: "Commercial fiction focused on women's emotional journeys and life transitions." },
+      { value: "New Adult", description: "Stories bridging YA and adult fiction, focusing on early adulthood and self-discovery." },
+      { value: "Suspense", description: "Tension-driven narratives with rising stakes and anticipation of danger." },
+      { value: "Gothic", description: "Atmospheric stories combining horror, romance, and melodrama in dark settings." },
+      { value: "Noir", description: "Dark, cynical crime fiction with morally ambiguous protagonists and shadowy settings." },
+      { value: "Western", description: "Stories set in the American frontier exploring themes of justice, survival, and independence." },
+      { value: "War Fiction", description: "Narratives examining the human experience of armed conflict and its aftermath." },
+      { value: "Family Saga", description: "Multi-generational stories exploring family dynamics, secrets, and legacy." },
+      { value: "Bildungsroman", description: "Coming-of-age narratives following a character's moral and psychological growth." }
+    ];
+    const DEFAULT_FORMAT_OPTIONS = [
+      { value: "Novel", description: "A long-form narrative typically 60,000-100,000 words with complex plots and character development." },
+      { value: "Novella", description: "A shorter narrative between 17,500-40,000 words with focused plot and limited characters." },
+      { value: "Novelette", description: "A brief narrative between 7,500-17,500 words offering a complete arc in condensed form." },
+      { value: "Short Story", description: "A concise narrative under 7,500 words exploring a single idea or moment." },
+      { value: "Flash Fiction", description: "An extremely brief story under 1,000 words delivering impact through economy of language." },
+      { value: "Serial", description: "A story published in installments, each ending with a hook to encourage continued reading." },
+      { value: "Anthology", description: "A collection of separate works by one or more authors on a shared theme or setting." },
+      { value: "Screenplay", description: "A script written for film or television with scene directions and dialogue." },
+      { value: "Stage Play", description: "A dramatic work written for theatrical performance with acts and scenes." },
+      { value: "Poetry Collection", description: "A compilation of poems organized around a theme or style." },
+      { value: "Graphic Novel", description: "A full-length narrative told through sequential art and text." },
+      { value: "Web Serial", description: "A story published episodically online, often with reader engagement." },
+      { value: "Chapbook", description: "A small, self-contained booklet of poetry, prose, or hybrid work." }
+    ];
+    const DEFAULT_CHARACTER_ARCHETYPES = [
+      { value: "The Hero", description: "A courageous protagonist who overcomes challenges and grows throughout the journey." },
+      { value: "The Mentor", description: "A wise guide who provides knowledge, training, or tools to help the hero." },
+      { value: "The Shadow", description: "A dark antagonist who represents the hero's inner fears or unresolved conflicts." },
+      { value: "The Herald", description: "A messenger who announces change and sets the story in motion." },
+      { value: "The Trickster", description: "A mischievous character who disrupts the status quo and challenges assumptions." },
+      { value: "The Shapeshifter", description: "An unpredictable character whose loyalty or true nature is ambiguous." },
+      { value: "The Guardian", description: "A gatekeeper who tests the hero's resolve before allowing progress." },
+      { value: "The Ally", description: "A loyal companion who supports the hero on their journey." },
+      { value: "The Innocent", description: "A pure-hearted character who sees the best in others and inspires hope." },
+      { value: "The Sage", description: "A knowledgeable figure who provides wisdom and deeper understanding." },
+      { value: "The Rebel", description: "A nonconformist who challenges authority and drives change." },
+      { value: "The Lover", description: "A character driven by passion, connection, and emotional bonds." },
+      { value: "The Jester", description: "A playful trickster who uses humor to reveal truths or lighten tension." }
+    ];
     const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
     const DASHBOARD_DEVELOPMENT_STATUSES = ["Idea", "Concept", "Planning"];
     const INSPECTOR_OPTION_FIELDS = [
@@ -3363,8 +3460,8 @@
     function deriveInspectorOptionsFromProjects() {
       return {
         pen_name: getUniqueValues("pen_name"),
-        genre: getUniqueValues("genre"),
-        format: getUniqueValues("format"),
+        genre: normalizeInspectorOptionList(DEFAULT_GENRE_OPTIONS.concat(getUniqueValues("genre"))),
+        format: normalizeInspectorOptionList(DEFAULT_FORMAT_OPTIONS.concat(getUniqueValues("format"))),
         status: normalizeInspectorOptionList(DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))),
         priority: normalizeInspectorOptionList(DEFAULT_PRIORITY_OPTIONS.concat(getUniqueValues("priority"))),
         next_step: buildNextStepOptions(),
