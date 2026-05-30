@@ -9004,7 +9004,9 @@
           title: String(item.name || "Unnamed").trim() || "Unnamed",
           body: String(item.description || item.motivation_arc || item.role_archetype || "").trim(),
           badge: String(item.role_archetype || item.archetype || "").trim(),
-          color: String(item.color || "").trim()
+          color: String(item.color || "").trim(),
+          role: String(item.role_archetype || "").trim(),
+          archetype: String(item.archetype || "").trim()
         });
       });
 
@@ -9628,6 +9630,15 @@
         var color = String(entry.color || "").trim();
         var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
         var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+        var role = String(entry.role || "").trim();
+        var archetype = String(entry.archetype || "").trim();
+        var pillsHtml = "";
+        if (role) {
+          pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(role) + '">' + escapeHtml(role) + '</span>';
+        }
+        if (archetype) {
+          pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(archetype) + '">' + escapeHtml(archetype) + '</span>';
+        }
         return "<button type='button' class='writing-codex-entry" + active + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
           "<div class='writing-codex-entry-avatar'>" + dotHtml + escapeHtml(initials) + "</div>" +
           "<div class='writing-codex-entry-content'>" +
@@ -9635,6 +9646,7 @@
               "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
               (badge ? "<div class='writing-codex-entry-badge'>" + escapeHtml(badge) + "</div>" : "") +
             "</div>" +
+            (pillsHtml ? "<div class='writing-codex-entry-pills'>" + pillsHtml + "</div>" : "") +
             "<div class='writing-codex-entry-body'>" + escapeHtml(entry.body || "No details yet.") + "</div>" +
           "</div>" +
         "</button>";
