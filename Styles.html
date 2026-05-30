@@ -1494,7 +1494,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      width: 100%;
+      flex-wrap: wrap;
     }
 
     .writing-codex-modal-badge-wrap [hidden],
@@ -1516,8 +1516,15 @@
       padding: 4px 8px;
     }
 
-    .writing-codex-modal-badge-select {
-      flex: 1 1 calc(50% - 6px);
+    .writing-codex-modal-role-archetype-row {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .writing-codex-modal-role-archetype-row .writing-codex-modal-badge-select {
+      flex: 1;
       min-width: 0;
     }
 

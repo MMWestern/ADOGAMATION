@@ -2501,6 +2501,7 @@
       writingCodexModalArchetypePill: document.getElementById("writingCodexModalArchetypePill"),
       writingCodexModalRoleSelect: document.getElementById("writingCodexModalRoleSelect"),
       writingCodexModalArchetypeSelect: document.getElementById("writingCodexModalArchetypeSelect"),
+      writingCodexModalRoleArchetypeRow: document.getElementById("writingCodexModalRoleArchetypeRow"),
       writingCodexModalSeveritySelect: document.getElementById("writingCodexModalSeveritySelect"),
       writingCodexModalImage: document.getElementById("writingCodexModalImage"),
       writingCodexModalAvatarShell: document.getElementById("writingCodexModalAvatarShell"),
@@ -9252,26 +9253,19 @@
           ? ""
           : String(payload && payload.type || entry.badge || "").trim();
       }
-      if (el.writingCodexModalRoleSelect) {
+      if (el.writingCodexModalRoleArchetypeRow) {
         if (type === "characters") {
-          if (el.skCharacterRole) {
+          if (el.writingCodexModalRoleSelect && el.skCharacterRole) {
             el.writingCodexModalRoleSelect.innerHTML = el.skCharacterRole.innerHTML;
+            el.writingCodexModalRoleSelect.value = String(payload && payload.role_archetype || "").trim();
           }
-          el.writingCodexModalRoleSelect.hidden = false;
-          el.writingCodexModalRoleSelect.value = String(payload && payload.role_archetype || "").trim();
-        } else {
-          el.writingCodexModalRoleSelect.hidden = true;
-        }
-      }
-      if (el.writingCodexModalArchetypeSelect) {
-        if (type === "characters") {
-          if (el.skCharacterArchetype) {
+          if (el.writingCodexModalArchetypeSelect && el.skCharacterArchetype) {
             el.writingCodexModalArchetypeSelect.innerHTML = el.skCharacterArchetype.innerHTML;
+            el.writingCodexModalArchetypeSelect.value = String(payload && payload.archetype || "").trim();
           }
-          el.writingCodexModalArchetypeSelect.hidden = false;
-          el.writingCodexModalArchetypeSelect.value = String(payload && payload.archetype || "").trim();
+          el.writingCodexModalRoleArchetypeRow.hidden = false;
         } else {
-          el.writingCodexModalArchetypeSelect.hidden = true;
+          el.writingCodexModalRoleArchetypeRow.hidden = true;
         }
       }
       if (el.writingCodexModalRolePill) {
