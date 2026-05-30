@@ -3128,20 +3128,21 @@
       return type + "-" + safe;
     }
 
-    function createOption(value, label) {
+    function createOption(value, label, title) {
       const option = document.createElement("option");
       option.value = value;
       option.textContent = label != null ? label : value;
+      if (title) option.title = title;
       return option;
     }
 
-    function populateSelectWithBlank(select, values, blankLabel) {
+    function populateSelectWithBlank(select, values, blankLabel, descriptions) {
       const current = select.value;
       select.innerHTML = "";
       select.appendChild(createOption("", blankLabel || "—"));
 
       values.forEach(function (value) {
-        select.appendChild(createOption(value));
+        select.appendChild(createOption(value, null, descriptions && descriptions[value]));
       });
 
       if (values.indexOf(current) !== -1 || current === "") {
@@ -3336,13 +3337,23 @@
 
     function normalizeInspectorOptionList(values) {
       const seen = {};
-      return (Array.isArray(values) ? values : []).reduce(function (out, value) {
-        const safe = String(value == null ? "" : value).trim();
-        if (!safe) return out;
-        const dedupeKey = safe.toLowerCase();
+      return (Array.isArray(values) ? values : []).reduce(function (out, item) {
+        if (item == null) return out;
+        var val, desc;
+        if (typeof item === "string") {
+          val = item.trim();
+          desc = "";
+        } else if (typeof item === "object") {
+          val = String(item.value == null ? "" : item.value).trim();
+          desc = String(item.description || "").trim();
+        } else {
+          return out;
+        }
+        if (!val) return out;
+        const dedupeKey = val.toLowerCase();
         if (seen[dedupeKey]) return out;
         seen[dedupeKey] = true;
-        out.push(safe);
+        out.push({ value: val, description: desc });
         return out;
       }, []);
     }
@@ -3364,7 +3375,8 @@
       const fallback = deriveInspectorOptionsFromProjects();
       return INSPECTOR_OPTION_FIELDS.reduce(function (out, field) {
         const safeList = normalizeInspectorOptionList(source[field.key]);
-        out[field.key] = safeList.length ? safeList : fallback[field.key].slice();
+        const fallbackList = normalizeInspectorOptionList(fallback[field.key]);
+        out[field.key] = safeList.length ? safeList : fallbackList.length ? fallbackList : [];
         return out;
       }, {});
     }
@@ -3374,7 +3386,24 @@
         ? appState.inspectorOptions[key]
         : null;
       const safeFallback = normalizeInspectorOptionList(fallbackValues);
-      return configured && configured.length ? configured.slice() : safeFallback;
+      const source = configured && configured.length ? configured : safeFallback;
+      return source.map(function (o) { return o.value; });
+    }
+
+    function getInspectorOptionDescriptions(key, fallbackValues) {
+      const configured = appState.inspectorOptions && Array.isArray(appState.inspectorOptions[key])
+        ? appState.inspectorOptions[key]
+        : null;
+      if (configured && configured.length) {
+        return configured.reduce(function (map, opt) {
+          if (opt.description) map[opt.value] = opt.description;
+          return map;
+        }, {});
+      }
+      return normalizeInspectorOptionList(fallbackValues).reduce(function (map, opt) {
+        if (opt.description) map[opt.value] = opt.description;
+        return map;
+      }, {});
     }
 
     function setResourceInspectorStatus(message, mode) {
@@ -5308,8 +5337,8 @@
       const options = normalizeInspectorOptionsConfig(appState.inspectorOptions);
       const rows = [];
       INSPECTOR_OPTION_FIELDS.forEach(function (field) {
-        (options[field.key] || []).forEach(function (value) {
-          rows.push({ key: field.key, value: value });
+        (options[field.key] || []).forEach(function (item) {
+          rows.push({ key: field.key, value: String(item.value || ""), description: String(item.description || "") });
         });
       });
       const filterKey = String(appState.inspectorOptionsFilter || "all").trim() || "all";
@@ -5317,7 +5346,7 @@
         return filterKey === "all" || row.key === filterKey;
       });
       if (!visibleRows.length) {
-        visibleRows.push({ key: filterKey !== "all" ? filterKey : "genre", value: "" });
+        visibleRows.push({ key: filterKey !== "all" ? filterKey : "genre", value: "", description: "" });
       }
       el.resourceInspectorTableBody.innerHTML = visibleRows.map(function (row) {
         const selectOptions = INSPECTOR_OPTION_FIELDS.map(function (field) {
@@ -5327,6 +5356,7 @@
           "<tr>" +
             "<td><select data-inspector-option-key>" + selectOptions + "</select></td>" +
             "<td><input type='text' data-inspector-option-value value='" + escapeHtml(row.value) + "' placeholder='Option value' /></td>" +
+            "<td><input type='text' data-inspector-option-desc value='" + escapeHtml(row.description) + "' placeholder='Description (optional)' /></td>" +
             "<td><button type='button' class='resource-inspector-remove' data-inspector-remove-row>&times;</button></td>" +
           "</tr>"
         );
@@ -5344,10 +5374,12 @@
       Array.from(el.resourceInspectorTableBody.querySelectorAll("tr")).forEach(function (row) {
         const keyField = row.querySelector("[data-inspector-option-key]");
         const valueField = row.querySelector("[data-inspector-option-value]");
+        const descField = row.querySelector("[data-inspector-option-desc]");
         const key = keyField ? String(keyField.value || "").trim() : "";
         const value = valueField ? String(valueField.value || "").trim() : "";
+        const description = descField ? String(descField.value || "").trim() : "";
         if (!key || !out[key]) return;
-        out[key].push(value);
+        out[key].push(description ? { value: value, description: description } : value);
       });
       return normalizeInspectorOptionsConfig(out);
     }
@@ -5493,7 +5525,8 @@
       populateSelectWithBlank(el.modalProjectNextStep, nextStepValues, "—");
 
       var characterRoleValues = getInspectorOptionValues("character_role", DEFAULT_CHARACTER_ROLES);
-      populateSelectWithBlank(el.skCharacterRole, characterRoleValues);
+      var characterRoleDescriptions = getInspectorOptionDescriptions("character_role", DEFAULT_CHARACTER_ROLES);
+      populateSelectWithBlank(el.skCharacterRole, characterRoleValues, null, characterRoleDescriptions);
 
       const detailStatusCurrent = el.detailStatus.value;
       const detailPriorityCurrent = el.detailPriority.value;
