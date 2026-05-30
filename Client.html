@@ -1265,6 +1265,7 @@
 
     const DEFAULT_STATUS_OPTIONS = ["Idea", "Concept", "Planning", "Draft", "Writing", "Editing", "Complete", "Publish Ready", "Published"];
     const DEFAULT_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
+    const DEFAULT_CHARACTER_ROLES = ["Protagonist", "Antagonist", "Deuteragonist", "Mentor", "Love Interest", "Sidekick", "Villain", "Foil", "Familiar", "Confidant", "Comic Relief", "Other"];
     const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
     const DASHBOARD_DEVELOPMENT_STATUSES = ["Idea", "Concept", "Planning"];
     const INSPECTOR_OPTION_FIELDS = [
@@ -1273,7 +1274,8 @@
       { key: "format", label: "Format" },
       { key: "status", label: "Status" },
       { key: "priority", label: "Priority" },
-      { key: "next_step", label: "Next Step" }
+      { key: "next_step", label: "Next Step" },
+      { key: "character_role", label: "Character Role" }
     ];
 
     const SCHEDULE_TEMPLATES = {
@@ -3352,7 +3354,8 @@
         format: getUniqueValues("format"),
         status: normalizeInspectorOptionList(DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))),
         priority: normalizeInspectorOptionList(DEFAULT_PRIORITY_OPTIONS.concat(getUniqueValues("priority"))),
-        next_step: buildNextStepOptions()
+        next_step: buildNextStepOptions(),
+        character_role: normalizeInspectorOptionList(DEFAULT_CHARACTER_ROLES)
       };
     }
 
@@ -5488,6 +5491,9 @@
       populateSelectWithBlank(el.modalProjectGenre, genreValues);
       populateSelectWithBlank(el.modalProjectFormat, formatValues, "—");
       populateSelectWithBlank(el.modalProjectNextStep, nextStepValues, "—");
+
+      var characterRoleValues = getInspectorOptionValues("character_role", DEFAULT_CHARACTER_ROLES);
+      populateSelectWithBlank(el.skCharacterRole, characterRoleValues);
 
       const detailStatusCurrent = el.detailStatus.value;
       const detailPriorityCurrent = el.detailPriority.value;
