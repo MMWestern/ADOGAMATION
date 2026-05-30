@@ -3477,6 +3477,16 @@
         const safeList = normalizeInspectorOptionList(source[field.key]);
         const fallbackList = normalizeInspectorOptionList(fallback[field.key]);
         out[field.key] = safeList.length ? safeList : fallbackList.length ? fallbackList : [];
+        if (fallbackList.length && safeList.length) {
+          var fallbackDesc = {};
+          fallbackList.forEach(function (o) { if (o.description) fallbackDesc[o.value.toLowerCase()] = o.description; });
+          out[field.key].forEach(function (o) {
+            if (!o.description) {
+              var match = fallbackDesc[o.value.toLowerCase()];
+              if (match) o.description = match;
+            }
+          });
+        }
         return out;
       }, {});
     }
