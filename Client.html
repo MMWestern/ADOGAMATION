@@ -20396,6 +20396,20 @@
         });
       });
 
+      if (el.writingInspectorOutline) {
+        bindUiOnce(el.writingInspectorOutline, "writing-inspector-outline-pill", "click", function (event) {
+          var tag = event.target && event.target.closest ? event.target.closest(".plan-scene-tag") : null;
+          if (!tag || (event.target.classList && event.target.classList.contains("plan-scene-tag-remove"))) return;
+          var codexType = tag.getAttribute("data-codex-type");
+          var codexId = tag.getAttribute("data-codex-id");
+          if (!codexType || !codexId) return;
+          var key = codexType + "::" + codexId;
+          appState.writingWorkspace.selectedCodexKey = key;
+          updateWritingInspectorCodex(getSelectedProject());
+          renderWritingCodexList(getSelectedProject());
+        });
+      }
+
       if (el.writingCodexList) {
         bindUiOnce(el.writingCodexList, "writing-codex-select", "click", function (event) {
           var header = event.target && event.target.closest ? event.target.closest(".writing-codex-group-header") : null;
