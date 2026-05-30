@@ -4310,8 +4310,7 @@
       return tags.map(function (t) {
         var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
         return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
-          escapeHtml(t.name) +
-          '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span></span>';
+          escapeHtml(t.name) + '</span>';
       }).join("");
     }
 
