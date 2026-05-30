@@ -2505,7 +2505,6 @@
       writingCodexModalSeveritySelect: document.getElementById("writingCodexModalSeveritySelect"),
       writingCodexModalImage: document.getElementById("writingCodexModalImage"),
       writingCodexModalAvatarShell: document.getElementById("writingCodexModalAvatarShell"),
-      writingCodexModalAvatarFileInput: document.getElementById("writingCodexModalAvatarFileInput"),
       writingCodexModalAvatarFallback: document.getElementById("writingCodexModalAvatarFallback"),
       writingCodexModalMeta: document.getElementById("writingCodexModalMeta"),
       writingCodexModalStatus: document.getElementById("writingCodexModalStatus"),
@@ -20492,24 +20491,9 @@
         }
       }
 
-      if (el.writingCodexModalAvatarShell && el.writingCodexModalAvatarFileInput) {
+      if (el.writingCodexModalAvatarShell) {
         el.writingCodexModalAvatarShell.addEventListener("click", function () {
-          el.writingCodexModalAvatarFileInput.click();
-        });
-        el.writingCodexModalAvatarFileInput.addEventListener("change", function () {
-          var file = el.writingCodexModalAvatarFileInput.files && el.writingCodexModalAvatarFileInput.files[0];
-          if (!file) return;
-          var reader = new FileReader();
-          reader.onload = function () {
-            var url = String(reader.result || "").trim();
-            if (!url) return;
-            if (el.writingCodexModalImageUrl) {
-              el.writingCodexModalImageUrl.value = url;
-            }
-            updateWritingCodexModalPreview();
-          };
-          reader.readAsDataURL(file);
-          el.writingCodexModalAvatarFileInput.value = "";
+          if (typeof openImagePickerModal === "function") openImagePickerModal();
         });
       }
 
