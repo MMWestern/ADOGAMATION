@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Silent Pixel Smoke Tests</title>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { color: #e94560; }
+    .pass { color: #4ecca3; }
+    .fail { color: #e94560; }
+    .summary { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 14px; }
+    .summary.all-pass { background: #0d3320; border: 1px solid #4ecca3; }
+    .summary.has-fail { background: #3d0a0a; border: 1px solid #e94560; }
+    #results { line-height: 1.8; }
+    .section { margin-top: 16px; font-weight: bold; color: #aaa; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Smoke Tests</h1>
+  <p>Loads the built app in an iframe and verifies globals and functions exist.</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <iframe id="appFrame" src="../build/index.html" style="width:100%;height:400px;border:1px solid #333;border-radius:8px;margin-top:20px;display:none;"></iframe>
+
+  <script>
+    const results = document.getElementById('results');
+    const summary = document.getElementById('summary');
+    let passCount = 0;
+    let failCount = 0;
+
+    function log(text, passed) {
+      const div = document.createElement('div');
+      div.className = passed ? 'pass' : 'fail';
+      div.textContent = (passed ? 'PASS' : 'FAIL') + ': ' + text;
+      results.appendChild(div);
+      if (passed) passCount++; else failCount++;
+    }
+
+    function section(name) {
+      const div = document.createElement('div');
+      div.className = 'section';
+      div.textContent = name;
+      results.appendChild(div);
+    }
+
+    function runTests(win) {
+      // --- Globals ---
+      section('Global Variables');
+      log('appState exists', typeof win.appState === 'object' && win.appState !== null);
+      log('el exists', typeof win.el === 'object' && win.el !== null);
+      log('sbClient exists or null', win.sbClient === null || typeof win.sbClient === 'object');
+
+      // --- Constants ---
+      section('Constants');
+      log('DEFAULT_STATUS_OPTIONS is array', Array.isArray(win.DEFAULT_STATUS_OPTIONS));
+      log('DEFAULT_GENRE_OPTIONS is array', Array.isArray(win.DEFAULT_GENRE_OPTIONS));
+      log('IMAGE_GENERATOR_STYLE_PRESETS is array', Array.isArray(win.IMAGE_GENERATOR_STYLE_PRESETS));
+      log('GOOGLE_DOC_MARKDOWN_FIELDS is array', Array.isArray(win.GOOGLE_DOC_MARKDOWN_FIELDS));
+      log('SUPABASE_PROJECT_MARKDOWN_DOCS is object', typeof win.SUPABASE_PROJECT_MARKDOWN_DOCS === 'object');
+      log('BOOK_CREATOR_POCKETS is object', typeof win.BOOK_CREATOR_POCKETS === 'object');
+
+      // --- Utility Functions ---
+      section('Utility Functions');
+      log('titleCase is function', typeof win.titleCase === 'function');
+      log('escapeHtml is function', typeof win.escapeHtml === 'function');
+      log('escapeHtmlForEditor is function', typeof win.escapeHtmlForEditor === 'function');
+      log('stripHtmlTags is function', typeof win.stripHtmlTags === 'function');
+      log('hexToRgbString is function', typeof win.hexToRgbString === 'function');
+      log('pillClass is function', typeof win.pillClass === 'function');
+
+      // --- Markdown Rendering ---
+      section('Markdown Rendering');
+      log('renderMarkdown is function', typeof win.renderMarkdown === 'function');
+      log('renderInlineMarkdown is function', typeof win.renderInlineMarkdown === 'function');
+      log('renderMarkdownWithHeadingAnchors is function', typeof win.renderMarkdownWithHeadingAnchors === 'function');
+      log('countMarkdownWords is function', typeof win.countMarkdownWords === 'function');
+      log('formatWordCount is function', typeof win.formatWordCount === 'function');
+      log('getMarkdownHeadings is function', typeof win.getMarkdownHeadings === 'function');
+
+      // --- Doc Cache ---
+      section('Doc Cache');
+      log('getCachedDoc is function', typeof win.getCachedDoc === 'function');
+      log('setCachedDoc is function', typeof win.setCachedDoc === 'function');
+      log('getDocCacheKey is function', typeof win.getDocCacheKey === 'function');
+
+      // --- Field Lookup ---
+      section('Field Lookup');
+      log('getGoogleDocMarkdownFieldByKey is function', typeof win.getGoogleDocMarkdownFieldByKey === 'function');
+      log('getSupabaseProjectMarkdownConfig is function', typeof win.getSupabaseProjectMarkdownConfig === 'function');
+      log('isSupabaseProjectMarkdownField is function', typeof win.isSupabaseProjectMarkdownField === 'function');
+
+      // --- Auth ---
+      section('Auth');
+      log('_initAuth is function', typeof win._initAuth === 'function');
+      log('_handleLogin is function', typeof win._handleLogin === 'function');
+
+      // --- Theme ---
+      section('Theme');
+      log('applyEditorThemeColors is function', typeof win.applyEditorThemeColors === 'function');
+      log('applyDarkModePreference is function', typeof win.applyDarkModePreference === 'function');
+      log('toggleDarkMode is function', typeof win.toggleDarkMode === 'function');
+
+      // --- Supabase ---
+      section('Supabase Infrastructure');
+      log('supabaseRunner is object', typeof win.supabaseRunner === 'object');
+      log('callAppsScriptJson is function', typeof win.callAppsScriptJson === 'function');
+
+      // --- Key Domain Functions ---
+      section('Domain Functions (spot checks)');
+      log('loadProjects is function', typeof win.loadProjects === 'function');
+      log('bindEvents is function', typeof win.bindEvents === 'function');
+      log('selectProject is function', typeof win.selectProject === 'function');
+      log('renderProjectsTable is function', typeof win.renderProjectsTable === 'function');
+
+      // --- Smoke test: renderMarkdown ---
+      section('Functional Smoke Tests');
+      try {
+        const html = win.renderMarkdown('**bold** and *italic*');
+        log('renderMarkdown produces output', typeof html === 'string' && html.length > 0);
+      } catch (e) {
+        log('renderMarkdown throws: ' + e.message, false);
+      }
+
+      try {
+        const count = win.countMarkdownWords('Hello world test');
+        log('countMarkdownWords returns number', typeof count === 'number' && count >= 2);
+      } catch (e) {
+        log('countMarkdownWords throws: ' + e.message, false);
+      }
+
+      try {
+        const headings = win.getMarkdownHeadings('# Title\n## Sub\n### Sub2');
+        log('getMarkdownHeadings returns array', Array.isArray(headings) && headings.length >= 2);
+      } catch (e) {
+        log('getMarkdownHeadings throws: ' + e.message, false);
+      }
+
+      // --- Summary ---
+      summary.className = 'summary ' + (failCount === 0 ? 'all-pass' : 'has-fail');
+      summary.textContent = passCount + ' passed, ' + failCount + ' failed';
+    }
+
+    const iframe = document.getElementById('appFrame');
+    iframe.style.display = 'block';
+
+    // Wait for iframe to load
+    iframe.onload = function() {
+      try {
+        const win = iframe.contentWindow;
+        // Give the app a moment to initialize
+        setTimeout(function() {
+          try {
+            runTests(win);
+          } catch (e) {
+            log('Test runner error: ' + e.message, false);
+            summary.className = 'summary has-fail';
+            summary.textContent = 'Test runner crashed: ' + e.message;
+          }
+        }, 2000);
+      } catch (e) {
+        log('Cannot access iframe: ' + e.message, false);
+        summary.className = 'summary has-fail';
+        summary.textContent = 'Cross-origin or load error: ' + e.message;
+      }
+    };
+  </script>
+</body>
+</html>

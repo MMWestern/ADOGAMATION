@@ -1,0 +1,99 @@
+﻿<script>
+    function titleCase(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, function (char) {
+          return char.toUpperCase();
+        });
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeHtmlForEditor(text) {
+      var safe = String(text || "").replace(/\r\n/g, "\n");
+      if (!safe) return "<div><br></div>";
+      // Convert markdown headings to HTML headings
+      safe = safe.replace(/^####\s+(.+)$/gm, "<h4>$1</h4>");
+      safe = safe.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+      safe = safe.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
+      safe = safe.replace(/^#\s+(.+)$/gm, "<h1>$1</h1>");
+      // Convert blockquotes
+      safe = safe.replace(/^>\s?(.+)$/gm, "<blockquote>$1</blockquote>");
+      // Convert bold/italic markers
+      safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      safe = safe.replace(/\*(.+?)\*/g, "<em>$1</em>");
+      // Wrap remaining lines in divs
+      return safe.split("\n").map(function (line) {
+        if (!line.trim()) return "<div><br></div>";
+        if (line.indexOf("<") === 0) return line;
+        return "<div>" + escapeHtml(line).replace(/ /g, "&nbsp;") + "</div>";
+      }).join("");
+    }
+
+    function stripHtmlTags(html) {
+      var safe = String(html || "");
+      // Convert block-level tags to newlines first, then strip remaining tags
+      safe = safe.replace(/<\/(div|p|h[1-6])>/gi, "\n").replace(/<br\s*\/?>/gi, "\n");
+      safe = safe.replace(/<[^>]*>/g, "");
+      return safe.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+    }
+
+    function hexToRgbString(value, fallback) {
+      const safe = String(value || fallback || "").trim().replace(/^#/, "");
+      const hex = safe.length === 3 ? safe.split("").map(function (part) { return part + part; }).join("") : safe;
+      if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+        return fallback || "74, 222, 128";
+      }
+      return [
+        parseInt(hex.slice(0, 2), 16),
+        parseInt(hex.slice(2, 4), 16),
+        parseInt(hex.slice(4, 6), 16)
+      ].join(", ");
+    }
+
+    function pillClass(type, value) {
+      const safe = String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return type + "-" + safe;
+    }
+
+    function badgeColorIndex(value) {
+      var s = String(value || "").trim().toLowerCase();
+      var sum = 0;
+      for (var i = 0; i < s.length; i++) sum += s.charCodeAt(i);
+      return sum % 10;
+    }
+
+    function createOption(value, label, title) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label != null ? label : value;
+      if (title) option.title = title;
+      return option;
+    }
+
+    function populateSelectWithBlank(select, values, blankLabel, descriptions) {
+      const current = select.value;
+      select.innerHTML = "";
+      select.appendChild(createOption("", blankLabel || "â€”"));
+
+      values.forEach(function (value) {
+        select.appendChild(createOption(value, null, descriptions && descriptions[value]));
+      });
+
+      if (values.indexOf(current) !== -1 || current === "") {
+        select.value = current;
+      }
+    }
+</script>
