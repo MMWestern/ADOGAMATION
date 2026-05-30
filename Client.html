@@ -9626,10 +9626,10 @@
         var title = String(entry.title || "").trim() || "Untitled";
         var words = title.split(/\s+/).filter(Boolean);
         var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
-        var badge = String(entry.badge || "").trim();
         var color = String(entry.color || "").trim();
         var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
         var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+        var badge = String(entry.badge || "").trim();
         var role = String(entry.role || "").trim();
         var archetype = String(entry.archetype || "").trim();
         var pillsHtml = "";
@@ -9639,12 +9639,14 @@
         if (archetype) {
           pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(archetype) + '">' + escapeHtml(archetype) + '</span>';
         }
+        if (!pillsHtml && badge) {
+          pillsHtml = '<span class="writing-codex-entry-pill" style="background:#5f6971;color:#f1e6c8">' + escapeHtml(badge) + '</span>';
+        }
         return "<button type='button' class='writing-codex-entry" + active + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
           "<div class='writing-codex-entry-avatar'>" + dotHtml + escapeHtml(initials) + "</div>" +
           "<div class='writing-codex-entry-content'>" +
             "<div class='writing-codex-entry-top'>" +
               "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
-              (badge ? "<div class='writing-codex-entry-badge'>" + escapeHtml(badge) + "</div>" : "") +
             "</div>" +
             (pillsHtml ? "<div class='writing-codex-entry-pills'>" + pillsHtml + "</div>" : "") +
             "<div class='writing-codex-entry-body'>" + escapeHtml(entry.body || "No details yet.") + "</div>" +
