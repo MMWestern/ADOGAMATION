@@ -9647,8 +9647,8 @@
           "<div class='writing-codex-entry-content'>" +
             "<div class='writing-codex-entry-top'>" +
               "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
+              (pillsHtml ? "<div class='writing-codex-entry-pills'>" + pillsHtml + "</div>" : "") +
             "</div>" +
-            (pillsHtml ? "<div class='writing-codex-entry-pills'>" + pillsHtml + "</div>" : "") +
             "<div class='writing-codex-entry-body'>" + escapeHtml(entry.body || "No details yet.") + "</div>" +
           "</div>" +
         "</button>";
