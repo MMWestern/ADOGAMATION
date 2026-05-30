@@ -2523,6 +2523,8 @@
       writingCodexModalImageGroup: document.getElementById("writingCodexModalImageGroup"),
       writingCodexModalImageUrl: document.getElementById("writingCodexModalImageUrl"),
       writingCodexModalColor: document.getElementById("writingCodexModalColor"),
+      writingCodexModalColorTrigger: document.getElementById("writingCodexModalColorTrigger"),
+      writingCodexModalColorDropdown: document.getElementById("writingCodexModalColorDropdown"),
       writingCodexModalResolvedGroup: document.getElementById("writingCodexModalResolvedGroup"),
       writingCodexModalResolved: document.getElementById("writingCodexModalResolved"),
       writingCodexRelationsPanel: document.getElementById("writingCodexRelationsPanel"),
@@ -9180,9 +9182,9 @@
     }
 
     function getActiveColor() {
-      if (!el.writingCodexModalColor) return "";
-      var active = el.writingCodexModalColor.querySelector(".writing-codex-color-dot.is-active");
-      return active ? String(active.getAttribute("data-color") || "").trim() : "";
+      if (!el.writingCodexModalColorTrigger) return "";
+      var bg = el.writingCodexModalColorTrigger.style.background || "";
+      return bg === "#3a3a42" ? "" : bg;
     }
 
     function getSkCharacterActiveColor() {
@@ -9197,15 +9199,7 @@
       var bg = safe || "#3a3a42";
       el.skCharacterColorTrigger.style.background = bg;
       var name = document.getElementById("skCharacterNameDisplay");
-      if (name) {
-        if (safe) {
-          name.style.borderLeft = "3px solid " + safe;
-          name.style.paddingLeft = "8px";
-        } else {
-          name.style.borderLeft = "";
-          name.style.paddingLeft = "";
-        }
-      }
+      if (name) name.style.color = safe || "";
     }
 
     function countWords(text) {
@@ -9358,9 +9352,9 @@
       if (el.writingCodexModalColor) {
         el.writingCodexModalColor.hidden = type === "lore";
         var curColor = String((payload && payload.color) || entry.color || "").trim();
-        el.writingCodexModalColor.querySelectorAll(".writing-codex-color-dot").forEach(function (dot) {
-          dot.classList.toggle("is-active", String(dot.getAttribute("data-color") || "") === curColor);
-        });
+        if (el.writingCodexModalColorTrigger) {
+          el.writingCodexModalColorTrigger.style.background = curColor || "#3a3a42";
+        }
       }
       if (el.writingCodexModalResolvedGroup && el.writingCodexModalResolved) {
         el.writingCodexModalResolvedGroup.hidden = type !== "continuity";
@@ -20427,11 +20421,15 @@
 
       if (el.writingCodexModalColor) {
         el.writingCodexModalColor.addEventListener("click", function (event) {
-          var dot = event.target && event.target.classList && event.target.classList.contains("writing-codex-color-dot") ? event.target : null;
-          if (!dot) return;
-          el.writingCodexModalColor.querySelectorAll(".writing-codex-color-dot").forEach(function (d) { d.classList.remove("is-active"); });
-          dot.classList.add("is-active");
-          var color = String(dot.getAttribute("data-color") || "").trim();
+          var option = event.target && event.target.classList && event.target.classList.contains("sk-color-option") ? event.target : null;
+          if (!option) return;
+          var color = String(option.getAttribute("data-color") || "").trim();
+          if (el.writingCodexModalColorTrigger) {
+            el.writingCodexModalColorTrigger.style.background = color || "#3a3a42";
+          }
+          if (el.writingCodexModalColorDropdown) {
+            el.writingCodexModalColorDropdown.hidden = true;
+          }
           var key = String(appState.writingWorkspace.selectedCodexKey || "");
           if (!key) return;
           var parts = key.split("::");
@@ -20467,6 +20465,14 @@
             if (dot) dot.remove();
           }
         });
+        if (el.writingCodexModalColorTrigger) {
+          el.writingCodexModalColorTrigger.addEventListener("click", function (event) {
+            event.stopPropagation();
+            if (el.writingCodexModalColorDropdown) {
+              el.writingCodexModalColorDropdown.hidden = !el.writingCodexModalColorDropdown.hidden;
+            }
+          });
+        }
       }
 
       if (el.skCharacterColorPicker) {
@@ -20483,6 +20489,7 @@
         });
         document.addEventListener("click", function () {
           if (el.skCharacterColorDropdown) el.skCharacterColorDropdown.hidden = true;
+          if (el.writingCodexModalColorDropdown) el.writingCodexModalColorDropdown.hidden = true;
         });
       }
 
