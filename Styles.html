@@ -907,27 +907,40 @@
 
     .writing-sidebar-tabs {
       display: flex;
-      gap: 4px;
-      padding: 0 10px;
+      gap: 2px;
+      padding: 0 10px 4px;
+      border-bottom: 1px solid #2a2a2f;
       flex-shrink: 0;
     }
 
     .writing-sidebar-tab {
-      border: 1px solid transparent;
-      border-radius: 999px;
+      min-height: 30px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 0;
       background: transparent;
       color: #777884;
-      font-size: 15px;
+      font-size: 11px;
       font-weight: 600;
-      line-height: 1.4;
-      padding: 5px 14px;
+      line-height: 1.2;
       cursor: pointer;
+      position: relative;
       white-space: nowrap;
     }
 
     .writing-sidebar-tab.is-active {
-      border-color: rgba(255,255,255,0.15);
       color: #f2f2f4;
+    }
+
+    .writing-sidebar-tab.is-active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 6px;
+      right: 6px;
+      height: 2px;
+      background: #7fa7d9;
+      border-radius: 1px;
     }
 
     .writing-codex-search-row {
@@ -992,28 +1005,40 @@
 
     .writing-codex-filter-row {
       display: flex;
-      gap: 4px;
+      gap: 2px;
       flex-shrink: 0;
-      flex-wrap: wrap;
+      border-bottom: 1px solid #2a2a2f;
+      padding-bottom: 4px;
     }
 
     .writing-codex-filter {
-      border: 1px solid transparent;
-      border-radius: 999px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: none;
+      border-radius: 0;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.2;
       background: transparent;
       color: #777884;
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.3;
-      padding: 4px 12px;
       cursor: pointer;
-      white-space: nowrap;
+      position: relative;
     }
 
     .writing-codex-filter.is-active {
-      border-color: rgba(255,255,255,0.15);
-      color: #f2f2f4;
+      color: #a5a5ad;
       font-weight: 600;
+    }
+
+    .writing-codex-filter.is-active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 4px;
+      right: 4px;
+      height: 2px;
+      background: #7fa7d9;
+      border-radius: 1px;
     }
 
     .writing-codex-list {
@@ -1655,22 +1680,33 @@
     }
 
     .writing-codex-modal-tab {
-      border: 1px solid transparent;
-      border-radius: 999px;
+      border: none;
+      border-radius: 0;
       background: transparent;
       color: #777884;
-      font-size: 17px;
-      line-height: 1.5;
-      padding: 5px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      padding: 4px 10px;
       cursor: default;
       white-space: nowrap;
+      position: relative;
+      min-height: 28px;
     }
 
     .writing-codex-modal-tab.is-active {
-      color: #f2f2f4;
-      border-color: #4a4b52;
-      background: #353941;
-      font-weight: 700;
+      color: #d8dbe4;
+    }
+
+    .writing-codex-modal-tab.is-active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 4px;
+      right: 4px;
+      height: 2px;
+      background: #7fa7d9;
+      border-radius: 1px;
     }
 
     .writing-codex-modal-tab[disabled] {
