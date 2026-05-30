@@ -2645,6 +2645,7 @@
       skCharacterNameDisplay: document.getElementById("skCharacterNameDisplay"),
       skCharacterRole: document.getElementById("skCharacterRole"),
       skCharacterRoleBadge: document.getElementById("skCharacterRoleBadge"),
+      skCharacterArchetypeBadge: document.getElementById("skCharacterArchetypeBadge"),
       skCharacterArchetype: document.getElementById("skCharacterArchetype"),
       skCharacterImageUrl: document.getElementById("skCharacterImageUrl"),
       skCharacterImage: document.getElementById("skCharacterImage"),
@@ -4661,6 +4662,7 @@
         el.skCharacterBackstory.value = "";
         if (el.skCharacterNameDisplay) el.skCharacterNameDisplay.textContent = "New Character";
         if (el.skCharacterRoleBadge) { el.skCharacterRoleBadge.style.display = "none"; el.skCharacterRoleBadge.textContent = ""; }
+        if (el.skCharacterArchetypeBadge) { el.skCharacterArchetypeBadge.style.display = "none"; el.skCharacterArchetypeBadge.textContent = ""; }
         if (el.skCharacterImage) el.skCharacterImage.style.display = "none";
         if (el.skCharacterImagePlaceholder) el.skCharacterImagePlaceholder.style.display = "flex";
         if (el.skCharacterList) renderSkCharacterList();
@@ -4716,6 +4718,14 @@
           el.skCharacterRoleBadge.style.display = "inline-flex";
         } else {
           el.skCharacterRoleBadge.style.display = "none";
+        }
+      }
+      if (el.skCharacterArchetypeBadge) {
+        if (ch.archetype) {
+          el.skCharacterArchetypeBadge.textContent = ch.archetype;
+          el.skCharacterArchetypeBadge.style.display = "inline-flex";
+        } else {
+          el.skCharacterArchetypeBadge.style.display = "none";
         }
       }
       if (el.skCharacterImage && el.skCharacterImagePlaceholder) {
@@ -4787,6 +4797,7 @@
       });
       var html = '<div class="sk-detail-heading">' + escapeHtml(ch.name || "Unnamed") + '</div>';
       if (ch.role_archetype) html += '<div class="sk-detail-role">' + escapeHtml(ch.role_archetype) + '</div>';
+      if (ch.archetype) html += '<div class="sk-detail-role">' + escapeHtml(ch.archetype) + '</div>';
       html += '<div class="sk-detail-section"><div class="sk-detail-label">Description</div><div class="sk-detail-text">' + escapeHtml(ch.description || "—") + '</div></div>';
       if (ch.motivation_arc) html += '<div class="sk-detail-section"><div class="sk-detail-label">Motivation / Arc</div><div class="sk-detail-text">' + escapeHtml(ch.motivation_arc) + '</div></div>';
       if (ch.backstory) html += '<div class="sk-detail-section"><div class="sk-detail-label">Backstory</div><div class="sk-detail-text">' + escapeHtml(ch.backstory) + '</div></div>';
