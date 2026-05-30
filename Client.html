@@ -9482,7 +9482,7 @@
       var modalWidth = Math.min(500, Math.max(360, window.innerWidth - sidebarRect.right - 28));
       var top = Math.max(24, Math.min(listRect.top - 2, window.innerHeight - 640));
       var left = Math.min(window.innerWidth - modalWidth - 24, sidebarRect.right + 12);
-      var modalHeight = Math.max(360, Math.min(620, Math.floor(sidebarRect.bottom - top - 2)));
+      var modalHeight = Math.max(360, Math.min(800, Math.floor((sidebarRect.bottom - top - 2) * 1.2)));
       el.writingCodexModal.style.width = modalWidth + "px";
       el.writingCodexModal.style.height = modalHeight + "px";
       el.writingCodexModal.style.left = Math.max(24, left) + "px";
