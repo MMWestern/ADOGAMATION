@@ -9355,6 +9355,9 @@
           el.writingCodexModalColorTrigger.setAttribute("data-color", curColor);
           el.writingCodexModalColorTrigger.style.background = curColor || "#3a3a42";
         }
+        if (el.writingCodexModalTitle) {
+          el.writingCodexModalTitle.style.color = curColor || "";
+        }
       }
       if (el.writingCodexModalResolvedGroup && el.writingCodexModalResolved) {
         el.writingCodexModalResolvedGroup.hidden = type !== "continuity";
@@ -20427,6 +20430,9 @@
           if (el.writingCodexModalColorTrigger) {
             el.writingCodexModalColorTrigger.setAttribute("data-color", color);
             el.writingCodexModalColorTrigger.style.background = color || "#3a3a42";
+          }
+          if (el.writingCodexModalTitle) {
+            el.writingCodexModalTitle.style.color = color || "";
           }
           if (el.writingCodexModalColorDropdown) {
             el.writingCodexModalColorDropdown.hidden = true;
