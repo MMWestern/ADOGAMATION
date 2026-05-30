@@ -3228,6 +3228,13 @@
       return type + "-" + safe;
     }
 
+    function badgeColorIndex(value) {
+      var s = String(value || "").trim().toLowerCase();
+      var sum = 0;
+      for (var i = 0; i < s.length; i++) sum += s.charCodeAt(i);
+      return sum % 10;
+    }
+
     function createOption(value, label, title) {
       const option = document.createElement("option");
       option.value = value;
@@ -4716,6 +4723,7 @@
         if (ch.role_archetype) {
           el.skCharacterRoleBadge.textContent = ch.role_archetype;
           el.skCharacterRoleBadge.style.display = "inline-flex";
+          el.skCharacterRoleBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(ch.role_archetype);
         } else {
           el.skCharacterRoleBadge.style.display = "none";
         }
@@ -4724,6 +4732,7 @@
         if (ch.archetype) {
           el.skCharacterArchetypeBadge.textContent = ch.archetype;
           el.skCharacterArchetypeBadge.style.display = "inline-flex";
+          el.skCharacterArchetypeBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(ch.archetype);
         } else {
           el.skCharacterArchetypeBadge.style.display = "none";
         }
