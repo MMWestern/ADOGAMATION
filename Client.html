@@ -9518,6 +9518,10 @@
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
         payload.color = getActiveColor();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
+        if (payload.scope === "book" && !payload.bookLinks.length) {
+          var bookId = Number(project && (project.project_id || project.id) || 0);
+          if (bookId) payload.bookLinks = [{ project_id: bookId }];
+        }
       } else if (type === "locations") {
         payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.type = String(el.writingCodexModalBadgeInput && el.writingCodexModalBadgeInput.value || "").trim();
@@ -9527,6 +9531,10 @@
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
         payload.color = getActiveColor();
         payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
+        if (payload.scope === "book" && !payload.bookLinks.length) {
+          var bookId = Number(project && (project.project_id || project.id) || 0);
+          if (bookId) payload.bookLinks = [{ project_id: bookId }];
+        }
       } else if (type === "continuity") {
         payload.title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.severity = String(el.writingCodexModalSeveritySelect && el.writingCodexModalSeveritySelect.value || "minor").trim() || "minor";
@@ -9609,7 +9617,7 @@
           if (entry.scope === "series") return false;
           if (entry.type === "lore") return false;
           var links = entry.bookLinks || entry.linkedProjectIds || [];
-          if (!links.length) return true;
+          if (!links.length) return false;
           return links.some(function (link) {
             var pid = Number(typeof link === "object" ? (link.project_id || link.id) : link);
             return pid === currentBookId;
