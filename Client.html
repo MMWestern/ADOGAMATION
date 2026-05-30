@@ -9617,7 +9617,7 @@
           if (entry.scope === "series") return false;
           if (entry.type === "lore") return false;
           var links = entry.bookLinks || entry.linkedProjectIds || [];
-          if (!links.length) return false;
+          if (!links.length) return true;
           return links.some(function (link) {
             var pid = Number(typeof link === "object" ? (link.project_id || link.id) : link);
             return pid === currentBookId;
