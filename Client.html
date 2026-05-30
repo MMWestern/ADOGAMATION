@@ -20403,7 +20403,8 @@
           var codexType = tag.getAttribute("data-codex-type");
           var codexId = tag.getAttribute("data-codex-id");
           if (!codexType || !codexId) return;
-          var key = codexType + "::" + codexId;
+          var singular = codexType === "characters" ? "character" : codexType === "locations" ? "location" : codexType;
+          var key = singular + "::" + codexId;
           appState.writingWorkspace.selectedCodexKey = key;
           updateWritingInspectorCodex(getSelectedProject());
           renderWritingCodexList(getSelectedProject());
