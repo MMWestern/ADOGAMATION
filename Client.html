@@ -9626,7 +9626,7 @@
         var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
         var badge = String(entry.badge || "").trim();
         var color = String(entry.color || "").trim();
-        var colorAttr = color ? ' data-color="' + escapeHtml(color) + '"' : "";
+        var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
         var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
         return "<button type='button' class='writing-codex-entry" + active + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
           "<div class='writing-codex-entry-avatar'>" + dotHtml + escapeHtml(initials) + "</div>" +
@@ -20455,8 +20455,8 @@
           }
           var btn = el.writingCodexList && el.writingCodexList.querySelector('[data-writing-codex-key="' + key + '"]');
           if (!btn) return;
-          if (color) { btn.setAttribute("data-color", color); }
-          else { btn.removeAttribute("data-color"); }
+          if (color) { btn.setAttribute("data-color", color); btn.style.color = color; }
+          else { btn.removeAttribute("data-color"); btn.style.color = ""; }
           var avatar = btn.querySelector(".writing-codex-entry-avatar");
           if (!avatar) return;
           var dot = avatar.querySelector(".writing-codex-entry-dot");
