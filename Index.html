@@ -767,6 +767,19 @@
                   <div id="skCharacterRoleBadge" class="sk-entity-role-badge" style="display:none;"></div>
                   <div id="skCharacterArchetypeBadge" class="sk-entity-role-badge" style="display:none;"></div>
                 </div>
+                <div id="skCharacterColorDots" class="writing-codex-color-dots">
+                  <button type="button" class="writing-codex-color-dot is-active" data-color="" style="background:#3a3a42" title="None"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#6366f1" style="background:#6366f1" title="Indigo"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+                  <button type="button" class="writing-codex-color-dot" data-color="#f43f5e" style="background:#f43f5e" title="Rose"></button>
+                </div>
                 <div>
                   <label class="label" for="skCharacterImageUrl">Image URL</label>
                   <input id="skCharacterImageUrl" type="text" placeholder="https://..." />
@@ -1362,6 +1375,7 @@
             <div id="writingCodexModalArchetypePill" class="sk-entity-role-badge" style="display:none;"></div>
             <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
             <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select" hidden></select>
+            <select id="writingCodexModalArchetypeSelect" class="writing-codex-modal-badge-select" hidden></select>
             <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
               <option value="minor">minor</option>
               <option value="moderate">moderate</option>
