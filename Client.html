@@ -2497,6 +2497,8 @@
       writingCodexModalTitle: document.getElementById("writingCodexModalTitle"),
       writingCodexModalBadgeWrap: document.getElementById("writingCodexModalBadgeWrap"),
       writingCodexModalBadgeInput: document.getElementById("writingCodexModalBadgeInput"),
+      writingCodexModalRolePill: document.getElementById("writingCodexModalRolePill"),
+      writingCodexModalArchetypePill: document.getElementById("writingCodexModalArchetypePill"),
       writingCodexModalRoleSelect: document.getElementById("writingCodexModalRoleSelect"),
       writingCodexModalSeveritySelect: document.getElementById("writingCodexModalSeveritySelect"),
       writingCodexModalImage: document.getElementById("writingCodexModalImage"),
@@ -9233,6 +9235,26 @@
           el.writingCodexModalRoleSelect.value = String(payload && (payload.role_archetype || payload.archetype) || entry.badge || "").trim();
         } else {
           el.writingCodexModalRoleSelect.hidden = true;
+        }
+      }
+      if (el.writingCodexModalRolePill) {
+        var roleVal = String(payload && payload.role_archetype || "").trim();
+        if (type === "characters" && roleVal) {
+          el.writingCodexModalRolePill.textContent = roleVal;
+          el.writingCodexModalRolePill.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(roleVal);
+          el.writingCodexModalRolePill.style.display = "inline-flex";
+        } else {
+          el.writingCodexModalRolePill.style.display = "none";
+        }
+      }
+      if (el.writingCodexModalArchetypePill) {
+        var archVal = String(payload && payload.archetype || "").trim();
+        if (type === "characters" && archVal) {
+          el.writingCodexModalArchetypePill.textContent = archVal;
+          el.writingCodexModalArchetypePill.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(archVal);
+          el.writingCodexModalArchetypePill.style.display = "inline-flex";
+        } else {
+          el.writingCodexModalArchetypePill.style.display = "none";
         }
       }
       if (el.writingCodexModalSeveritySelect) {

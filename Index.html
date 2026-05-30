@@ -1357,16 +1357,18 @@
         <div class="writing-codex-modal-hero">
           <div class="writing-codex-modal-hero-copy">
             <input id="writingCodexModalTitle" class="writing-codex-modal-title-input" type="text" placeholder="Entry title" />
-            <div id="writingCodexModalBadgeWrap" class="writing-codex-modal-badge-wrap">
-              <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
-              <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select" hidden></select>
-              <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
-                <option value="minor">minor</option>
-                <option value="moderate">moderate</option>
-                <option value="major">major</option>
-                <option value="critical">critical</option>
-              </select>
-            </div>
+          <div id="writingCodexModalBadgeWrap" class="writing-codex-modal-badge-wrap">
+            <div id="writingCodexModalRolePill" class="sk-entity-role-badge" style="display:none;"></div>
+            <div id="writingCodexModalArchetypePill" class="sk-entity-role-badge" style="display:none;"></div>
+            <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
+            <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select" hidden></select>
+            <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
+              <option value="minor">minor</option>
+              <option value="moderate">moderate</option>
+              <option value="major">major</option>
+              <option value="critical">critical</option>
+            </select>
+          </div>
           </div>
           <div class="writing-codex-modal-avatar-shell">
             <img id="writingCodexModalImage" class="writing-codex-modal-image" alt="" />
