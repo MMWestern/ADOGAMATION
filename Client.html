@@ -4043,7 +4043,7 @@
                     sceneNum += 1;
                     var wc = Number(scene.targetWordCount || 0);
                     var wcLabel = wc ? wc.toLocaleString() : "—";
-                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
+                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity, true);
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
                         '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
@@ -4290,7 +4290,7 @@
       });
     }
 
-    function getPlanSceneCodexTags(scene, characters, locations, continuity) {
+    function getPlanSceneCodexTags(scene, characters, locations, continuity, showRemove) {
       var tags = [];
       (scene.codexEntries || []).forEach(function (entry) {
         var id = Number(entry.id || 0);
@@ -4309,8 +4309,9 @@
       });
       return tags.map(function (t) {
         var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
+        var removeHtml = showRemove ? '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span>' : "";
         return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
-          escapeHtml(t.name) + '</span>';
+          escapeHtml(t.name) + removeHtml + '</span>';
       }).join("");
     }
 
