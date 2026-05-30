@@ -1266,6 +1266,7 @@
     const DEFAULT_STATUS_OPTIONS = ["Idea", "Concept", "Planning", "Draft", "Writing", "Editing", "Complete", "Publish Ready", "Published"];
     const DEFAULT_PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
     const DEFAULT_CHARACTER_ROLES = ["Protagonist", "Antagonist", "Deuteragonist", "Mentor", "Love Interest", "Sidekick", "Villain", "Foil", "Familiar", "Confidant", "Comic Relief", "Other"];
+    const DEFAULT_CHARACTER_ARCHETYPES = ["The Hero", "The Mentor", "The Shadow", "The Herald", "The Trickster", "The Shapeshifter", "The Guardian", "The Ally", "The Innocent", "The Sage", "The Rebel", "The Lover", "The Jester"];
     const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
     const DASHBOARD_DEVELOPMENT_STATUSES = ["Idea", "Concept", "Planning"];
     const INSPECTOR_OPTION_FIELDS = [
@@ -1275,7 +1276,8 @@
       { key: "status", label: "Status" },
       { key: "priority", label: "Priority" },
       { key: "next_step", label: "Next Step" },
-      { key: "character_role", label: "Character Role" }
+      { key: "character_role", label: "Character Role" },
+      { key: "character_archetype", label: "Character Archetype" }
     ];
 
     const SCHEDULE_TEMPLATES = {
@@ -3366,7 +3368,8 @@
         status: normalizeInspectorOptionList(DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))),
         priority: normalizeInspectorOptionList(DEFAULT_PRIORITY_OPTIONS.concat(getUniqueValues("priority"))),
         next_step: buildNextStepOptions(),
-        character_role: normalizeInspectorOptionList(DEFAULT_CHARACTER_ROLES)
+        character_role: normalizeInspectorOptionList(DEFAULT_CHARACTER_ROLES),
+        character_archetype: normalizeInspectorOptionList(DEFAULT_CHARACTER_ARCHETYPES)
       };
     }
 
@@ -5527,6 +5530,10 @@
       var characterRoleValues = getInspectorOptionValues("character_role", DEFAULT_CHARACTER_ROLES);
       var characterRoleDescriptions = getInspectorOptionDescriptions("character_role", DEFAULT_CHARACTER_ROLES);
       populateSelectWithBlank(el.skCharacterRole, characterRoleValues, null, characterRoleDescriptions);
+
+      var characterArchetypeValues = getInspectorOptionValues("character_archetype", DEFAULT_CHARACTER_ARCHETYPES);
+      var characterArchetypeDescriptions = getInspectorOptionDescriptions("character_archetype", DEFAULT_CHARACTER_ARCHETYPES);
+      populateSelectWithBlank(el.skCharacterArchetype, characterArchetypeValues, null, characterArchetypeDescriptions);
 
       const detailStatusCurrent = el.detailStatus.value;
       const detailPriorityCurrent = el.detailPriority.value;
