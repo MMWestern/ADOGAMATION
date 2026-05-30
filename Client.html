@@ -2505,6 +2505,7 @@
       writingCodexModalArchetypeSelect: document.getElementById("writingCodexModalArchetypeSelect"),
       writingCodexModalRoleArchetypeRow: document.getElementById("writingCodexModalRoleArchetypeRow"),
       writingCodexModalScopeSelect: document.getElementById("writingCodexModalScopeSelect"),
+      writingCodexModalSeriesBanner: document.getElementById("writingCodexModalSeriesBanner"),
       writingCodexModalSeveritySelect: document.getElementById("writingCodexModalSeveritySelect"),
       writingCodexModalImage: document.getElementById("writingCodexModalImage"),
       writingCodexModalAvatarShell: document.getElementById("writingCodexModalAvatarShell"),
@@ -9032,6 +9033,7 @@
       });
 
       (skCache.continuity && skCache.continuity[seriesId] || []).forEach(function (item) {
+        var detail = skCache.continuityDetails && skCache.continuityDetails[item.id] || {};
         entries.push({
           key: "continuity::" + String(item.id || ""),
           type: "continuity",
@@ -9040,7 +9042,7 @@
           badge: String(item.severity || "").trim(),
           color: String(item.color || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
-          linkedProjectIds: item.linkedProjectIds || []
+          linkedProjectIds: detail.linkedProjectIds || item.linkedProjectIds || []
         });
       });
 
@@ -9372,8 +9374,33 @@
       }
       if (el.writingCodexModalScopeSelect) {
         var scopeVal = String((payload && payload.scope) || entry.scope || "book").trim() || "book";
-        el.writingCodexModalScopeSelect.value = scopeVal;
+        var currentProject = getSelectedProject();
+        var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
+        var seriesName = currentProject ? String(currentProject.series || "").trim() : "";
+        var bookLinks = (extra && extra.bookLinks) || [];
+        var linkedBookId = 0;
+        if (scopeVal === "book" && bookLinks.length) {
+          var link = bookLinks[0];
+          linkedBookId = Number(typeof link === "object" ? (link.project_id || link.id) : link);
+        }
+        if (!linkedBookId && scopeVal === "book") linkedBookId = currentBookId;
+        var allProjects = getSkProjectsForSeries();
+        var opts = '<option value="series"' + (scopeVal === "series" ? " selected" : "") + '>All books in series</option>';
+        allProjects.forEach(function (p) {
+          var pid = Number(p.project_id || p.id || 0);
+          var ptitle = String(p.title || "Untitled").trim();
+          if (pid) opts += '<option value="book:' + pid + '"' + (scopeVal === "book" && pid === linkedBookId ? " selected" : "") + '>' + escapeHtml(ptitle) + '</option>';
+        });
+        el.writingCodexModalScopeSelect.innerHTML = opts;
         el.writingCodexModalScopeSelect.hidden = type === "lore";
+        if (el.writingCodexModalSeriesBanner) {
+          if (scopeVal === "series" && seriesName) {
+            el.writingCodexModalSeriesBanner.textContent = "This entry belongs to the " + seriesName + " series";
+            el.writingCodexModalSeriesBanner.hidden = false;
+          } else {
+            el.writingCodexModalSeriesBanner.hidden = true;
+          }
+        }
       }
       setWritingCodexModalMeta(type === "lore" ? "Shared guide" : "Ready to edit");
       setWritingCodexModalLoading(false, "");
@@ -9423,6 +9450,13 @@
       }
       var cachedPayload = getWritingCodexCachedPayload(seriesId, entry.type, id);
       var cachedExtra = getWritingCodexCachedExtra(entry.type, id);
+      loadSkSeriesProjects(seriesId).then(function () {
+        if (String(appState.writingWorkspace.codexModalKey || "") !== String(entry.key || "")) return;
+        if (cachedPayload) {
+          populateWritingCodexModal(entry, cachedPayload, cachedExtra);
+          if (el.writingCodexModalStatus) el.writingCodexModalStatus.textContent = "Ready to edit";
+        }
+      });
       if (cachedPayload) {
         populateWritingCodexModal(entry, cachedPayload, cachedExtra);
         if (el.writingCodexModalStatus) {
@@ -9496,8 +9530,16 @@
       }
       var id = Number(String(key).split("::")[1] || 0);
       var payload = { id: id };
-      if (el.writingCodexModalScopeSelect && type !== "lore") {
-        payload.scope = String(el.writingCodexModalScopeSelect.value || "book").trim() || "book";
+      var scopeRaw = el.writingCodexModalScopeSelect && type !== "lore" ? String(el.writingCodexModalScopeSelect.value || "") : "";
+      var scopeBookId = 0;
+      if (scopeRaw === "series") {
+        payload.scope = "series";
+      } else if (scopeRaw.indexOf("book:") === 0) {
+        payload.scope = "book";
+        scopeBookId = Number(scopeRaw.split(":")[1] || 0);
+      } else {
+        payload.scope = "book";
+        scopeBookId = Number(project && (project.project_id || project.id) || 0);
       }
       if (type === "characters") {
         payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
@@ -9519,11 +9561,7 @@
         payload.backstory = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
         payload.color = getActiveColor();
-        payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
-        if (payload.scope === "book" && !payload.bookLinks.length) {
-          var bookId = Number(project && (project.project_id || project.id) || 0);
-          if (bookId) payload.bookLinks = [{ project_id: bookId }];
-        }
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
       } else if (type === "locations") {
         payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.type = String(el.writingCodexModalBadgeInput && el.writingCodexModalBadgeInput.value || "").trim();
@@ -9532,11 +9570,7 @@
         payload.notable_events = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
         payload.image_url = String(el.writingCodexModalImageUrl && el.writingCodexModalImageUrl.value || "").trim();
         payload.color = getActiveColor();
-        payload.bookLinks = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.bookLinks || [];
-        if (payload.scope === "book" && !payload.bookLinks.length) {
-          var bookId = Number(project && (project.project_id || project.id) || 0);
-          if (bookId) payload.bookLinks = [{ project_id: bookId }];
-        }
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
       } else if (type === "continuity") {
         payload.title = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
         payload.severity = String(el.writingCodexModalSeveritySelect && el.writingCodexModalSeveritySelect.value || "minor").trim() || "minor";
@@ -9546,7 +9580,7 @@
         payload.resolved = !!(el.writingCodexModalResolved && el.writingCodexModalResolved.checked);
         payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
         payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
-        payload.linkedProjectIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedProjectIds || [];
+        payload.linkedProjectIds = payload.scope === "book" && scopeBookId ? [scopeBookId] : [];
       }
       var saverName = type === "characters"
         ? "saveSupabaseSeriesCharacterJsonFromClient"
@@ -9557,14 +9591,11 @@
       callAppsScriptJson(saverName, [seriesId, JSON.stringify(payload)])
         .then(function (result) {
           var saved = result && (result.character || result.location || result.entry) ? (result.character || result.location || result.entry) : payload;
+          saved.scope = payload.scope;
           if (type !== "continuity") {
-            var returnedLinks = result && Array.isArray(result.bookLinks) ? result.bookLinks : [];
-            if (returnedLinks.length) saved.bookLinks = returnedLinks;
-            else if (payload.bookLinks && payload.bookLinks.length) saved.bookLinks = payload.bookLinks;
+            saved.bookLinks = payload.bookLinks || [];
           } else {
-            var returnedProjIds = result && Array.isArray(result.linkedProjectIds) ? result.linkedProjectIds : [];
-            if (returnedProjIds.length) saved.linkedProjectIds = returnedProjIds;
-            else if (payload.linkedProjectIds && payload.linkedProjectIds.length) saved.linkedProjectIds = payload.linkedProjectIds;
+            saved.linkedProjectIds = payload.linkedProjectIds || [];
           }
           var list = skCache[type] && skCache[type][seriesId] ? skCache[type][seriesId] : [];
           var savedId = Number(saved.id || id || 0);
@@ -9575,21 +9606,18 @@
           });
           if (!skCache[type]) skCache[type] = {};
           skCache[type][seriesId] = nextList;
-          if (type === "characters" && saved.bookLinks) {
+          if (type === "characters") {
             if (!skCache.characterDetails) skCache.characterDetails = {};
             skCache.characterDetails[savedId] = { bookLinks: saved.bookLinks };
-          } else if (type === "locations" && saved.bookLinks) {
+          } else if (type === "locations") {
             if (!skCache.locationDetails) skCache.locationDetails = {};
             skCache.locationDetails[savedId] = { bookLinks: saved.bookLinks };
-          } else if (type === "continuity" && saved.linkedProjectIds) {
-            if (!skCache.continuityDetails) skCache.continuityDetails = {};
-            skCache.continuityDetails[savedId] = { linkedProjectIds: saved.linkedProjectIds };
           }
-          var updatedExtra = Object.assign({}, appState.writingWorkspace.codexModalExtra || {});
-          if (saved.bookLinks) updatedExtra.bookLinks = saved.bookLinks;
-          if (saved.linkedProjectIds) updatedExtra.linkedProjectIds = saved.linkedProjectIds;
-          appState.writingWorkspace.codexModalExtra = updatedExtra;
-          populateWritingCodexModal(entry, saved, updatedExtra);
+          appState.writingWorkspace.codexModalExtra = {
+            bookLinks: saved.bookLinks || [],
+            linkedProjectIds: saved.linkedProjectIds || []
+          };
+          populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra);
           renderWritingCodexList(project);
           updateWritingInspectorCodex(project);
           if (type === "characters" && typeof renderSkCharacterList === "function") {
@@ -9642,7 +9670,7 @@
           if (entry.scope === "series") return false;
           if (entry.type === "lore") return false;
           var links = entry.bookLinks || entry.linkedProjectIds || [];
-          if (!links.length) return true;
+          if (!links.length) return false;
           return links.some(function (link) {
             var pid = Number(typeof link === "object" ? (link.project_id || link.id) : link);
             return pid === currentBookId;
@@ -20509,6 +20537,21 @@
       }
       if (el.writingCodexModalSaveButton) {
         bindUiOnce(el.writingCodexModalSaveButton, "writing-codex-modal-save", "click", saveWritingCodexModal);
+      }
+      if (el.writingCodexModalScopeSelect) {
+        bindUiOnce(el.writingCodexModalScopeSelect, "writing-codex-modal-scope-change", "change", function () {
+          var val = String(el.writingCodexModalScopeSelect.value || "");
+          var project = getSelectedProject();
+          var seriesName = project ? String(project.series || "").trim() : "";
+          if (el.writingCodexModalSeriesBanner) {
+            if (val === "series" && seriesName) {
+              el.writingCodexModalSeriesBanner.textContent = "This entry belongs to the " + seriesName + " series";
+              el.writingCodexModalSeriesBanner.hidden = false;
+            } else {
+              el.writingCodexModalSeriesBanner.hidden = true;
+            }
+          }
+        });
       }
       bindUiOnce(document, "writing-codex-modal-outside-close", "click", function (event) {
         if (!el.writingCodexModal || !el.writingCodexModal.classList.contains("is-open")) return;
