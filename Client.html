@@ -20478,16 +20478,18 @@
 
       if (el.skCharacterColorPicker) {
         el.skCharacterColorPicker.addEventListener("click", function (event) {
-          var dot = event.target && event.target.classList && event.target.classList.contains("sk-color-option") ? event.target : null;
-          if (!dot) return;
-          var color = String(dot.getAttribute("data-color") || "").trim();
+          var option = event.target && event.target.classList && event.target.classList.contains("sk-color-option") ? event.target : null;
+          if (!option) return;
+          var color = String(option.getAttribute("data-color") || "").trim();
           setSkCharacterActiveColor(color);
-          el.skCharacterColorDropdown.hidden = true;
+          if (el.skCharacterColorDropdown) el.skCharacterColorDropdown.hidden = true;
         });
-        el.skCharacterColorTrigger.addEventListener("click", function (event) {
-          event.stopPropagation();
-          el.skCharacterColorDropdown.hidden = !el.skCharacterColorDropdown.hidden;
-        });
+        if (el.skCharacterColorTrigger) {
+          el.skCharacterColorTrigger.addEventListener("click", function (event) {
+            event.stopPropagation();
+            if (el.skCharacterColorDropdown) el.skCharacterColorDropdown.hidden = !el.skCharacterColorDropdown.hidden;
+          });
+        }
         document.addEventListener("click", function () {
           if (el.skCharacterColorDropdown) el.skCharacterColorDropdown.hidden = true;
           if (el.writingCodexModalColorDropdown) el.writingCodexModalColorDropdown.hidden = true;
