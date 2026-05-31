@@ -1,0 +1,817 @@
+    var _draggedChapterId = null;
+    var _dragOverTarget = null;
+    var _dragOverBefore = false;
+    var _dragConfirmChapter = null, _dragConfirmCount = 0;
+
+    function setPlanSubTab(tabKey) {
+      var tabs = ["outline", "character-arcs", "brainstorm", "world-build"];
+      var btnMap = { outline: "planSubTabOutline", "character-arcs": "planSubTabCharacterArcs", brainstorm: "planSubTabBrainstorm", "world-build": "planSubTabWorldBuild" };
+      var paneMap = { outline: "planTabOutline", "character-arcs": "planTabCharacterArcs", brainstorm: "planTabBrainstorm", "world-build": "planTabWorldBuild" };
+      tabs.forEach(function (key) {
+        var btn = el[btnMap[key]];
+        var pane = el[paneMap[key]];
+        if (btn) {
+          btn.classList.toggle("is-active", key === tabKey);
+          btn.setAttribute("aria-pressed", key === tabKey ? "true" : "false");
+        }
+        if (pane) pane.hidden = key !== tabKey;
+      });
+      if (tabKey === "outline") renderPlanOutline();
+      if (tabKey === "character-arcs") renderPlanCharacterArcs();
+      if (tabKey === "brainstorm") renderPlanBrainstorm();
+      if (tabKey === "world-build") renderPlanWorldBuild();
+    }
+
+    function getPlanOutline() {
+      if (!appState.writingWorkspace.outline) {
+      appState.writingWorkspace.outline = { acts: [], brainstorming: "", characterArcs: "", worldBuilding: "" };
+    }
+    if (!appState.writingWorkspace.outline.acts) {
+      appState.writingWorkspace.outline.acts = [];
+    }
+    if (!appState.writingWorkspace.outline.brainstorming) {
+      appState.writingWorkspace.outline.brainstorming = "";
+    }
+    if (!appState.writingWorkspace.outline.characterArcs) {
+      appState.writingWorkspace.outline.characterArcs = "";
+    }
+    if (!appState.writingWorkspace.outline.worldBuilding) {
+      appState.writingWorkspace.outline.worldBuilding = "";
+    }
+      return appState.writingWorkspace.outline;
+    }
+
+    function populatePlanTextareas() {
+      var outline = appState.writingWorkspace.outline || {};
+      if (el.planBrainstormEditor) el.planBrainstormEditor.value = String(outline.brainstorming || "");
+      if (el.planCharacterArcsEditor) el.planCharacterArcsEditor.value = String(outline.characterArcs || "");
+      if (el.planWorldBuildEditor) el.planWorldBuildEditor.value = String(outline.worldBuilding || "");
+    }
+
+    function getOutlineChapterCount() {
+      var outline = getPlanOutline();
+      return (outline.acts || []).reduce(function (sum, act) {
+        return sum + (act.children || []).length;
+      }, 0);
+    }
+
+    function initOutlineFromSegments() {
+      var outline = getPlanOutline();
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var outlineChCount = getOutlineChapterCount();
+      var isEmptyRaceCondition = outline.acts.length === 1 && outlineChCount === 0;
+      var needsInit = !outline.acts.length || isEmptyRaceCondition;
+      if (needsInit && segments.length) {
+        outline.acts = [{
+          id: generateOutlineNodeId(),
+          type: "act",
+          title: "Act 1",
+          sortOrder: 0,
+          children: segments.map(function (seg, idx) {
+            return {
+              id: String(seg.key || generateOutlineNodeId()),
+              type: "chapter",
+              title: String(seg.title || "").trim() || ("Chapter " + (idx + 1)),
+              sortOrder: idx,
+              children: []
+            };
+          })
+        }];
+      }
+    }
+
+    var _outlineIdCounter = 0;
+    function generateOutlineNodeId() {
+      _outlineIdCounter += 1;
+      return "ol-" + Date.now() + "-" + _outlineIdCounter;
+    }
+
+    function renumberOutlineChapters() {
+      var outline = getPlanOutline();
+      var chapterIndex = 0;
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (chapter) {
+          chapterIndex += 1;
+          var title = String(chapter.title || "").trim();
+          var match = title.match(/^(Chapter\s+)(\d+)(\s*:\s*.*)?$/i);
+          if (match) {
+            chapter.title = "Chapter " + chapterIndex + (match[3] || "");
+          }
+        });
+      });
+    }
+
+    function syncOutlineToSegments() {
+      renumberOutlineChapters();
+      var outline = getPlanOutline();
+      var existingSegments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var nextSegments = [];
+      var chapterIndex = 0;
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (chapter) {
+          chapterIndex += 1;
+          var existing = existingSegments.find(function (s) { return s.key === chapter.id; });
+          var text = existing ? existing.text : "<div><br></div>";
+          var wordCount = existing ? existing.wordCount : 0;
+          nextSegments.push({
+            key: chapter.id,
+            title: String(chapter.title || "").trim() || ("Chapter " + chapterIndex),
+            text: text,
+            wordCount: wordCount,
+            sortOrder: chapterIndex
+          });
+        });
+      });
+      appState.writingWorkspace.segments = nextSegments;
+      renderWritingChapterList(getSelectedProject());
+      renderWritingWorkspaceScopeOptions();
+      if (nextSegments.length) {
+        var currentScope = String(appState.writingWorkspace.scope || "");
+        var hasCurrent = nextSegments.some(function (s) { return s.key === currentScope; });
+        if (!hasCurrent) {
+          appState.writingWorkspace.scope = nextSegments[0].key;
+          renderWritingWorkspaceEditor(getSelectedProject());
+        }
+      }
+    }
+
+    function addPlanAct() {
+      var outline = getPlanOutline();
+      outline.acts = outline.acts || [];
+      outline.acts.push({
+        id: generateOutlineNodeId(),
+        type: "act",
+        title: "Act " + (outline.acts.length + 1),
+        sortOrder: outline.acts.length,
+        children: []
+      });
+      renderPlanOutline();
+      syncOutlineToSegments();
+      schedulePlanOutlineSave();
+    }
+
+    function addPlanChapter(actId) {
+      var outline = getPlanOutline();
+      var act = (outline.acts || []).find(function (a) { return a.id === actId; });
+      if (!act) return;
+      act.children = act.children || [];
+      act.children.push({
+        id: generateOutlineNodeId(),
+        type: "chapter",
+        title: "Chapter " + (act.children.length + 1),
+        sortOrder: act.children.length,
+        children: []
+      });
+      renderPlanOutline();
+      syncOutlineToSegments();
+      schedulePlanOutlineSave();
+    }
+
+    function addPlanScene(chapterId) {
+      var outline = getPlanOutline();
+      var act = (outline.acts || []).find(function (a) {
+        return (a.children || []).some(function (c) { return c.id === chapterId; });
+      });
+      if (!act) return;
+      var chapter = (act.children || []).find(function (c) { return c.id === chapterId; });
+      if (!chapter) return;
+      chapter.children = chapter.children || [];
+      chapter.children.push({
+        id: generateOutlineNodeId(),
+        type: "scene",
+        title: "Scene " + (chapter.children.length + 1),
+        sortOrder: chapter.children.length,
+        purpose: "",
+        pov: "",
+        targetWordCount: 3000,
+        mainPlotFunction: "",
+        notes: "",
+        characterIds: []
+      });
+      renderPlanOutline();
+      schedulePlanOutlineSave();
+    }
+
+    function deletePlanNode(nodeId) {
+      var outline = getPlanOutline();
+      outline.acts = outline.acts || [];
+      outline.acts = outline.acts.filter(function (a) {
+        if (a.id === nodeId) return false;
+        a.children = (a.children || []).filter(function (c) {
+          if (c.id === nodeId) return false;
+          c.children = (c.children || []).filter(function (s) { return s.id !== nodeId; });
+          return true;
+        });
+        return true;
+      });
+      renderPlanOutline();
+      syncOutlineToSegments();
+      schedulePlanOutlineSave();
+    }
+
+    function updatePlanNodeTitle(nodeId, title) {
+      var outline = getPlanOutline();
+      var node = findPlanNodeById(outline, nodeId);
+      if (node) {
+        node.title = String(title || "").trim();
+        if (node.type === "chapter") syncOutlineToSegments();
+        schedulePlanOutlineSave();
+      }
+    }
+
+    function syncSegmentTitleToOutline(segmentKey, newTitle) {
+      var outline = getPlanOutline();
+      var acts = outline.acts || [];
+      for (var i = 0; i < acts.length; i++) {
+        var chapters = acts[i].children || [];
+        for (var j = 0; j < chapters.length; j++) {
+          if (chapters[j].id === segmentKey) {
+            chapters[j].title = String(newTitle || "").trim();
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function updatePlanSceneField(sceneId, field, value) {
+      var outline = getPlanOutline();
+      var node = findPlanNodeById(outline, sceneId);
+      if (node && node.type === "scene") {
+        node[field] = value;
+        schedulePlanOutlineSave();
+      }
+    }
+
+    function findPlanNodeById(outline, nodeId) {
+      var acts = outline.acts || [];
+      for (var i = 0; i < acts.length; i++) {
+        if (acts[i].id === nodeId) return acts[i];
+        var chapters = acts[i].children || [];
+        for (var j = 0; j < chapters.length; j++) {
+          if (chapters[j].id === nodeId) return chapters[j];
+          var scenes = chapters[j].children || [];
+          for (var k = 0; k < scenes.length; k++) {
+            if (scenes[k].id === nodeId) return scenes[k];
+          }
+        }
+      }
+      return null;
+    }
+
+    function getOutlineScenesForChapterHtml(chapterKey) {
+      var outline = getPlanOutline();
+      var acts = outline.acts || [];
+      for (var i = 0; i < acts.length; i++) {
+        var chapters = acts[i].children || [];
+        for (var j = 0; j < chapters.length; j++) {
+          if (chapters[j].id === chapterKey) {
+            var scenes = chapters[j].children || [];
+            if (!scenes.length) return "";
+            var project = getSelectedProject();
+            var seriesId = project && Number(project.series_id || 0) ? Number(project.series_id) : 0;
+            var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+            var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+            var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+            var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
+              var parts = [];
+              parts.push("<div style='font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:4px;'>SCENE " + (sIdx + 1) + (scene.title ? " - " + escapeHtml(scene.title) : "") + "</div>");
+              var sceneText = stripHtmlTags(scene.text || "").trim();
+              if (sceneText) {
+                var lines = sceneText.split("\n").map(function (l) { return String(l || "").trim(); }).filter(Boolean);
+                parts.push("<div style='font-size:10px;color:#94a3b8;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
+              }
+              if (scene.purpose) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Purpose:</strong> " + escapeHtml(scene.purpose) + "</div>");
+              if (scene.pov) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + escapeHtml(scene.pov) + "</div>");
+              if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
+              if (scene.mainPlotFunction) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Plot:</strong> " + escapeHtml(scene.mainPlotFunction) + "</div>");
+              var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
+              if (codexTags) {
+                parts.push("<div style='display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;'>" + codexTags + "</div>");
+              }
+              return "<div style='margin-bottom:8px;padding:6px 8px;background:#0f1419;border:1px solid #1e293b;border-radius:4px;'>" +
+                parts.join("") +
+                "</div>";
+            }).join("") + "</div>";
+            return html;
+          }
+        }
+      }
+      return "";
+    }
+
+    function movePlanNode(nodeId, direction) {
+      var outline = getPlanOutline();
+      outline.acts = outline.acts || [];
+      outline.acts.forEach(function (act) {
+        var chapters = act.children || [];
+        var chIdx = chapters.findIndex(function (c) { return c.id === nodeId; });
+        if (chIdx !== -1) {
+          var newIdx = chIdx + direction;
+          if (newIdx >= 0 && newIdx < chapters.length) {
+            var temp = chapters[chIdx];
+            chapters[chIdx] = chapters[newIdx];
+            chapters[newIdx] = temp;
+            renderPlanOutline();
+            syncOutlineToSegments();
+            schedulePlanOutlineSave();
+          }
+          return;
+        }
+        chapters.forEach(function (chapter) {
+          var scenes = chapter.children || [];
+          var scIdx = scenes.findIndex(function (s) { return s.id === nodeId; });
+          if (scIdx !== -1) {
+            var newScIdx = scIdx + direction;
+            if (newScIdx >= 0 && newScIdx < scenes.length) {
+              var temp = scenes[scIdx];
+              scenes[scIdx] = scenes[newScIdx];
+              scenes[newScIdx] = temp;
+              renderPlanOutline();
+              schedulePlanOutlineSave();
+            }
+          }
+        });
+      });
+    }
+
+    function togglePlanActCollapse(actId) {
+      var outline = getPlanOutline();
+      var act = (outline.acts || []).find(function (a) { return a.id === actId; });
+      if (act) {
+        act.collapsed = !act.collapsed;
+        renderPlanOutline();
+        schedulePlanOutlineSave();
+      }
+    }
+
+    function renderPlanOutline() {
+      initOutlineFromSegments();
+      var outline = getPlanOutline();
+      var grid = el.planOutlineGrid;
+      var empty = el.planOutlineEmpty;
+      var content = el.planOutlineContent;
+      if (!grid || !empty || !content) return;
+      var project = getSelectedProject();
+      if (project) {
+        if (el.planInfoImage) { el.planInfoImage.src = getProjectDisplayImageUrl(project); el.planInfoImage.alt = String(project.title || "").trim() + " cover"; }
+        if (el.planInfoTitle) el.planInfoTitle.textContent = String(project.title || "").trim() || "Untitled";
+        if (el.planInfoSeries) el.planInfoSeries.textContent = String(project.series || "").trim() || "No series";
+        if (el.planInfoGenre) el.planInfoGenre.textContent = String(project.genre || "").trim() || "—";
+        if (el.planInfoAuthor) el.planInfoAuthor.textContent = String(project.pen_name || "").trim() || "—";
+        if (el.planInfoWords) {
+          var totalWords = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
+          el.planInfoWords.textContent = totalWords ? formatWordCount(totalWords) : "0w";
+        }
+      }
+      var acts = outline.acts || [];
+      if (!acts.length) {
+        empty.hidden = false;
+        content.hidden = true;
+        grid.innerHTML = "";
+        return;
+      }
+      empty.hidden = true;
+      content.hidden = false;
+      var seriesId = Number(project && project.series_id || 0);
+      var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+      var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+      var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+      var _planRenderedWithData = !seriesId || characters.length || locations.length || continuity.length;
+      if (!_planRenderedWithData) {
+        loadSeriesKnowledgeForSelectedProject(false).finally(function () {
+          if (!el.planOutlineGrid) return;
+          renderPlanOutline();
+        });
+      }
+      var globalChapterNum = 0;
+      grid.innerHTML = acts.map(function (act) {
+        var chapterCount = (act.children || []).length;
+        var sceneCount = (act.children || []).reduce(function (sum, ch) { return sum + (ch.children || []).length; }, 0);
+        var countLabel = chapterCount + " chapter" + (chapterCount === 1 ? "" : "s") + ", " + sceneCount + " scene" + (sceneCount === 1 ? "" : "s");
+        var sceneNum = 0;
+        return '<div class="plan-act' + (act.collapsed ? " collapsed" : "") + '" data-act-id="' + escapeHtml(act.id) + '">' +
+          '<div class="plan-act-header" data-act-id="' + escapeHtml(act.id) + '">' +
+            '<span class="plan-act-chevron">&#9660;</span>' +
+            '<span class="plan-act-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(act.id) + '">' + escapeHtml(act.title || "") + '</span>' +
+            '<span class="plan-act-count">' + escapeHtml(countLabel) + '</span>' +
+            '<div class="plan-act-actions">' +
+              '<button type="button" class="plan-act-action" data-action="add-chapter" data-act-id="' + escapeHtml(act.id) + '">+ Chapter</button>' +
+              '<button type="button" class="plan-act-action" data-action="delete-act" data-act-id="' + escapeHtml(act.id) + '">Delete</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="plan-chapter-grid">' +
+            (act.children || []).map(function (chapter) {
+              globalChapterNum += 1;
+              var chNum = globalChapterNum;
+              return '<div class="plan-chapter" draggable="true" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
+                '<div class="plan-chapter-header">' +
+                  '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
+                  '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
+                  '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
+                  '<div class="plan-chapter-actions">' +
+                    '<button type="button" class="plan-chapter-action" data-action="delete" data-node-id="' + escapeHtml(chapter.id) + '">&#10005;</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="plan-scene-list">' +
+                  (chapter.children || []).map(function (scene) {
+                    sceneNum += 1;
+                    var wc = Number(scene.targetWordCount || 0);
+                    var wcLabel = wc ? wc.toLocaleString() : "—";
+                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity, true);
+                    return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
+                      '<div class="plan-scene-header">' +
+                        '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
+                        '<div class="plan-scene-actions">' +
+                          '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
+                          '<button type="button" class="plan-scene-action" data-action="move-down" data-node-id="' + escapeHtml(scene.id) + '">&#9660;</button>' +
+                          '<button type="button" class="plan-scene-action" data-action="delete" data-node-id="' + escapeHtml(scene.id) + '">&#10005;</button>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="plan-scene-fields">' +
+                        '<div class="plan-scene-field">' +
+                          '<span class="plan-scene-field-label">Purpose:</span>' +
+                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="What happens..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="purpose">' + escapeHtml(scene.purpose || "") + '</span>' +
+                        '</div>' +
+                        '<div class="plan-scene-field">' +
+                          '<span class="plan-scene-field-label">POV:</span>' +
+                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="Character..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="pov">' + escapeHtml(scene.pov || "") + '</span>' +
+                        '</div>' +
+                        '<div class="plan-scene-field">' +
+                          '<span class="plan-scene-field-label">Target:</span>' +
+                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
+                          '<span class="plan-scene-wc">words</span>' +
+                        '</div>' +
+                        '<div class="plan-scene-field">' +
+                          '<span class="plan-scene-field-label">Plot:</span>' +
+                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="Main plot function..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="mainPlotFunction">' + escapeHtml(scene.mainPlotFunction || "") + '</span>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="plan-scene-tags">' + codexTags +
+                        '<span class="plan-scene-tag-add" data-scene-id="' + escapeHtml(scene.id) + '">+ Codex</span>' +
+                      '</div>' +
+                    '</div>';
+                  }).join("") +
+                '</div>' +
+                '<button type="button" class="plan-new-scene-btn" data-chapter-id="' + escapeHtml(chapter.id) + '">+ New Scene</button>' +
+              '</div>';
+            }).join("") +
+          '</div>' +
+        '</div>';
+      }).join("");
+
+      grid.querySelectorAll(".plan-act-header").forEach(function (header) {
+        header.addEventListener("click", function (e) {
+          if (e.target.closest("button")) return;
+          var actId = this.getAttribute("data-act-id");
+          if (actId) togglePlanActCollapse(actId);
+        });
+      });
+
+      grid.querySelectorAll("[contenteditable]").forEach(function (node) {
+        node.addEventListener("blur", function () {
+          var nodeId = this.getAttribute("data-node-id");
+          var sceneId = this.getAttribute("data-scene-id");
+          var field = this.getAttribute("data-field");
+          var value = this.textContent.trim();
+          if (nodeId) updatePlanNodeTitle(nodeId, value);
+          if (sceneId && field) {
+            if (field === "targetWordCount") {
+              var num = parseInt(value.replace(/,/g, "").replace(/[^0-9]/g, ""), 10);
+              updatePlanSceneField(sceneId, field, isNaN(num) ? 0 : num);
+            } else {
+              updatePlanSceneField(sceneId, field, value);
+            }
+          }
+        });
+        node.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            this.blur();
+          }
+        });
+      });
+
+      grid.querySelectorAll("[data-action]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var action = this.getAttribute("data-action");
+          var actId = this.getAttribute("data-act-id");
+          var nodeId = this.getAttribute("data-node-id");
+          if (action === "add-chapter" && actId) addPlanChapter(actId);
+          if (action === "delete-act" && actId) {
+            if (confirm("Delete this act and all its chapters/scenes?")) deletePlanNode(actId);
+          }
+          if (action === "delete" && nodeId) {
+            if (confirm("Delete this item?")) deletePlanNode(nodeId);
+          }
+          if (action === "move-up" && nodeId) movePlanNode(nodeId, -1);
+          if (action === "move-down" && nodeId) movePlanNode(nodeId, 1);
+        });
+      });
+
+      grid.querySelectorAll(".plan-new-scene-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var chapterId = this.getAttribute("data-chapter-id");
+          if (chapterId) addPlanScene(chapterId);
+        });
+      });
+
+      grid.querySelectorAll(".plan-scene-tag-add").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var sceneId = this.getAttribute("data-scene-id");
+          if (!sceneId) return;
+          openPlanCodexTagModal(sceneId);
+        });
+      });
+
+      grid.querySelectorAll(".plan-scene-tag-remove").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var sceneId = this.getAttribute("data-scene-id");
+          var codexId = Number(this.getAttribute("data-codex-id") || 0);
+          var codexType = String(this.getAttribute("data-codex-type") || "").trim();
+          if (!sceneId || !codexId || !codexType) return;
+          var outline = getPlanOutline();
+          var scene = findPlanNodeById(outline, sceneId);
+          if (scene) {
+            if (scene.codexEntries) {
+              scene.codexEntries = scene.codexEntries.filter(function (e) {
+                return !(Number(e.id || 0) === codexId && String(e.type || "").trim() === codexType);
+              });
+            }
+            scene.characterIds = (scene.characterIds || []).filter(function (id) {
+              return !(Number(id) === codexId && codexType === "characters");
+            });
+            renderPlanOutline();
+            schedulePlanOutlineSave();
+          }
+        });
+      });
+
+      function _flipMulti(grids, fn) {
+        var items = [];
+        grids.forEach(function (g) { g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (el) { items.push({ el: el, rect: el.getBoundingClientRect() }); }); });
+        fn();
+        items.forEach(function (rec) {
+          var nr = rec.el.getBoundingClientRect();
+          var dx = rec.rect.left - nr.left, dy = rec.rect.top - nr.top;
+          if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+            rec.el.style.transition = "none";
+            rec.el.style.transform = "translate(" + dx + "px," + dy + "px)";
+          }
+        });
+        document.body.offsetHeight;
+        items.forEach(function (rec) {
+          rec.el.style.transition = "transform 250ms ease-out";
+          rec.el.style.transform = "";
+        });
+      }
+
+      grid.querySelectorAll(".plan-chapter").forEach(function (ch) {
+        ch.addEventListener("dragstart", function (e) {
+          if (!e.target.closest(".plan-chapter-drag-handle") && e.target !== this) { e.preventDefault(); return; }
+          _draggedChapterId = this.getAttribute("data-chapter-id");
+          _dragOverTarget = null;
+          _dragConfirmChapter = null; _dragConfirmCount = 0;
+          var clone = this.cloneNode(true);
+          var r = this.getBoundingClientRect();
+          clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
+          document.body.appendChild(clone);
+          e.dataTransfer.setDragImage(clone, e.clientX - r.left, e.clientY - r.top);
+          setTimeout(function () { clone.remove(); }, 0);
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", _draggedChapterId);
+          this.classList.add("dragging");
+        });
+        ch.addEventListener("dragend", function () {
+          _draggedChapterId = null; _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0;
+          document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
+        });
+        ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+      });
+
+      grid.querySelectorAll(".plan-chapter-grid").forEach(function (g) {
+        g.addEventListener("dragenter", function (e) {
+          if (!this.contains(e.relatedTarget)) _dragOverTarget = null;
+        });
+        g.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!_draggedChapterId) return;
+          var dragged = document.querySelector(".plan-chapter.dragging");
+          if (!dragged) return;
+          var chapter = e.target.closest(".plan-chapter");
+          if (!chapter || chapter === dragged) { _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0; return; }
+          var chapterRect = chapter.getBoundingClientRect();
+          var best = chapter, bestDist = Math.abs(e.clientX - (chapterRect.left + chapterRect.width / 2));
+          g.querySelectorAll(".plan-chapter:not(.dragging)").forEach(function (c) {
+            var r = c.getBoundingClientRect();
+            if (Math.abs(r.top - chapterRect.top) < 50) {
+              var d = Math.abs(e.clientX - (r.left + r.width / 2));
+              if (d < bestDist) { bestDist = d; best = c; }
+            }
+          });
+          chapter = best;
+          if (chapter === _dragConfirmChapter) { _dragConfirmCount++; } else { _dragConfirmChapter = chapter; _dragConfirmCount = 1; }
+          if (_dragConfirmCount < 2) { return; }
+          if (chapter !== _dragOverTarget) {
+            var rect = chapter.getBoundingClientRect();
+            var dL = e.clientX - rect.left, dR = rect.right - e.clientX;
+            var dT = e.clientY - rect.top, dB = rect.bottom - e.clientY;
+            var min = Math.min(dL, dR, dT, dB);
+            var before = (min === dR || min === dB);
+            _dragOverTarget = chapter;
+            var grids = [g];
+            var srcGrid = dragged.parentNode;
+            if (srcGrid && srcGrid !== g) grids.push(srcGrid);
+            var ref = before ? chapter : chapter.nextElementSibling;
+            _flipMulti(grids, function () { g.insertBefore(dragged, ref); });
+          } else {
+            // latched
+          }
+        });
+        g.addEventListener("dragleave", function (e) {
+          if (!this.contains(e.relatedTarget)) _dragOverTarget = null;
+        });
+        g.addEventListener("drop", function (e) {
+          e.preventDefault();
+          var dragged = document.querySelector(".plan-chapter.dragging");
+          if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
+          if (!_draggedChapterId) return;
+          var actEl = this.closest(".plan-act");
+          var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
+          if (!targetActId) return;
+          var domIds = [];
+          this.querySelectorAll(".plan-chapter").forEach(function (c) { var id = c.getAttribute("data-chapter-id"); if (id) domIds.push(id); });
+          var outline = getPlanOutline();
+          var sourceAct = null, srcIdx = -1;
+          outline.acts.forEach(function (act) {
+            var si = (act.children || []).findIndex(function (c) { return c.id === _draggedChapterId; });
+            if (si !== -1) { sourceAct = act; srcIdx = si; }
+          });
+          if (!sourceAct || srcIdx === -1) return;
+          var targetAct = outline.acts.find(function (a) { return a.id === targetActId; });
+          if (!targetAct) return;
+          var allCh = {};
+          outline.acts.forEach(function (act) { (act.children || []).forEach(function (c) { allCh[c.id] = c; }); });
+          sourceAct.children.splice(srcIdx, 1);
+          var newChildren = [];
+          domIds.forEach(function (id) { if (allCh[id]) newChildren.push(allCh[id]); });
+          targetAct.children = newChildren;
+          renderPlanOutline();
+          syncOutlineToSegments();
+          schedulePlanOutlineSave();
+        });
+      });
+    }
+
+    function getPlanSceneCodexTags(scene, characters, locations, continuity, showRemove) {
+      var tags = [];
+      (scene.codexEntries || []).forEach(function (entry) {
+        var id = Number(entry.id || 0);
+        var type = String(entry.type || "").trim();
+        var arr = type === "characters" ? characters : type === "locations" ? locations : type === "continuity" ? continuity : null;
+        var obj = arr ? arr.find(function (x) { return Number(x.id || 0) === id; }) : null;
+        var name = obj ? String(obj.name || obj.title || "").trim() : "?";
+        var color = obj ? String(obj.color || "").trim() : "";
+        tags.push({ id: id, type: type, name: name, color: color });
+      });
+      (scene.characterIds || []).forEach(function (cid) {
+        var id = Number(cid || 0);
+        if (!id || tags.some(function (t) { return t.id === id && t.type === "characters"; })) return;
+        var charObj = characters.find(function (c) { return Number(c.id) === id; });
+        tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
+      });
+      return tags.map(function (t) {
+        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
+        var removeHtml = showRemove ? '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span>' : "";
+        return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
+          escapeHtml(t.name) + removeHtml + '</span>';
+      }).join("");
+    }
+
+    var _planCodexTagTargetSceneId = "";
+
+    function openPlanCodexTagModal(sceneId) {
+      _planCodexTagTargetSceneId = String(sceneId || "");
+      if (!el.planCodexTagModal) return;
+      renderPlanCodexTagList("");
+      el.planCodexTagModal.hidden = false;
+      if (el.planCodexTagSearch) {
+        el.planCodexTagSearch.value = "";
+        el.planCodexTagSearch.focus();
+      }
+    }
+
+    function closePlanCodexTagModal() {
+      _planCodexTagTargetSceneId = "";
+      if (el.planCodexTagModal) el.planCodexTagModal.hidden = true;
+    }
+
+    function renderPlanCodexTagList(query) {
+      if (!el.planCodexTagList) return;
+      var project = getSelectedProject();
+      var seriesId = Number(project && project.series_id || 0);
+      if (!seriesId) {
+        el.planCodexTagList.innerHTML = "<div style='padding:8px;font-size:11px;color:#777884;text-align:center;'>No series project selected.</div>";
+        return;
+      }
+      var q = String(query || "").trim().toLowerCase();
+      var entries = [];
+      (skCache.characters && skCache.characters[seriesId] || []).forEach(function (c) {
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "characters", color: String(c.color || "").trim() });
+      });
+      (skCache.locations && skCache.locations[seriesId] || []).forEach(function (c) {
+        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "locations", color: String(c.color || "").trim() });
+      });
+      (skCache.continuity && skCache.continuity[seriesId] || []).forEach(function (c) {
+        entries.push({ id: c.id, name: String(c.title || "").trim(), type: "continuity", color: String(c.color || "").trim() });
+      });
+      entries.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+      if (q) {
+        entries = entries.filter(function (e) { return String(e.name).toLowerCase().indexOf(q) !== -1; });
+      }
+      if (!entries.length) {
+        el.planCodexTagList.innerHTML = "<div style='padding:8px;font-size:11px;color:#777884;text-align:center;'>No matching entries.</div>";
+        return;
+      }
+      el.planCodexTagList.innerHTML = entries.map(function (entry) {
+        var initials = String(entry.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join("") || "?";
+        var color = String(entry.color || "").trim();
+        var dotHtml = color ? '<span class="plan-codex-tag-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+        return '<div class="plan-codex-tag-item' + (color ? ' has-color' : '') + '" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
+          '<div class="plan-codex-tag-avatar">' + dotHtml + escapeHtml(initials) + '</div>' +
+          '<div class="plan-codex-tag-name">' + escapeHtml(entry.name || "Untitled") + '</div>' +
+          '<div class="plan-codex-tag-type">' + escapeHtml(entry.type) + '</div>' +
+          '</div>';
+      }).join("");
+      el.planCodexTagList.querySelectorAll(".plan-codex-tag-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          var cid = Number(this.getAttribute("data-codex-id") || 0);
+          var ctype = String(this.getAttribute("data-codex-type") || "").trim();
+          if (!_planCodexTagTargetSceneId || !cid || !ctype) return;
+          var outline = getPlanOutline();
+          var scene = findPlanNodeById(outline, _planCodexTagTargetSceneId);
+          if (scene) {
+            scene.codexEntries = scene.codexEntries || [];
+            var exists = scene.codexEntries.some(function (e) {
+              return Number(e.id || 0) === cid && String(e.type || "").trim() === ctype;
+            });
+            if (!exists) {
+              scene.codexEntries.push({ id: cid, type: ctype });
+              renderPlanOutline();
+              schedulePlanOutlineSave();
+            }
+          }
+          closePlanCodexTagModal();
+        });
+      });
+    }
+
+    function renderPlanBrainstorm() {
+      var project = getSelectedProject();
+      var empty = el.planBrainstormEmpty;
+      var content = el.planBrainstormContent;
+      var editor = el.planBrainstormEditor;
+      if (!empty || !content || !editor) return;
+      if (!project || !Number(project.project_id || 0)) {
+        empty.hidden = false;
+        content.hidden = true;
+        return;
+      }
+      empty.hidden = true;
+      content.hidden = false;
+      editor.value = String((appState.writingWorkspace.outline || {}).brainstorming || "");
+    }
+
+    function renderPlanCharacterArcs() {
+      var project = getSelectedProject();
+      var empty = el.planCharacterArcsEmpty;
+      var content = el.planCharacterArcsContent;
+      var editor = el.planCharacterArcsEditor;
+      if (!empty || !content || !editor) return;
+      if (!project || !Number(project.project_id || 0)) {
+        empty.hidden = false;
+        content.hidden = true;
+        return;
+      }
+      empty.hidden = true;
+      content.hidden = false;
+      editor.value = String((appState.writingWorkspace.outline || {}).characterArcs || "");
+    }
+
+    function renderPlanWorldBuild() {
+      var project = getSelectedProject();
+      var empty = el.planWorldBuildEmpty;
+      var content = el.planWorldBuildContent;
+      var editor = el.planWorldBuildEditor;
+      if (!empty || !content || !editor) return;
+      if (!project || !Number(project.project_id || 0)) {
+        empty.hidden = false;
+        content.hidden = true;
+        return;
+      }
+      empty.hidden = true;
+      content.hidden = false;
+      editor.value = String((appState.writingWorkspace.outline || {}).worldBuilding || "");
+    }

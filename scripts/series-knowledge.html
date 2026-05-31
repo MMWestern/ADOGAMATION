@@ -1,0 +1,1128 @@
+    var skCache = {
+        characters: {},
+        locations: {},
+        continuity: {},
+        seriesProjects: {},
+        characterDetails: {},
+        locationDetails: {},
+        continuityDetails: {}
+    };
+
+    var skActiveCharacterId = 0;
+    var skActiveLocationId = 0;
+    var skActiveContinuityId = 0;
+    var skEditingCharacterId = 0;
+    var skEditingLocationId = 0;
+    var skEditingContinuityId = 0;
+    var skCurrentSeriesId = 0;
+    var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, continuityId: 0 };
+    var skHasAutoSelected = false;
+
+    function normalizeSeriesKnowledgeRecord(record) {
+        var safe = record && typeof record === "object" ? record : {};
+        return {
+            lore: String(safe.lore || "").trim(),
+            updatedAt: String(safe.updatedAt || "").trim()
+        };
+    }
+
+    function setResourceSeriesKnowledgeStatus(message, mode) {
+        if (!el.resourceSeriesKnowledgeStatus) return;
+        el.resourceSeriesKnowledgeStatus.textContent = message || "";
+        el.resourceSeriesKnowledgeStatus.className = "status-bar" + (mode ? " " + mode : "");
+    }
+
+    function getSeriesKnowledgeForProject(project) {
+        var safe = project || {};
+        var seriesId = Number(safe.series_id || 0);
+        if (!seriesId) return null;
+        return appState.seriesKnowledgeById[seriesId] || null;
+    }
+
+    function setSeriesKnowledgeInputsDisabled(disabled) {
+        var inputs = [
+            el.resourceSeriesKnowledgeLore,
+            el.resourceSeriesKnowledgeSaveButton,
+            el.skCharacterName, el.skCharacterRole, el.skCharacterArchetype,
+            el.skCharacterImageUrl, el.skCharacterDescription, el.skCharacterMotivation,
+            el.skCharacterBackstory, el.skLocationName, el.skLocationType,
+            el.skLocationImageUrl, el.skLocationDescription, el.skLocationSignificance,
+            el.skLocationEvents, el.skContinuityTitle, el.skContinuityImageUrl,
+            el.skContinuityDescription, el.skContinuitySeverity, el.skContinuityResolved
+        ];
+        inputs.forEach(function (node) {
+            if (node) node.disabled = !!disabled;
+        });
+    }
+
+    function autoSelectSkEntity() {
+        if (skHasAutoSelected) return;
+        skHasAutoSelected = true;
+        var subTab = skLastSelection.subTab || "characters";
+        if (subTab === "characters") {
+            var chars = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+            if (chars.length) editSkCharacter(skLastSelection.characterId || chars[0].id);
+        } else if (subTab === "locations") {
+            var locs = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+            if (locs.length) editSkLocation(skLastSelection.locationId || locs[0].id);
+        } else if (subTab === "continuity") {
+            var conts = skCurrentSeriesId ? (skCache.continuity[skCurrentSeriesId] || []) : [];
+            if (conts.length) editSkContinuityEntry(skLastSelection.continuityId || conts[0].id);
+        }
+    }
+
+    function getSkCharacterActiveColor() {
+        if (!el.skCharacterColorTrigger) return "";
+        return el.skCharacterColorTrigger.getAttribute("data-color") || "";
+    }
+
+    function setSkCharacterActiveColor(color) {
+        if (!el.skCharacterColorTrigger) return;
+        var safe = String(color || "").trim();
+        var bg = safe || "#3a3a42";
+        el.skCharacterColorTrigger.setAttribute("data-color", safe);
+        el.skCharacterColorTrigger.style.background = bg;
+        var name = document.getElementById("skCharacterNameDisplay");
+        if (name) name.style.color = safe || "";
+    }
+
+    function setSkSubTab(tabKey) {
+        var tabs = ["lore", "characters", "locations", "continuity"];
+        tabs.forEach(function (key) {
+            var btn = el["skSubTab" + key.charAt(0).toUpperCase() + key.slice(1)];
+            var pane = el["skTab" + key.charAt(0).toUpperCase() + key.slice(1)];
+            if (btn) {
+                btn.classList.toggle("is-active", key === tabKey);
+                btn.setAttribute("aria-pressed", key === tabKey ? "true" : "false");
+            }
+            if (pane) pane.hidden = key !== tabKey;
+        });
+        var formMap = { characters: "skCharacterForm", locations: "skLocationForm", continuity: "skContinuityForm" };
+        var formId = formMap[tabKey] || null;
+        [el.skCharacterForm, el.skLocationForm, el.skContinuityForm].forEach(function (f) {
+            if (f) f.hidden = !formId || f.id !== formId;
+        });
+        skLastSelection.subTab = tabKey;
+        if (tabKey !== "lore") autoSelectSkEntity();
+    }
+
+    function renderSeriesKnowledgePanel(project) {
+        var selected = project || getSelectedProject();
+        var hasSeries = !!Number(selected && selected.series_id || 0);
+        var record = hasSeries ? getSeriesKnowledgeForProject(selected) : null;
+        var seriesName = String(selected && selected.series || "").trim();
+        var projectTitle = String(selected && selected.title || "").trim();
+        var seriesId = Number(selected && selected.series_id || 0);
+
+        skCurrentSeriesId = seriesId;
+
+        if (el.resourceSeriesKnowledgeSeriesName) {
+            el.resourceSeriesKnowledgeSeriesName.textContent = hasSeries ? (seriesName || "Untitled Series") : "No series selected";
+        }
+        if (el.resourceSeriesKnowledgeProjectName) {
+            el.resourceSeriesKnowledgeProjectName.textContent = hasSeries
+                ? ("From " + (projectTitle || "Untitled Project"))
+                : "Choose a project with a series to edit shared world data.";
+        }
+        if (el.resourceSeriesKnowledgeLore) el.resourceSeriesKnowledgeLore.value = record ? record.lore : "";
+        setSeriesKnowledgeInputsDisabled(!hasSeries);
+
+        if (!hasSeries) {
+            setResourceSeriesKnowledgeStatus("Select a series-based project to edit shared lore, character, location, and continuity notes.", "warn");
+            return;
+        }
+        if (record && (record.updatedAt || record.lore)) {
+            setResourceSeriesKnowledgeStatus("Series knowledge loaded.", "ok");
+        } else {
+            setResourceSeriesKnowledgeStatus("No series knowledge saved yet for this series.", "warn");
+        }
+    }
+
+    function loadSeriesKnowledgeForSelectedProject(forceRefresh) {
+        var project = getSelectedProject();
+        if (!project || !Number(project.series_id || 0)) {
+            renderSeriesKnowledgePanel(project);
+            return Promise.resolve(null);
+        }
+        var seriesId = Number(project.series_id || 0);
+        skCurrentSeriesId = seriesId;
+
+        if (!forceRefresh && appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId]) {
+            renderSeriesKnowledgePanel(project);
+            return loadSkEntities(seriesId).then(function () {
+                return appState.seriesKnowledgeById[seriesId];
+            });
+        }
+        setSeriesKnowledgeInputsDisabled(true);
+        setResourceSeriesKnowledgeStatus("Loading series knowledge...", "warn");
+        return callAppsScriptJson("getSupabaseSeriesKnowledgeJsonFromClient", [seriesId])
+            .then(function (result) {
+                var knowledge = normalizeSeriesKnowledgeRecord(result && result.knowledge);
+                knowledge.updatedAt = String(result && result.updatedAt || knowledge.updatedAt || "");
+                appState.seriesKnowledgeById[seriesId] = knowledge;
+                renderSeriesKnowledgePanel(project);
+                return loadSkEntities(seriesId).then(function () {
+                    return knowledge;
+                });
+            })
+            .catch(function (error) {
+                setSeriesKnowledgeInputsDisabled(false);
+                setResourceSeriesKnowledgeStatus("Series knowledge load failed: " + (error && error.message ? error.message : error), "error");
+                return null;
+            });
+    }
+
+    function readSeriesKnowledgeFromPanel() {
+        return normalizeSeriesKnowledgeRecord({
+            lore: el.resourceSeriesKnowledgeLore ? el.resourceSeriesKnowledgeLore.value : ""
+        });
+    }
+
+    function saveSeriesKnowledge() {
+        var project = getSelectedProject();
+        if (!project || !Number(project.series_id || 0)) {
+            setResourceSeriesKnowledgeStatus("Select a series-based project before saving series knowledge.", "warn");
+            return;
+        }
+        var seriesId = Number(project.series_id || 0);
+        var payload = readSeriesKnowledgeFromPanel();
+        setSeriesKnowledgeInputsDisabled(true);
+        setResourceSeriesKnowledgeStatus("Saving lore...", "warn");
+        callAppsScriptJson("saveSupabaseSeriesKnowledgeJsonFromClient", [seriesId, JSON.stringify(payload)])
+            .then(function (result) {
+                var knowledge = normalizeSeriesKnowledgeRecord(result && result.knowledge);
+                knowledge.updatedAt = String(result && result.updatedAt || "");
+                appState.seriesKnowledgeById[seriesId] = knowledge;
+                renderSeriesKnowledgePanel(project);
+                setResourceSeriesKnowledgeStatus("Lore saved.", "ok");
+            })
+            .catch(function (error) {
+                setSeriesKnowledgeInputsDisabled(false);
+                setResourceSeriesKnowledgeStatus("Failed to save lore: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function autoSaveLore() {
+        if (skCurrentSeriesId && el.resourceSeriesKnowledgeLore) {
+            var lore = el.resourceSeriesKnowledgeLore.value;
+            var cached = getSeriesKnowledgeForProject(getSelectedProject());
+            if (cached && cached.lore === lore) return;
+            saveSeriesKnowledge();
+        }
+    }
+
+    function loadSkEntities(seriesId) {
+        if (!seriesId) return Promise.resolve();
+        return Promise.all([
+            loadSkCharacters(seriesId),
+            loadSkLocations(seriesId),
+            loadSkContinuityEntries(seriesId),
+            loadSkSeriesProjects(seriesId)
+        ]);
+    }
+
+    function populateSkContinuityProjectSelector() {
+        var projects = getSkProjectsForSeries();
+        if (!el.skContinuityProjectAdd) return;
+        var opts = projects.map(function (p) {
+            return "<option value='" + p.id + "'>" + escapeHtml(p.title || "Untitled") + "</option>";
+        }).join("");
+        el.skContinuityProjectAdd.innerHTML = "<option value=''>Link a book...</option>" + opts;
+    }
+
+    function loadSkSeriesProjects(seriesId) {
+        if (skCache.seriesProjects[seriesId]) {
+            populateSkContinuityProjectSelector();
+            return Promise.resolve(skCache.seriesProjects[seriesId]);
+        }
+        return callAppsScriptJson("getSupabaseSeriesProjectsBySeriesIdJsonFromClient", [seriesId])
+            .then(function (result) {
+                var list = result && result.projects ? result.projects : [];
+                skCache.seriesProjects[seriesId] = list;
+                populateSkContinuityProjectSelector();
+                return list;
+            })
+            .catch(function () { return []; });
+    }
+
+    function getSkProjectsForSeries() {
+        if (!skCurrentSeriesId) return [];
+        return skCache.seriesProjects[skCurrentSeriesId] || [];
+    }
+
+    /* ---- Characters ---- */
+
+    function loadSkCharacters(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        skCache.characterDetails = {};
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesCharactersJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesCharacterBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].characters ? results[0].characters : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksByChar = {};
+            links.forEach(function (lk) {
+                var cid = Number(lk.character_id || 0);
+                if (!cid) return;
+                if (!linksByChar[cid]) linksByChar[cid] = [];
+                linksByChar[cid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (ch) {
+                var cid = Number(ch.id || 0);
+                if (linksByChar[cid]) {
+                    ch.bookLinks = linksByChar[cid];
+                    skCache.characterDetails[cid] = { bookLinks: linksByChar[cid] };
+                }
+            });
+            skCache.characters[seriesId] = list;
+            renderSkCharacterList();
+            populateSkCharacterSelectors();
+            return list;
+        })
+            .catch(function () {});
+    }
+
+    function renderSkCharacterList() {
+        if (!el.skCharacterList) return;
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skCharacterList.innerHTML = "<div class='world-entity-empty'>No characters yet. Click + Add Character to start.</div>";
+            return;
+        }
+        el.skCharacterList.innerHTML = list.map(function (ch) {
+            var active = skActiveCharacterId === Number(ch.id) ? " is-active" : "";
+            var snippet = (ch.description || ch.role_archetype || "").substring(0, 80);
+            return "<div class='world-entity-card" + active + "' data-sk-char-id='" + ch.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(ch.name || "Unnamed") + "</div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(ch.role_archetype || "") + "</span></div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skCharacterList.querySelectorAll("[data-sk-char-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-char-id") || 0);
+                editSkCharacter(id);
+            });
+        });
+    }
+
+    function populateSkCharacterSelectors() {
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var opts = list.map(function (ch) {
+            return "<option value='" + ch.id + "'>" + escapeHtml(ch.name || "Unnamed") + "</option>";
+        }).join("");
+        if (el.skCharacterRelOther) {
+            el.skCharacterRelOther.innerHTML = "<option value=''>Select character...</option>" + opts;
+        }
+        if (el.skContinuityCharAdd) {
+            var currentVal = el.skContinuityCharAdd.value;
+            el.skContinuityCharAdd.innerHTML = "<option value=''>Link a character...</option>" + opts;
+            el.skContinuityCharAdd.value = currentVal;
+        }
+    }
+
+    function editSkCharacter(id) {
+        skEditingCharacterId = id;
+        skActiveCharacterId = id;
+        skLastSelection.characterId = id;
+        skLastSelection.subTab = "characters";
+        if (!el.skCharacterForm) return;
+        el.skCharacterForm.hidden = false;
+
+        if (!id) {
+            el.skCharacterId.value = "0";
+            el.skCharacterName.value = "";
+            el.skCharacterRole.value = "";
+            el.skCharacterArchetype.value = "";
+            el.skCharacterImageUrl.value = "";
+            el.skCharacterDescription.value = "";
+            el.skCharacterMotivation.value = "";
+            el.skCharacterBackstory.value = "";
+            if (el.skCharacterNameDisplay) el.skCharacterNameDisplay.textContent = "New Character";
+            if (el.skCharacterRoleBadge) { el.skCharacterRoleBadge.style.display = "none"; el.skCharacterRoleBadge.textContent = ""; }
+            if (el.skCharacterArchetypeBadge) { el.skCharacterArchetypeBadge.style.display = "none"; el.skCharacterArchetypeBadge.textContent = ""; }
+            if (el.skCharacterImage) el.skCharacterImage.style.display = "none";
+            if (el.skCharacterImagePlaceholder) el.skCharacterImagePlaceholder.style.display = "flex";
+            if (el.skCharacterList) renderSkCharacterList();
+            renderSkCharacterBookChecks([]);
+            renderSkCharacterRelationships([]);
+            return;
+        }
+
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var ch = list.find(function (c) { return Number(c.id) === id; });
+        if (!ch) return;
+
+        el.skCharacterId.value = String(ch.id || 0);
+        el.skCharacterName.value = String(ch.name || "");
+        el.skCharacterRole.value = String(ch.role_archetype || "");
+        el.skCharacterArchetype.value = String(ch.archetype || "");
+        el.skCharacterImageUrl.value = String(ch.image_url || "");
+        setSkCharacterActiveColor(ch.color || "");
+        el.skCharacterDescription.value = String(ch.description || "");
+        el.skCharacterMotivation.value = String(ch.motivation_arc || "");
+        el.skCharacterBackstory.value = String(ch.backstory || "");
+        updateSkCharacterHeader(ch);
+        if (el.skCharacterList) renderSkCharacterList();
+
+        var cached = skCache.characterDetails[id];
+        if (cached) {
+            renderSkCharacterBookChecks(cached.bookLinks || []);
+            renderSkCharacterRelationships(cached.relationships || []);
+            renderSkCharacterDetail(ch, cached.bookLinks || [], cached.relationships || []);
+            return;
+        }
+
+        renderSkCharacterDetail(ch, [], []);
+        callAppsScriptJson("getSupabaseSeriesCharacterJsonFromClient", [id])
+            .then(function (result) {
+                if (!result || !result.ok) return;
+                skCache.characterDetails[id] = {
+                    bookLinks: result.bookLinks || [],
+                    relationships: result.relationships || []
+                };
+                renderSkCharacterBookChecks(result.bookLinks || []);
+                renderSkCharacterRelationships(result.relationships || []);
+                renderSkCharacterDetail(ch, result.bookLinks || [], result.relationships || []);
+            })
+            .catch(function () {});
+    }
+
+    function updateSkCharacterHeader(ch) {
+        if (!ch) return;
+        if (el.skCharacterNameDisplay) el.skCharacterNameDisplay.textContent = ch.name || "Unnamed";
+        if (el.skCharacterRoleBadge) {
+            if (ch.role_archetype) {
+                el.skCharacterRoleBadge.textContent = ch.role_archetype;
+                el.skCharacterRoleBadge.style.display = "inline-flex";
+                el.skCharacterRoleBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(ch.role_archetype);
+            } else {
+                el.skCharacterRoleBadge.style.display = "none";
+            }
+        }
+        if (el.skCharacterArchetypeBadge) {
+            if (ch.archetype) {
+                el.skCharacterArchetypeBadge.textContent = ch.archetype;
+                el.skCharacterArchetypeBadge.style.display = "inline-flex";
+                el.skCharacterArchetypeBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(ch.archetype);
+            } else {
+                el.skCharacterArchetypeBadge.style.display = "none";
+            }
+        }
+        if (el.skCharacterImage && el.skCharacterImagePlaceholder) {
+            if (ch.image_url) {
+                el.skCharacterImage.src = ch.image_url;
+                el.skCharacterImage.style.display = "block";
+                el.skCharacterImagePlaceholder.style.display = "none";
+            } else {
+                el.skCharacterImage.style.display = "none";
+                el.skCharacterImagePlaceholder.style.display = "flex";
+            }
+        }
+    }
+
+    function renderSkCharacterBookChecks(bookLinks) {
+        if (!el.skCharacterBookLinks) return;
+        var projects = getSkProjectsForSeries();
+        var linked = {};
+        (bookLinks || []).forEach(function (bl) { linked[Number(bl.project_id)] = true; });
+        if (!projects.length) {
+            el.skCharacterBookLinks.innerHTML = "<div class='tiny'>No books found in this series.</div>";
+            return;
+        }
+        el.skCharacterBookLinks.innerHTML = projects.map(function (p) {
+            var checked = linked[Number(p.id)] ? " checked" : "";
+            return "<label><input type='checkbox' data-sk-project-id='" + p.id + "'" + checked + " /> " + escapeHtml(p.title || "Untitled") + "</label>";
+        }).join("");
+    }
+
+    function renderSkCharacterRelationships(relationships) {
+        if (!el.skCharacterRelationships) return;
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        if (!relationships || !relationships.length) {
+            el.skCharacterRelationships.innerHTML = "<div class='tiny' style='color:var(--muted);'>No relationships added yet.</div>";
+            return;
+        }
+        el.skCharacterRelationships.innerHTML = relationships.map(function (rel) {
+            var otherId = Number(rel.character_id_a) === skEditingCharacterId ? Number(rel.character_id_b) : Number(rel.character_id_a);
+            var other = list.find(function (c) { return Number(c.id) === otherId; });
+            var otherName = other ? other.name : "Unknown";
+            return "<div class='relationship-entry' data-rel-id='" + rel.id + "'>" +
+                "<span class='rel-char-name'>" + escapeHtml(otherName) + "</span>" +
+                "<span class='rel-type'>" + escapeHtml(rel.relationship_type || "") + "</span>" +
+                "<button type='button' class='chip-remove' data-rel-remove='" + rel.id + "' title='Remove relationship' style='margin-left:auto;'>&times;</button>" +
+            "</div>";
+        }).join("");
+        el.skCharacterRelationships.querySelectorAll("[data-rel-remove]").forEach(function (btn) {
+            btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var relId = Number(btn.getAttribute("data-rel-remove") || 0);
+                if (relId) deleteSkRelationship(relId);
+            });
+        });
+    }
+
+    function renderSkCharacterDetail(ch, bookLinks, relationships) {
+        if (!el.skCharacterDetail) return;
+        if (!ch) { el.skCharacterDetail.innerHTML = '<div class="sk-detail-placeholder">Select a character to view details</div>'; return; }
+        var projects = getSkProjectsForSeries();
+        var linkedBooks = (bookLinks || []).map(function (bl) {
+            var p = projects.find(function (pr) { return Number(pr.id) === Number(bl.project_id); });
+            return p ? p.title : "Book #" + bl.project_id;
+        });
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var rels = (relationships || []).map(function (rel) {
+            var otherId = Number(rel.character_id_a) === Number(ch.id) ? Number(rel.character_id_b) : Number(rel.character_id_a);
+            var other = list.find(function (c) { return Number(c.id) === otherId; });
+            return (other ? other.name : "Unknown") + " (" + (rel.relationship_type || "?") + ")";
+        });
+        var html = '<div class="sk-detail-heading">' + escapeHtml(ch.name || "Unnamed") + '</div>';
+        if (ch.role_archetype) html += '<div class="sk-detail-role">' + escapeHtml(ch.role_archetype) + '</div>';
+        if (ch.archetype) html += '<div class="sk-detail-role">' + escapeHtml(ch.archetype) + '</div>';
+        html += '<div class="sk-detail-section"><div class="sk-detail-label">Description</div><div class="sk-detail-text">' + escapeHtml(ch.description || "—") + '</div></div>';
+        if (ch.motivation_arc) html += '<div class="sk-detail-section"><div class="sk-detail-label">Motivation / Arc</div><div class="sk-detail-text">' + escapeHtml(ch.motivation_arc) + '</div></div>';
+        if (ch.backstory) html += '<div class="sk-detail-section"><div class="sk-detail-label">Backstory</div><div class="sk-detail-text">' + escapeHtml(ch.backstory) + '</div></div>';
+        if (linkedBooks.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Appears In</div><div class="sk-detail-chip-list">' + linkedBooks.map(function (t) { return '<span class="sk-detail-chip">' + escapeHtml(t) + '</span>'; }).join("") + '</div></div>';
+        if (rels.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Relationships</div><div class="sk-detail-chip-list">' + rels.map(function (r) { return '<span class="sk-detail-chip">' + escapeHtml(r) + '</span>'; }).join("") + '</div></div>';
+        el.skCharacterDetail.innerHTML = html;
+    }
+
+    function getCheckedBookIds(container) {
+        if (!container) return [];
+        var ids = [];
+        container.querySelectorAll("input[type='checkbox'][data-sk-project-id]:checked").forEach(function (cb) {
+            ids.push(Number(cb.getAttribute("data-sk-project-id")));
+        });
+        return ids;
+    }
+
+    function saveSkCharacter() {
+        if (!skCurrentSeriesId || !el.skCharacterForm) return;
+        var id = Number(el.skCharacterId.value || 0);
+        var bookIds = getCheckedBookIds(el.skCharacterBookLinks);
+        var payload = {
+            id: id,
+            name: el.skCharacterName ? el.skCharacterName.value : "",
+            role_archetype: el.skCharacterRole ? el.skCharacterRole.value : "",
+            archetype: el.skCharacterArchetype ? el.skCharacterArchetype.value : "",
+            image_url: el.skCharacterImageUrl ? el.skCharacterImageUrl.value : "",
+            color: getSkCharacterActiveColor(),
+            description: el.skCharacterDescription ? el.skCharacterDescription.value : "",
+            motivation_arc: el.skCharacterMotivation ? el.skCharacterMotivation.value : "",
+            backstory: el.skCharacterBackstory ? el.skCharacterBackstory.value : ""
+        };
+        if (bookIds.length) {
+            payload.bookLinks = bookIds.map(function (pid) { return { project_id: pid }; });
+        } else {
+            payload.bookLinks = [];
+        }
+        setResourceSeriesKnowledgeStatus("Saving character...", "warn");
+        callAppsScriptJson("saveSupabaseSeriesCharacterJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function (result) {
+                setResourceSeriesKnowledgeStatus("Character saved.", "ok");
+                var savedId = result && result.character ? Number(result.character.id) : id;
+                return loadSkCharacters(skCurrentSeriesId).then(function () {
+                    if (savedId) editSkCharacter(savedId);
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save character: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkCharacter() {
+        var id = Number(el.skCharacterId ? el.skCharacterId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this character? This cannot be undone.")) return;
+        callAppsScriptJson("deleteSupabaseSeriesCharacterJsonFromClient", [id])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Character deleted.", "ok");
+                if (skCurrentSeriesId) loadSkCharacters(skCurrentSeriesId);
+                if (el.skCharacterForm) el.skCharacterForm.hidden = true;
+                skEditingCharacterId = 0;
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to delete character: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function addSkRelationship() {
+        if (!skEditingCharacterId) { setResourceSeriesKnowledgeStatus("Save the character first before adding relationships.", "warn"); return; }
+        if (!el.skCharacterRelOther || !el.skCharacterRelType) return;
+        var otherId = Number(el.skCharacterRelOther.value || 0);
+        var relType = el.skCharacterRelType.value;
+        if (!otherId) { setResourceSeriesKnowledgeStatus("Select a character for the relationship.", "warn"); return; }
+        if (!relType) { setResourceSeriesKnowledgeStatus("Enter a relationship type (e.g. friend, rival).", "warn"); return; }
+        callAppsScriptJson("saveSupabaseSeriesCharacterRelationshipJsonFromClient", [skCurrentSeriesId, JSON.stringify({
+            character_id_a: skEditingCharacterId,
+            character_id_b: otherId,
+            relationship_type: relType
+        })])
+            .then(function () {
+                delete skCache.characterDetails[skEditingCharacterId];
+                editSkCharacter(skEditingCharacterId);
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to add relationship: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkRelationship(relId) {
+        callAppsScriptJson("deleteSupabaseSeriesCharacterRelationshipJsonFromClient", [relId])
+            .then(function () {
+                if (skEditingCharacterId) {
+                    delete skCache.characterDetails[skEditingCharacterId];
+                    editSkCharacter(skEditingCharacterId);
+                }
+            })
+            .catch(function () {});
+    }
+
+    /* ---- Locations ---- */
+
+    function loadSkLocations(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        skCache.locationDetails = {};
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesLocationsJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesLocationBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].locations ? results[0].locations : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksByLoc = {};
+            links.forEach(function (lk) {
+                var lid = Number(lk.location_id || 0);
+                if (!lid) return;
+                if (!linksByLoc[lid]) linksByLoc[lid] = [];
+                linksByLoc[lid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (loc) {
+                var lid = Number(loc.id || 0);
+                if (linksByLoc[lid]) {
+                    loc.bookLinks = linksByLoc[lid];
+                    skCache.locationDetails[lid] = { bookLinks: linksByLoc[lid] };
+                }
+            });
+            skCache.locations[seriesId] = list;
+            renderSkLocationList();
+            populateSkLocationSelectors();
+            return list;
+        })
+            .catch(function () {});
+    }
+
+    function renderSkLocationList() {
+        if (!el.skLocationList) return;
+        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skLocationList.innerHTML = "<div class='world-entity-empty'>No locations yet. Click + Add Location to start.</div>";
+            return;
+        }
+        el.skLocationList.innerHTML = list.map(function (loc) {
+            var active = skActiveLocationId === Number(loc.id) ? " is-active" : "";
+            var snippet = (loc.description || loc.significance || "").substring(0, 80);
+            return "<div class='world-entity-card" + active + "' data-sk-loc-id='" + loc.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(loc.name || "Unnamed") + "</div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(loc.type || "") + "</span></div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skLocationList.querySelectorAll("[data-sk-loc-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-loc-id") || 0);
+                editSkLocation(id);
+            });
+        });
+    }
+
+    function populateSkLocationSelectors() {
+        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var opts = list.map(function (loc) {
+            return "<option value='" + loc.id + "'>" + escapeHtml(loc.name || "Unnamed") + "</option>";
+        }).join("");
+        if (el.skContinuityLocAdd) {
+            var currentVal = el.skContinuityLocAdd.value;
+            el.skContinuityLocAdd.innerHTML = "<option value=''>Link a location...</option>" + opts;
+            el.skContinuityLocAdd.value = currentVal;
+        }
+    }
+
+    function updateSkLocationHeader(loc) {
+        if (!loc) return;
+        if (el.skLocationNameDisplay) el.skLocationNameDisplay.textContent = loc.name || "Unnamed";
+        if (el.skLocationTypeBadge) {
+            if (loc.type) {
+                el.skLocationTypeBadge.textContent = loc.type;
+                el.skLocationTypeBadge.style.display = "inline-flex";
+            } else {
+                el.skLocationTypeBadge.style.display = "none";
+            }
+        }
+        if (el.skLocationImage && el.skLocationImagePlaceholder) {
+            if (loc.image_url) {
+                el.skLocationImage.src = loc.image_url;
+                el.skLocationImage.style.display = "block";
+                el.skLocationImagePlaceholder.style.display = "none";
+            } else {
+                el.skLocationImage.style.display = "none";
+                el.skLocationImagePlaceholder.style.display = "flex";
+            }
+        }
+    }
+
+    function editSkLocation(id) {
+        skEditingLocationId = id;
+        skActiveLocationId = id;
+        skLastSelection.locationId = id;
+        skLastSelection.subTab = "locations";
+        if (!el.skLocationForm) return;
+        el.skLocationForm.hidden = false;
+
+        if (!id) {
+            el.skLocationId.value = "0";
+            el.skLocationName.value = "";
+            el.skLocationType.value = "";
+            el.skLocationImageUrl.value = "";
+            el.skLocationDescription.value = "";
+            el.skLocationSignificance.value = "";
+            el.skLocationEvents.value = "";
+            if (el.skLocationNameDisplay) el.skLocationNameDisplay.textContent = "New Location";
+            if (el.skLocationTypeBadge) { el.skLocationTypeBadge.style.display = "none"; el.skLocationTypeBadge.textContent = ""; }
+            if (el.skLocationImage) el.skLocationImage.style.display = "none";
+            if (el.skLocationImagePlaceholder) el.skLocationImagePlaceholder.style.display = "flex";
+            if (el.skLocationList) renderSkLocationList();
+            renderSkLocationBookChecks([]);
+            return;
+        }
+
+        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var loc = list.find(function (l) { return Number(l.id) === id; });
+        if (!loc) return;
+
+        el.skLocationId.value = String(loc.id || 0);
+        el.skLocationName.value = String(loc.name || "");
+        el.skLocationType.value = String(loc.type || "");
+        el.skLocationImageUrl.value = String(loc.image_url || "");
+        el.skLocationDescription.value = String(loc.description || "");
+        el.skLocationSignificance.value = String(loc.significance || "");
+        el.skLocationEvents.value = String(loc.notable_events || "");
+        updateSkLocationHeader(loc);
+        if (el.skLocationList) renderSkLocationList();
+
+        var cached = skCache.locationDetails[id];
+        if (cached) {
+            renderSkLocationBookChecks(cached.bookLinks || []);
+            renderSkLocationDetail(loc, cached.bookLinks || []);
+            return;
+        }
+
+        renderSkLocationDetail(loc, []);
+        callAppsScriptJson("getSupabaseSeriesLocationJsonFromClient", [id])
+            .then(function (result) {
+                if (!result || !result.ok) return;
+                skCache.locationDetails[id] = { bookLinks: result.bookLinks || [] };
+                renderSkLocationBookChecks(result.bookLinks || []);
+                renderSkLocationDetail(loc, result.bookLinks || []);
+            })
+            .catch(function () {});
+    }
+
+    function renderSkLocationDetail(loc, bookLinks) {
+        if (!el.skLocationDetail) return;
+        if (!loc) { el.skLocationDetail.innerHTML = '<div class="sk-detail-placeholder">Select a location to view details</div>'; return; }
+        var projects = getSkProjectsForSeries();
+        var linkedBooks = (bookLinks || []).map(function (bl) {
+            var p = projects.find(function (pr) { return Number(pr.id) === Number(bl.project_id); });
+            return p ? p.title : "Book #" + bl.project_id;
+        });
+        var html = '<div class="sk-detail-heading">' + escapeHtml(loc.name || "Unnamed") + '</div>';
+        if (loc.type) html += '<div class="sk-detail-role">' + escapeHtml(loc.type) + '</div>';
+        html += '<div class="sk-detail-section"><div class="sk-detail-label">Description</div><div class="sk-detail-text">' + escapeHtml(loc.description || "—") + '</div></div>';
+        if (loc.significance) html += '<div class="sk-detail-section"><div class="sk-detail-label">Significance</div><div class="sk-detail-text">' + escapeHtml(loc.significance) + '</div></div>';
+        if (loc.notable_events) html += '<div class="sk-detail-section"><div class="sk-detail-label">Notable Events</div><div class="sk-detail-text">' + escapeHtml(loc.notable_events) + '</div></div>';
+        if (linkedBooks.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Appears In</div><div class="sk-detail-chip-list">' + linkedBooks.map(function (t) { return '<span class="sk-detail-chip">' + escapeHtml(t) + '</span>'; }).join("") + '</div></div>';
+        el.skLocationDetail.innerHTML = html;
+    }
+
+    function renderSkLocationBookChecks(bookLinks) {
+        if (!el.skLocationBookLinks) return;
+        var projects = getSkProjectsForSeries();
+        var linked = {};
+        (bookLinks || []).forEach(function (bl) { linked[Number(bl.project_id)] = true; });
+        if (!projects.length) {
+            el.skLocationBookLinks.innerHTML = "<div class='tiny'>No books found in this series.</div>";
+            return;
+        }
+        el.skLocationBookLinks.innerHTML = projects.map(function (p) {
+            var checked = linked[Number(p.id)] ? " checked" : "";
+            return "<label><input type='checkbox' data-sk-project-id='" + p.id + "'" + checked + " /> " + escapeHtml(p.title || "Untitled") + "</label>";
+        }).join("");
+    }
+
+    function saveSkLocation() {
+        if (!skCurrentSeriesId || !el.skLocationForm) return;
+        var id = Number(el.skLocationId.value || 0);
+        var bookIds = getCheckedBookIds(el.skLocationBookLinks);
+        var payload = {
+            id: id,
+            name: el.skLocationName ? el.skLocationName.value : "",
+            type: el.skLocationType ? el.skLocationType.value : "",
+            image_url: el.skLocationImageUrl ? el.skLocationImageUrl.value : "",
+            description: el.skLocationDescription ? el.skLocationDescription.value : "",
+            significance: el.skLocationSignificance ? el.skLocationSignificance.value : "",
+            notable_events: el.skLocationEvents ? el.skLocationEvents.value : ""
+        };
+        if (bookIds.length) {
+            payload.bookLinks = bookIds.map(function (pid) { return { project_id: pid }; });
+        } else {
+            payload.bookLinks = [];
+        }
+        setResourceSeriesKnowledgeStatus("Saving location...", "warn");
+        callAppsScriptJson("saveSupabaseSeriesLocationJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function (result) {
+                setResourceSeriesKnowledgeStatus("Location saved.", "ok");
+                var savedId = result && result.location ? Number(result.location.id) : id;
+                return loadSkLocations(skCurrentSeriesId).then(function () {
+                    if (savedId) editSkLocation(savedId);
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save location: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkLocation() {
+        var id = Number(el.skLocationId ? el.skLocationId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this location? This cannot be undone.")) return;
+        callAppsScriptJson("deleteSupabaseSeriesLocationJsonFromClient", [id])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Location deleted.", "ok");
+                if (skCurrentSeriesId) loadSkLocations(skCurrentSeriesId);
+                if (el.skLocationForm) el.skLocationForm.hidden = true;
+                skEditingLocationId = 0;
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to delete location: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    /* ---- Continuity ---- */
+
+    function loadSkContinuityEntries(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        skCache.continuityDetails = {};
+        return callAppsScriptJson("listSupabaseSeriesContinuityEntriesJsonFromClient", [seriesId])
+            .then(function (result) {
+                var list = result && result.entries ? result.entries : [];
+                skCache.continuity[seriesId] = list;
+                renderSkContinuityList();
+                return list;
+            })
+            .catch(function () {});
+    }
+
+    function renderSkContinuityList() {
+        if (!el.skContinuityList) return;
+        var list = skCurrentSeriesId ? (skCache.continuity[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skContinuityList.innerHTML = "<div class='world-entity-empty'>No continuity entries yet. Click + Add Entry to start.</div>";
+            return;
+        }
+        el.skContinuityList.innerHTML = list.map(function (entry) {
+            var severity = entry.severity || "minor";
+            var active = skActiveContinuityId === Number(entry.id) ? " is-active" : "";
+            var resolved = entry.resolved ? " <span class='resolved-badge is-resolved'>Resolved</span>" : " <span class='resolved-badge is-unresolved'>Open</span>";
+            var snippet = (entry.description || "").substring(0, 80);
+            return "<div class='world-entity-card" + active + "' data-sk-cont-id='" + entry.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(entry.title || "Untitled") + "</div>" +
+                    "<div class='world-entity-card-meta'><span class='severity-badge " + severity + "'>" + severity.replace("_", " ") + "</span>" + resolved + "</div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skContinuityList.querySelectorAll("[data-sk-cont-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-cont-id") || 0);
+                editSkContinuityEntry(id);
+            });
+        });
+    }
+
+    function updateSkContinuityHeader(entry) {
+        if (!entry) return;
+        if (el.skContinuityTitleDisplay) el.skContinuityTitleDisplay.textContent = entry.title || "Untitled";
+        if (el.skContinuitySeverityBadge) {
+            if (entry.severity) {
+                el.skContinuitySeverityBadge.textContent = entry.severity.replace("_", " ");
+                el.skContinuitySeverityBadge.style.display = "inline-flex";
+            } else {
+                el.skContinuitySeverityBadge.style.display = "none";
+            }
+        }
+        if (el.skContinuityImage && el.skContinuityImagePlaceholder) {
+            if (entry.image_url) {
+                el.skContinuityImage.src = entry.image_url;
+                el.skContinuityImage.style.display = "block";
+                el.skContinuityImagePlaceholder.style.display = "none";
+            } else {
+                el.skContinuityImage.style.display = "none";
+                el.skContinuityImagePlaceholder.style.display = "flex";
+            }
+        }
+    }
+
+    function editSkContinuityEntry(id) {
+        skEditingContinuityId = id;
+        skActiveContinuityId = id;
+        skLastSelection.continuityId = id;
+        skLastSelection.subTab = "continuity";
+        if (!el.skContinuityForm) return;
+        el.skContinuityForm.hidden = false;
+
+        if (!id) {
+            el.skContinuityId.value = "0";
+            el.skContinuityTitle.value = "";
+            el.skContinuityImageUrl.value = "";
+            el.skContinuityDescription.value = "";
+            el.skContinuitySeverity.value = "minor";
+            el.skContinuityResolved.checked = false;
+            if (el.skContinuityTitleDisplay) el.skContinuityTitleDisplay.textContent = "New Entry";
+            if (el.skContinuitySeverityBadge) { el.skContinuitySeverityBadge.style.display = "none"; el.skContinuitySeverityBadge.textContent = ""; }
+            if (el.skContinuityImage) el.skContinuityImage.style.display = "none";
+            if (el.skContinuityImagePlaceholder) el.skContinuityImagePlaceholder.style.display = "flex";
+            if (el.skContinuityList) renderSkContinuityList();
+            renderSkContinuityCharPicks([]);
+            renderSkContinuityLocPicks([]);
+            renderSkContinuityProjectPicks([]);
+            return;
+        }
+
+        var list = skCurrentSeriesId ? (skCache.continuity[skCurrentSeriesId] || []) : [];
+        var entry = list.find(function (e) { return Number(e.id) === id; });
+        if (!entry) return;
+
+        el.skContinuityId.value = String(entry.id || 0);
+        el.skContinuityTitle.value = String(entry.title || "");
+        el.skContinuityImageUrl.value = String(entry.image_url || "");
+        el.skContinuityDescription.value = String(entry.description || "");
+        el.skContinuitySeverity.value = entry.severity || "minor";
+        el.skContinuityResolved.checked = !!entry.resolved;
+        updateSkContinuityHeader(entry);
+        if (el.skContinuityList) renderSkContinuityList();
+
+        var cached = skCache.continuityDetails[id];
+        if (cached) {
+            renderSkContinuityCharPicks(cached.linkedCharacterIds || []);
+            renderSkContinuityLocPicks(cached.linkedLocationIds || []);
+            renderSkContinuityProjectPicks(cached.linkedProjectIds || []);
+            renderSkContinuityDetail(entry, cached);
+            return;
+        }
+
+        renderSkContinuityDetail(entry, {});
+        callAppsScriptJson("getSupabaseSeriesContinuityEntryJsonFromClient", [id])
+            .then(function (result) {
+                if (!result || !result.ok) return;
+                skCache.continuityDetails[id] = {
+                    linkedCharacterIds: result.linkedCharacterIds || [],
+                    linkedLocationIds: result.linkedLocationIds || [],
+                    linkedProjectIds: result.linkedProjectIds || []
+                };
+                renderSkContinuityCharPicks(result.linkedCharacterIds || []);
+                renderSkContinuityLocPicks(result.linkedLocationIds || []);
+                renderSkContinuityProjectPicks(result.linkedProjectIds || []);
+                renderSkContinuityDetail(entry, skCache.continuityDetails[id]);
+            })
+            .catch(function () {});
+    }
+
+    function renderSkContinuityDetail(entry, data) {
+        if (!el.skContinuityDetail) return;
+        if (!entry) { el.skContinuityDetail.innerHTML = '<div class="sk-detail-placeholder">Select an entry to view details</div>'; return; }
+        var charList = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var locList = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var projList = getSkProjectsForSeries();
+        var charNames = (data.linkedCharacterIds || []).map(function (cid) {
+            var c = charList.find(function (ch) { return Number(ch.id) === cid; });
+            return c ? c.name : "Character #" + cid;
+        });
+        var locNames = (data.linkedLocationIds || []).map(function (lid) {
+            var l = locList.find(function (loc) { return Number(loc.id) === lid; });
+            return l ? l.name : "Location #" + lid;
+        });
+        var projNames = (data.linkedProjectIds || []).map(function (pid) {
+            var p = projList.find(function (pr) { return Number(pr.id) === pid; });
+            return p ? p.title : "Book #" + pid;
+        });
+        var severity = entry.severity || "minor";
+        var resolved = entry.resolved ? "Resolved" : "Open";
+        var html = '<div class="sk-detail-heading">' + escapeHtml(entry.title || "Untitled") + '</div>';
+        html += '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
+        html += '<span class="severity-badge ' + severity + '">' + severity.replace("_", " ") + '</span>';
+        html += '<span class="resolved-badge ' + (entry.resolved ? 'is-resolved' : 'is-unresolved') + '">' + resolved + '</span>';
+        html += '</div>';
+        html += '<div class="sk-detail-section"><div class="sk-detail-label">Description</div><div class="sk-detail-text">' + escapeHtml(entry.description || "—") + '</div></div>';
+        if (charNames.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Linked Characters</div><div class="sk-detail-chip-list">' + charNames.map(function (n) { return '<span class="sk-detail-chip">' + escapeHtml(n) + '</span>'; }).join("") + '</div></div>';
+        if (locNames.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Linked Locations</div><div class="sk-detail-chip-list">' + locNames.map(function (n) { return '<span class="sk-detail-chip">' + escapeHtml(n) + '</span>'; }).join("") + '</div></div>';
+        if (projNames.length) html += '<div class="sk-detail-section"><div class="sk-detail-label">Affected Books</div><div class="sk-detail-chip-list">' + projNames.map(function (n) { return '<span class="sk-detail-chip">' + escapeHtml(n) + '</span>'; }).join("") + '</div></div>';
+        el.skContinuityDetail.innerHTML = html;
+    }
+
+    function getSkContinuityLinkedChars() {
+        var ids = [];
+        if (el.skContinuityCharPicks) {
+            el.skContinuityCharPicks.querySelectorAll("[data-sk-cont-char-id]").forEach(function (chip) {
+                ids.push(Number(chip.getAttribute("data-sk-cont-char-id")));
+            });
+        }
+        return ids;
+    }
+
+    function getSkContinuityLinkedLocs() {
+        var ids = [];
+        if (el.skContinuityLocPicks) {
+            el.skContinuityLocPicks.querySelectorAll("[data-sk-cont-loc-id]").forEach(function (chip) {
+                ids.push(Number(chip.getAttribute("data-sk-cont-loc-id")));
+            });
+        }
+        return ids;
+    }
+
+    function getSkContinuityLinkedProjects() {
+        var ids = [];
+        if (el.skContinuityProjectPicks) {
+            el.skContinuityProjectPicks.querySelectorAll("[data-sk-cont-proj-id]").forEach(function (chip) {
+                ids.push(Number(chip.getAttribute("data-sk-cont-proj-id")));
+            });
+        }
+        return ids;
+    }
+
+    function renderSkContinuityCharPicks(characterIds) {
+        if (!el.skContinuityCharPicks) return;
+        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var ids = characterIds || [];
+        if (!ids.length) {
+            el.skContinuityCharPicks.innerHTML = "<div class='tiny' style='color:var(--muted);'>No characters linked.</div>";
+            return;
+        }
+        el.skContinuityCharPicks.innerHTML = ids.map(function (cid) {
+            var ch = list.find(function (c) { return Number(c.id) === cid; });
+            var name = ch ? ch.name : "Character #" + cid;
+            return "<span class='entity-picker-chip' data-sk-cont-char-id='" + cid + "'>" +
+                escapeHtml(name) +
+                "<button type='button' class='chip-remove' data-sk-cont-char-remove='" + cid + "'>&times;</button>" +
+            "</span>";
+        }).join("");
+        el.skContinuityCharPicks.querySelectorAll("[data-sk-cont-char-remove]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var cid = Number(btn.getAttribute("data-sk-cont-char-remove") || 0);
+                var remaining = getSkContinuityLinkedChars().filter(function (id) { return id !== cid; });
+                renderSkContinuityCharPicks(remaining);
+            });
+        });
+    }
+
+    function renderSkContinuityLocPicks(locationIds) {
+        if (!el.skContinuityLocPicks) return;
+        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var ids = locationIds || [];
+        if (!ids.length) {
+            el.skContinuityLocPicks.innerHTML = "<div class='tiny' style='color:var(--muted);'>No locations linked.</div>";
+            return;
+        }
+        el.skContinuityLocPicks.innerHTML = ids.map(function (lid) {
+            var loc = list.find(function (l) { return Number(l.id) === lid; });
+            var name = loc ? loc.name : "Location #" + lid;
+            return "<span class='entity-picker-chip' data-sk-cont-loc-id='" + lid + "'>" +
+                escapeHtml(name) +
+                "<button type='button' class='chip-remove' data-sk-cont-loc-remove='" + lid + "'>&times;</button>" +
+            "</span>";
+        }).join("");
+        el.skContinuityLocPicks.querySelectorAll("[data-sk-cont-loc-remove]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var lid = Number(btn.getAttribute("data-sk-cont-loc-remove") || 0);
+                var remaining = getSkContinuityLinkedLocs().filter(function (id) { return id !== lid; });
+                renderSkContinuityLocPicks(remaining);
+            });
+        });
+    }
+
+    function renderSkContinuityProjectPicks(projectIds) {
+        if (!el.skContinuityProjectPicks) return;
+        var projects = getSkProjectsForSeries();
+        var ids = projectIds || [];
+        if (!ids.length) {
+            el.skContinuityProjectPicks.innerHTML = "<div class='tiny' style='color:var(--muted);'>No books linked.</div>";
+            return;
+        }
+        el.skContinuityProjectPicks.innerHTML = ids.map(function (pid) {
+            var p = projects.find(function (pr) { return Number(pr.id) === pid; });
+            var name = p ? p.title : "Book #" + pid;
+            return "<span class='entity-picker-chip' data-sk-cont-proj-id='" + pid + "'>" +
+                escapeHtml(name) +
+                "<button type='button' class='chip-remove' data-sk-cont-proj-remove='" + pid + "'>&times;</button>" +
+            "</span>";
+        }).join("");
+        el.skContinuityProjectPicks.querySelectorAll("[data-sk-cont-proj-remove]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var pid = Number(btn.getAttribute("data-sk-cont-proj-remove") || 0);
+                var remaining = getSkContinuityLinkedProjects().filter(function (id) { return id !== pid; });
+                renderSkContinuityProjectPicks(remaining);
+            });
+        });
+    }
+
+    function saveSkContinuityEntry() {
+        if (!skCurrentSeriesId || !el.skContinuityForm) return;
+        var id = Number(el.skContinuityId.value || 0);
+        var payload = {
+            id: id,
+            title: el.skContinuityTitle ? el.skContinuityTitle.value : "",
+            image_url: el.skContinuityImageUrl ? el.skContinuityImageUrl.value : "",
+            description: el.skContinuityDescription ? el.skContinuityDescription.value : "",
+            severity: el.skContinuitySeverity ? el.skContinuitySeverity.value : "minor",
+            resolved: el.skContinuityResolved ? el.skContinuityResolved.checked : false,
+            linkedCharacterIds: getSkContinuityLinkedChars(),
+            linkedLocationIds: getSkContinuityLinkedLocs(),
+            linkedProjectIds: getSkContinuityLinkedProjects()
+        };
+        setResourceSeriesKnowledgeStatus("Saving continuity entry...", "warn");
+        callAppsScriptJson("saveSupabaseSeriesContinuityEntryJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function (result) {
+                setResourceSeriesKnowledgeStatus("Continuity entry saved.", "ok");
+                var savedId = result && result.entry ? Number(result.entry.id) : id;
+                return loadSkContinuityEntries(skCurrentSeriesId).then(function () {
+                    if (savedId) editSkContinuityEntry(savedId);
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save continuity entry: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkContinuityEntry() {
+        var id = Number(el.skContinuityId ? el.skContinuityId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this continuity entry? This cannot be undone.")) return;
+        callAppsScriptJson("deleteSupabaseSeriesContinuityEntryJsonFromClient", [id])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Continuity entry deleted.", "ok");
+                if (skCurrentSeriesId) loadSkContinuityEntries(skCurrentSeriesId);
+                if (el.skContinuityForm) el.skContinuityForm.hidden = true;
+                skEditingContinuityId = 0;
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to delete continuity entry: " + (error && error.message ? error.message : error), "error");
+            });
+    }

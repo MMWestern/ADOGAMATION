@@ -1,0 +1,262 @@
+    function normalizeInspectorOptionList(values) {
+      const seen = {};
+      return (Array.isArray(values) ? values : []).reduce(function (out, item) {
+        if (item == null) return out;
+        var val, desc;
+        if (typeof item === "string") {
+          val = item.trim();
+          desc = "";
+        } else if (typeof item === "object") {
+          val = String(item.value == null ? "" : item.value).trim();
+          desc = String(item.description || "").trim();
+        } else {
+          return out;
+        }
+        if (!val) return out;
+        const dedupeKey = val.toLowerCase();
+        if (seen[dedupeKey]) return out;
+        seen[dedupeKey] = true;
+        out.push({ value: val, description: desc });
+        return out;
+      }, []);
+    }
+
+    function buildNextStepOptions() {
+        const merged = {};
+        const out = [];
+
+        appState.nextStepOptions.forEach(function (value) {
+            const safe = String(value || "").trim();
+            if (!safe || merged[safe]) return;
+            merged[safe] = true;
+            out.push(safe);
+        });
+
+        getUniqueValues("next_step").forEach(function (value) {
+            const safe = String(value || "").trim();
+            if (!safe || merged[safe]) return;
+            merged[safe] = true;
+            out.push(safe);
+        });
+
+        out.sort(function (a, b) {
+            return a.localeCompare(b);
+        });
+
+        return out;
+    }
+
+    function deriveInspectorOptionsFromProjects() {
+      return {
+        pen_name: getUniqueValues("pen_name"),
+        genre: normalizeInspectorOptionList(DEFAULT_GENRE_OPTIONS.concat(getUniqueValues("genre"))),
+        format: normalizeInspectorOptionList(DEFAULT_FORMAT_OPTIONS.concat(getUniqueValues("format"))),
+        status: normalizeInspectorOptionList(DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))),
+        priority: normalizeInspectorOptionList(DEFAULT_PRIORITY_OPTIONS.concat(getUniqueValues("priority"))),
+        next_step: buildNextStepOptions(),
+        character_role: normalizeInspectorOptionList(DEFAULT_CHARACTER_ROLES),
+        character_archetype: normalizeInspectorOptionList(DEFAULT_CHARACTER_ARCHETYPES)
+      };
+    }
+
+    function normalizeInspectorOptionsConfig(config) {
+      const source = config && typeof config === "object" ? config : {};
+      const fallback = deriveInspectorOptionsFromProjects();
+      return INSPECTOR_OPTION_FIELDS.reduce(function (out, field) {
+        const safeList = normalizeInspectorOptionList(source[field.key]);
+        const fallbackList = normalizeInspectorOptionList(fallback[field.key]);
+        out[field.key] = safeList.length ? safeList : fallbackList.length ? fallbackList : [];
+        if (fallbackList.length && safeList.length) {
+          var fallbackDesc = {};
+          fallbackList.forEach(function (o) { if (o.description) fallbackDesc[o.value.toLowerCase()] = o.description; });
+          out[field.key].forEach(function (o) {
+            if (!o.description) {
+              var match = fallbackDesc[o.value.toLowerCase()];
+              if (match) o.description = match;
+            }
+          });
+        }
+        return out;
+      }, {});
+    }
+
+    function getInspectorOptionValues(key, fallbackValues) {
+      const configured = appState.inspectorOptions && Array.isArray(appState.inspectorOptions[key])
+        ? appState.inspectorOptions[key]
+        : null;
+      const safeFallback = normalizeInspectorOptionList(fallbackValues);
+      const source = configured && configured.length ? configured : safeFallback;
+      return source.map(function (o) { return o.value; });
+    }
+
+    function getInspectorOptionDescriptions(key, fallbackValues) {
+      const configured = appState.inspectorOptions && Array.isArray(appState.inspectorOptions[key])
+        ? appState.inspectorOptions[key]
+        : null;
+      if (configured && configured.length) {
+        return configured.reduce(function (map, opt) {
+          if (opt.description) map[opt.value] = opt.description;
+          return map;
+        }, {});
+      }
+      return normalizeInspectorOptionList(fallbackValues).reduce(function (map, opt) {
+        if (opt.description) map[opt.value] = opt.description;
+        return map;
+      }, {});
+    }
+
+    function setResourceInspectorStatus(message, mode) {
+        if (!el.resourceInspectorStatus) return;
+        el.resourceInspectorStatus.textContent = message || "";
+        el.resourceInspectorStatus.className = "status-bar" + (mode ? " " + mode : "");
+    }
+
+    function renderResourceInspectorFilterOptions() {
+        if (!el.resourceInspectorTypeFilter) return;
+        var current = String(appState.inspectorOptionsFilter || "all").trim() || "all";
+        el.resourceInspectorTypeFilter.innerHTML = "<option value='all'>All Types</option>" + INSPECTOR_OPTION_FIELDS.map(function (field) {
+            return "<option value='" + escapeHtml(field.key) + "'>" + escapeHtml(field.label) + "</option>";
+        }).join("");
+        el.resourceInspectorTypeFilter.value = INSPECTOR_OPTION_FIELDS.some(function (field) {
+            return field.key === current;
+        }) ? current : "all";
+        appState.inspectorOptionsFilter = el.resourceInspectorTypeFilter.value;
+    }
+
+    function updateResourceInspectorCount(total, visible) {
+        if (!el.resourceInspectorCount) return;
+        var safeTotal = Number(total || 0) || 0;
+        var safeVisible = Number(visible || 0) || 0;
+        if (safeVisible === safeTotal) {
+            el.resourceInspectorCount.textContent = safeTotal + " option" + (safeTotal === 1 ? "" : "s");
+        } else {
+            el.resourceInspectorCount.textContent = safeVisible + " of " + safeTotal + " options";
+        }
+    }
+
+    function syncInspectorOptionsFromTable() {
+        if (!el.resourceInspectorTableBody) return;
+        appState.inspectorOptions = readInspectorOptionsFromTable();
+    }
+
+    function renderResourceInspectorPanel() {
+        if (!el.resourceInspectorTableBody) return;
+        renderResourceInspectorFilterOptions();
+        const options = normalizeInspectorOptionsConfig(appState.inspectorOptions);
+        const rows = [];
+        INSPECTOR_OPTION_FIELDS.forEach(function (field) {
+            (options[field.key] || []).forEach(function (item) {
+                rows.push({ key: field.key, value: String(item.value || ""), description: String(item.description || "") });
+            });
+        });
+        const filterKey = String(appState.inspectorOptionsFilter || "all").trim() || "all";
+        const visibleRows = rows.filter(function (row) {
+            return filterKey === "all" || row.key === filterKey;
+        });
+        if (!visibleRows.length) {
+            visibleRows.push({ key: filterKey !== "all" ? filterKey : "genre", value: "", description: "" });
+        }
+        el.resourceInspectorTableBody.innerHTML = visibleRows.map(function (row) {
+            const selectOptions = INSPECTOR_OPTION_FIELDS.map(function (field) {
+                return "<option value='" + escapeHtml(field.key) + "'" + (field.key === row.key ? " selected" : "") + ">" + escapeHtml(field.label) + "</option>";
+            }).join("");
+            return (
+                "<tr>" +
+                    "<td><select data-inspector-option-key>" + selectOptions + "</select></td>" +
+                    "<td><input type='text' data-inspector-option-value value='" + escapeHtml(row.value) + "' placeholder='Option value' /></td>" +
+                    "<td><input type='text' data-inspector-option-desc value='" + escapeHtml(row.description) + "' placeholder='Description (optional)' /></td>" +
+                    "<td><button type='button' class='resource-inspector-remove' data-inspector-remove-row>&times;</button></td>" +
+                "</tr>"
+            );
+        }).join("");
+        updateResourceInspectorCount(rows.length, visibleRows.length);
+        setResourceInspectorStatus("Inspector options ready.", "ok");
+    }
+
+    function readInspectorOptionsFromTable() {
+        const out = INSPECTOR_OPTION_FIELDS.reduce(function (memo, field) {
+            memo[field.key] = [];
+            return memo;
+        }, {});
+        if (!el.resourceInspectorTableBody) return out;
+        Array.from(el.resourceInspectorTableBody.querySelectorAll("tr")).forEach(function (row) {
+            const keyField = row.querySelector("[data-inspector-option-key]");
+            const valueField = row.querySelector("[data-inspector-option-value]");
+            const descField = row.querySelector("[data-inspector-option-desc]");
+            const key = keyField ? String(keyField.value || "").trim() : "";
+            const value = valueField ? String(valueField.value || "").trim() : "";
+            const description = descField ? String(descField.value || "").trim() : "";
+            if (!key || !out[key]) return;
+            out[key].push(description ? { value: value, description: description } : value);
+        });
+        return normalizeInspectorOptionsConfig(out);
+    }
+
+    function loadInspectorOptions() {
+        const fallback = deriveInspectorOptionsFromProjects();
+        if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+            appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+            appState.inspectorOptionsLoaded = true;
+            renderResourceInspectorPanel();
+            populateFilters();
+            return;
+        }
+
+        supabaseRunner
+            .withSuccessHandler(function (json) {
+                try {
+                    const payload = parseServerResult(json);
+                    if (payload.ok === false) throw new Error(payload.error || "Inspector options load failed.");
+                    appState.inspectorOptions = normalizeInspectorOptionsConfig(payload.options || fallback);
+                    appState.inspectorOptionsLoaded = true;
+                    renderResourceInspectorPanel();
+                    populateFilters();
+                } catch (err) {
+                    appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+                    appState.inspectorOptionsLoaded = true;
+                    renderResourceInspectorPanel();
+                    populateFilters();
+                    setResourceInspectorStatus("Using project-derived options. " + err.message, "warn");
+                }
+            })
+            .withFailureHandler(function (error) {
+                appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+                appState.inspectorOptionsLoaded = true;
+                renderResourceInspectorPanel();
+                populateFilters();
+                setResourceInspectorStatus("Using project-derived options. " + (error && error.message ? error.message : error), "warn");
+            })
+            .getProjectInspectorOptionsJsonFromClient();
+    }
+
+    function saveInspectorOptions() {
+        const options = readInspectorOptionsFromTable();
+        appState.inspectorOptions = options;
+        renderResourceInspectorPanel();
+        populateFilters();
+        if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+            setResourceInspectorStatus("Inspector options updated locally.", "ok");
+            return;
+        }
+        if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = true;
+        setResourceInspectorStatus("Saving inspector options...", "warn");
+        supabaseRunner
+            .withSuccessHandler(function (json) {
+                if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = false;
+                try {
+                    const payload = parseServerResult(json);
+                    if (payload.ok === false) throw new Error(payload.error || "Inspector options save failed.");
+                    appState.inspectorOptions = normalizeInspectorOptionsConfig(payload.options || options);
+                    renderResourceInspectorPanel();
+                    populateFilters();
+                    setResourceInspectorStatus("Inspector options saved.", "ok");
+                } catch (err) {
+                    setResourceInspectorStatus("Inspector options save failed: " + err.message, "error");
+                }
+            })
+            .withFailureHandler(function (error) {
+                if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = false;
+                setResourceInspectorStatus("Inspector options save failed: " + (error && error.message ? error.message : error), "error");
+            })
+            .saveProjectInspectorOptionsJsonFromClient(JSON.stringify(options));
+    }

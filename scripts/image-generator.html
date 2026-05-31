@@ -1,0 +1,743 @@
+    function populateImageGeneratorStyleSelect() {
+        if (!el.imageGeneratorStyle) return;
+        const current = String(el.imageGeneratorStyle.value || "cinematic").trim().toLowerCase();
+        el.imageGeneratorStyle.innerHTML = "";
+        IMAGE_GENERATOR_STYLE_PRESETS.forEach(function (preset) {
+            el.imageGeneratorStyle.appendChild(createOption(preset.key, preset.label));
+        });
+        const hasCurrent = IMAGE_GENERATOR_STYLE_PRESETS.some(function (preset) {
+            return preset.key === current;
+        });
+        el.imageGeneratorStyle.value = hasCurrent ? current : "cinematic";
+    }
+
+    function getImageGeneratorStylePreset(styleKey) {
+        const key = String(styleKey || "").trim().toLowerCase();
+        return IMAGE_GENERATOR_STYLE_PRESETS.find(function (preset) {
+            return preset.key === key;
+        }) || IMAGE_GENERATOR_STYLE_PRESETS.find(function (preset) {
+            return preset.key === "cinematic";
+        }) || IMAGE_GENERATOR_STYLE_PRESETS[0];
+    }
+
+    function setImageGeneratorStatus(message, mode) {
+        if (!el.imageGeneratorStatus) return;
+        el.imageGeneratorStatus.textContent = message;
+        el.imageGeneratorStatus.className = "status-bar" + (mode ? " " + mode : "");
+    }
+
+    function setImageGeneratorBusy(isBusy, message) {
+        appState.imageGenerator.isGenerating = !!isBusy;
+        if (el.imageGeneratorSpinner) {
+            el.imageGeneratorSpinner.hidden = !isBusy;
+            el.imageGeneratorSpinner.setAttribute("aria-hidden", isBusy ? "false" : "true");
+        }
+        if (el.imageGeneratorPreviewEmpty) {
+            el.imageGeneratorPreviewEmpty.hidden = !!isBusy;
+            if (isBusy && message) el.imageGeneratorPreviewEmpty.textContent = message;
+            if (!isBusy && !el.imageGeneratorPreviewImage.hidden) {
+                el.imageGeneratorPreviewEmpty.hidden = true;
+            }
+        }
+    }
+
+    function getSelectedProjectForImageGenerator() {
+        return getSelectedProject() || getProjectByRow(appState.selectedRowNumber);
+    }
+
+    function isSeriesImageGenerationMode() {
+        return getDetailImageMode() === "series";
+    }
+
+    function readImageGeneratorSettingsStore() {
+        try {
+            const raw = localStorage.getItem(IMAGE_GENERATOR_SETTINGS_CACHE_KEY);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return {
+                scopes: parsed && parsed.scopes && typeof parsed.scopes === "object" ? parsed.scopes : {},
+                images: parsed && parsed.images && typeof parsed.images === "object" ? parsed.images : {}
+            };
+        } catch (error) {
+            console.warn("IMAGE GENERATOR SETTINGS LOAD FAILED", error);
+            return { scopes: {}, images: {} };
+        }
+    }
+
+    function writeImageGeneratorSettingsStore(store) {
+        try {
+            localStorage.setItem(IMAGE_GENERATOR_SETTINGS_CACHE_KEY, JSON.stringify({
+                scopes: store && store.scopes && typeof store.scopes === "object" ? store.scopes : {},
+                images: store && store.images && typeof store.images === "object" ? store.images : {}
+            }));
+        } catch (error) {
+            console.warn("IMAGE GENERATOR SETTINGS SAVE FAILED", error);
+        }
+    }
+
+    function getImageGeneratorScopeKey(project) {
+        const activeProject = project || getSelectedProjectForImageGenerator() || {};
+        if (isSeriesImageGenerationMode()) {
+            return "series::" + slugifyImageGeneratorPart(activeProject.series || el.detailSeries && el.detailSeries.value || "", "series-image");
+        }
+        return "project::" + String(activeProject.rowNumber || appState.selectedRowNumber || slugifyImageGeneratorPart(activeProject.title || "", "project"));
+    }
+
+    function captureImageGeneratorSettings() {
+        return {
+            style: String(el.imageGeneratorStyle && el.imageGeneratorStyle.value || "cinematic").trim(),
+            mood: String(el.imageGeneratorMood && el.imageGeneratorMood.value || "mysterious").trim(),
+            palette: String(el.imageGeneratorPalette && el.imageGeneratorPalette.value || "rich-cinematic").trim(),
+            focus: String(el.imageGeneratorFocus && el.imageGeneratorFocus.value || "character").trim(),
+            typography: String(el.imageGeneratorTypography && el.imageGeneratorTypography.value || "title-only").trim(),
+            textPlacement: String(el.imageGeneratorTextPlacement && el.imageGeneratorTextPlacement.value || "none").trim(),
+            fontStyle: String(el.imageGeneratorFontStyle && el.imageGeneratorFontStyle.value || "none").trim(),
+            amount: String(el.imageGeneratorAmount && el.imageGeneratorAmount.value || "1").trim(),
+            size: String(el.imageGeneratorSize && el.imageGeneratorSize.value || "768x1152").trim(),
+            useSeriesSummaries: !!(el.imageGeneratorUseSeriesSummaries && el.imageGeneratorUseSeriesSummaries.checked)
+        };
+    }
+
+    function applyImageGeneratorSettings(settings) {
+        if (!settings || typeof settings !== "object") return false;
+        if (el.imageGeneratorStyle && settings.style) el.imageGeneratorStyle.value = settings.style;
+        if (el.imageGeneratorMood && settings.mood) el.imageGeneratorMood.value = settings.mood;
+        if (el.imageGeneratorPalette && settings.palette) el.imageGeneratorPalette.value = settings.palette;
+        if (el.imageGeneratorFocus && settings.focus) el.imageGeneratorFocus.value = settings.focus;
+        if (el.imageGeneratorTypography && settings.typography) el.imageGeneratorTypography.value = settings.typography;
+        if (el.imageGeneratorTextPlacement && settings.textPlacement) el.imageGeneratorTextPlacement.value = settings.textPlacement;
+        if (el.imageGeneratorFontStyle && settings.fontStyle) el.imageGeneratorFontStyle.value = settings.fontStyle;
+        if (el.imageGeneratorAmount && settings.amount) el.imageGeneratorAmount.value = settings.amount;
+        if (el.imageGeneratorSize && settings.size) el.imageGeneratorSize.value = settings.size;
+        if (el.imageGeneratorUseSeriesSummaries) el.imageGeneratorUseSeriesSummaries.checked = !!settings.useSeriesSummaries;
+        return true;
+    }
+
+    function rememberImageGeneratorScopeSettings(project) {
+        const store = readImageGeneratorSettingsStore();
+        store.scopes[getImageGeneratorScopeKey(project)] = captureImageGeneratorSettings();
+        writeImageGeneratorSettingsStore(store);
+    }
+
+    function getRememberedImageGeneratorScopeSettings(project) {
+        const store = readImageGeneratorSettingsStore();
+        return store.scopes[getImageGeneratorScopeKey(project)] || null;
+    }
+
+    function rememberImageGeneratorSettingsForImage(imageUrl) {
+        const safeUrl = normalizeImageUrl(imageUrl || "");
+        if (!safeUrl) return;
+        const store = readImageGeneratorSettingsStore();
+        const settings = captureImageGeneratorSettings();
+        store.images[safeUrl] = settings;
+        writeImageGeneratorSettingsStore(store);
+        const fileRecord = findImagePickerFileByUrl(safeUrl);
+        if (fileRecord) {
+            fileRecord.generatorSettings = Object.assign({}, settings);
+            persistImageGeneratorSettingsForAsset(fileRecord);
+        }
+    }
+
+    function getRememberedImageGeneratorSettingsForImage(imageUrl) {
+        const safeUrl = normalizeImageUrl(imageUrl || "");
+        if (!safeUrl) return null;
+        const fileRecord = findImagePickerFileByUrl(safeUrl);
+        if (fileRecord && fileRecord.generatorSettings && typeof fileRecord.generatorSettings === "object" && Object.keys(fileRecord.generatorSettings).length) {
+            return fileRecord.generatorSettings;
+        }
+        const store = readImageGeneratorSettingsStore();
+        return store.images[safeUrl] || null;
+    }
+
+    function loadImageGeneratorSettingsFromSelectedImage() {
+        const selectedUrl = normalizeImageUrl(appState.imagePicker.selectedUrl || "") || normalizeImageUrl(getDetailImageInputByMode(getDetailImageMode()).value || "");
+        if (!selectedUrl) {
+            setImageGeneratorStatus("Select an image first, then load its saved style settings.", "warn");
+            return;
+        }
+        const settings = getRememberedImageGeneratorSettingsForImage(selectedUrl);
+        if (!settings) {
+            setImageGeneratorStatus("No saved generator settings were found for that image yet.", "warn");
+            return;
+        }
+        applyImageGeneratorSettings(settings);
+        rememberImageGeneratorScopeSettings(getSelectedProjectForImageGenerator());
+        updateImageGeneratorPromptPreview();
+        setImageGeneratorStatus("Loaded saved style settings from the selected image.", "ok");
+    }
+
+    function buildSeriesSummaryDigest(seriesName, currentProject) {
+        const safeSeries = String(seriesName || "").trim();
+        if (!safeSeries) return "";
+        const seriesProjects = getProjectsForSeries(safeSeries);
+        const summaryLines = seriesProjects.map(function (project) {
+            const projectTitle = String(project && project.title || "").trim();
+            const projectSummary = String(project && project.short_summary || "").trim();
+            if (!projectSummary) return "";
+            return projectTitle ? projectTitle + ": " + projectSummary : projectSummary;
+        }).filter(Boolean);
+
+        if (!summaryLines.length) {
+            return currentProject && currentProject.short_summary ? String(currentProject.short_summary).trim() : "";
+        }
+
+        return summaryLines.join(" | ");
+    }
+
+    function slugifyImageGeneratorPart(value, fallback) {
+        const raw = String(value || "").trim().toLowerCase();
+        const slug = raw
+            .replace(/['".,!?()[\]{}]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        return slug || String(fallback || "untitled");
+    }
+
+    function getImageGeneratorBaseName() {
+        const project = getSelectedProjectForImageGenerator() || {};
+        const seriesPart = slugifyImageGeneratorPart(project.series || el.detailSeries && el.detailSeries.value || "", "standalone");
+        const titlePart = slugifyImageGeneratorPart(project.title || el.detailTitleInput && el.detailTitleInput.value || "", "untitled-book");
+        return seriesPart + "-" + titlePart;
+    }
+
+    function getNextImageGeneratorVersion(baseName) {
+        const files = Array.isArray(appState.imagePicker.files) ? appState.imagePicker.files : [];
+        const prefix = String(baseName || "").toLowerCase() + "-v";
+        let maxVersion = 0;
+        files.forEach(function (file) {
+            const name = String(file && file.name || "").trim().toLowerCase();
+            const match = name.match(new RegExp("^" + prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\d{3,})\\.(png|jpg|jpeg|webp)$"));
+            if (!match) return;
+            const version = Number(match[1] || 0);
+            if (version > maxVersion) maxVersion = version;
+        });
+        return String(maxVersion + 1).padStart(3, "0");
+    }
+
+    function getNextImageGeneratorFileName(extension) {
+        const baseName = isSeriesImageGenerationMode()
+            ? slugifyImageGeneratorPart(el.detailSeries && el.detailSeries.value || (getSelectedProjectForImageGenerator() || {}).series || "", "series-image")
+            : getImageGeneratorBaseName();
+        const version = getNextImageGeneratorVersion(baseName);
+        const suffix = String(extension || "png").replace(/^\./, "").toLowerCase() || "png";
+        return baseName + "-v" + version + "." + suffix;
+    }
+
+    function buildImageGeneratorNegativePrompt() {
+        return [
+            "book mockup",
+            "book cover mockup",
+            "dust jacket mockup",
+            "3d book",
+            "visible spine",
+            "framed print",
+            "floating book",
+            "watermark",
+            "logo"
+        ].join(", ");
+    }
+
+    function buildImageGeneratorPrompt() {
+        const project = getSelectedProjectForImageGenerator() || {};
+        const title = String(project.title || el.detailTitleInput && el.detailTitleInput.value || "").trim();
+        const series = String(project.series || el.detailSeries && el.detailSeries.value || "").trim();
+        const genre = String(project.genre || el.detailGenre && el.detailGenre.value || "").trim();
+        const useSeriesSummaries = !!(el.imageGeneratorUseSeriesSummaries && el.imageGeneratorUseSeriesSummaries.checked);
+        const summary = useSeriesSummaries
+            ? buildSeriesSummaryDigest(series, project)
+            : String(el.imageGeneratorSummary && el.imageGeneratorSummary.value || "").trim();
+        const style = String(el.imageGeneratorStyle && el.imageGeneratorStyle.value || "cinematic").trim();
+        const mood = String(el.imageGeneratorMood && el.imageGeneratorMood.value || "mysterious").trim();
+        const palette = String(el.imageGeneratorPalette && el.imageGeneratorPalette.value || "rich-cinematic").trim();
+        const focus = String(el.imageGeneratorFocus && el.imageGeneratorFocus.value || "character").trim();
+        const typography = String(el.imageGeneratorTypography && el.imageGeneratorTypography.value || "title-only").trim();
+        const textPlacement = String(el.imageGeneratorTextPlacement && el.imageGeneratorTextPlacement.value || "none").trim();
+        const fontStyle = String(el.imageGeneratorFontStyle && el.imageGeneratorFontStyle.value || "none").trim();
+        const seriesMode = isSeriesImageGenerationMode();
+        const displayTitle = typography === "series-only" || seriesMode ? series : title;
+        const stylePreset = getImageGeneratorStylePreset(style);
+        const moodMap = {
+            mysterious: "mysterious, intriguing, slightly uncanny, discovery-driven",
+            hopeful: "hopeful, uplifting, emotionally open, warm momentum",
+            epic: "epic, sweeping, high stakes, mythic scale",
+            tense: "tense, suspenseful, dangerous, dramatic pressure",
+            dreamlike: "dreamlike, lyrical, surreal, atmospheric softness",
+            ominous: "ominous, foreboding, shadowed, danger just under the surface",
+            whimsical: "whimsical, playful, imaginative, lightly magical",
+            melancholic: "melancholic, reflective, emotionally resonant, wistful",
+            adventurous: "adventurous, propulsive, curious, full of forward motion"
+        };
+        const paletteMap = {
+            "rich-cinematic": "rich cinematic palette, controlled contrast, premium color grading",
+            "warm-gold": "warm gold and ember palette, inviting highlights, soft cinematic contrast",
+            "cool-neon": "cool teal, violet, and neon accents, moody night atmosphere",
+            "muted-literary": "muted literary palette, restrained saturation, elegant tonal balance",
+            "high-contrast": "high contrast palette, bold shadow separation, strong focal lighting",
+            "forest-ember": "forest greens with ember orange accents, earthy fantasy contrast",
+            "moonlit-silver": "moonlit blues, silver highlights, nocturnal elegance",
+            "rose-cream": "soft rose, cream, and blush palette with polished warmth",
+            "autumn-harvest": "autumn amber, russet, and harvest tones with storybook richness",
+            "ocean-depths": "deep ocean blues, sea-green shadows, luminous aquatic highlights",
+            "violet-gold": "royal violets with gilded highlights and luminous contrast",
+            "crimson-ivory": "crimson, ivory, and dark charcoal with dramatic elegance",
+            "desert-sun": "sun-bleached ochre, terracotta, and desert gold with radiant heat",
+            "jade-obsidian": "jade green highlights against obsidian blacks with mythic contrast",
+            "lavender-dusk": "lavender, dusk blue, and soft mauve with atmospheric twilight glow",
+            "ice-fire": "glacial cyan and ember orange in sharp elemental contrast",
+            "sepia-smoke": "sepia browns, smoke gray, and antique brass with cinematic age",
+            "midnight-rose": "midnight navy, wine red, and soft rose highlights with romantic darkness",
+            "copper-petrol": "oxidized petrol blue and burnished copper with industrial richness"
+        };
+        const focusMap = {
+            character: "character-led composition with one clear focal protagonist",
+            scene: "scene-led composition with environment as the main storytelling surface",
+            symbolic: "symbolic cover composition using iconic story imagery rather than literal scenes",
+            ensemble: "ensemble composition with multiple story elements layered into one poster design",
+            object: "single iconic object or relic used as the focal storytelling anchor",
+            architecture: "location-led composition built around striking architecture or place identity"
+        };
+        const textPlacementMap = {
+            none: "",
+            top: "integrated typography placed in the top region of the poster with clear breathing room",
+            middle: "integrated typography placed through the central band of the poster as a strong design feature",
+            bottom: "integrated typography placed in the lower region of the poster with clean visual grounding"
+        };
+        const fontStyleMap = {
+            none: "",
+            "cinematic-serif": "cinematic serif typography, premium poster lettering, polished publishing finish",
+            "classic-roman": "classic Roman serif lettering, formal, stately, timeless title treatment",
+            "bold-sans": "bold sans-serif typography, commercial clarity, strong modern readability",
+            "elegant-script": "elegant script accents and refined decorative lettering, graceful but readable",
+            "gothic-ornate": "gothic ornate title styling with decorative flourishes and dramatic medieval character",
+            "storybook-decorative": "storybook decorative lettering, richly illustrated title styling, charming handcrafted feel",
+            "hand-drawn": "hand-drawn lettering, organic strokes, artisanal title treatment, expressive imperfect charm",
+            "kids-story-book": "children's storybook lettering, playful readable forms, whimsical hand-crafted title styling",
+            "minimal-modern": "minimal modern typography, restrained, sharp, spacious letterforms"
+        };
+        const typographyMap = {
+            "title-only": displayTitle ? "integrated poster typography with the title '" + displayTitle + "' placed cleanly inside the artwork" : "integrated poster typography with elegant title placement",
+            "title-tagline": displayTitle ? "integrated poster typography with the title '" + displayTitle + "' and a subtle supporting tagline" : "integrated poster typography with title and subtle tagline",
+            "no-text": "no title text, no typography, image-only poster artwork",
+            "title-author": displayTitle ? "integrated poster typography with the title '" + displayTitle + "' and author-name placement balanced into the artwork" : "integrated poster typography with title and author-name placement",
+            "series-title": title ? "integrated series branding with series label '" + series + "' and the title '" + title + "' cleanly arranged inside the poster artwork" : "integrated series branding with clear series label and title placement",
+            "series-only": series ? "integrated poster typography using only the series title '" + series + "', with no individual book title text" : "integrated poster typography using series title only"
+        };
+
+        return [
+            stylePreset && stylePreset.prefix ? stylePreset.prefix : "",
+            moodMap[mood] || moodMap.mysterious,
+            paletteMap[palette] || paletteMap["rich-cinematic"],
+            focusMap[focus] || focusMap.character,
+            typographyMap[typography] || typographyMap["title-only"],
+            typography === "no-text" ? "" : (textPlacementMap[textPlacement] || ""),
+            typography === "no-text" ? "" : (fontStyleMap[fontStyle] || ""),
+            "2:3 vertical composition",
+            "full-bleed artwork",
+            "edge-to-edge composition",
+            "high detail",
+            "genre cues: " + (genre || "fiction"),
+            series ? "series context: " + series : "",
+            seriesMode ? "series branding artwork" : "",
+            useSeriesSummaries ? "combined series themes and motifs from all book summaries" : "",
+            summary ? summary : "",
+            typography === "series-only" ? "" : (title ? "title: " + title : ""),
+            seriesMode || typography === "series-only" ? (series ? "series title: " + series : "") : "",
+            stylePreset && stylePreset.suffix ? stylePreset.suffix : "",
+            "professional publishing poster artwork"
+        ].filter(Boolean).join(", ");
+    }
+
+    function updateImageGeneratorPromptPreview() {
+        const prompt = buildImageGeneratorPrompt();
+        appState.imageGenerator.lastPrompt = prompt;
+        if (el.imageGeneratorPromptPreview) el.imageGeneratorPromptPreview.value = prompt;
+        return prompt;
+    }
+
+    function getImageGeneratorHistoryItems() {
+        return Array.isArray(appState.imageGenerator.history) ? appState.imageGenerator.history : [];
+    }
+
+    function renderImageGeneratorHistory() {
+        if (!el.imageGeneratorHistory) return;
+        const history = getImageGeneratorHistoryItems();
+        el.imageGeneratorHistory.innerHTML = "";
+        if (!history.length) {
+            el.imageGeneratorHistory.hidden = true;
+            return;
+        }
+        el.imageGeneratorHistory.hidden = false;
+        history.forEach(function (entry) {
+            if (!entry || !entry.url) return;
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "image-generator-history-item";
+            if (entry.url === appState.imageGenerator.lastImageUrl) {
+                button.classList.add("is-active");
+            }
+            button.setAttribute("aria-label", "Select generated image");
+            button.title = entry.fileName || "Generated image";
+            button.dataset.historyUrl = entry.url;
+
+            const image = document.createElement("img");
+            image.className = "image-generator-history-image";
+            image.src = entry.url;
+            image.alt = entry.fileName || "Generated image";
+            button.appendChild(image);
+
+            button.addEventListener("click", function () {
+                selectImageGeneratorHistoryEntry(entry.url);
+            });
+            el.imageGeneratorHistory.appendChild(button);
+        });
+    }
+
+    function setImageGeneratorPreviewFromEntry(entry) {
+        const safeEntry = entry && entry.url ? entry : null;
+        appState.imageGenerator.lastImageUrl = safeEntry ? String(safeEntry.url || "").trim() : "";
+        appState.imageGenerator.lastImageMeta = safeEntry ? (safeEntry.meta || null) : null;
+        if (el.imageGeneratorPreviewImage) {
+            if (safeEntry && safeEntry.url) {
+                el.imageGeneratorPreviewImage.src = safeEntry.url;
+                el.imageGeneratorPreviewImage.hidden = false;
+            } else {
+                el.imageGeneratorPreviewImage.hidden = true;
+                el.imageGeneratorPreviewImage.removeAttribute("src");
+            }
+        }
+        if (el.imageGeneratorPreviewEmpty) {
+            el.imageGeneratorPreviewEmpty.hidden = !!safeEntry;
+            if (!safeEntry) {
+                el.imageGeneratorPreviewEmpty.textContent = "No image generated yet.";
+            }
+        }
+        if (el.imageGeneratorUseButton) {
+            el.imageGeneratorUseButton.disabled = !safeEntry || appState.imageGenerator.isGenerating;
+        }
+        renderImageGeneratorHistory();
+    }
+
+    function selectImageGeneratorHistoryEntry(imageUrl) {
+        const safeUrl = String(imageUrl || "").trim();
+        const entry = getImageGeneratorHistoryItems().find(function (item) {
+            return String(item && item.url || "").trim() === safeUrl;
+        }) || null;
+        setImageGeneratorPreviewFromEntry(entry);
+    }
+
+    function rememberImageGeneratorHistoryEntry(imageUrl, imageMeta, promptText) {
+        const safeUrl = String(imageUrl || "").trim();
+        if (!safeUrl) return null;
+        const nextEntry = {
+            id: String(Date.now()) + ":" + Math.random().toString(36).slice(2, 8),
+            url: safeUrl,
+            meta: imageMeta || null,
+            prompt: String(promptText || "").trim(),
+            fileName: imageMeta && imageMeta.filename ? String(imageMeta.filename).trim() : "",
+            createdAt: Date.now()
+        };
+        const history = getImageGeneratorHistoryItems()
+            .filter(function (entry) { return String(entry && entry.url || "").trim() !== safeUrl; });
+        history.unshift(nextEntry);
+        appState.imageGenerator.history = history.slice(0, 5);
+        return nextEntry;
+    }
+
+    function parseImageGeneratorSize() {
+        const raw = String(el.imageGeneratorSize && el.imageGeneratorSize.value || "768x1152").trim();
+        const match = raw.match(/^(\d+)x(\d+)$/i);
+        return {
+            width: match ? Number(match[1]) : 768,
+            height: match ? Number(match[2]) : 1152
+        };
+    }
+
+    function buildComfyWorkflowPrompt(promptText) {
+        const size = parseImageGeneratorSize();
+        const seed = Math.floor(Math.random() * 9007199254740991);
+        const fileName = getNextImageGeneratorFileName("png").replace(/\.png$/i, "");
+        return {
+            "39": { class_type: "CLIPLoader", inputs: { clip_name: "qwen_3_4b.safetensors", type: "lumina2", device: "default" } },
+            "40": { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
+            "41": { class_type: "EmptySD3LatentImage", inputs: { width: size.width, height: size.height, batch_size: 1 } },
+            "42": { class_type: "CLIPTextEncode", inputs: { clip: ["39", 0], text: buildImageGeneratorNegativePrompt() } },
+            "43": { class_type: "VAEDecode", inputs: { samples: ["44", 0], vae: ["40", 0] } },
+            "44": {
+                class_type: "KSampler",
+                inputs: {
+                    model: ["47", 0],
+                    positive: ["45", 0],
+                    negative: ["42", 0],
+                    latent_image: ["41", 0],
+                    seed: seed,
+                    steps: 9,
+                    cfg: 1,
+                    sampler_name: "res_multistep",
+                    scheduler: "simple",
+                    denoise: 1
+                }
+            },
+            "45": { class_type: "CLIPTextEncode", inputs: { clip: ["39", 0], text: promptText } },
+            "46": { class_type: "UNETLoader", inputs: { unet_name: "z_image_turbo_bf16.safetensors", weight_dtype: "default" } },
+            "47": { class_type: "ModelSamplingAuraFlow", inputs: { model: ["46", 0], shift: 3 } },
+            "9": { class_type: "SaveImage", inputs: { images: ["43", 0], filename_prefix: fileName } }
+        };
+    }
+
+    function resetImageGeneratorPreview() {
+        appState.imageGenerator.promptId = "";
+        setImageGeneratorBusy(false);
+        const history = getImageGeneratorHistoryItems();
+        setImageGeneratorPreviewFromEntry(history.length ? history[0] : null);
+    }
+
+    function openImageGeneratorModal() {
+        const project = getSelectedProjectForImageGenerator();
+        if (!project) {
+            setStatus("Select a project before generating a cover.", "error");
+            return;
+        }
+        const seriesMode = isSeriesImageGenerationMode();
+        if (el.imageGeneratorProjectTitle) {
+            el.imageGeneratorProjectTitle.value = seriesMode
+                ? "Series Image: " + String(project.series || "").trim()
+                : String(project.title || "").trim();
+        }
+        if (el.imageGeneratorSummary) {
+            el.imageGeneratorSummary.value = String(el.detailSummary && el.detailSummary.value || project.short_summary || "").trim();
+        }
+        if (el.imageGeneratorUseSeriesSummaries) {
+            el.imageGeneratorUseSeriesSummaries.checked = seriesMode;
+        }
+        if (el.imageGeneratorTypography && seriesMode) {
+            el.imageGeneratorTypography.value = "series-only";
+        }
+        applyImageGeneratorSettings(getRememberedImageGeneratorScopeSettings(project));
+        updateImageGeneratorPromptPreview();
+        resetImageGeneratorPreview();
+        setImageGeneratorStatus("Ready to generate with local ComfyUI.", "ok");
+        checkImageGeneratorComfyConnection();
+        if (el.imageGeneratorModal) {
+            el.imageGeneratorModal.classList.add("is-open");
+            el.imageGeneratorModal.setAttribute("aria-hidden", "false");
+            updateModalScrollLock();
+        }
+    }
+
+    function closeImageGeneratorModal() {
+        if (!el.imageGeneratorModal) return;
+        el.imageGeneratorModal.classList.remove("is-open");
+        el.imageGeneratorModal.setAttribute("aria-hidden", "true");
+        updateModalScrollLock();
+    }
+
+    function getComfyBaseUrl() {
+        const raw = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "").trim().replace(/\/+$/, "");
+        if (/^https?:\/\//i.test(raw)) return raw;
+        return "http://127.0.0.1:8188";
+    }
+
+    async function comfyApiFetch(path, options) {
+        const comfyEndpoint = String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "").trim().replace(/\/+$/, "");
+        const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+
+        if (useBrowserDirect) {
+            const base = getComfyBaseUrl();
+            const response = await fetch(base + path, options || {});
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error("ComfyUI request failed (" + response.status + "): " + text);
+            }
+            return response;
+        }
+
+        const headers = Object.assign({}, (options && options.headers) || {});
+        if (comfyEndpoint && !isLocalhost) {
+            headers["x-comfy-endpoint"] = comfyEndpoint;
+        } else if (!comfyEndpoint && !isLocalhost) {
+            throw new Error("Set your ComfyUI endpoint in AI Settings (e.g. https://your-id.ngrok.io), or enable browser/direct mode.");
+        }
+        const proxyBase = isLocalhost ? "/api/comfy" : "/api/comfy?path=" + encodeURIComponent(path.replace(/^\//, ""));
+        const url = isLocalhost ? ("/api/comfy" + path) : proxyBase;
+        const response = await fetch(url, Object.assign({}, options || {}, { headers }));
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error("ComfyUI request failed (" + response.status + "): " + text);
+        }
+        return response;
+    }
+
+    async function checkImageGeneratorComfyConnection() {
+        try {
+            await comfyApiFetch("/system_stats");
+            setImageGeneratorStatus("ComfyUI is online and ready.", "ok");
+            return true;
+        } catch (error) {
+            setImageGeneratorStatus("ComfyUI is not responding. Start your local ComfyUI app, then try again.", "warn");
+            return false;
+        }
+    }
+
+    function openComfyUiFromGenerator() {
+        const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+        const endpoint = useBrowserDirect
+            ? getComfyBaseUrl()
+            : String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "http://127.0.0.1:8188").trim().replace(/\/+$/, "");
+        if (!endpoint) {
+            setImageGeneratorStatus("Add a ComfyUI endpoint first.", "warn");
+            return;
+        }
+        window.open(endpoint, "_blank", "noopener,noreferrer");
+    }
+
+    function getComfyViewUrl(imageMeta) {
+        const filename = String(imageMeta && imageMeta.filename || "").trim();
+        if (!filename) return "";
+        const useBrowserDirect = !!(el.imageGeneratorUseBrowser && el.imageGeneratorUseBrowser.checked);
+        const endpoint = useBrowserDirect
+            ? getComfyBaseUrl()
+            : String(el.imageGeneratorEndpoint && el.imageGeneratorEndpoint.value || "/api/comfy").trim().replace(/\/+$/, "");
+        const params = new URLSearchParams({
+            filename: String(imageMeta.filename || ""),
+            subfolder: String(imageMeta.subfolder || ""),
+            type: String(imageMeta.type || "output")
+        });
+        return endpoint + "/view?" + params.toString();
+    }
+
+    async function waitForComfyResult(promptId) {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 240000) {
+            await new Promise(function (resolve) { setTimeout(resolve, 1800); });
+            const response = await comfyApiFetch("/history/" + encodeURIComponent(promptId));
+            const history = await response.json();
+            const item = history && history[promptId];
+            if (!item || !item.outputs) continue;
+            const outputKeys = Object.keys(item.outputs);
+            for (var i = 0; i < outputKeys.length; i += 1) {
+                const nodeOutput = item.outputs[outputKeys[i]];
+                if (nodeOutput && Array.isArray(nodeOutput.images) && nodeOutput.images.length) {
+                    return nodeOutput.images[0];
+                }
+            }
+        }
+        throw new Error("Timed out waiting for ComfyUI to finish.");
+    }
+
+    async function runImageGenerator() {
+        if (appState.imageGenerator.isGenerating) return;
+        const promptText = updateImageGeneratorPromptPreview();
+        const generationCount = Math.max(1, Math.min(4, Number(el.imageGeneratorAmount && el.imageGeneratorAmount.value || 1) || 1));
+        if (!promptText) {
+            setImageGeneratorStatus("Prompt preview is empty.", "error");
+            return;
+        }
+        rememberImageGeneratorScopeSettings(getSelectedProjectForImageGenerator());
+        setImageGeneratorBusy(true, "Generating image...");
+        if (el.imageGeneratorRunButton) el.imageGeneratorRunButton.disabled = true;
+        if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = true;
+        setImageGeneratorStatus("Sending " + generationCount + " render" + (generationCount === 1 ? "" : "s") + " to ComfyUI...", "warn");
+        try {
+            let latestHistoryEntry = null;
+            for (var generationIndex = 0; generationIndex < generationCount; generationIndex += 1) {
+                setImageGeneratorStatus("Generating render " + (generationIndex + 1) + " of " + generationCount + "...", "warn");
+                const response = await comfyApiFetch("/prompt", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        prompt: buildComfyWorkflowPrompt(promptText),
+                        client_id: "book-cover-generator"
+                    })
+                });
+                const result = await response.json();
+                const promptId = String(result && result.prompt_id || "").trim();
+                if (!promptId) throw new Error("ComfyUI did not return a prompt id.");
+                appState.imageGenerator.promptId = promptId;
+                const imageMeta = await waitForComfyResult(promptId);
+                const imageUrl = getComfyViewUrl(imageMeta);
+                latestHistoryEntry = rememberImageGeneratorHistoryEntry(imageUrl, imageMeta, promptText);
+                setImageGeneratorPreviewFromEntry(latestHistoryEntry);
+            }
+            setImageGeneratorBusy(false);
+            setImageGeneratorPreviewFromEntry(latestHistoryEntry);
+            setImageGeneratorStatus(generationCount === 1
+                ? "Generation complete. Review the preview and use it if you like it."
+                : generationCount + " renders complete. Review the stack and pick your favorite.", "ok");
+        } catch (err) {
+            console.error("IMAGE GENERATOR ERROR", err);
+            setImageGeneratorBusy(false);
+            setImageGeneratorStatus("Generation failed: " + err.message, "error");
+        } finally {
+            if (el.imageGeneratorRunButton) el.imageGeneratorRunButton.disabled = false;
+        }
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise(function (resolve, reject) {
+            const reader = new FileReader();
+            reader.onloadend = function () { resolve(String(reader.result || "")); };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function useGeneratedImageFromComfy() {
+        if (!appState.imageGenerator.lastImageUrl) {
+            setImageGeneratorStatus("Generate an image first.", "error");
+            return;
+        }
+        if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = true;
+        setImageGeneratorStatus("Fetching generated image from ComfyUI...", "warn");
+        try {
+            const response = await fetch(appState.imageGenerator.lastImageUrl);
+            if (!response.ok) throw new Error("Could not fetch the generated image.");
+            const blob = await response.blob();
+            const bundle = await buildOptimizedImageUploadBundle(blob, getNextImageGeneratorFileName("webp"));
+            setImageGeneratorStatus("Uploading generated image to Drive...", "warn");
+            supabaseRunner
+                .withSuccessHandler(function (json) {
+                    try {
+                        const result = parseServerResult(json);
+                        if (result.ok === false) throw new Error(result.error || "Upload failed.");
+                        const fileRecord = {
+                            id: result.fileId,
+                            name: result.name,
+                            url: result.url,
+                            thumbnailUrl: result.thumbnailUrl,
+                            thumbnailFileId: result.thumbnailFileId || ""
+                        };
+                        appState.imagePicker.files.unshift(fileRecord);
+                        appState.imagePicker.selectedUrl = result.url;
+                        rememberImageGeneratorScopeSettings(getSelectedProjectForImageGenerator());
+                        rememberImageGeneratorSettingsForImage(result.url);
+                        renderImagePickerGrid();
+                        applySelectedImageUrl(result.url);
+                        closeImageGeneratorModal();
+                        setStatus("Generated cover uploaded and applied.", "ok");
+                    } catch (err) {
+                        console.error("GENERATED IMAGE UPLOAD PARSE ERROR", err, json);
+                        setImageGeneratorStatus("Upload failed: " + err.message, "error");
+                        if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = false;
+                    }
+                })
+                .withFailureHandler(function (error) {
+                    const message = error && error.message ? error.message : String(error || "Unknown error");
+                    setImageGeneratorStatus("Upload failed: " + message, "error");
+                    if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = false;
+                })
+                .uploadProjectImageJsonFromClient(
+                    PROJECT_IMAGE_FOLDER_ID,
+                    bundle.originalName,
+                    bundle.originalMimeType,
+                    bundle.originalDataUrl,
+                    bundle.previewName,
+                    bundle.previewMimeType,
+                    bundle.previewDataUrl,
+                    ""
+                );
+        } catch (err) {
+            console.error("GENERATED IMAGE FETCH ERROR", err);
+            setImageGeneratorStatus("Could not use generated image: " + err.message, "error");
+            if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = false;
+        }
+    }

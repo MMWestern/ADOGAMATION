@@ -1,0 +1,46 @@
+    function getSeriesMetaForProject(project) {
+      var seriesId = Number(project && project.series_id || 0);
+      if (!seriesId) return null;
+      return appState.seriesMetaById && appState.seriesMetaById[seriesId] ? appState.seriesMetaById[seriesId] : null;
+    }
+
+    function usesSupabaseSeriesOwnedFields() {
+      return isSupabaseManagedDocUrlKey("series_outline_doc_url");
+    }
+
+    function stripSeriesOwnedFieldsFromProjectPayload(payload) {
+      if (!payload || !usesSupabaseSeriesOwnedFields()) return payload;
+      var next = Object.assign({}, payload);
+      SERIES_OWNED_PROJECT_FIELDS.forEach(function (fieldKey) {
+        delete next[fieldKey];
+      });
+      return next;
+    }
+
+    function getMergedSeriesDocValue(project, fieldKey) {
+      var seriesMeta = getSeriesMetaForProject(project);
+      if (seriesMeta && seriesMeta.docs && seriesMeta.docs[fieldKey] && typeof seriesMeta.docs[fieldKey].legacyUrl === "string") {
+        return String(seriesMeta.docs[fieldKey].legacyUrl || "").trim();
+      }
+      return String(project && project[fieldKey] || "").trim();
+    }
+
+    function getProjectWithSeriesMeta(project) {
+      if (!project || typeof project !== "object") return project;
+      var seriesMeta = getSeriesMetaForProject(project);
+      if (!seriesMeta) return project;
+      var merged = Object.assign({}, project);
+      if (Object.prototype.hasOwnProperty.call(seriesMeta, "summary")) merged.series_summary = String(seriesMeta.summary || "").trim();
+      if (Object.prototype.hasOwnProperty.call(seriesMeta, "seriesImageUrl")) merged.series_image = String(seriesMeta.seriesImageUrl || "").trim();
+      Object.keys(SERIES_DOC_FIELD_TO_TYPE).forEach(function (fieldKey) {
+        if (seriesMeta.docs && seriesMeta.docs[fieldKey] && typeof seriesMeta.docs[fieldKey].legacyUrl === "string") {
+          merged[fieldKey] = String(seriesMeta.docs[fieldKey].legacyUrl || "").trim();
+        }
+      });
+      return merged;
+    }
+
+    function applySeriesMetaToProjects() {
+      appState.projects = (appState.projects || []).map(getProjectWithSeriesMeta);
+      appState.filteredProjects = (appState.filteredProjects || []).map(getProjectWithSeriesMeta);
+    }
