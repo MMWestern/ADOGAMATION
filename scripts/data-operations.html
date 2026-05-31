@@ -1,0 +1,834 @@
+    // --- Images ---
+    _sbDefine('listProjectImagesJsonFromClient', function () {
+      return sbClient.from('image_assets').select('*').order('created_at', { ascending: false }).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var bucket = 'project-images';
+          var files = (res.data || []).map(function (row) {
+            var storagePath = (row.storage_path || '').trim();
+            var thumbnailPath = (row.thumbnail_path || '').trim();
+            var baseUrl = 'https://bmssizjfkowberhhpyff.supabase.co/storage/v1/object/public/' + bucket + '/';
+            var legacyDriveUrl = String(row.legacy_drive_url || '').trim();
+            var driveFileId = String(row.legacy_drive_file_id || '').trim();
+            var legacyThumbId = String(row.legacy_drive_thumbnail_file_id || '').trim();
+            var url = storagePath ? baseUrl + storagePath : legacyDriveUrl;
+            var thumbnailUrl = thumbnailPath ? baseUrl + thumbnailPath
+              : (storagePath ? baseUrl + storagePath
+                : (legacyThumbId ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(legacyThumbId) + '&sz=w1000'
+                  : (driveFileId ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(driveFileId) + '&sz=w1000'
+                    : legacyDriveUrl)));
+            return {
+              id: String(row.id || ''),
+              name: String(row.file_name || ''),
+              mimeType: String(row.mime_type || ''),
+              url: url,
+              thumbnailUrl: thumbnailUrl,
+              updated: String(row.updated_at || row.created_at || ''),
+              thumbnailFileId: thumbnailPath || legacyThumbId || driveFileId,
+              storagePath: storagePath,
+              thumbnailPath: thumbnailPath,
+              legacyDriveUrl: legacyDriveUrl,
+              legacyDriveFileId: driveFileId,
+              legacyDriveThumbnailFileId: legacyThumbId,
+              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {}
+            };
+          });
+          return JSON.stringify({ ok: true, backend: 'supabase', bucket: bucket, count: files.length, files: files });
+        });
+    });
+
+    function _dataUrlToBlob(dataUrl, fallbackMimeType) {
+      var raw = String(dataUrl || '');
+      var match = raw.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match || !match[2]) throw new Error('Image upload data was not in the expected base64 format.');
+      var mimeType = String(match[1] || fallbackMimeType || 'image/webp').trim();
+      if (mimeType.indexOf('image/') !== 0) throw new Error('Only image files can be uploaded here.');
+      var binary = atob(match[2]);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mimeType });
+    }
+
+    function _getFileExtension(name, fallback) {
+      var m = String(name || '').match(/\.([^.]+)$/);
+      return m ? m[1].toLowerCase() : (fallback || 'webp');
+    }
+
+    function _sanitizeStorageName(name) {
+      return String(name || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 64) || 'image';
+    }
+
+    function _generateStoragePaths(fileName, previewFileName) {
+      var now = new Date();
+      var stamp = now.getUTCFullYear() + ('0' + (now.getUTCMonth() + 1)).slice(-2) + ('0' + now.getUTCDate()).slice(-2) + '-' +
+        ('0' + now.getUTCHours()).slice(-2) + ('0' + now.getUTCMinutes()).slice(-2) + ('0' + now.getUTCSeconds()).slice(-2);
+      var token = Math.random().toString(36).slice(2, 12);
+      var origExt = _getFileExtension(fileName, 'webp');
+      var prevExt = _getFileExtension(previewFileName, 'webp');
+      var baseName = _sanitizeStorageName(String(fileName || 'image').replace(/\.[^.]+$/, '')) || 'image';
+      var leaf = stamp + '-' + token + '-' + baseName;
+      return { originalPath: 'originals/' + leaf + '.' + origExt, thumbnailPath: 'thumbnails/' + leaf + '-thumb.' + prevExt };
+    }
+
+    _sbDefine('uploadProjectImageJsonFromClient', function (folderId, fileName, mimeType, dataUrl, previewFileName, previewMimeType, previewDataUrl, generatorSettingsJson) {
+      try {
+        var originalBlob = _dataUrlToBlob(dataUrl, mimeType);
+        var hasPreview = String(previewDataUrl || '').trim();
+        var previewBlob = hasPreview ? _dataUrlToBlob(previewDataUrl, previewMimeType || mimeType) : null;
+        var paths = _generateStoragePaths(fileName || 'image', previewFileName || fileName || 'image-thumb');
+        var safeName = String(fileName || 'project-image').trim() || 'project-image';
+        var safeMime = String(mimeType || 'image/webp').trim() || 'image/webp';
+        var generatorSettings = {};
+        if (generatorSettingsJson != null && String(generatorSettingsJson).trim()) {
+          try { generatorSettings = JSON.parse(String(generatorSettingsJson)); } catch (e) { generatorSettings = {}; }
+        }
+        var bucket = 'project-images';
+
+        var uploadOriginal = sbClient.storage.from(bucket).upload(paths.originalPath, originalBlob, {
+          contentType: safeMime, upsert: false
+        });
+
+        var uploadThumb = previewBlob
+          ? sbClient.storage.from(bucket).upload(paths.thumbnailPath, previewBlob, {
+              contentType: String(previewMimeType || safeMime || 'image/webp').trim(), upsert: false
+            })
+          : Promise.resolve({ data: null, error: null });
+
+        return Promise.all([uploadOriginal, uploadThumb]).then(function (results) {
+          if (results[0].error) throw results[0].error;
+          if (results[1] && results[1].error) throw results[1].error;
+          var insertPayload = {
+            storage_path: paths.originalPath,
+            thumbnail_path: previewBlob ? paths.thumbnailPath : '',
+            file_name: safeName,
+            mime_type: safeMime,
+            scope: 'library',
+            generator_settings: generatorSettings,
+            legacy_drive_file_id: '',
+            legacy_drive_thumbnail_file_id: '',
+            legacy_drive_url: ''
+          };
+          return sbClient.from('image_assets').insert([insertPayload]).select().single().then(function (res) {
+            if (res.error) throw res.error;
+            var row = res.data;
+            var storagePath = (row.storage_path || '').trim();
+            var thumbnailPath = (row.thumbnail_path || '').trim();
+            var baseUrl = 'https://bmssizjfkowberhhpyff.supabase.co/storage/v1/object/public/' + bucket + '/';
+            return JSON.stringify({
+              ok: true, backend: 'supabase', bucket: bucket,
+              fileId: String(row.id || ''),
+              name: String(row.file_name || ''),
+              mimeType: String(row.mime_type || ''),
+              url: storagePath ? baseUrl + storagePath : '',
+              thumbnailUrl: thumbnailPath ? baseUrl + thumbnailPath : (storagePath ? baseUrl + storagePath : ''),
+              thumbnailFileId: thumbnailPath || '',
+              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {}
+            });
+          });
+        });
+      } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'uploadProjectImage failed' }));
+      }
+    });
+
+    _sbDefine('deleteProjectImageJsonFromClient', function (folderId, fileId, thumbnailFileId, imageUrl) {
+      try {
+        var safeFileId = String(fileId || '').trim();
+        var safeImageUrl = String(imageUrl || '').trim();
+        if (!safeFileId || !safeImageUrl) throw new Error('File id and image URL are required.');
+        return sbClient.from('image_assets').select('*').eq('id', safeFileId).single().then(function (res) {
+          if (res.error) throw res.error;
+          var row = res.data;
+          if (!row) throw new Error('Image asset not found.');
+          var bucket = 'project-images';
+          var prefixes = [String(row.storage_path || '').trim(), String(row.thumbnail_path || '').trim()].filter(Boolean);
+          var delStorage = prefixes.length
+            ? sbClient.storage.from(bucket).remove(prefixes).then(function (sr) { if (sr.error) throw sr.error; return null; })
+            : Promise.resolve(null);
+          var delRow = sbClient.from('image_assets').delete().eq('id', safeFileId).then(function () { return null; });
+          var clearProjects = sbClient.from('projects').update({ project_image_url: '' }).eq('project_image_url', safeImageUrl).then(function () { return null; });
+          var clearSeries = sbClient.from('series').update({ series_image_url: '' }).eq('series_image_url', safeImageUrl).then(function () { return null; });
+          return Promise.all([delStorage, delRow, clearProjects, clearSeries]).then(function () {
+            return JSON.stringify({ ok: true, backend: 'supabase', updatedRows: 0 });
+          });
+        });
+      } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'deleteProjectImage failed' }));
+      }
+    });
+
+    // --- Resources ---
+    _sbDefine('listGeneralResourcesFromClient', function () {
+      return sbClient.from('general_resources').select('id,title,category,word_count,sort_order,updated_at,created_at')
+        .order('category', { ascending: true }).order('sort_order', { ascending: true }).order('title', { ascending: true }).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, resources: res.data || [] });
+        });
+    });
+
+    _sbDefine('getGeneralResourceFromClient', function (id) {
+      var safeId = Number(id || 0);
+      if (!safeId) throw new Error('Resource id is required.');
+      return sbClient.from('general_resources').select('*').eq('id', safeId).single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var row = res.data;
+          return JSON.stringify({
+            ok: true, id: Number(row.id || 0),
+            title: String(row.title || '').trim(),
+            category: String(row.category || 'General').trim(),
+            text: String(row.markdown_content || ''),
+            wordCount: Number(row.word_count || 0),
+            sortOrder: Number(row.sort_order || 0),
+            updatedAt: String(row.updated_at || row.created_at || '').trim()
+          });
+        });
+    });
+
+    _sbDefine('saveGeneralResourceFromClient', function (id, title, category, markdownText) {
+      var safeId = id != null ? Number(id) : null;
+      var safeTitle = String(title || '').trim();
+      var safeCategory = String(category || 'General').trim();
+      var safeText = String(markdownText == null ? '' : markdownText);
+      if (!safeTitle) throw new Error('Resource title is required.');
+      var payload = {
+        title: safeTitle,
+        category: safeCategory,
+        markdown_content: safeText,
+        word_count: safeText.split(/\s+/).filter(function (w) { return w.length > 0; }).length
+      };
+      if (safeId) {
+        return sbClient.from('general_resources').update(payload).eq('id', safeId).select('id,title,category,word_count,updated_at').single()
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, id: Number(res.data.id), title: res.data.title, category: res.data.category, wordCount: res.data.word_count });
+          });
+      } else {
+        return sbClient.from('general_resources').insert([payload]).select('id,title,category,word_count,created_at').single()
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, id: Number(res.data.id), title: res.data.title, category: res.data.category, wordCount: res.data.word_count });
+          });
+      }
+    });
+
+    _sbDefine('deleteGeneralResourceFromClient', function (id) {
+      var safeId = Number(id || 0);
+      if (!safeId) throw new Error('Resource id is required.');
+      return sbClient.from('general_resources').delete().eq('id', safeId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    // --- Inspector options (stored in localStorage for standalone) ---
+    _sbDefine('getProjectInspectorOptionsJsonFromClient', function () {
+      try {
+        var raw = localStorage.getItem('PROJECT_INSPECTOR_OPTIONS') || '{}';
+        var parsed = JSON.parse(raw);
+        return Promise.resolve(JSON.stringify({ ok: true, options: parsed }));
+      } catch (err) {
+        return Promise.resolve(JSON.stringify({ ok: true, options: {} }));
+      }
+    });
+
+    _sbDefine('saveProjectInspectorOptionsJsonFromClient', function (optionsJson) {
+      try {
+        var parsed = typeof optionsJson === 'string' ? JSON.parse(optionsJson) : optionsJson;
+        localStorage.setItem('PROJECT_INSPECTOR_OPTIONS', JSON.stringify(parsed));
+        return Promise.resolve(JSON.stringify({ ok: true, options: parsed }));
+      } catch (err) {
+        return Promise.reject(err);
+      }
+    });
+
+    // --- Sorting (already sorted from Supabase) ---
+    _sbDefine('sortProjectsJsonFromClient', function () {
+      return Promise.resolve(JSON.stringify({ ok: true, backend: 'SUPABASE', message: 'Projects are already served in sorted order from Supabase.' }));
+    });
+
+    // --- Workspace links (Drive folder structure not available in standalone) ---
+    _sbDefine('getWorkspaceDashboardLinksJsonFromClient', function () {
+      return Promise.resolve(JSON.stringify({ ok: true, links: {} }));
+    });
+
+    // --- Create workspace (Drive-dependent, stubbed for standalone) ---
+    _sbDefine('createProjectWorkspaceFromClient', function () {
+      return Promise.reject(new Error('Creating project workspaces requires Google Drive, which is not available in standalone mode.'));
+    });
+
+    _sbDefine('createSeriesWorkspaceJsonFromClient', function () {
+      return Promise.reject(new Error('Creating series workspaces requires Google Drive, which is not available in standalone mode.'));
+    });
+
+    // --- Series Knowledge ---
+    _sbDefine('getSupabaseSeriesKnowledgeJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return Promise.all([
+        sbClient.from('series').select('id,name').eq('id', safeId).single(),
+        sbClient.from('documents').select('*').eq('series_id', safeId).eq('doc_type', 'series_knowledge_registry').limit(1)
+      ]).then(function (results) {
+        var seriesRes = results[0];
+        var docRes = results[1];
+        if (seriesRes.error) throw seriesRes.error;
+        var series = seriesRes.data;
+        if (!series) throw new Error('Supabase series not found.');
+        var documentRow = (docRes.data && docRes.data.length) ? docRes.data[0] : null;
+        var rawText = String(documentRow && documentRow.markdown_content || '');
+        var knowledge = { lore: '', characters: '', locations: '', continuity: '' };
+        if (rawText.trim()) {
+          try { knowledge = JSON.parse(rawText); } catch (_) { knowledge.lore = rawText; }
+        }
+        return JSON.stringify({
+          ok: true, seriesId: safeId, seriesName: String(series.name || '').trim(),
+          exists: !!documentRow, knowledge: knowledge,
+          updatedAt: documentRow && (documentRow.updated_at || documentRow.created_at) || ''
+        });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesKnowledgeJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var knowledge = { lore: String(parsed.lore || ''), characters: String(parsed.characters || ''), locations: String(parsed.locations || ''), continuity: String(parsed.continuity || '') };
+      var safeText = JSON.stringify(knowledge, null, 2);
+      return sbClient.from('series').select('name').eq('id', safeId).single()
+        .then(function (sr) {
+          if (sr.error) throw sr.error;
+          var seriesName = String(sr.data && sr.data.name || 'Series').trim();
+          var title = seriesName + ' - Series Knowledge Registry';
+          return sbClient.from('documents').select('id').eq('series_id', safeId).eq('doc_type', 'series_knowledge_registry').limit(1)
+            .then(function (check) {
+              var payload = { series_id: safeId, doc_type: 'series_knowledge_registry', title: title, markdown_content: safeText,
+                word_count: safeText.split(/\s+/).filter(function (w) { return w.length > 0; }).length };
+              if (check.data && check.data.length) {
+                return sbClient.from('documents').update(payload).eq('id', check.data[0].id).select('id,updated_at').single()
+                  .then(function (u) { if (u.error) throw u.error; return JSON.stringify({ ok: true, seriesId: safeId, seriesName: seriesName, knowledge: knowledge, updatedAt: u.data.updated_at || '' }); });
+              } else {
+                return sbClient.from('documents').insert([payload]).select('id,created_at').single()
+                  .then(function (i) { if (i.error) throw i.error; return JSON.stringify({ ok: true, seriesId: safeId, seriesName: seriesName, knowledge: knowledge, updatedAt: i.data.created_at || '' }); });
+              }
+            });
+        });
+    });
+
+    _sbDefine('getSupabaseSeriesProjectsBySeriesIdJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('projects').select('id,title,book_number').eq('series_id', safeId).order('book_number', { ascending: true }).order('title', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, projects: res.data || [] }); });
+    });
+
+    // --- Series Characters ---
+    _sbDefine('listSupabaseSeriesCharactersJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_characters').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, characters: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesCharacterJsonFromClient', function (characterId) {
+      var safeId = Number(characterId || 0);
+      if (!safeId) throw new Error('Character id is required.');
+      return Promise.all([
+        sbClient.from('series_characters').select('*').eq('id', safeId).single(),
+        sbClient.from('series_character_books').select('id,project_id,notes').eq('character_id', safeId).limit(5000),
+        sbClient.from('series_character_relationships').select('*').or('character_id_a.eq.' + safeId + ',character_id_b.eq.' + safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({ ok: true, character: results[0].data, bookLinks: results[1].data || [], relationships: results[2].data || [] });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesCharacterJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var charId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(),
+        role_archetype: String(parsed.role_archetype || parsed.roleArchetype || '').trim(),
+        archetype: String(parsed.archetype || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(),
+        motivation_arc: String(parsed.motivation_arc || parsed.motivationArc || '').trim(),
+        backstory: String(parsed.backstory || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var saveOp = charId
+        ? sbClient.from('series_characters').update(payload).eq('id', charId).select().single()
+        : sbClient.from('series_characters').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_character_books').delete().eq('character_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_character_books').insert([{ character_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks]).then(function () {
+          return JSON.stringify({ ok: true, character: saved });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesCharacterJsonFromClient', function (characterId) {
+      var safeId = Number(characterId || 0);
+      if (!safeId) throw new Error('Character id is required.');
+      return Promise.all([
+        sbClient.from('series_character_books').delete().eq('character_id', safeId),
+        sbClient.from('series_character_relationships').delete().or('character_id_a.eq.' + safeId + ',character_id_b.eq.' + safeId),
+        sbClient.from('series_characters').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true, characterId: safeId }); });
+    });
+
+    _sbDefine('saveSupabaseSeriesCharacterRelationshipJsonFromClient', function (seriesId, payloadJson) {
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var relId = Number(parsed.id || 0);
+      var payload = { series_id: Number(seriesId || 0), character_id_a: Number(parsed.characterIdA || parsed.character_id_a || 0),
+        character_id_b: Number(parsed.characterIdB || parsed.character_id_b || 0),
+        relationship_type: String(parsed.relationshipType || parsed.relationship_type || '').trim(),
+        description: String(parsed.description || '').trim() };
+      var op = relId
+        ? sbClient.from('series_character_relationships').update(payload).eq('id', relId)
+        : sbClient.from('series_character_relationships').insert([payload]);
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('deleteSupabaseSeriesCharacterRelationshipJsonFromClient', function (relId) {
+      return sbClient.from('series_character_relationships').delete().eq('id', Number(relId || 0))
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Locations ---
+    _sbDefine('listSupabaseSeriesLocationsJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_locations').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, locations: res.data || [] }); });
+    });
+
+    _sbDefine('listSeriesCharacterBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_characters').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_character_books').select('character_id,project_id').in('character_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
+    _sbDefine('listSeriesLocationBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_locations').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_location_books').select('location_id,project_id').in('location_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
+    _sbDefine('getSupabaseSeriesLocationJsonFromClient', function (locationId) {
+      var safeId = Number(locationId || 0);
+      if (!safeId) throw new Error('Location id is required.');
+      return Promise.all([
+        sbClient.from('series_locations').select('*').eq('id', safeId).single(),
+        sbClient.from('series_location_books').select('id,project_id,notes').eq('location_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({ ok: true, location: results[0].data, bookLinks: results[1].data || [] });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesLocationJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var locId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(), type: String(parsed.type || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(), significance: String(parsed.significance || '').trim(),
+        notable_events: String(parsed.notable_events || parsed.notableEvents || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var saveOp = locId
+        ? sbClient.from('series_locations').update(payload).eq('id', locId).select().single()
+        : sbClient.from('series_locations').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_location_books').delete().eq('location_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_location_books').insert([{ location_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks]).then(function () {
+          return JSON.stringify({ ok: true, location: saved });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesLocationJsonFromClient', function (locationId) {
+      var safeId = Number(locationId || 0);
+      if (!safeId) throw new Error('Location id is required.');
+      return Promise.all([
+        sbClient.from('series_location_books').delete().eq('location_id', safeId),
+        sbClient.from('series_locations').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Continuity ---
+    _sbDefine('listSupabaseSeriesContinuityEntriesJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_continuity_entries').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entries: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesContinuityEntryJsonFromClient', function (entryId) {
+      var safeId = Number(entryId || 0);
+      if (!safeId) throw new Error('Entry id is required.');
+      return sbClient.from('series_continuity_entries').select('*').eq('id', safeId).single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
+    });
+
+    _sbDefine('saveSupabaseSeriesContinuityEntryJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var entryId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, title: String(parsed.title || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(),
+        severity: String(parsed.severity || 'minor').trim(),
+        resolved: !!parsed.resolved,
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var op = entryId
+        ? sbClient.from('series_continuity_entries').update(payload).eq('id', entryId).select().single()
+        : sbClient.from('series_continuity_entries').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
+    });
+
+    _sbDefine('deleteSupabaseSeriesContinuityEntryJsonFromClient', function (entryId) {
+      var safeId = Number(entryId || 0);
+      if (!safeId) throw new Error('Entry id is required.');
+      return sbClient.from('series_continuity_entries').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- AI ---
+    var AI_SETTINGS_LOCAL_KEY = 'writing_dashboard_ai_settings_v1';
+
+    function _getDefaultAISettings() {
+      return {
+        provider: 'openrouter',
+        openrouter: { model: '', hasApiKey: false },
+        lmstudio: { endpoint: 'http://localhost:1234/v1', model: '', useBrowser: true },
+        ollama: { endpoint: 'http://localhost:11434', model: '', useBrowser: true }
+      };
+    }
+
+    function _loadAISettings() {
+      try {
+        var raw = localStorage.getItem(AI_SETTINGS_LOCAL_KEY);
+        if (raw) { var parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object') return parsed; }
+      } catch (e) {}
+      return {};
+    }
+
+    function _mergeAISettings(saved) {
+      var defaults = _getDefaultAISettings();
+      return {
+        provider: saved.provider || defaults.provider,
+        openrouter: {
+          model: (saved.openrouter && saved.openrouter.model) || defaults.openrouter.model,
+          hasApiKey: !!(saved.openrouter && saved.openrouter.apiKey)
+        },
+        lmstudio: {
+          endpoint: (saved.lmstudio && saved.lmstudio.endpoint) || defaults.lmstudio.endpoint,
+          model: (saved.lmstudio && saved.lmstudio.model) || defaults.lmstudio.model,
+          useBrowser: saved.lmstudio && saved.lmstudio.useBrowser != null ? !!saved.lmstudio.useBrowser : defaults.lmstudio.useBrowser
+        },
+        ollama: {
+          endpoint: (saved.ollama && saved.ollama.endpoint) || defaults.ollama.endpoint,
+          model: (saved.ollama && saved.ollama.model) || defaults.ollama.model,
+          useBrowser: saved.ollama && saved.ollama.useBrowser != null ? !!saved.ollama.useBrowser : defaults.ollama.useBrowser
+        }
+      };
+    }
+
+    _sbDefine('getAISettingsJsonFromClient', function () {
+      try {
+        var saved = _loadAISettings();
+        return JSON.stringify({ ok: true, settings: _mergeAISettings(saved) });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: e.message || 'getAISettings failed' });
+      }
+    });
+
+    _sbDefine('saveAISettingsJsonFromClient', function (payloadJson) {
+      try {
+        var payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+        var defaults = _getDefaultAISettings();
+        var provider = ['openrouter', 'lmstudio', 'ollama'].indexOf(payload.provider) !== -1 ? payload.provider : defaults.provider;
+        var settingsToSave = {
+          provider: provider,
+          openrouter: {
+            model: String(payload.openrouter && payload.openrouter.model || '').trim(),
+            apiKey: String(payload.openrouter && payload.openrouter.apiKey || (payload.openrouter && payload.openrouter.apiKey === '' ? '' : '') || '').trim()
+          },
+          lmstudio: {
+            endpoint: String(payload.lmstudio && payload.lmstudio.endpoint || defaults.lmstudio.endpoint).trim(),
+            model: String(payload.lmstudio && payload.lmstudio.model || '').trim(),
+            useBrowser: payload.lmstudio && payload.lmstudio.useBrowser != null ? !!payload.lmstudio.useBrowser : defaults.lmstudio.useBrowser
+          },
+          ollama: {
+            endpoint: String(payload.ollama && payload.ollama.endpoint || defaults.ollama.endpoint).trim(),
+            model: String(payload.ollama && payload.ollama.model || '').trim(),
+            useBrowser: payload.ollama && payload.ollama.useBrowser != null ? !!payload.ollama.useBrowser : defaults.ollama.useBrowser
+          }
+        };
+        localStorage.setItem(AI_SETTINGS_LOCAL_KEY, JSON.stringify(settingsToSave));
+        return JSON.stringify({ ok: true, settings: _mergeAISettings(settingsToSave) });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: e.message || 'saveAISettings failed' });
+      }
+    });
+
+    function _extractModelRecords(data) {
+      if (!data) return [];
+      if (Array.isArray(data.data)) {
+        return data.data.map(function (m) { return { id: String(m.id || m.name || '').trim(), name: String(m.name || m.id || '').trim() }; }).filter(function (m) { return !!m.id; });
+      }
+      if (Array.isArray(data.models)) {
+        return data.models.map(function (m) { return { id: String(m.name || m.model || m.id || '').trim(), name: String(m.name || m.model || m.id || '').trim() }; }).filter(function (m) { return !!m.id; });
+      }
+      return [];
+    }
+
+    function _normalizeUrlNoSlash(value) {
+      return String(value || '').trim().replace(/\/+$/, '');
+    }
+
+    _sbDefine('listAIModelsJsonFromClient', function (payloadJson) {
+      try {
+        var payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+        var provider = payload.provider || payload.providerKey || 'openrouter';
+        var url = '';
+        var headers = {};
+
+        if (provider === 'openrouter') {
+          url = 'https://openrouter.ai/api/v1/models';
+          var typedKey = payload.openrouter && String(payload.openrouter.apiKey || '').trim();
+          var saved = _loadAISettings();
+          var savedKey = String(saved.openrouter && saved.openrouter.apiKey || '').trim();
+          var apiKey = typedKey || savedKey;
+          if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+        } else if (provider === 'lmstudio') {
+          var endpoint = _normalizeUrlNoSlash(payload.lmstudio && payload.lmstudio.endpoint || 'http://localhost:1234/v1');
+          url = endpoint + '/models';
+        } else if (provider === 'ollama') {
+          var endpoint2 = _normalizeUrlNoSlash(payload.ollama && payload.ollama.endpoint || 'http://localhost:11434');
+          url = (/\/api$/i.test(endpoint2) ? endpoint2 : endpoint2 + '/api') + '/tags';
+        } else {
+          throw new Error('Unknown AI provider: ' + provider);
+        }
+
+        return fetch(url, { method: 'GET', headers: headers }).then(function (response) {
+          return response.text().then(function (text) {
+            if (!response.ok) throw new Error('Model fetch failed with HTTP ' + response.status + ': ' + text.slice(0, 300));
+            var data = text ? JSON.parse(text) : {};
+            var models = _extractModelRecords(data).sort(function (a, b) {
+              return String(a.id).localeCompare(String(b.id));
+            });
+            return JSON.stringify({ ok: true, provider: provider, models: models });
+          });
+        });
+      } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'listAIModels failed' }));
+      }
+    });
+
+    _sbDefine('testAIConnectionJsonFromClient', function (payloadJson) {
+      try {
+        var payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+        var provider = payload.provider || payload.providerKey || 'openrouter';
+        var listImpl = _sbImpl['listAIModelsJsonFromClient'];
+        if (!listImpl) throw new Error('listAIModelsJsonFromClient not implemented');
+        return Promise.resolve(listImpl(payloadJson)).then(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.ok === false) throw new Error(result.error || 'Connection test failed.');
+          return JSON.stringify({
+            ok: true, provider: provider, mode: 'browser/direct',
+            modelCount: Array.isArray(result.models) ? result.models.length : 0,
+            sampleModels: Array.isArray(result.models) ? result.models.slice(0, 5) : []
+          });
+        });
+      } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'testAIConnection failed' }));
+      }
+    });
+
+    _sbDefine('callAICompletionJsonFromClient', function (payloadJson) {
+      try {
+        var payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+        var provider = payload.provider || 'openrouter';
+        var request = payload.request || {};
+        var system = String(request.system || 'You are a helpful writing assistant.');
+        var prompt = String(request.prompt || '');
+        var temperature = Math.max(0, Math.min(2, Number(request.temperature || 0.7)));
+        var maxTokens = Math.max(64, Math.min(16000, Number(request.maxTokens || 512)));
+        if (!prompt.trim()) throw new Error('Prompt is empty.');
+        var url = '';
+        var body = null;
+        var headers = { 'Content-Type': 'application/json' };
+
+        if (provider === 'openrouter') {
+          var typedKey = payload.openrouter && String(payload.openrouter.apiKey || '').trim();
+          var saved = _loadAISettings();
+          var savedKey = String(saved.openrouter && saved.openrouter.apiKey || '').trim();
+          var apiKey = typedKey || savedKey;
+          if (!apiKey) throw new Error('OpenRouter API key is not saved. Open AI Settings and add it first.');
+          var model = String(request.model || payload.openrouter && payload.openrouter.model || '').trim();
+          if (!model) throw new Error('OpenRouter model is not set.');
+          url = 'https://openrouter.ai/api/v1/chat/completions';
+          headers['Authorization'] = 'Bearer ' + apiKey;
+          headers['HTTP-Referer'] = 'https://script.google.com';
+          headers['X-Title'] = 'Writing Dashboard';
+          body = { model: model, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: temperature, max_tokens: maxTokens, stream: false };
+        } else if (provider === 'lmstudio') {
+          var endpoint = _normalizeUrlNoSlash(payload.lmstudio && payload.lmstudio.endpoint || 'http://localhost:1234/v1');
+          var model2 = String(request.model || payload.lmstudio && payload.lmstudio.model || '').trim();
+          if (!model2) throw new Error('LM Studio model is not set.');
+          url = (/\/v1$/i.test(endpoint) ? endpoint : endpoint + '/v1') + '/chat/completions';
+          body = { model: model2, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: temperature, max_tokens: maxTokens, stream: false };
+        } else if (provider === 'ollama') {
+          var endpoint2 = _normalizeUrlNoSlash(payload.ollama && payload.ollama.endpoint || 'http://localhost:11434');
+          var model3 = String(request.model || payload.ollama && payload.ollama.model || '').trim();
+          if (!model3) throw new Error('Ollama model is not set.');
+          url = (/\/api$/i.test(endpoint2) ? endpoint2 : endpoint2 + '/api') + '/chat';
+          body = { model: model3, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], options: { temperature: temperature, num_predict: maxTokens }, stream: false };
+        } else {
+          throw new Error('Unknown AI provider: ' + provider);
+        }
+
+        return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) }).then(function (response) {
+          return response.text().then(function (text) {
+            if (!response.ok) throw new Error('AI request failed with HTTP ' + response.status + ': ' + text.slice(0, 700));
+            var data = text ? JSON.parse(text) : {};
+            var output = '';
+            if (data.choices && data.choices[0]) {
+              output = data.choices[0].message && data.choices[0].message.content != null ? String(data.choices[0].message.content) : (data.choices[0].text || '');
+            } else if (data.message && data.message.content != null) {
+              output = String(data.message.content);
+            } else if (data.response) {
+              output = String(data.response);
+            }
+            return JSON.stringify({ ok: true, provider: provider, mode: 'browser/direct', text: output, raw: data });
+          });
+        });
+      } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'callAICompletion failed' }));
+      }
+    });
+
+    // --- Book Creator Pockets ---
+    _sbDefine('getBookCreatorPocketsJsonFromClient', function () {
+      return sbClient.from('book_creator_pockets').select('id,category,pocket_key,label,content_text,source_type,source_label,is_active,sort_order,legacy_row_number,updated_at,created_at')
+        .eq('is_active', true).order('category', { ascending: true }).order('sort_order', { ascending: true }).order('pocket_key', { ascending: true }).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          var pockets = rows.map(function (row) {
+            var category = String(row.category || '').trim();
+            var key = String(row.pocket_key || '').trim();
+            return {
+              category: category,
+              key: key,
+              label: String(row.label || row.pocket_key || '').trim(),
+              text: String(row.content_text || '').trim(),
+              sourceType: String(row.source_type || 'supabase').trim(),
+              sourceLabel: String(row.source_label || row.label || row.pocket_key || 'Supabase').trim(),
+              rowNumber: Number(row.legacy_row_number || row.sort_order || row.id || 0) || null
+            };
+          }).filter(function (p) { return p.category && p.key && p.text; });
+          return JSON.stringify({ ok: true, backend: 'supabase', pockets: pockets });
+        });
+    });
+
+    // --- Story Seed Engine ---
+    _sbDefine('getStorySeedEngineJsonFromClient', function () {
+      return fetch('/data/story_seed_engine.json').then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.text();
+      }).then(function (text) {
+        return text || JSON.stringify({ ok: true, options: {}, engine: {}, sourceData: {}, rowCount: 0 });
+      });
+    });
+
+    // --- Override callAppsScriptJson to try Supabase first ---
+    function callAppsScriptJson(methodName, args) {
+      return new Promise(function (resolve, reject) {
+        var impl = _sbImpl[methodName];
+        if (impl && sbClient) {
+          _sbExec(impl, args || [], function (json) {
+            try {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result && result.ok === false) throw new Error(result.error || (methodName + ' failed.'));
+              resolve(result);
+            } catch (error) {
+              reject(error);
+            }
+          }, function (error) {
+            reject(error && error.message ? new Error(error.message) : error);
+          });
+        } else if (typeof google !== 'undefined' && google.script && google.script.run) {
+          var runner = google.script.run
+            .withSuccessHandler(function (json) {
+              try {
+                var result = typeof json === 'string' ? JSON.parse(json) : json;
+                if (result && result.ok === false) throw new Error(result.error || (methodName + ' failed.'));
+                resolve(result);
+              } catch (error) {
+                reject(error);
+              }
+            })
+            .withFailureHandler(function (error) {
+              reject(error && error.message ? new Error(error.message) : error);
+            });
+          runner[methodName].apply(runner, args || []);
+        } else {
+          reject(new Error('No implementation for ' + methodName));
+        }
+      });
+    }
+
