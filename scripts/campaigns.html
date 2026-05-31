@@ -1,0 +1,207 @@
+    function renderCampaignList() {
+      var list = el.campaignList;
+      if (!list) return;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(appState.selectedRowNumber); });
+      if (!project) { list.innerHTML = ""; return; }
+      var campaigns = Array.isArray(project.campaigns) ? project.campaigns : [];
+      if (!campaigns.length) {
+        list.innerHTML = "<div class='tiny muted'>No campaigns added yet.</div>";
+        return;
+      }
+      list.innerHTML = campaigns.map(function (c, i) {
+        var channelOptions = ["", "Amazon Ads", "BookBub", "Facebook Ads", "Newsletter", "Social Media", "Blog Tour", "Podcast", "Influencer", "Email Blast", "Cross Promo", "Other"];
+        var channelHtml = "<select class='campaign-channel-input' data-idx='" + i + "'>" +
+          channelOptions.map(function (opt) {
+            var sel = opt === (c.channel || "") ? " selected" : "";
+            return "<option value='" + escapeHtml(opt) + "'" + sel + ">" + escapeHtml(opt || "â€” Channel â€”") + "</option>";
+          }).join("") + "</select>";
+        var tasks = Array.isArray(c.tasks) ? c.tasks : [];
+        var tasksHtml = "";
+        if (tasks.length) {
+          tasksHtml = tasks.map(function (t, j) {
+            var checked = t.status === "done" ? " checked" : "";
+            return "<div class='campaign-task-row' data-task-idx='" + j + "'>" +
+              "<input type='checkbox' class='campaign-task-check' data-idx='" + i + "' data-task='" + j + "'" + checked + " />" +
+              "<input type='text' class='campaign-task-name' value='" + escapeHtml(t.name || "") + "' placeholder='Task' data-idx='" + i + "' data-task='" + j + "' />" +
+              "<input type='date' class='campaign-task-date' value='" + (t.dueDate || "") + "' data-idx='" + i + "' data-task='" + j + "' />" +
+              "<button type='button' class='campaign-task-delete detail-inline-button' data-idx='" + i + "' data-task='" + j + "'>Ã—</button>" +
+            "</div>";
+          }).join("");
+        }
+        return "<div class='campaign-item' data-campaign-index='" + i + "'>" +
+          "<div class='campaign-field-row'>" +
+            "<input type='text' class='campaign-name-input' value='" + escapeHtml(c.name || "") + "' placeholder='Campaign name' data-idx='" + i + "' />" +
+            channelHtml +
+            "<button type='button' class='campaign-item-delete detail-inline-button' data-campaign-index='" + i + "'>Ã—</button>" +
+          "</div>" +
+          "<div class='campaign-field-row'>" +
+            "<input type='date' class='campaign-start-input' value='" + (c.startDate || "") + "' data-idx='" + i + "' />" +
+            "<input type='date' class='campaign-end-input' value='" + (c.endDate || "") + "' data-idx='" + i + "' />" +
+          "</div>" +
+          "<div class='campaign-tasks-section'>" +
+            "<div class='campaign-tasks-header'><span class='tiny'><strong>Tasks</strong></span><button type='button' class='campaign-task-add detail-inline-button' data-idx='" + i + "'>+</button></div>" +
+            (tasksHtml || "<div class='tiny muted' style='padding:2px 0'>No tasks added.</div>") +
+          "</div>" +
+        "</div>";
+      }).join("");
+
+      function handleCampaignFieldChange(event) {
+        var input = event && event.target;
+        if (!input) return;
+        var idx = Number(input.getAttribute("data-idx"));
+        if (isNaN(idx)) return;
+        var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); });
+        if (!p || !Array.isArray(p.campaigns) || idx >= p.campaigns.length) return;
+        if (input.classList.contains("campaign-name-input")) p.campaigns[idx].name = input.value;
+        if (input.classList.contains("campaign-channel-input")) p.campaigns[idx].channel = input.value;
+        if (input.classList.contains("campaign-start-input")) p.campaigns[idx].startDate = input.value;
+        if (input.classList.contains("campaign-end-input")) p.campaigns[idx].endDate = input.value;
+        if (input.classList.contains("campaign-task-name")) {
+          var tIdx = Number(input.getAttribute("data-task"));
+          if (!isNaN(tIdx) && p.campaigns[idx].tasks && p.campaigns[idx].tasks[tIdx]) p.campaigns[idx].tasks[tIdx].name = input.value;
+        }
+        if (input.classList.contains("campaign-task-date")) {
+          var tIdx = Number(input.getAttribute("data-task"));
+          if (!isNaN(tIdx) && p.campaigns[idx].tasks && p.campaigns[idx].tasks[tIdx]) p.campaigns[idx].tasks[tIdx].dueDate = input.value;
+        }
+        if (input.classList.contains("campaign-task-check")) {
+          var tIdx = Number(input.getAttribute("data-task"));
+          if (!isNaN(tIdx) && p.campaigns[idx].tasks && p.campaigns[idx].tasks[tIdx]) {
+            p.campaigns[idx].tasks[tIdx].status = input.checked ? "done" : "pending";
+          }
+        }
+        scheduleAutosave();
+      }
+
+      list.querySelectorAll(".campaign-name-input, .campaign-channel-input, .campaign-start-input, .campaign-end-input, .campaign-task-name, .campaign-task-date").forEach(function (inp) {
+        inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", handleCampaignFieldChange);
+      });
+
+      list.querySelectorAll(".campaign-task-check").forEach(function (chk) {
+        chk.addEventListener("change", handleCampaignFieldChange);
+      });
+
+      list.querySelectorAll(".campaign-item-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-campaign-index"));
+          var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); });
+          if (!p || !Array.isArray(p.campaigns)) return;
+          p.campaigns.splice(idx, 1);
+          renderCampaignList();
+          scheduleAutosave();
+        });
+      });
+
+      list.querySelectorAll(".campaign-task-add").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-idx"));
+          if (isNaN(idx)) return;
+          var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); });
+          if (!p || !Array.isArray(p.campaigns) || idx >= p.campaigns.length) return;
+          if (!Array.isArray(p.campaigns[idx].tasks)) p.campaigns[idx].tasks = [];
+          p.campaigns[idx].tasks.push({ name: "", dueDate: "", status: "pending" });
+          renderCampaignList();
+          scheduleAutosave();
+        });
+      });
+
+      list.querySelectorAll(".campaign-task-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-idx"));
+          var tIdx = Number(btn.getAttribute("data-task"));
+          if (isNaN(idx) || isNaN(tIdx)) return;
+          var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); });
+          if (!p || !Array.isArray(p.campaigns) || idx >= p.campaigns.length || !Array.isArray(p.campaigns[idx].tasks)) return;
+          p.campaigns[idx].tasks.splice(tIdx, 1);
+          renderCampaignList();
+          scheduleAutosave();
+        });
+      });
+    }
+
+    function addCampaign() {
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(appState.selectedRowNumber); });
+      if (!project) { setStatus("Select a project first.", "warn"); return; }
+      if (!Array.isArray(project.campaigns)) project.campaigns = [];
+      project.campaigns.push({ name: "New Campaign", channel: "", startDate: "", endDate: "", notes: "", tasks: [] });
+      renderCampaignList();
+      scheduleAutosave();
+    }
+
+    function openCampaignTasksModal() {
+      if (!el.campaignTasksModal) return;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(appState.selectedRowNumber); });
+      if (!project) { setStatus("Select a project first.", "warn"); return; }
+      if (el.campaignTasksProjectTitle) el.campaignTasksProjectTitle.textContent = "â€” " + (project.title || "Untitled");
+      renderCampaignTasksModal();
+      el.campaignTasksModal.classList.add("is-open");
+      el.campaignTasksModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCampaignTasksModal() {
+      if (!el.campaignTasksModal) return;
+      el.campaignTasksModal.classList.remove("is-open");
+      el.campaignTasksModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderCampaignTasksModal() {
+      var body = el.campaignTasksBody;
+      if (!body) return;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(appState.selectedRowNumber); });
+      if (!project) { body.innerHTML = ""; return; }
+      var campaigns = Array.isArray(project.campaigns) ? project.campaigns : [];
+      var allTasks = [];
+      campaigns.forEach(function (c, ci) {
+        var tasks = Array.isArray(c.tasks) ? c.tasks : [];
+        tasks.forEach(function (t, ti) {
+          allTasks.push({
+            campaignIndex: ci,
+            taskIndex: ti,
+            campaignName: c.name || "Unnamed Campaign",
+            task: t
+          });
+        });
+      });
+      allTasks.sort(function (a, b) {
+        var da = a.task.dueDate || "9999-99-99";
+        var db = b.task.dueDate || "9999-99-99";
+        if (da < db) return -1;
+        if (da > db) return 1;
+        return (a.campaignName < b.campaignName ? -1 : a.campaignName > b.campaignName ? 1 : 0);
+      });
+      if (!allTasks.length) {
+        body.innerHTML = "<div class='tiny muted'>No tasks across any campaigns.</div>";
+        return;
+      }
+      var html = "<table class='campaign-tasks-table'><thead><tr><th style='width:28px'></th><th style='text-align:left'>Campaign</th><th style='text-align:left'>Task</th><th style='text-align:left'>Due</th><th style='width:50px'>Status</th></tr></thead><tbody>";
+      allTasks.forEach(function (item) {
+        var done = item.task.status === "done";
+        var checked = done ? " checked" : "";
+        var due = item.task.dueDate || "â€”";
+        var campaignColor = item.campaignName.indexOf("Marketing Plan:") === 0 ? "#6366f1" : "#4f46e5";
+        html += "<tr class='campaign-task-row-modal'>" +
+          "<td><input type='checkbox' class='campaign-task-check-modal'" + checked + " data-campaign-idx='" + item.campaignIndex + "' data-task-idx='" + item.taskIndex + "' /></td>" +
+          "<td style='color:" + campaignColor + ";font-size:0.85em'>" + escapeHtml(item.campaignName) + "</td>" +
+          "<td" + (done ? " style='text-decoration:line-through;opacity:0.5'" : "") + ">" + escapeHtml(item.task.name || "") + "</td>" +
+          "<td style='font-size:0.85em;color:#666'>" + escapeHtml(due) + "</td>" +
+          "<td>" + (done ? "<span class='pill is-ok'>done</span>" : "<span class='pill is-warn'>pending</span>") + "</td>" +
+        "</tr>";
+      });
+      html += "</tbody></table>";
+      body.innerHTML = html;
+      Array.from(body.querySelectorAll(".campaign-task-check-modal")).forEach(function (chk) {
+        chk.addEventListener("change", function () {
+          var ci = Number(chk.getAttribute("data-campaign-idx"));
+          var ti = Number(chk.getAttribute("data-task-idx"));
+          var project2 = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(appState.selectedRowNumber); });
+          if (!project2 || !Array.isArray(project2.campaigns) || ci >= project2.campaigns.length) return;
+          var tasks2 = Array.isArray(project2.campaigns[ci].tasks) ? project2.campaigns[ci].tasks : [];
+          if (ti >= 0 && ti < tasks2.length) {
+            tasks2[ti].status = chk.checked ? "done" : "pending";
+            scheduleAutosave();
+            renderCampaignTasksModal();
+            renderCampaignList();
+          }
+        });
+      });
+    }

@@ -1,0 +1,129 @@
+    function openScheduleTemplatesModal() {
+      if (!el.scheduleTemplatesModal) return;
+      el.scheduleTemplatesModal.classList.add("is-open");
+      el.scheduleTemplatesModal.setAttribute("aria-hidden", "false");
+      renderScheduleTemplateSelector();
+    }
+
+    function closeScheduleTemplatesModal() {
+      if (!el.scheduleTemplatesModal) return;
+      el.scheduleTemplatesModal.classList.remove("is-open");
+      el.scheduleTemplatesModal.setAttribute("aria-hidden", "true");
+    }
+
+    function getActiveTemplateName() {
+      return el.scheduleTemplateSelector ? el.scheduleTemplateSelector.value : "";
+    }
+
+    function renderScheduleTemplateSelector() {
+      var sel = el.scheduleTemplateSelector;
+      if (!sel) return;
+      var current = sel.value;
+      sel.innerHTML = "";
+      SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
+        var opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+      sel.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(current) !== -1 ? current : SCHEDULE_TEMPLATE_OPTIONS[0] || "";
+      renderScheduleTemplateEditor();
+    }
+
+    function renderScheduleTemplateEditor() {
+      var name = getActiveTemplateName();
+      if (el.scheduleTemplateNameInput) el.scheduleTemplateNameInput.value = name;
+      var tmpl = SCHEDULE_TEMPLATES[name];
+      var list = el.scheduleMilestoneList;
+      if (!list) return;
+      list.innerHTML = "";
+      if (!tmpl) return;
+      tmpl.milestones.forEach(function (m, i) {
+        var row = document.createElement("div");
+        row.className = "schedule-milestone-row";
+        row.innerHTML =
+          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(m.name) + "' placeholder='Milestone name' />" +
+          "<input type='number' class='schedule-milestone-offset' value='" + Number(m.dayOffset) + "' min='0' placeholder='Days' />" +
+          "<span class='tiny' style='white-space:nowrap;'>days after Publish Ready</span>" +
+          "<button type='button' class='schedule-milestone-delete' data-milestone-index='" + i + "'>×</button>";
+        list.appendChild(row);
+      });
+      Array.from(list.querySelectorAll(".schedule-milestone-delete")).forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-milestone-index"));
+          var tName = getActiveTemplateName();
+          var t = SCHEDULE_TEMPLATES[tName];
+          if (!t) return;
+          t.milestones.splice(idx, 1);
+          renderScheduleTemplateEditor();
+        });
+      });
+    }
+
+    function addScheduleMilestone() {
+      var name = getActiveTemplateName();
+      var tmpl = SCHEDULE_TEMPLATES[name];
+      if (!tmpl) return;
+      var lastOffset = tmpl.milestones.length ? tmpl.milestones[tmpl.milestones.length - 1].dayOffset : 0;
+      tmpl.milestones.push({ name: "", dayOffset: lastOffset + 7 });
+      renderScheduleTemplateEditor();
+      var rows = el.scheduleMilestoneList.querySelectorAll(".schedule-milestone-row");
+      if (rows.length) {
+        var lastInput = rows[rows.length - 1].querySelector(".schedule-milestone-name");
+        if (lastInput) setTimeout(function () { lastInput.focus(); }, 50);
+      }
+    }
+
+    function saveScheduleTemplates() {
+      var name = el.scheduleTemplateNameInput ? el.scheduleTemplateNameInput.value.trim() : "";
+      if (!name) { setStatus("Template name is required.", "error"); return; }
+      var oldName = getActiveTemplateName();
+      if (oldName && oldName !== name) {
+        SCHEDULE_TEMPLATES[name] = SCHEDULE_TEMPLATES[oldName];
+        delete SCHEDULE_TEMPLATES[oldName];
+        var idx = SCHEDULE_TEMPLATE_OPTIONS.indexOf(oldName);
+        if (idx !== -1) SCHEDULE_TEMPLATE_OPTIONS[idx] = name;
+      } else if (!oldName) {
+        SCHEDULE_TEMPLATES[name] = { name: name, milestones: [] };
+        SCHEDULE_TEMPLATE_OPTIONS.push(name);
+      }
+      SCHEDULE_TEMPLATES[name].name = name;
+      var rows = el.scheduleMilestoneList ? el.scheduleMilestoneList.querySelectorAll(".schedule-milestone-row") : [];
+      SCHEDULE_TEMPLATES[name].milestones = Array.from(rows).map(function (row) {
+        var nameInput = row.querySelector(".schedule-milestone-name");
+        var offsetInput = row.querySelector(".schedule-milestone-offset");
+        return {
+          name: nameInput ? nameInput.value.trim() : "",
+          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0
+        };
+      }).filter(function (m) { return !!m.name; });
+      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
+      renderScheduleTemplateSelector();
+      setStatus("Schedule templates saved.", "ok");
+    }
+
+    function deleteScheduleTemplate() {
+      var name = getActiveTemplateName();
+      if (!name || !SCHEDULE_TEMPLATES[name]) return;
+      if (SCHEDULE_TEMPLATE_OPTIONS.length <= 1) { setStatus("Cannot delete the last template.", "warn"); return; }
+      delete SCHEDULE_TEMPLATES[name];
+      var idx = SCHEDULE_TEMPLATE_OPTIONS.indexOf(name);
+      if (idx !== -1) SCHEDULE_TEMPLATE_OPTIONS.splice(idx, 1);
+      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
+      renderScheduleTemplateSelector();
+      setStatus("Template deleted.", "ok");
+    }
+
+    function newScheduleTemplate() {
+      var baseName = "New Template";
+      var counter = 1;
+      while (SCHEDULE_TEMPLATES[baseName + (counter > 1 ? " " + counter : "")]) { counter++; }
+      var name = baseName + (counter > 1 ? " " + counter : "");
+      SCHEDULE_TEMPLATES[name] = { name: name, milestones: [{ name: "PUBLISH", dayOffset: 42 }] };
+      SCHEDULE_TEMPLATE_OPTIONS.push(name);
+      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
+      renderScheduleTemplateSelector();
+      if (el.scheduleTemplateSelector) el.scheduleTemplateSelector.value = name;
+      renderScheduleTemplateEditor();
+      if (el.scheduleTemplateNameInput) { el.scheduleTemplateNameInput.value = name; el.scheduleTemplateNameInput.focus(); }
+    }

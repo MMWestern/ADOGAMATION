@@ -1,0 +1,129 @@
+    function openMarketingTemplatesModal() {
+      if (!el.marketingTemplatesModal) return;
+      el.marketingTemplatesModal.classList.add("is-open");
+      el.marketingTemplatesModal.setAttribute("aria-hidden", "false");
+      renderMarketingTemplateSelector();
+    }
+
+    function closeMarketingTemplatesModal() {
+      if (!el.marketingTemplatesModal) return;
+      el.marketingTemplatesModal.classList.remove("is-open");
+      el.marketingTemplatesModal.setAttribute("aria-hidden", "true");
+    }
+
+    function getActiveMarketingTemplateName() {
+      return el.marketingTemplateSelector ? el.marketingTemplateSelector.value : "";
+    }
+
+    function renderMarketingTemplateSelector() {
+      var sel = el.marketingTemplateSelector;
+      if (!sel) return;
+      var current = sel.value;
+      sel.innerHTML = "";
+      MARKETING_TEMPLATE_OPTIONS.forEach(function (name) {
+        var opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+      sel.value = MARKETING_TEMPLATE_OPTIONS.indexOf(current) !== -1 ? current : MARKETING_TEMPLATE_OPTIONS[0] || "";
+      renderMarketingTemplateEditor();
+    }
+
+    function renderMarketingTemplateEditor() {
+      var name = getActiveMarketingTemplateName();
+      if (el.marketingTemplateNameInput) el.marketingTemplateNameInput.value = name;
+      var tmpl = MARKETING_TEMPLATES[name];
+      var list = el.marketingEntryList;
+      if (!list) return;
+      list.innerHTML = "";
+      if (!tmpl) return;
+      tmpl.entries.forEach(function (e, i) {
+        var row = document.createElement("div");
+        row.className = "schedule-milestone-row";
+        row.innerHTML =
+          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(e.taskName) + "' placeholder='Task name' />" +
+          "<input type='text' class='marketing-entry-channel' value='" + escapeHtml(e.channel || "") + "' placeholder='Channel' />" +
+          "<input type='number' class='schedule-milestone-offset' value='" + Number(e.dayOffset) + "' placeholder='Days' />" +
+          "<span class='tiny' style='white-space:nowrap;'>days from publish</span>" +
+          "<button type='button' class='schedule-milestone-delete' data-entry-index='" + i + "'>×</button>";
+        list.appendChild(row);
+      });
+      Array.from(list.querySelectorAll(".schedule-milestone-delete")).forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-entry-index"));
+          var tName = getActiveMarketingTemplateName();
+          var t = MARKETING_TEMPLATES[tName];
+          if (!t) return;
+          t.entries.splice(idx, 1);
+          renderMarketingTemplateEditor();
+        });
+      });
+    }
+
+    function addMarketingEntry() {
+      var name = getActiveMarketingTemplateName();
+      var tmpl = MARKETING_TEMPLATES[name];
+      if (!tmpl) return;
+      var lastOffset = tmpl.entries.length ? tmpl.entries[tmpl.entries.length - 1].dayOffset : 0;
+      tmpl.entries.push({ taskName: "", channel: "", dayOffset: lastOffset + 7 });
+      renderMarketingTemplateEditor();
+      var rows = el.marketingEntryList.querySelectorAll(".schedule-milestone-row");
+      if (rows.length) {
+        var lastInput = rows[rows.length - 1].querySelector(".schedule-milestone-name");
+        if (lastInput) setTimeout(function () { lastInput.focus(); }, 50);
+      }
+    }
+
+    function saveMarketingTemplates() {
+      var name = el.marketingTemplateNameInput ? el.marketingTemplateNameInput.value.trim() : "";
+      if (!name) { setStatus("Template name is required.", "error"); return; }
+      var oldName = getActiveMarketingTemplateName();
+      if (oldName && oldName !== name) {
+        MARKETING_TEMPLATES[name] = MARKETING_TEMPLATES[oldName];
+        delete MARKETING_TEMPLATES[oldName];
+        var idx = MARKETING_TEMPLATE_OPTIONS.indexOf(oldName);
+        if (idx !== -1) MARKETING_TEMPLATE_OPTIONS[idx] = name;
+      } else if (!oldName) {
+        MARKETING_TEMPLATES[name] = { name: name, entries: [] };
+        MARKETING_TEMPLATE_OPTIONS.push(name);
+      }
+      MARKETING_TEMPLATES[name].name = name;
+      var rows = el.marketingEntryList ? el.marketingEntryList.querySelectorAll(".schedule-milestone-row") : [];
+      MARKETING_TEMPLATES[name].entries = Array.from(rows).map(function (row) {
+        var nameInput = row.querySelector(".schedule-milestone-name");
+        var channelInput = row.querySelector(".marketing-entry-channel");
+        var offsetInput = row.querySelector(".schedule-milestone-offset");
+        return {
+          taskName: nameInput ? nameInput.value.trim() : "",
+          channel: channelInput ? channelInput.value.trim() : "",
+          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0
+        };
+      }).filter(function (e) { return !!e.taskName; });
+      renderMarketingTemplateSelector();
+      setStatus("Marketing templates saved.", "ok");
+    }
+
+    function deleteMarketingTemplate() {
+      var name = getActiveMarketingTemplateName();
+      if (!name || !MARKETING_TEMPLATES[name]) return;
+      if (MARKETING_TEMPLATE_OPTIONS.length <= 1) { setStatus("Cannot delete the last template.", "warn"); return; }
+      delete MARKETING_TEMPLATES[name];
+      var idx = MARKETING_TEMPLATE_OPTIONS.indexOf(name);
+      if (idx !== -1) MARKETING_TEMPLATE_OPTIONS.splice(idx, 1);
+      renderMarketingTemplateSelector();
+      setStatus("Template deleted.", "ok");
+    }
+
+    function newMarketingTemplate() {
+      var baseName = "New Template";
+      var counter = 1;
+      while (MARKETING_TEMPLATES[baseName + (counter > 1 ? " " + counter : "")]) { counter++; }
+      var name = baseName + (counter > 1 ? " " + counter : "");
+      MARKETING_TEMPLATES[name] = { name: name, entries: [{ taskName: "", channel: "Social Media", dayOffset: 0 }] };
+      MARKETING_TEMPLATE_OPTIONS.push(name);
+      renderMarketingTemplateSelector();
+      if (el.marketingTemplateSelector) el.marketingTemplateSelector.value = name;
+      renderMarketingTemplateEditor();
+      if (el.marketingTemplateNameInput) { el.marketingTemplateNameInput.value = name; el.marketingTemplateNameInput.focus(); }
+    }

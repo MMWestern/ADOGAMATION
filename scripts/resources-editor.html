@@ -1,0 +1,586 @@
+    /* -- Resource Tree & Inline Editor -- */
+
+    function renderResourcesDashboard() {
+      if (!appState.resourcesLoaded) {
+        if (el.resourceTreeContainer) el.resourceTreeContainer.innerHTML = "<div class='landing-empty' style='padding:8px;'>Loading resources...</div>";
+        loadResourcesList(function () {
+          renderResourcesDashboard();
+        });
+        return;
+      }
+      renderResourcesTree();
+      var preferredId = getPreferredResourceId();
+      if (preferredId) {
+        selectResource(preferredId);
+      } else {
+        clearResourceEditor();
+      }
+      renderSeriesKnowledgePanel(getSelectedProject());
+      loadSeriesKnowledgeForSelectedProject(false);
+    }
+
+    function loadResourcesList(callback) {
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) return;
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            const result = JSON.parse(json);
+            if (result.ok === false) throw new Error(result.error || "Failed to load resources.");
+            appState.resources = Array.isArray(result.resources) ? result.resources : [];
+            appState.resourcesLoaded = true;
+            renderResourcesTree();
+            if (typeof callback === "function") callback();
+          } catch (e) {
+            if (el.resourceTreeContainer) el.resourceTreeContainer.innerHTML = "<div class='landing-empty' style='padding:8px;'>Error loading resources.</div>";
+            setStatus("Resources load failed: " + e.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          if (el.resourceTreeContainer) el.resourceTreeContainer.innerHTML = "<div class='landing-empty' style='padding:8px;'>Could not reach the server.</div>";
+          setStatus("Resources load failed: " + (error && error.message ? error.message : error), "error");
+        })
+        .listGeneralResourcesFromClient();
+    }
+
+    function renderResourcesTree() {
+      if (!el.resourceTreeContainer) return;
+      var resources = appState.resources;
+      if (!resources || !resources.length) {
+        el.resourceTreeContainer.innerHTML = "<div class='landing-empty' style='padding:8px;'>No resources yet.</div>";
+        return;
+      }
+
+      var groups = {};
+      resources.forEach(function (r) {
+        var cat = String(r.category || "General").trim();
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(r);
+      });
+      var catKeys = Object.keys(groups).sort();
+      var selectedId = appState.selectedResourceId;
+
+      var html = "";
+      catKeys.forEach(function (cat) {
+        var items = groups[cat];
+        html += "<div class='tree-category'>";
+        html += "<div class='tree-category-header'>";
+        html += "<span class='tree-category-name'>" + escapeHtml(cat) + "</span>";
+        html += "<span class='tree-category-count'>" + items.length + "</span>";
+        html += "</div>";
+        html += "<div class='tree-category-children'>";
+        items.forEach(function (r) {
+          var id = Number(r.id);
+          var isActive = (selectedId === id) ? " is-active" : "";
+          var dotClass = "tree-resource-dot";
+          if (isResourceDirty(id)) {
+            dotClass += " is-dirty";
+          }
+          html += "<div class='tree-resource" + isActive + "' data-resource-id='" + id + "'>";
+          html += "<span class='" + dotClass + "'></span>";
+          html += "<span class='tree-resource-name'>" + escapeHtml(String(r.title || "").trim() || "Untitled") + "</span>";
+          html += "</div>";
+        });
+        html += "</div></div>";
+      });
+      el.resourceTreeContainer.innerHTML = html;
+    }
+
+    function selectResource(resourceId) {
+      if (!resourceId) return;
+
+      var prevId = appState.selectedResourceId;
+      var targetId = Number(resourceId);
+      var recoveryState = isTransientResourceLoadState(prevId) ? null : captureCurrentResourceEditorState();
+
+      if (prevId && prevId !== targetId && el.resourceEditorTextarea) {
+        var wasDirty = isResourceDirty();
+        appState.resourceDirtyMap[prevId] = wasDirty;
+        var prevKey = "general_resource_" + prevId;
+        var prevText = el.resourceEditorTextarea.value || "";
+        var prevTitle = el.resourceEditorTitle ? el.resourceEditorTitle.value : "";
+        var prevCategory = el.resourceEditorCategory ? el.resourceEditorCategory.value : "";
+        if (!isTransientResourceLoadState(prevId) || wasDirty) {
+          setCachedDoc(prevKey, { text: prevText, title: prevTitle, category: prevCategory, dirty: wasDirty, pendingLoad: false });
+        }
+      }
+
+      appState.selectedResourceId = targetId;
+      appState.resourceLoadRecoveryState = prevId && prevId !== targetId ? recoveryState : null;
+      persistLastSelectedResourceId(targetId);
+      renderResourcesTree();
+
+      var resource = null;
+      for (var i = 0; i < appState.resources.length; i++) {
+        if (Number(appState.resources[i].id) === appState.selectedResourceId) {
+          resource = appState.resources[i];
+          break;
+        }
+      }
+      if (!resource) { setStatus("Resource not found.", "error"); return; }
+
+      if (!el.resourceEditorContent || !el.resourceEditorEmpty) return;
+      el.resourceEditorContent.hidden = false;
+      el.resourceEditorEmpty.hidden = true;
+      setResourceViewMode(appState.resourceViewMode);
+      if (el.resourceEditorSaveButton) el.resourceEditorSaveButton.style.display = "";
+      if (el.resourceAutoSaveTimerCircle) {
+        var settings = loadAutoSaveFromStorage();
+        el.resourceAutoSaveTimerCircle.style.display = settings.enabled ? "" : "none";
+        if (settings.enabled) {
+          startResourceAutoSave();
+        }
+      }
+      updateResourceUnsavedIndicator();
+
+      var cacheKey = "general_resource_" + appState.selectedResourceId;
+
+      var cached = getCachedDoc(cacheKey);
+      if (shouldUseCachedResourceDoc(cached, resource)) {
+        appState.resourceLoadRequestKey = "resource:" + String(targetId) + ":cache";
+        appState.resourceLoadRecoveryState = null;
+        el.resourceEditorTitle.value = cached.title && String(cached.title).trim() ? String(cached.title).trim() : String(resource.title || "").trim() || "";
+        el.resourceEditorCategory.value = cached.category && String(cached.category).trim() ? String(cached.category).trim() : String(resource.category || "").trim() || "";
+        el.resourceEditorTextarea.value = cached.text;
+        appState.resourceDirtyMap[targetId] = !!cached.dirty;
+        setResourceEditorLoading(false, "Loaded from cache");
+        appState.resourceSavedSnapshot = cached.dirty ? "" : JSON.stringify({
+          title: String(el.resourceEditorTitle.value || "").trim(),
+          category: String(el.resourceEditorCategory.value || "").trim(),
+          text: cached.text
+        });
+        renderResourcePreview();
+        updateResourceWordCount();
+        return;
+      }
+
+      var pendingTitle = String(resource.title || "").trim() || "";
+      var pendingCategory = String(resource.category || "").trim() || "";
+      el.resourceEditorTitle.value = pendingTitle;
+      el.resourceEditorCategory.value = pendingCategory;
+      el.resourceEditorTextarea.value = "";
+      appState.resourceActiveHeadingKey = "";
+      appState.resourceDirtyMap[targetId] = false;
+      appState.resourceSavedSnapshot = JSON.stringify({
+        title: pendingTitle,
+        category: pendingCategory,
+        text: ""
+      });
+      renderResourcePreview();
+      updateResourceWordCount();
+
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) return;
+      var requestKey = "resource:" + String(targetId) + ":" + String(Date.now()) + ":" + String(Math.random()).slice(2);
+      appState.resourceLoadRequestKey = requestKey;
+      setCachedDoc(cacheKey, {
+        text: "",
+        title: pendingTitle,
+        category: pendingCategory,
+        dirty: false,
+        pendingLoad: true
+      });
+      setStatus("Loading resource...", "warn");
+      setResourceEditorLoading(true, "Loading...");
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          if (appState.resourceLoadRequestKey !== requestKey || Number(appState.selectedResourceId || 0) !== targetId) return;
+          try {
+            const result = JSON.parse(json);
+            if (result.ok === false) throw new Error(result.error || "Resource load failed.");
+            var text = String(result.text || "");
+            el.resourceEditorTextarea.value = text;
+            appState.resourceActiveHeadingKey = "";
+            appState.resourceSavedSnapshot = JSON.stringify({
+              title: String(resource.title || "").trim(),
+              category: String(resource.category || "").trim(),
+              text: text
+            });
+            appState.resourceDirtyMap[targetId] = false;
+            appState.resourceLoadRecoveryState = null;
+            setCachedDoc(cacheKey, { text: text, title: resource.title, category: resource.category, dirty: false, pendingLoad: false, savedAt: result.updatedAt || new Date().toISOString() });
+            setResourceEditorLoading(false, "");
+            renderResourcePreview();
+            updateResourceWordCount();
+            setStatus("Loaded: " + (resource.title || "Resource"), "ok");
+          } catch (e) {
+            var restored = restoreResourceEditorState(appState.resourceLoadRecoveryState);
+            appState.resourceLoadRecoveryState = null;
+            if (restored) {
+              setStatus("Resource load failed: " + e.message + ". Restored previous resource.", "error");
+              return;
+            }
+            setResourceEditorLoading(false, "Error loading");
+            setStatus("Resource load failed: " + e.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          if (appState.resourceLoadRequestKey !== requestKey || Number(appState.selectedResourceId || 0) !== targetId) return;
+          var restored = restoreResourceEditorState(appState.resourceLoadRecoveryState);
+          appState.resourceLoadRecoveryState = null;
+          if (restored) {
+            setStatus("Resource load failed: " + (error && error.message ? error.message : error) + ". Restored previous resource.", "error");
+            return;
+          }
+          setResourceEditorLoading(false, "Error loading");
+          setStatus("Resource load failed: " + (error && error.message ? error.message : error), "error");
+        })
+        .getGeneralResourceFromClient(targetId);
+    }
+
+    function clearResourceEditor() {
+      stopResourceAutoSave();
+      appState.resourceLoadRequestKey = "";
+      appState.resourceLoadRecoveryState = null;
+      if (appState.selectedResourceId && el.resourceEditorTextarea) {
+        var dirtyOnClear = isResourceDirty();
+        appState.resourceDirtyMap[appState.selectedResourceId] = dirtyOnClear;
+        var key = "general_resource_" + appState.selectedResourceId;
+        var prevTitle = el.resourceEditorTitle ? el.resourceEditorTitle.value : "";
+        var prevCategory = el.resourceEditorCategory ? el.resourceEditorCategory.value : "";
+        if (!isTransientResourceLoadState(appState.selectedResourceId) || dirtyOnClear) {
+          setCachedDoc(key, { text: el.resourceEditorTextarea.value || "", title: prevTitle, category: prevCategory, dirty: dirtyOnClear, pendingLoad: false });
+        }
+      }
+      if (el.resourceEditorContent) el.resourceEditorContent.hidden = true;
+      if (el.resourceEditorEmpty) el.resourceEditorEmpty.hidden = false;
+      if (el.resourceEditorTitle) el.resourceEditorTitle.value = "";
+      if (el.resourceEditorCategory) el.resourceEditorCategory.value = "";
+      if (el.resourceEditorTextarea) el.resourceEditorTextarea.value = "";
+      appState.resourceActiveHeadingKey = "";
+      if (el.resourceEditorPreview) el.resourceEditorPreview.innerHTML = renderMarkdownWithHeadingAnchors("");
+      renderResourceHeadingPanels();
+      setResourceViewMode("edit");
+      setResourceEditorLoading(false, "");
+      updateResourceWordCount();
+      appState.resourceSavedSnapshot = "";
+      appState.selectedResourceId = 0;
+      if (el.resourceEditorSaveButton) el.resourceEditorSaveButton.style.display = "none";
+      if (el.resourceAutoSaveTimerCircle) el.resourceAutoSaveTimerCircle.style.display = "none";
+      if (el.resourceUnsavedIndicator) el.resourceUnsavedIndicator.hidden = true;
+    }
+
+    function updateResourceWordCount() {
+      if (!el.resourceEditorWordCount || !el.resourceEditorTextarea) return;
+      var text = el.resourceEditorTextarea.value || "";
+      var words = text.replace(/^\s+|\s+$/g, "").split(/\s+/);
+      el.resourceEditorWordCount.textContent = (text.trim() ? words.length : 0) + " words";
+      renderResourcesTree();
+      updateResourceUnsavedIndicator();
+    }
+
+    function getResourceEditorSnapshot() {
+      return JSON.stringify({
+        title: String(el.resourceEditorTitle ? el.resourceEditorTitle.value || "" : "").trim(),
+        category: String(el.resourceEditorCategory ? el.resourceEditorCategory.value || "" : "").trim(),
+        text: String(el.resourceEditorTextarea ? el.resourceEditorTextarea.value || "" : "")
+      });
+    }
+
+    function isResourceDirty(resourceId) {
+      var id = resourceId || appState.selectedResourceId;
+      if (!id) return false;
+      if (id === appState.selectedResourceId) {
+        return getResourceEditorSnapshot() !== (appState.resourceSavedSnapshot || "");
+      }
+      return !!appState.resourceDirtyMap[id];
+    }
+
+    function startResourceAutoSave() {
+      stopResourceAutoSave();
+      if (!appState.selectedResourceId) return;
+      var settings = loadAutoSaveFromStorage();
+      if (!settings.enabled) return;
+      if (settings.intervalMs < 60000) return;
+
+      if (!appState.resourceAutoSaveTickStart) {
+        appState.resourceAutoSaveTickStart = Date.now();
+      }
+      if (el.resourceAutoSaveTimerCircle) {
+        el.resourceAutoSaveTimerCircle.style.display = "";
+      }
+
+      appState.resourceAutoSaveRenderTimer = setInterval(renderResourceAutoSaveTimerCircle, 200);
+
+      var elapsed = Date.now() - (appState.resourceAutoSaveTickStart || Date.now());
+      var remaining = Math.max(settings.intervalMs - elapsed, 0);
+
+      function queueNext(delayMs) {
+        appState.resourceAutoSaveTimer = setTimeout(function () {
+          if (!appState.selectedResourceId) return;
+          saveAllDirtyResources({
+            onComplete: function (savedCount) {
+              if (!savedCount) updateResourceUnsavedIndicator();
+            }
+          });
+          appState.resourceAutoSaveTickStart = Date.now();
+          queueNext(settings.intervalMs);
+        }, Math.max(delayMs, 0));
+      }
+
+      queueNext(remaining);
+    }
+
+    function stopResourceAutoSave() {
+      if (appState.resourceAutoSaveRenderTimer) {
+        clearInterval(appState.resourceAutoSaveRenderTimer);
+        appState.resourceAutoSaveRenderTimer = 0;
+      }
+      if (appState.resourceAutoSaveTimer) {
+        clearTimeout(appState.resourceAutoSaveTimer);
+        appState.resourceAutoSaveTimer = 0;
+      }
+      if (el.resourceAutoSaveTimerCircle) {
+        el.resourceAutoSaveTimerCircle.style.display = "none";
+      }
+    }
+
+    function renderResourceAutoSaveTimerCircle() {
+      if (!el.resourceAutoSaveTimerCircle || el.resourceAutoSaveTimerCircle.style.display === "none") return;
+      var progressCircle = el.resourceAutoSaveTimerCircle.querySelector(".auto-save-timer-progress");
+      if (!progressCircle) return;
+      var elapsed = Date.now() - (appState.resourceAutoSaveTickStart || Date.now());
+      var interval = (loadAutoSaveFromStorage().intervalMs) || 300000;
+      var fraction = Math.min(elapsed / interval, 1);
+      var circumference = 37.699;
+      progressCircle.setAttribute("stroke-dashoffset", String(circumference * (1 - fraction)));
+    }
+
+    function updateResourceUnsavedIndicator() {
+      if (!el.resourceUnsavedIndicator) return;
+      if (appState.selectedResourceId) {
+        el.resourceUnsavedIndicator.hidden = false;
+        if (isResourceDirty()) {
+          el.resourceUnsavedIndicator.style.color = "#d97706";
+          el.resourceUnsavedIndicator.title = "Unsaved changes";
+        } else {
+          el.resourceUnsavedIndicator.style.color = "#10b981";
+          el.resourceUnsavedIndicator.title = "Saved";
+        }
+      } else {
+        el.resourceUnsavedIndicator.hidden = true;
+      }
+    }
+
+    function saveResourceData(id, title, category, text, opts) {
+      opts = opts || {};
+      if (!title) {
+        if (!opts.silent) setStatus("Please enter a title.", "error");
+        if (opts.isActive !== false && el.resourceEditorTitle) el.resourceEditorTitle.focus();
+        if (typeof opts.onFailure === "function") opts.onFailure(new Error("Please enter a title."));
+        return;
+      }
+
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+        if (!opts.silent) setStatus("Apps Script backend is not available.", "error");
+        if (typeof opts.onFailure === "function") opts.onFailure(new Error("Apps Script backend is not available."));
+        return;
+      }
+
+      if (opts.isActive !== false && el.resourceEditorSaveButton) el.resourceEditorSaveButton.disabled = true;
+      if (opts.isActive !== false && el.resourceEditorStatus) el.resourceEditorStatus.textContent = "Saving...";
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          if (opts.isActive !== false && el.resourceEditorSaveButton) el.resourceEditorSaveButton.disabled = false;
+          try {
+            const result = JSON.parse(json);
+            if (result.ok === false) throw new Error(result.error || "Save failed.");
+            var cacheKey = "general_resource_" + id;
+            setCachedDoc(cacheKey, { text: text, title: title, category: category, dirty: false, savedAt: result.savedAt || new Date().toISOString() });
+            appState.resourceDirtyMap[id] = false;
+            if (id === appState.selectedResourceId) {
+              appState.resourceSavedSnapshot = JSON.stringify({
+                title: title,
+                category: category,
+                text: text
+              });
+              appState.resourceAutoSaveTickStart = Date.now();
+            }
+            for (var i = 0; i < appState.resources.length; i++) {
+              if (Number(appState.resources[i].id) === id) {
+                appState.resources[i].title = title;
+                appState.resources[i].category = category;
+                break;
+              }
+            }
+            if (opts.isActive !== false && el.resourceEditorStatus) {
+              el.resourceEditorStatus.textContent = "Saved at " + (result.savedAt ? new Date(result.savedAt).toLocaleTimeString() : new Date().toLocaleTimeString());
+            }
+            if (!opts.silent) setStatus("Resource saved: " + title, "ok");
+            renderResourcesTree();
+            if (id === appState.selectedResourceId) updateResourceUnsavedIndicator();
+            if (typeof opts.onSuccess === "function") opts.onSuccess(result);
+          } catch (e) {
+            if (opts.isActive !== false && el.resourceEditorStatus) el.resourceEditorStatus.textContent = "Save failed";
+            if (!opts.silent) setStatus("Save failed: " + e.message, "error");
+            if (typeof opts.onFailure === "function") opts.onFailure(e);
+          }
+        })
+        .withFailureHandler(function (error) {
+          if (opts.isActive !== false && el.resourceEditorSaveButton) el.resourceEditorSaveButton.disabled = false;
+          if (opts.isActive !== false && el.resourceEditorStatus) el.resourceEditorStatus.textContent = "Save failed";
+          if (!opts.silent) setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
+          if (typeof opts.onFailure === "function") opts.onFailure(error);
+        })
+        .saveGeneralResourceFromClient(id, title, category, text);
+    }
+
+    function saveResourceEditor() {
+      var id = appState.selectedResourceId;
+      if (!id) { setStatus("No resource selected.", "error"); return; }
+
+      var title = String(el.resourceEditorTitle ? el.resourceEditorTitle.value || "" : "").trim();
+      var category = String(el.resourceEditorCategory ? el.resourceEditorCategory.value || "" : "").trim() || "General";
+      var text = String(el.resourceEditorTextarea ? el.resourceEditorTextarea.value || "" : "");
+
+      saveResourceData(id, title, category, text, { isActive: true });
+    }
+
+    function saveAllDirtyResources(opts) {
+      opts = opts || {};
+      var jobs = [];
+      var selectedId = Number(appState.selectedResourceId || 0);
+
+      if (selectedId && isResourceDirty(selectedId)) {
+        jobs.push({
+          id: selectedId,
+          title: String(el.resourceEditorTitle ? el.resourceEditorTitle.value || "" : "").trim(),
+          category: String(el.resourceEditorCategory ? el.resourceEditorCategory.value || "" : "").trim() || "General",
+          text: String(el.resourceEditorTextarea ? el.resourceEditorTextarea.value || "" : ""),
+          isActive: true
+        });
+      }
+
+      Object.keys(appState.resourceDirtyMap || {}).forEach(function (key) {
+        var id = Number(key || 0);
+        if (!id || id === selectedId || !appState.resourceDirtyMap[id]) return;
+        var cacheKey = "general_resource_" + id;
+        var cached = getCachedDoc(cacheKey);
+        if (!cached || typeof cached.text !== "string") return;
+        var resource = null;
+        for (var i = 0; i < appState.resources.length; i++) {
+          if (Number(appState.resources[i].id) === id) {
+            resource = appState.resources[i];
+            break;
+          }
+        }
+        jobs.push({
+          id: id,
+          title: String(cached.title || (resource && resource.title) || "").trim(),
+          category: String(cached.category || (resource && resource.category) || "").trim() || "General",
+          text: String(cached.text || ""),
+          isActive: false
+        });
+      });
+
+      if (!jobs.length) {
+        if (typeof opts.onComplete === "function") opts.onComplete(0);
+        return;
+      }
+
+      jobs.forEach(function (job) {
+        saveResourceData(job.id, job.title, job.category, job.text, {
+          isActive: job.isActive,
+          silent: !job.isActive,
+          onSuccess: function () {
+            if (!job.isActive) renderResourcesTree();
+          }
+        });
+      });
+
+      if (typeof opts.onComplete === "function") opts.onComplete(jobs.length);
+    }
+
+    function deleteResourceFromEditor() {
+      var id = appState.selectedResourceId;
+      if (!id) { setStatus("No resource selected.", "error"); return; }
+
+      var resource = null;
+      for (var i = 0; i < appState.resources.length; i++) {
+        if (Number(appState.resources[i].id) === id) { resource = appState.resources[i]; break; }
+      }
+      var name = resource ? String(resource.title || "").trim() || "this resource" : "this resource";
+
+      if (!el.deleteResourceModal) return;
+      if (el.deleteResourceName) el.deleteResourceName.textContent = escapeHtml(name);
+      el.deleteResourceModal._deleteId = id;
+      el.deleteResourceModal.classList.add("is-open");
+      el.deleteResourceModal.setAttribute("aria-hidden", "false");
+    }
+
+    /* -- Resource CRUD helpers -- */
+
+    function populateResourceCategoryList() {
+      if (!el.resourceCategoryList) return;
+      var cats = {};
+      appState.resources.forEach(function (r) { cats[String(r.category || "General").trim()] = true; });
+      var catList = Object.keys(cats).sort();
+      el.resourceCategoryList.innerHTML = catList.map(function (c) { return "<option value='" + escapeHtml(c) + "'>"; }).join("");
+    }
+
+    function formatResourceDate(dateStr) {
+      if (!dateStr) return "";
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return String(dateStr).slice(0, 10) || "";
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      } catch (e) { return ""; }
+    }
+
+    function openNewResourceModal() {
+      if (!el.newResourceModal) return;
+      el.newResourceTitle.value = "";
+      el.newResourceCategory.value = "";
+      populateResourceCategoryList();
+      el.newResourceModal.classList.add("is-open");
+      el.newResourceModal.setAttribute("aria-hidden", "false");
+      setTimeout(function () { if (el.newResourceTitle) el.newResourceTitle.focus(); }, 100);
+    }
+
+    function closeNewResourceModal() {
+      if (!el.newResourceModal) return;
+      el.newResourceModal.classList.remove("is-open");
+      el.newResourceModal.setAttribute("aria-hidden", "true");
+    }
+
+    function createResourceFromModal() {
+      var title = String(el.newResourceTitle ? el.newResourceTitle.value || "" : "").trim();
+      var category = String(el.newResourceCategory ? el.newResourceCategory.value || "" : "").trim() || "General";
+      if (!title) {
+        setStatus("Please enter a resource title.", "error");
+        if (el.newResourceTitle) el.newResourceTitle.focus();
+        return;
+      }
+
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+        setStatus("Apps Script backend is not available.", "error");
+        return;
+      }
+
+      if (el.confirmNewResourceButton) el.confirmNewResourceButton.disabled = true;
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          if (el.confirmNewResourceButton) el.confirmNewResourceButton.disabled = false;
+          try {
+            const result = JSON.parse(json);
+            if (result.ok === false) throw new Error(result.error || "Resource creation failed.");
+            closeNewResourceModal();
+            var newId = Number(result.id);
+            appState.resourcesLoaded = false;
+            loadResourcesList(function () { if (newId) selectResource(newId); });
+          } catch (e) {
+            setStatus("Resource creation failed: " + e.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          if (el.confirmNewResourceButton) el.confirmNewResourceButton.disabled = false;
+          setStatus("Resource creation failed: " + (error && error.message ? error.message : error), "error");
+        })
+        .saveGeneralResourceFromClient(null, title, category, "");
+    }
+
+    function closeDeleteResourceModal() {
+      if (!el.deleteResourceModal) return;
+      el.deleteResourceModal.classList.remove("is-open");
+      el.deleteResourceModal.setAttribute("aria-hidden", "true");
+      el.deleteResourceModal._deleteId = 0;
+    }
