@@ -1,0 +1,250 @@
+// --- Core Supabase method implementations ---
+    var SUPABASE_PROJECT_SELECT = [
+      "id", "legacy_project_id", "legacy_workspace_url", "title", "book_number",
+      "pen_name", "genre", "format", "status", "priority", "next_step",
+      "short_summary", "project_image_url", "schedule_template", "marketing_template",
+      "publish_date", "publish_ready_date", "schedule_milestones", "campaigns",
+      "created_at", "updated_at", "outline",
+      "series:series_id(id,name,summary,series_image_url)"
+    ];
+
+    _sbDefine('getProjectsJsonForClient', function () {
+      return sbClient.from('projects').select(SUPABASE_PROJECT_SELECT.join(',')).limit(5000).order('id')
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data.map(mapSupabaseProjectToClient_);
+          return JSON.stringify({
+            ok: true,
+            build: 'SUPABASE_DIRECT_V1',
+            count: rows.length,
+            rows: sortSupabaseProjectRowsForClient_(rows),
+            nextStepOptions: getUniqueColumnValuesFromRows_(rows, 'next_step')
+          });
+        });
+    });
+
+    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "legacy_doc_urls"];
+
+    _sbDefine('getSupabaseSeriesMetaJsonFromClient', function () {
+      return sbClient.from('series').select(SUPABASE_SERIES_META_SELECT.join(',')).limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseSeriesMetaJsonFromClient', function (seriesId, payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      return sbClient.from('series').update(payload).eq('id', seriesId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveProjectJsonFromClient', function (payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      var record = {
+        title: payload.title,
+        book_number: payload['b#'],
+        pen_name: payload.pen_name,
+        genre: payload.genre,
+        format: payload.format,
+        status: payload.status,
+        priority: payload.priority,
+        next_step: payload.next_step,
+        short_summary: payload.short_summary,
+        legacy_workspace_url: payload.workspace_url,
+        project_image_url: payload.image
+      };
+      return sbClient.from('projects').update(record).eq('id', payload.rowNumber)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectOutlineJsonFromClient', function (projectId, outlineJson) {
+      return sbClient.from('projects').update({ outline: JSON.parse(outlineJson) }).eq('id', projectId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectOutlineJsonFromClient', function (projectId) {
+      return sbClient.from('projects').select('outline').eq('id', projectId).single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, outline: res.data && res.data.outline ? res.data.outline : null });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectSectionDocumentJsonFromClient', function (projectId, docType) {
+      return sbClient.from('document_sections').select('*').eq('project_id', projectId).eq('doc_type', docType).order('sort_order', { ascending: true }).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          var sections = rows.map(function (r) {
+            return {
+              sectionKey: r.section_key || r.key || '',
+              key: r.section_key || r.key || '',
+              title: r.title || '',
+              text: r.markdown_content || '',
+              markdown_content: r.markdown_content || '',
+              sortOrder: r.sort_order || 0,
+              wordCount: r.word_count || 0
+            };
+          });
+          var fullText = sections.map(function (s) { return s.text; }).filter(function (t) { return t; }).join('\n\n');
+          return JSON.stringify({ ok: true, rows: rows, sections: sections, text: fullText });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectSectionDocumentJsonFromClient', function (projectId, docType, title, sectionsJson) {
+      var sections = JSON.parse(sectionsJson);
+      var upsertRows = sections.map(function (s) {
+        return {
+          project_id: projectId,
+          doc_type: docType,
+          section_key: s.sectionKey || s.key || '',
+          title: s.title || '',
+          markdown_content: s.text || '',
+          word_count: (s.text || '').split(/\s+/).filter(function (w) { return w.length > 0; }).length,
+          sort_order: s.sortOrder || 0
+        };
+      });
+      return sbClient.from('document_sections').upsert(upsertRows, { onConflict: 'project_id,doc_type,section_key' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('saveSupabaseProjectDocumentJsonFromClient', function (projectId, docType, title, markdownText) {
+      return sbClient.from('documents').upsert({
+        project_id: projectId, doc_type: docType, title: title, markdown_content: markdownText, word_count: (markdownText || '').split(/\s+/).filter(function (w) { return w.length > 0; }).length
+      }, { onConflict: 'project_id,doc_type' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectDocumentJsonFromClient', function (projectId, docType) {
+      return sbClient.from('documents').select('*').eq('project_id', projectId).eq('doc_type', docType).single()
+        .then(function (res) {
+          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          return JSON.stringify({ ok: true, row: res.data || null });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectAllSectionBodiesJsonFromClient', function (projectId, docType) {
+      return sbClient.from('document_sections').select('section_key,markdown_content').eq('project_id', projectId).eq('doc_type', docType).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('getSupabaseProjectSectionBodyJsonFromClient', function (projectId, docType, sectionKey) {
+      return sbClient.from('document_sections').select('markdown_content').eq('project_id', projectId).eq('doc_type', docType).eq('section_key', sectionKey).single()
+        .then(function (res) {
+          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          return JSON.stringify({ ok: true, text: res.data ? res.data.markdown_content : '' });
+        });
+    });
+
+    _sbDefine('createProjectJsonFromClient', function (payloadJson) {
+      var payload = JSON.parse(payloadJson);
+      return sbClient.from('projects').insert({
+        title: payload.title,
+        pen_name: payload.pen_name,
+        genre: payload.genre,
+        format: payload.format,
+        status: payload.status,
+        priority: payload.priority,
+        next_step: payload.next_step
+      }).select('id').single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, id: res.data && res.data.id });
+        });
+    });
+
+    // --- Series-level documents ---
+    _sbDefine('getSupabaseSeriesDocumentJsonFromClient', function (seriesId, docType) {
+      return sbClient.from('documents').select('id,series_id,doc_type,title,markdown_content,word_count,updated_at,created_at')
+        .eq('series_id', seriesId).eq('doc_type', docType).limit(1).single()
+        .then(function (res) {
+          if (res.error && res.error.code === 'PGRST116') {
+            return JSON.stringify({ ok: true, exists: false, seriesId: seriesId, docType: docType, title: '', text: '', wordCount: 0, updatedAt: '' });
+          }
+          if (res.error) throw res.error;
+          var row = res.data;
+          return JSON.stringify({
+            ok: true, exists: true, seriesId: seriesId, docType: docType,
+            title: row.title || '', text: row.markdown_content || '', wordCount: row.word_count || 0,
+            updatedAt: row.updated_at || row.created_at || ''
+          });
+        });
+    });
+
+    _sbDefine('saveSupabaseSeriesDocumentJsonFromClient', function (seriesId, docType, title, markdownText) {
+      return sbClient.from('documents').select('id').eq('series_id', seriesId).eq('doc_type', docType).limit(1)
+        .then(function (check) {
+          var payload = {
+            series_id: seriesId,
+            doc_type: docType,
+            title: title || '',
+            markdown_content: markdownText || '',
+            word_count: (markdownText || '').split(/\s+/).filter(function (w) { return w.length > 0; }).length
+          };
+          if (check.data && check.data.length) {
+            return sbClient.from('documents').update(payload).eq('id', check.data[0].id).select('id,title,word_count,updated_at').single()
+              .then(function (res) {
+                if (res.error) throw res.error;
+                return JSON.stringify({ ok: true, seriesId: seriesId, docType: docType, title: res.data.title, wordCount: res.data.word_count });
+              });
+          } else {
+            return sbClient.from('documents').insert([payload]).select('id,title,word_count,created_at').single()
+              .then(function (res) {
+                if (res.error) throw res.error;
+                return JSON.stringify({ ok: true, seriesId: seriesId, docType: docType, title: res.data.title, wordCount: res.data.word_count });
+              });
+          }
+        });
+    });
+
+    // --- Google Doc text (read/write via documents table instead of GAS DocumentApp) ---
+    _sbDefine('getGoogleDocTextJsonFromClient', function (docUrl) {
+      return sbClient.from('documents').select('id,project_id,series_id,doc_type,title,markdown_content,word_count,updated_at,created_at')
+        .or('legacy_google_doc_url.eq.' + docUrl + ',legacy_google_doc_url.eq.' + encodeURI(docUrl)).limit(1).maybeSingle()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          if (!res.data) return JSON.stringify({ ok: true, docId: '', title: '', text: '' });
+          return JSON.stringify({
+            ok: true, docId: res.data.id, title: res.data.title || '',
+            text: res.data.markdown_content || ''
+          });
+        });
+    });
+
+    _sbDefine('saveGoogleDocTextJsonFromClient', function (docUrl, markdownText) {
+      return sbClient.from('documents').select('id').or('legacy_google_doc_url.eq.' + docUrl + ',legacy_google_doc_url.eq.' + encodeURI(docUrl)).limit(1)
+        .then(function (check) {
+          var text = markdownText || '';
+          var payload = {
+            markdown_content: text,
+            word_count: text.split(/\s+/).filter(function (w) { return w.length > 0; }).length
+          };
+          if (check.data && check.data.length) {
+            return sbClient.from('documents').update(payload).eq('id', check.data[0].id)
+              .then(function (res) {
+                if (res.error) throw res.error;
+                return JSON.stringify({ ok: true, docId: check.data[0].id });
+              });
+          }
+          return JSON.stringify({ ok: true, docId: 0 });
+        });
+    });

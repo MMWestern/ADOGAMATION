@@ -11,19 +11,32 @@ if (fs.existsSync(DIST)) {
 fs.mkdirSync(DIST, { recursive: true });
 
 function readFile(filePath) {
-  try { return fs.readFileSync(filePath, "utf8"); } catch { return null; }
+  try {
+    let content = fs.readFileSync(filePath, "utf8");
+    // Strip BOM if present
+    if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+    return content;
+  } catch { return null; }
 }
 
 function processIncludes(content) {
-  return content.replace(/<\?!= include\(['"]([^'"]+)['"]\); \?>/g, (_, filename) => {
-    const filePath = path.join(ROOT, filename + ".html");
-    const included = readFile(filePath);
-    if (included === null) {
-      console.warn(`[WARN] Include not found: ${filename}.html`);
-      return `<!-- MISSING: ${filename} -->`;
-    }
-    return included;
-  });
+  // Recursively resolve all include directives
+  const re = /<\?!= include\(['"]([^'"]+)['"]\); \?>/g;
+  let result = content;
+  let prev;
+  do {
+    prev = result;
+    result = result.replace(re, (_, filename) => {
+      const filePath = path.join(ROOT, filename + ".html");
+      const included = readFile(filePath);
+      if (included === null) {
+        console.warn(`[WARN] Include not found: ${filename}.html`);
+        return `<!-- MISSING: ${filename} -->`;
+      }
+      return included;
+    });
+  } while (result !== prev);
+  return result;
 }
 
 const HTML_FILES = [

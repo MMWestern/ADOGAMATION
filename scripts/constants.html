@@ -1,0 +1,614 @@
+const DEFAULT_STATUS_OPTIONS = [
+      { value: "Idea", description: "A preliminary concept not yet in development." },
+      { value: "Concept", description: "An early-stage idea with some structure and direction established." },
+      { value: "Planning", description: "Outlining structure, characters, and research before writing begins." },
+      { value: "Draft", description: "First-draft writing in progress." },
+      { value: "Writing", description: "Active composition with revisions happening alongside new content." },
+      { value: "Editing", description: "Content complete; focused on revision, proofreading, and polish." },
+      { value: "Complete", description: "Final version ready for readers." },
+      { value: "Publish Ready", description: "Formatted, proofed, and prepared for publication." },
+      { value: "Published", description: "Released to readers and available for purchase or access." }
+    ];
+    const DEFAULT_PRIORITY_OPTIONS = [
+      { value: "Low", description: "Non-urgent work with flexible deadlines." },
+      { value: "Medium", description: "Standard priority with reasonable deadlines." },
+      { value: "High", description: "Important work requiring focused attention soon." },
+      { value: "Critical", description: "Urgent work requiring immediate attention." }
+    ];
+    const DEFAULT_CHARACTER_ROLES = [
+      { value: "Protagonist", description: "The main character driving the story forward." },
+      { value: "Antagonist", description: "The primary opposing force creating conflict for the protagonist." },
+      { value: "Deuteragonist", description: "A secondary main character whose arc runs parallel to the protagonist." },
+      { value: "Mentor", description: "A wise guide who provides knowledge and training to the hero." },
+      { value: "Love Interest", description: "A character who forms a romantic connection with another main character." },
+      { value: "Sidekick", description: "A loyal companion who supports and assists the main character." },
+      { value: "Villain", description: "A malicious character whose evil actions oppose the hero." },
+      { value: "Foil", description: "A character whose traits contrast with another to highlight specific qualities." },
+      { value: "Familiar", description: "A supernatural animal or spirit companion that aids a witch, wizard, or magical being." },
+      { value: "Confidant", description: "A trusted character who provides counsel and a safe space for the protagonist." },
+      { value: "Comic Relief", description: "A humorous character who lightens tense moments and provides levity." },
+      { value: "Other", description: "Any role not covered by standard categories." }
+    ];
+    const DEFAULT_GENRE_OPTIONS = [
+      { value: "Fantasy", description: "Stories set in imaginary worlds with magic, mythical creatures, and epic quests." },
+      { value: "Science Fiction", description: "Speculative narratives exploring futuristic technology, space travel, and societal change." },
+      { value: "Romance", description: "Stories centered on emotional relationships and romantic love with emotionally satisfying endings." },
+      { value: "Mystery", description: "Puzzle-like narratives focused on solving a crime or uncovering hidden truths." },
+      { value: "Thriller", description: "High-stakes stories with suspense, tension, and rapid pacing throughout." },
+      { value: "Horror", description: "Stories designed to evoke fear, dread, and unease through supernatural or psychological terror." },
+      { value: "Literary Fiction", description: "Character-driven works emphasizing thematic depth, prose craft, and human experience." },
+      { value: "Historical Fiction", description: "Stories set in a specific historical period, blending real events with fictional characters." },
+      { value: "Young Adult", description: "Coming-of-age stories targeting teenage readers with relatable protagonists and themes." },
+      { value: "Fantasy Romance", description: "Romantic narratives set in magical worlds with fantasy elements and love stories." },
+      { value: "Paranormal Romance", description: "Romance stories involving supernatural beings like vampires, werewolves, and ghosts." },
+      { value: "Urban Fantasy", description: "Fantasy stories set in contemporary urban environments with hidden magical societies." },
+      { value: "Epic Fantasy", description: "Large-scale fantasy with sprawling worlds, complex politics, and heroic journeys." },
+      { value: "Dark Fantasy", description: "Fantasy blending horror elements with grim themes and moral ambiguity." },
+      { value: "Cozy Mystery", description: "Lighthearted mystery with an amateur sleuth, small-town setting, and no graphic violence." },
+      { value: "Psychological Thriller", description: "Suspense focused on mental states, unreliable narrators, and psychological manipulation." },
+      { value: "Dystopian", description: "Stories set in oppressive societies exploring themes of control, resistance, and survival." },
+      { value: "Apocalyptic", description: "Narratives about civilization-ending events and the struggle to survive." },
+      { value: "Slice of Life", description: "Quiet, character-focused stories about everyday experiences and relationships." },
+      { value: "Adventure", description: "Fast-paced stories centered on exploration, action, and physical challenges." },
+      { value: "Fairy Tale Retelling", description: "Modern reimaginings of classic fairy tales with fresh perspectives." },
+      { value: "Mythic Fiction", description: "Stories drawing on mythology and folklore to explore universal human themes." },
+      { value: "Magical Realism", description: "Literary fiction where magical elements exist naturally in an otherwise realistic world." },
+      { value: "Space Opera", description: "Sweeping sci-fi adventures with interstellar empires, alien species, and epic conflict." },
+      { value: "Cyberpunk", description: "High-tech dystopian sci-fi exploring AI, hackers, and corporate control." },
+      { value: "Steampunk", description: "Alternate-history sci-fi with Victorian-era aesthetics and steam-powered technology." },
+      { value: "Time Travel", description: "Narratives exploring the consequences of moving through time and altered timelines." },
+      { value: "Superhero", description: "Stories about individuals with extraordinary abilities facing moral and physical challenges." },
+      { value: "LGBTQ+ Fiction", description: "Stories centering queer experiences, identities, and relationships." },
+      { value: "Women's Fiction", description: "Commercial fiction focused on women's emotional journeys and life transitions." },
+      { value: "New Adult", description: "Stories bridging YA and adult fiction, focusing on early adulthood and self-discovery." },
+      { value: "Suspense", description: "Tension-driven narratives with rising stakes and anticipation of danger." },
+      { value: "Gothic", description: "Atmospheric stories combining horror, romance, and melodrama in dark settings." },
+      { value: "Noir", description: "Dark, cynical crime fiction with morally ambiguous protagonists and shadowy settings." },
+      { value: "Western", description: "Stories set in the American frontier exploring themes of justice, survival, and independence." },
+      { value: "War Fiction", description: "Narratives examining the human experience of armed conflict and its aftermath." },
+      { value: "Family Saga", description: "Multi-generational stories exploring family dynamics, secrets, and legacy." },
+      { value: "Bildungsroman", description: "Coming-of-age narratives following a character's moral and psychological growth." }
+    ];
+    const DEFAULT_FORMAT_OPTIONS = [
+      { value: "Novel", description: "A long-form narrative typically 60,000-100,000 words with complex plots and character development." },
+      { value: "Novella", description: "A shorter narrative between 17,500-40,000 words with focused plot and limited characters." },
+      { value: "Novelette", description: "A brief narrative between 7,500-17,500 words offering a complete arc in condensed form." },
+      { value: "Short Story", description: "A concise narrative under 7,500 words exploring a single idea or moment." },
+      { value: "Flash Fiction", description: "An extremely brief story under 1,000 words delivering impact through economy of language." },
+      { value: "Serial", description: "A story published in installments, each ending with a hook to encourage continued reading." },
+      { value: "Anthology", description: "A collection of separate works by one or more authors on a shared theme or setting." },
+      { value: "Screenplay", description: "A script written for film or television with scene directions and dialogue." },
+      { value: "Stage Play", description: "A dramatic work written for theatrical performance with acts and scenes." },
+      { value: "Poetry Collection", description: "A compilation of poems organized around a theme or style." },
+      { value: "Graphic Novel", description: "A full-length narrative told through sequential art and text." },
+      { value: "Web Serial", description: "A story published episodically online, often with reader engagement." },
+      { value: "Chapbook", description: "A small, self-contained booklet of poetry, prose, or hybrid work." }
+    ];
+    const DEFAULT_CHARACTER_ARCHETYPES = [
+      { value: "The Hero", description: "A courageous protagonist who overcomes challenges and grows throughout the journey." },
+      { value: "The Mentor", description: "A wise guide who provides knowledge, training, or tools to help the hero." },
+      { value: "The Shadow", description: "A dark antagonist who represents the hero's inner fears or unresolved conflicts." },
+      { value: "The Herald", description: "A messenger who announces change and sets the story in motion." },
+      { value: "The Trickster", description: "A mischievous character who disrupts the status quo and challenges assumptions." },
+      { value: "The Shapeshifter", description: "An unpredictable character whose loyalty or true nature is ambiguous." },
+      { value: "The Guardian", description: "A gatekeeper who tests the hero's resolve before allowing progress." },
+      { value: "The Ally", description: "A loyal companion who supports the hero on their journey." },
+      { value: "The Innocent", description: "A pure-hearted character who sees the best in others and inspires hope." },
+      { value: "The Sage", description: "A knowledgeable figure who provides wisdom and deeper understanding." },
+      { value: "The Rebel", description: "A nonconformist who challenges authority and drives change." },
+      { value: "The Lover", description: "A character driven by passion, connection, and emotional bonds." },
+      { value: "The Jester", description: "A playful trickster who uses humor to reveal truths or lighten tension." }
+    ];
+    const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
+    const DASHBOARD_DEVELOPMENT_STATUSES = ["Idea", "Concept", "Planning"];
+    const INSPECTOR_OPTION_FIELDS = [
+      { key: "pen_name", label: "Pen Name" },
+      { key: "genre", label: "Genre" },
+      { key: "format", label: "Format" },
+      { key: "status", label: "Status" },
+      { key: "priority", label: "Priority" },
+      { key: "next_step", label: "Next Step" },
+      { key: "character_role", label: "Character Role" },
+      { key: "character_archetype", label: "Character Archetype" }
+    ];
+
+    const SCHEDULE_TEMPLATES = {
+      "Novel (6wk)": {
+        name: "Novel (6wk)",
+        milestones: [
+          { name: "Publish Ready", dayOffset: 0 },
+          { name: "Interior Format", dayOffset: 3 },
+          { name: "Cover Final", dayOffset: 7 },
+          { name: "ARC Copies Out", dayOffset: 14 },
+          { name: "Pre-order Live", dayOffset: 21 },
+          { name: "PUBLISH", dayOffset: 42 },
+          { name: "Post-Launch Promo", dayOffset: 43 },
+          { name: "Review Follow-up", dayOffset: 56 }
+        ]
+      },
+      "Novella (4wk)": {
+        name: "Novella (4wk)",
+        milestones: [
+          { name: "Publish Ready", dayOffset: 0 },
+          { name: "Cover Final", dayOffset: 5 },
+          { name: "ARC Copies Out", dayOffset: 10 },
+          { name: "Pre-order Live", dayOffset: 14 },
+          { name: "PUBLISH", dayOffset: 28 },
+          { name: "Post-Launch Promo", dayOffset: 29 },
+          { name: "Review Follow-up", dayOffset: 42 }
+        ]
+      },
+      "Non-Fiction (8wk)": {
+        name: "Non-Fiction (8wk)",
+        milestones: [
+          { name: "Publish Ready", dayOffset: 0 },
+          { name: "Interior Format", dayOffset: 3 },
+          { name: "Cover Final", dayOffset: 7 },
+          { name: "Endorsement Copies", dayOffset: 14 },
+          { name: "ARC Copies Out", dayOffset: 21 },
+          { name: "Pre-order Live", dayOffset: 35 },
+          { name: "PUBLISH", dayOffset: 56 },
+          { name: "Post-Launch Promo", dayOffset: 57 },
+          { name: "Review Follow-up", dayOffset: 70 }
+        ]
+      }
+    };
+    const SCHEDULE_TEMPLATE_OPTIONS = Object.keys(SCHEDULE_TEMPLATES);
+
+    const MARKETING_TEMPLATES = {
+      "Social Launch": {
+        name: "Social Launch",
+        entries: [
+          { taskName: "Cover reveal post", channel: "Social Media", dayOffset: -21 },
+          { taskName: "Pre-order announcement", channel: "Social Media", dayOffset: -14 },
+          { taskName: "Author spotlight thread", channel: "Social Media", dayOffset: -7 },
+          { taskName: "Launch day posts", channel: "Social Media", dayOffset: 0 },
+          { taskName: "Reader review requests", channel: "Social Media", dayOffset: 3 },
+          { taskName: "Thank you post", channel: "Social Media", dayOffset: 7 }
+        ]
+      },
+      "Full Launch": {
+        name: "Full Launch",
+        entries: [
+          { taskName: "Write email teaser", channel: "Newsletter", dayOffset: -21 },
+          { taskName: "Send pre-order email", channel: "Newsletter", dayOffset: -14 },
+          { taskName: "Cover reveal post", channel: "Social Media", dayOffset: -14 },
+          { taskName: "Write launch email", channel: "Newsletter", dayOffset: -2 },
+          { taskName: "Send launch day email", channel: "Newsletter", dayOffset: 0 },
+          { taskName: "Launch day social posts", channel: "Social Media", dayOffset: 0 },
+          { taskName: "BookBub ad submission", channel: "Amazon Ads", dayOffset: -7 },
+          { taskName: "Ad performance review", channel: "Amazon Ads", dayOffset: 7 },
+          { taskName: "Post-launch newsletter", channel: "Newsletter", dayOffset: 14 }
+        ]
+      },
+      "Newsletter Only": {
+        name: "Newsletter Only",
+        entries: [
+          { taskName: "Draft announcement email", channel: "Newsletter", dayOffset: -14 },
+          { taskName: "Review & approve email", channel: "Newsletter", dayOffset: -7 },
+          { taskName: "Send launch email", channel: "Newsletter", dayOffset: 0 },
+          { taskName: "Send follow-up email", channel: "Newsletter", dayOffset: 7 }
+        ]
+      }
+    };
+    const MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
+
+    const DEFAULT_EDITOR_THEME_COLORS = {
+      draft: "#ff6b57",
+      dev_edit: "#f97316",
+      line_edit: "#ec4899",
+      copy_edit: "#64748b",
+      summary: "#14b8a6",
+      outline: "#eab308",
+      outline_template: "#f59e0b",
+      brainstorm: "#84cc16",
+      notes: "#a855f7",
+      characters: "#22c55e",
+      world_build: "#3b82f6",
+      concept: "#06b6d4",
+      image_in_use: "#4ade80",
+      image_in_use_opacity: 0.22
+    };
+
+    const MARKDOWN_FIELDS = [
+      { key: "short_summary", label: "Summary", inputId: "detailSummary", buttonId: null }
+    ];
+
+    const SERIES_DOC_FIELD_TO_TYPE = {
+      series_outline_doc_url: "series_outline",
+      series_brainstorm_doc_url: "series_brainstorm",
+      series_characters_doc_url: "series_characters",
+      series_world_build_doc_url: "series_world_build",
+      series_notes_doc_url: "series_notes"
+    };
+    const SERIES_OWNED_PROJECT_FIELDS = [
+      "series_summary",
+      "series_image",
+      "series_outline_doc_url",
+      "series_brainstorm_doc_url",
+      "series_characters_doc_url",
+      "series_world_build_doc_url",
+      "series_notes_doc_url"
+    ];
+
+    const GOOGLE_DOC_MARKDOWN_FIELDS = [
+      { key: "draft_doc_url", label: "Draft", urlKey: "draft_doc_url", group: "writing" },
+      { key: "dev_edit_doc_url", label: "Development Edit", urlKey: "dev_edit_doc_url", group: "writing" },
+      { key: "line_edit_doc_url", label: "Line Edit", urlKey: "line_edit_doc_url", group: "writing" },
+      { key: "copy_edit_doc_url", label: "Copy Edit", urlKey: "copy_edit_doc_url", group: "writing" },
+      { key: "short_summary", label: "Summary", projectKey: "short_summary", inputId: "detailSummary", group: "supplement" },
+      { key: "outline_doc_url", label: "Outline", urlKey: "outline_doc_url", group: "supplement" },
+      { key: "outline_template_doc_url", label: "Outline Template", urlKey: "outline_template_doc_url", group: "supplement" },
+      { key: "brainstorm_doc_url", label: "Brainstorm", urlKey: "brainstorm_doc_url", group: "supplement" },
+      { key: "notes_doc_url", label: "Notes", urlKey: "notes_doc_url", group: "supplement" },
+      { key: "characters_doc_url", label: "Characters", urlKey: "characters_doc_url", group: "supplement" },
+      { key: "world_build_doc_url", label: "World Build", urlKey: "world_build_doc_url", group: "supplement" },
+      { key: "concept_doc_url", label: "Concept", urlKey: "concept_doc_url", group: "supplement" },
+      { key: "series_outline_doc_url", label: "Series Outline", urlKey: "series_outline_doc_url", group: "series_docs" },
+      { key: "series_brainstorm_doc_url", label: "Series Brainstorm", urlKey: "series_brainstorm_doc_url", group: "series_docs" },
+      { key: "series_characters_doc_url", label: "Series Characters", urlKey: "series_characters_doc_url", group: "series_docs" },
+      { key: "series_world_build_doc_url", label: "Series World Build", urlKey: "series_world_build_doc_url", group: "series_docs" },
+      { key: "series_notes_doc_url", label: "Series Notes", urlKey: "series_notes_doc_url", group: "series_docs" }
+    ];
+
+    const SUPABASE_PROJECT_MARKDOWN_DOCS = {
+      draft_doc_url: {
+        docType: "draft",
+        label: "Draft",
+        scope: "project"
+      },
+      dev_edit_doc_url: {
+        docType: "dev_edit",
+        label: "Development Edit",
+        scope: "project"
+      },
+      line_edit_doc_url: {
+        docType: "line_edit",
+        label: "Line Edit",
+        scope: "project"
+      },
+      copy_edit_doc_url: {
+        docType: "copy_edit",
+        label: "Copy Edit",
+        scope: "project"
+      },
+      outline_doc_url: {
+        docType: "outline",
+        label: "Outline",
+        scope: "project"
+      },
+      outline_template_doc_url: {
+        docType: "outline_template",
+        label: "Outline Template",
+        scope: "project"
+      },
+      brainstorm_doc_url: {
+        docType: "brainstorm",
+        label: "Brainstorm",
+        scope: "project"
+      },
+      notes_doc_url: {
+        docType: "notes",
+        label: "Notes",
+        scope: "project"
+      },
+      characters_doc_url: {
+        docType: "characters",
+        label: "Characters",
+        scope: "project"
+      },
+      world_build_doc_url: {
+        docType: "world_build",
+        label: "World Build",
+        scope: "project"
+      },
+      concept_doc_url: {
+        docType: "concept",
+        label: "Concept",
+        scope: "project"
+      },
+      series_outline_doc_url: {
+        docType: "series_outline",
+        label: "Series Outline",
+        scope: "series"
+      },
+      series_brainstorm_doc_url: {
+        docType: "series_brainstorm",
+        label: "Series Brainstorm",
+        scope: "series"
+      },
+      series_characters_doc_url: {
+        docType: "series_characters",
+        label: "Series Characters",
+        scope: "series"
+      },
+      series_world_build_doc_url: {
+        docType: "series_world_build",
+        label: "Series World Build",
+        scope: "series"
+      },
+      series_notes_doc_url: {
+        docType: "series_notes",
+        label: "Series Notes",
+        scope: "series"
+      }
+    };
+
+    const PROMOTION_STAGE_TARGETS = {
+      draft_doc_url: "dev_edit_doc_url",
+      dev_edit_doc_url: "line_edit_doc_url",
+      line_edit_doc_url: "copy_edit_doc_url"
+    };
+
+    const OUTLINE_HEADING_SYNC_TARGETS = [
+      "draft_doc_url",
+      "outline_template_doc_url",
+      "notes_doc_url"
+    ];
+
+    const AI_CONTEXT_SOURCES = [
+      { key: "project_summary", label: "Project Summary", type: "project" },
+      { key: "outline_doc_url", label: "Outline", urlKey: "outline_doc_url" },
+      { key: "outline_template_doc_url", label: "Outline Template", urlKey: "outline_template_doc_url" },
+      { key: "brainstorm_doc_url", label: "Brainstorm", urlKey: "brainstorm_doc_url" },
+      { key: "characters_doc_url", label: "Characters", urlKey: "characters_doc_url" },
+      { key: "world_build_doc_url", label: "World Build", urlKey: "world_build_doc_url" },
+      { key: "concept_doc_url", label: "Concept", urlKey: "concept_doc_url" },
+      { key: "notes_doc_url", label: "Notes", urlKey: "notes_doc_url" }
+    ];
+
+    const BOOK_CREATOR_GENRES = [
+      "HORROR",
+      "COSY FANTASY",
+      "COSY SCI-FI",
+      "COSY ROMANCE",
+      "COSY ROMANCE WITH SCI-FI LOCATION"
+    ];
+
+    const BOOK_CREATOR_CONTEXT_SOURCES = [
+      { key: "project_summary", label: "Project Summary", type: "project" },
+      { key: "brainstorm_doc_url", label: "Brainstorm", urlKey: "brainstorm_doc_url" },
+      { key: "concept_doc_url", label: "Concept", urlKey: "concept_doc_url" },
+      { key: "notes_doc_url", label: "Notes", urlKey: "notes_doc_url" },
+      { key: "characters_doc_url", label: "Characters", urlKey: "characters_doc_url" },
+      { key: "world_build_doc_url", label: "World Build", urlKey: "world_build_doc_url" },
+      { key: "outline_template_doc_url", label: "Outline Template", urlKey: "outline_template_doc_url" },
+      { key: "outline_doc_url", label: "Existing Outline", urlKey: "outline_doc_url" }
+    ];
+
+    const BOOK_CREATOR_POCKET_SHEET_NAME = "Book Creator Pockets";
+    const BOOK_CREATOR_POCKET_GROUPS = ["genres", "bookSeries", "bookTypes", "voices", "knowledge", "emotionGraphs", "spines", "renderContracts"];
+    const STORY_SEED_FIELD_KEYS = [
+      "primaryGenre",
+      "secondaryModifier",
+      "tone",
+      "intensityBand",
+      "audience",
+      "characterArc",
+      "storyArc",
+      "relationshipArc",
+      "settingEngine",
+      "endingType"
+    ];
+    const STORY_SEED_FIELD_LABELS = {
+      primaryGenre: "Primary Genre",
+      secondaryModifier: "Secondary Modifier",
+      tone: "Tone",
+      intensityBand: "Intensity Band",
+      audience: "Audience / Market",
+      characterArc: "Character Arc",
+      storyArc: "Story Arc",
+      relationshipArc: "Relationship Arc",
+      settingEngine: "Setting Engine",
+      endingType: "Ending Type"
+    };
+    const IMAGE_GENERATOR_STYLE_PRESETS = [
+      { key: "none", label: "None", prefix: "", suffix: "" },
+      { key: "photo", label: "Photo", prefix: "A cinematic photograph, natural lighting", suffix: "high contrast, professional photo, sharp focus" },
+      { key: "medium-format", label: "Medium Format", prefix: "medium-format film photograph, movie-still aesthetic", suffix: "cinematic lighting and rim lighting, soft film grain, shallow depth of field, soft film grain and Kodak Portra tones" },
+      { key: "analog-photo", label: "Analog Photo", prefix: "analogue film photograph, grainy texture, soft contrast, warm tonal shifts, slight vignette, subtle chromatic aberration, shallow depth of field, vintage color palette, natural imperfections", suffix: "captured on vintage film stock, gentle film grain, organic light falloff, faded highlights, muted shadows" },
+      { key: "digital-art", label: "Digital Art", prefix: "masterpiece, best quality, amazing quality, highly detailed digital illustration, rich textures", suffix: "" },
+      { key: "digital-art-vibrant", label: "Digital Art Vibrant", prefix: "a highly detailed digital artwork, vibrant color grading, smooth shading, high contrast, cinematic contrast, semi-illustrated, semi-realistic", suffix: "" },
+      { key: "digital-illustration", label: "Digital Illustration", prefix: "digital illustration", suffix: "" },
+      { key: "greg-rutkowski-like", label: "Greg-Rutkowski-Like", prefix: "high-fantasy digital painting with dramatic lighting and richly rendered detail", suffix: "epic composition, intricate highlights, atmospheric depth" },
+      { key: "dark-painterly-portrait", label: "Dark Painterly Portrait", prefix: "moody painterly portrait style, dramatic chiaroscuro lighting, soft shadows, elegant classical atmosphere, fine-art photography look, softly blended tones, cinematic depth", suffix: "atmospheric vignette, soft falloff into darkness, highly sculpted light on the face, rich tonal contrast, refined fine-art mood" },
+      { key: "horror", label: "Horror", prefix: "gothic horror, dramatic chiaroscuro lighting", suffix: "heavy shadows, oppressive atmosphere, dark cinematic tone" },
+      { key: "1800s-photo", label: "1800s photo", prefix: "1800s photographic plate", suffix: "sepia daguerreotype style, aged texture, damaged film, antique photographic imperfections" },
+      { key: "gothic", label: "Gothic", prefix: "moody gothic atmosphere, muted desaturated colors, soft dramatic lighting, antique textures, somber yet readable tones", suffix: "subtle shadows, aged stone and weathered surfaces, baroque gloom, atmospheric depth without heavy darkness" },
+      { key: "ansel-adams-landscape", label: "Ansel Adams Landscape", prefix: "high-contrast large-format black and white photography, dramatic tonal range, crisp micro-detail, deep shadows and bright highlights, rich texture, grand sweeping landscapes, monumental natural scenery, atmospheric depth", suffix: "zone-system inspired exposure, classic fine-art wilderness photography, sharp foreground detail, expansive skies, majestic natural composition, high clarity, timeless monochrome aesthetic, fine-grain realism" },
+      { key: "ansel-adams-portrait", label: "Ansel Adams Portrait", prefix: "high-contrast black and white fine-art portrait photography, deep rich tonal range, precise zone-system exposure, crisp micro-detail, soft diffused key lighting, classic medium-format look, sculpted highlights and deep shadows, clean minimalist backdrop", suffix: "timeless fine-art realism, carefully controlled light and form, natural expression, strong textural definition, dramatic chiaroscuro, pure monochrome aesthetic, refined tonal control, gallery-quality portraiture" },
+      { key: "comic-book", label: "Comic Book", prefix: "Western comic-book illustration, bold outlines, graphic dramatic style", suffix: "halftone shading, vivid flat colors, dynamic heroic composition" },
+      { key: "casandra", label: "Casandra", prefix: "ornate vintage fantasy poster design, bold central title panel, symmetrical storybook composition, decorative border filigree, limited high-contrast palette, graphic fairy-tale silhouette artwork", suffix: "luxurious ornamental detailing, elegant medieval flourishes, crisp iconic shapes, classic fantasy jacket energy, richly framed illustration" },
+      { key: "manga", label: "Manga", prefix: "black-and-white manga illustration, strong inking, dramatic panel-style contrast", suffix: "screen-tone shading, stylized expressions, dynamic motion lines" },
+      { key: "anime", label: "Anime", prefix: "anime artwork", suffix: "anime style, key visual, vibrant, studio anime, highly detailed" },
+      { key: "90s-anime-ova", label: "90s-Anime-OVA", prefix: "1990s OVA anime aesthetic, sharp cel outlines, retro color palette", suffix: "grainy film texture, dramatic highlights, nostalgic shading style" },
+      { key: "2000s-cel-digital-hybrid", label: "2000s-Cel-Digital-Hybrid", prefix: "early-2000s anime hybrid cel/digital look, bright saturated colors", suffix: "clean digital gradients, crisp character silhouettes" },
+      { key: "retro-vhs-anime", label: "Retro-VHS-Anime", prefix: "retro VHS anime aesthetic, soft analog blur, muted colors", suffix: "chromatic bleeding, scanlines, tape noise artifacts" },
+      { key: "pixel-art", label: "Pixel Art", prefix: "retro pixel art illustration, crisp pixel grid", suffix: "limited palette, 8-bit/16-bit aesthetic, nostalgic game style" },
+      { key: "blanchitsu-like", label: "Blanchitsu-Like", prefix: "digital illustration, red yellow rust palette, apocalyptic Warhammer chaos aesthetic, scorched orange skies, baroque gothic ornamentation, sketchy chaotic brushwork, dirty parchment tones mixed with blood-red and rust, skulls and relics, ornate armor, insanity and zealotry, fever-dream battlefield energy, painterly grit and entropy", suffix: "grimdark illustration, medieval religious iconography, chaotic composition, textured traditional media feel, ink-smudged edges, heavy contrast, stained parchment ambiance, raw painterly strokes, brutal gothic fantasy mood, in the grim darkness of the far future there is only war" },
+      { key: "dark-moebius-like", label: "Dark Moebius-Like", prefix: "graphic surrealist fantasy with stark linework and eerie dreamlike architecture", suffix: "limited palette, angular compositions, uncanny atmospheric tension" },
+      { key: "ghibli-like", label: "Ghibli-Like", prefix: "whimsical hand-painted fantasy aesthetic with gentle storytelling atmosphere", suffix: "soft painterly lighting, warm palettes, lush environmental detail" },
+      { key: "loish-like", label: "Loish-Like", prefix: "smooth stylized character illustration with soft feminine shapes and warm expressive palettes", suffix: "painterly shading, gentle gradients, emotive storytelling focus" },
+      { key: "syd-mead-like", label: "Syd Mead-Like", prefix: "sleek retro-futurist industrial design illustration, clean functional geometry", suffix: "polished surfaces, advanced tech motifs, cinematic sci-fi scale" },
+      { key: "dark-fantasy-painterly", label: "Dark-Fantasy-Painterly", prefix: "dark high-fantasy digital painting, brooding atmosphere, dramatic shadows", suffix: "epic scale, mystical lighting, richly rendered environments" },
+      { key: "epic-concept-art", label: "Epic-Concept-Art", prefix: "cinematic AAA concept art style, sweeping vistas, detailed structures", suffix: "heroic composition, atmospheric depth, ultra-polished rendering" },
+      { key: "scifi-hard-surface", label: "SciFi-Hard-Surface", prefix: "sleek hard-surface sci-fi illustration, advanced materials", suffix: "polished metallic detailing, industrial futuristic design" },
+      { key: "painterly-steampunk", label: "Painterly-Steampunk", prefix: "steampunk fantasy painting, brass machinery, Victorian industrial mood", suffix: "cogs, rivets, warm antique metal tones" },
+      { key: "cyberpunk", label: "Cyberpunk", prefix: "neon-drenched cyberpunk future, dense holograms, rain-soaked streets, sleek urban tech", suffix: "glowing circuitry, reflective surfaces, high-tech grit, electric atmosphere" },
+      { key: "solarpunk", label: "Solarpunk", prefix: "bright solarpunk utopia, organic architecture, lush greenery integrated with technology", suffix: "sunlit renewable energy systems, harmonious eco-design, soft optimistic tones" },
+      { key: "dieselpunk", label: "Dieselpunk", prefix: "dieselpunk retro-industrial world, heavy machinery, 1930s-40s engineered aesthetics", suffix: "gritty oil-stained textures, brass fittings, smoky atmospheric haze" },
+      { key: "atompunk", label: "Atompunk", prefix: "retro-futuristic atompunk aesthetic, mid-century modern sci-fi optimism, chrome curves", suffix: "atomic-age motifs, bright vintage colors, clean streamlined technology" },
+      { key: "steampunk", label: "Steampunk", prefix: "steampunk style", suffix: "antique, mechanical, brass and copper tones, gears, intricate, detailed" },
+      { key: "post-apocalyptic", label: "Post-Apocalyptic", prefix: "post-apocalyptic wasteland aesthetic, ruined structures, scavenged gear, desolate landscapes", suffix: "dusty muted colors, broken machinery, survival-worn textures, bleak atmospheric haze" },
+      { key: "grunge", label: "Grunge", prefix: "grunge aesthetic, dirty textured surfaces, raw distressed materials", suffix: "oversaturated shadows, gritty urban decay, rough handmade visual noise" },
+      { key: "retro-space-opera", label: "Retro-Space-Opera", prefix: "retro space-opera aesthetic, vibrant pulp sci-fi colors", suffix: "heroic cosmic scenes, vintage futurism" },
+      { key: "baroque", label: "Baroque", prefix: "dramatic baroque painting style, deep contrast, rich ornamental detail", suffix: "intense chiaroscuro lighting, grand expressive composition" },
+      { key: "grim-baroque-engraving", label: "Grim Baroque Engraving", prefix: "grimdark gothic fantasy aesthetic, scratchy ink textures, baroque cluttered details, medieval surrealism", suffix: "bleak palette, chaotic linework, decayed ornate motifs, brutal fantastical symbolism, antique occult atmosphere" },
+      { key: "victorian-storybook", label: "Victorian Storybook", prefix: "whimsical fantasy sketch, style with loose expressive ink linework, soft sketchy contours, elongated and exaggerated character proportions, gentle watercolor washes in muted blues and earth tones, pale yellows, smoky grays, stained parchment background texture, playful yet slightly eerie atmosphere, ornate swirling costume details, lightly shaded forms with airy translucent layers", suffix: "hand-drawn ink-and-watercolor aesthetic, textured paper grain, subtle ink bleed and splatter, warm antiqued color palette, soft gradients and uneven washes, lively expressive characters, dreamy storybook fantasy mood, traditional illustration finish" },
+      { key: "renaissance", label: "Renaissance", prefix: "renaissance classical painting style, balanced composition, naturalistic anatomy", suffix: "soft sfumato shading, muted warm tones, detailed drapery" },
+      { key: "rococo", label: "Rococo", prefix: "light and ornate rococo painting style, pastel elegance, decorative curls", suffix: "playful romantic atmosphere, intricate ornamentation" },
+      { key: "symbolist", label: "Symbolist", prefix: "symbolist painting aesthetic, dreamlike imagery, poetic abstraction", suffix: "mystical motifs, rich evocative color symbolism" },
+      { key: "fauvist", label: "Fauvist", prefix: "bold fauvist painting, expressive wild brushstrokes, intense non-natural colors", suffix: "vivid contrast, emotional chromatic energy" },
+      { key: "cubist", label: "Cubist", prefix: "geometric cubist abstraction, fragmented perspectives", suffix: "angular shapes, layered overlapping planes, muted analytical palette" },
+      { key: "1950s", label: "1950s", prefix: "1950s aesthetic, black-and-white broadcast look, bright three-point stage lighting", suffix: "flat theatrical studio sets, low contrast, soft analog tube-camera grain, classic TV framing" },
+      { key: "1960s", label: "1960s", prefix: "1960s aesthetic, warm early color television look, theatrical multi-cam lighting", suffix: "saturated painted sets, mild analog softness, simplified mid-century decor" },
+      { key: "1970s", label: "1970s", prefix: "1970s aesthetic, film-to-tape broadcast look, warm earthy tones, practical lighting", suffix: "wood paneling, orange-brown retro palette, analog grain, wide studio framing" },
+      { key: "1980s", label: "1980s", prefix: "1980s aesthetic, bright multi-camera studio look, crisp tube-camera highlights", suffix: "bold pastel set colors, fluorescent lighting, VHS-level softness, laugh-track framing" },
+      { key: "1990s", label: "1990s", prefix: "1990s aesthetic, polished network multi-cam production, clean broadcast color science", suffix: "apartment and suburban sets, soft edge lighting, light analog grain" },
+      { key: "british-sitcom", label: "British-Sitcom", prefix: "1970s British sitcom aesthetic, low-budget studio lighting, muted color palette", suffix: "basic practical sets, soft analog video texture, theatrical staging" },
+      { key: "sai-3d-model", label: "sai-3d-model", prefix: "professional 3d model", suffix: "octane render, highly detailed, volumetric, dramatic lighting" },
+      { key: "lovecraftian", label: "Lovecraftian", prefix: "lovecraftian horror", suffix: "eldritch, cosmic horror, unknown, mysterious, surreal, highly detailed" },
+      { key: "cinematic", label: "Cinematic", prefix: "cinematic film still", suffix: "shallow depth of field, vignette, highly detailed, high budget, bokeh, cinemascope, moody, epic, gorgeous, film grain, grainy" },
+      { key: "ethereal-fantasy", label: "Ethereal Fantasy", prefix: "ethereal fantasy concept art of", suffix: "magnificent, celestial, ethereal, painterly, epic, majestic, magical, fantasy art, cover art, dreamy" },
+      { key: "neonpunk", label: "Neonpunk", prefix: "neonpunk style", suffix: "cyberpunk, vaporwave, neon, vibes, vibrant, stunningly beautiful, crisp, detailed, sleek, ultramodern, magenta highlights, dark purple shadows, high contrast, cinematic, ultra detailed, intricate, professional" },
+      { key: "abstract", label: "Abstract", prefix: "abstract style", suffix: "non-representational, colors and shapes, expression of feelings, imaginative, highly detailed" },
+      { key: "art-deco", label: "Art Deco", prefix: "art deco style", suffix: "geometric shapes, bold colors, luxurious, elegant, decorative, symmetrical, ornate, detailed" },
+      { key: "watercolor", label: "watercolor", prefix: "watercolor painting", suffix: "vibrant, beautiful, painterly, detailed, textural, artistic" },
+      { key: "futuristic-sci-fi", label: "Futuristic Sci Fi", prefix: "sci-fi style", suffix: "futuristic, technological, alien worlds, space themes, advanced civilizations" },
+      { key: "futuristic-vaporwave", label: "Futuristic Vaporwave", prefix: "vaporwave style", suffix: "retro aesthetic, cyberpunk, vibrant, neon colors, vintage 80s and 90s style, highly detailed" },
+      { key: "cyberpunk-game", label: "Cyberpunk Game", prefix: "cyberpunk game style", suffix: "neon, dystopian, futuristic, digital, vibrant, detailed, high contrast, reminiscent of cyberpunk genre video games" },
+      { key: "fighting-game", label: "Fighting Game", prefix: "fighting game style", suffix: "dynamic, vibrant, action-packed, detailed character design, reminiscent of fighting video games" },
+      { key: "rpg-fantasy-game", label: "RPG Fantasy Game", prefix: "role-playing game (RPG) style fantasy", suffix: "detailed, vibrant, immersive, reminiscent of high fantasy RPG games" },
+      { key: "dystopian", label: "Dystopian", prefix: "dystopian style", suffix: "bleak, post-apocalyptic, somber, dramatic, highly detailed" },
+      { key: "stained-glass", label: "Stained Glass", prefix: "stained glass style", suffix: "vibrant, beautiful, translucent, intricate, detailed" },
+      { key: "stacked-papercut", label: "Stacked Papercut", prefix: "stacked papercut art of", suffix: "3D, layered, dimensional, depth, precision cut, stacked layers, papercut, high contrast" },
+      { key: "film-noir", label: "Film Noir", prefix: "film noir style", suffix: "monochrome, high contrast, dramatic shadows, 1940s style, mysterious, cinematic" },
+      { key: "long-exposure", label: "Long Exposure", prefix: "long exposure photo of", suffix: "blurred motion, streaks of light, surreal, dreamy, ghosting effect, highly detailed" },
+      { key: "neon-noir", label: "Neon Noir", prefix: "neon noir", suffix: "cyberpunk, dark, rainy streets, neon signs, high contrast, low light, vibrant, highly detailed" },
+      { key: "tilt-shift", label: "Tilt Shift", prefix: "tilt-shift photo of", suffix: "selective focus, miniature effect, blurred background, highly detailed, vibrant, perspective control" }
+    ];
+    const BOOK_CREATOR_POCKETS = {
+      genres: {
+        "HORROR": "GENRE_ADAPTER_ID: HORROR\n\nGUIDANCE:\n- Build dread through escalation, implication, and vulnerability\n- Preserve reader unease without relying on gratuitous shock\n- Keep allowed/disallowed tropes governed by the selected knowledge pack when no sheet adapter is available",
+        "COSY FANTASY": "GENRE_ADAPTER_ID: COSY_FANTASY\n\nGUIDANCE:\n- Balance wonder, warmth, manageable stakes, and emotional safety\n- Magic should create responsibility, not instant solutions\n- Keep threat levels appropriate to the selected voice and format",
+        "COSY SCI-FI": "GENRE_ADAPTER_ID: COSY_SCI_FI\n\nGUIDANCE:\n- Use speculative setting to create curiosity, problem-solving, and gentle discovery\n- Technology should support character growth and pacing\n- Keep stakes accessible and emotionally legible",
+        "COSY ROMANCE": "GENRE_ADAPTER_ID: COSY_ROMANCE\n\nGUIDANCE:\n- Prioritise emotional trust, warmth, misunderstanding, and earned connection\n- Avoid cynicism, cruelty, or unsupported romantic certainty\n- Let pacing follow emotional openness and vulnerability",
+        "COSY ROMANCE WITH SCI-FI LOCATION": "GENRE_ADAPTER_ID: COSY_ROMANCE_SCI_FI_LOCATION\n\nGUIDANCE:\n- Blend cosy romance emotional warmth with a lightly speculative setting\n- Let the location influence obstacles, mood, and discovery without overpowering the relationship arc\n- Keep speculative detail abstract unless project context supplies specifics"
+      },
+      bookTypes: {
+        "PICTURE BOOK": "FORMAT_ID: RPP-PB-32\n\nPAGE_COUNT: 32\nSPREAD_COUNT: 8\n\nMIDPOINT_SPREAD: 5\nFINAL_IMAGE_SPREAD: 8\n\nRULES:\n- Single emotional problem only\n- Midpoint must be quiet and reflective\n- Final image must mirror opening\n- No subplots",
+        "SHORT STORY": "FORMAT_ID: RPP-SS-1-6\n\nCHAPTER_RANGE: 1-6\n\nREVERSAL_REQUIRED: true\nFINAL_IMAGE_REQUIRED: true\n\nRULES:\n- Every section must cause change\n- Ending must demonstrate transformation",
+        "CHAPTER BOOK": "FORMAT_ID: RPP-CB-6-12\n\nCHAPTER_RANGE: 6-12\n\nTURNING_POINT_CHAPTER: BEFORE_FINAL\nFINAL_IMAGE_CHAPTER: FINAL\n\nRULES:\n- One dominant problem only\n- Turning point before final chapter\n- Ending must restore safety",
+        "NOVELLA": "FORMAT_ID: RPP-NOVELLA-13\n\nCHAPTER_COUNT: 13\n\nACT_MAP:\nACT_1: 1-4\nACT_2: 5-9\nACT_3: 10-13\n\nMIDPOINT_CHAPTER: 7\nCOLLAPSE_CHAPTER: 10\nFINAL_IMAGE_CHAPTER: 13\n\nRULES:\n- Midpoint must occur at chapter 7\n- Collapse must occur before final action\n- Final image must close the story",
+        "MG NOVEL": "RED PANTS PRESS - FORMAT ADAPTER\nFORMAT: MIDDLE GRADE NOVEL\nVERSION: v1\nCHAPTER COUNT: 24 / 30 / 40\n\nPURPOSE\nThis format adapter supports long-form middle-grade fiction\nwith strong rhythm, momentum, and emotional clarity.\n\n------------------------------------\nSTRUCTURAL PRINCIPLES\n------------------------------------\n\n- Clear moral growth\n- Escalating stakes\n- Emotional accessibility\n\n------------------------------------\nSPINE EXPANSION\n------------------------------------\n\nThe RPP Spine is fully expressed,\nwith expansion in Acts II and III.\n\n------------------------------------\nTYPICAL BEAT DISTRIBUTION\n------------------------------------\n\nACT I (25%): Beats 1-5\nACT II-A (25%): Beats 6-8\nACT II-B (25%): Beats 9-11\nACT III (25%): Beats 12-15\n\n------------------------------------\nINVARIANTS\n------------------------------------\n\n- Midpoint near 50%\n- Emotional low near 70%\n- Final image mirrors opening\n- Growth must be moral, not just plot-based\n\n------------------------------------\nFORBIDDEN\n------------------------------------\n\n- Structural wandering\n- Late character dumps\n- Victory without cost\n\n------------------------------------\nFORMAT SUMMARY\n------------------------------------\n\nThis format balances depth with pace,\nsupporting long adventures without fatigue.",
+        "YA NOVEL": "FORMAT_ID: RPP-YA-30-40\n\nMIDPOINT_REQUIRED: true\nIDENTITY_CONFLICT_REQUIRED: true\nINTERNAL_COLLAPSE_REQUIRED: true\n\nRULES:\n- Resolution must be earned\n- Consequences must persist\n- Transformation must be internal",
+        "ADULT": "FORMAT_ID: RPP-YA-30-40\n\nMIDPOINT_REQUIRED: true\nIDENTITY_CONFLICT_REQUIRED: true\nINTERNAL_COLLAPSE_REQUIRED: true\n\nRULES:\n- Resolution must be earned\n- Consequences must persist\n- Transformation must be internal"
+      },
+      voices: {
+        "HUNTER WHILES": "VOICE_ID: HUNTER_WHILES\n\nTONE:\n- Warm\n- Reassuring\n- Playful\n\nEMOTIONAL_LIMITS:\n- Fear must be manageable\n- No cynicism\n- No despair\n\nTHEMATIC_FOCUS:\n- Courage\n- Kindness\n- Emotional growth\n\nENDING_RULES:\n- Emotional safety restored\n- Growth must be visible",
+        "MARCUS CRANE": "VOICE_ID: MARCUS_CRANE\n\nTONE:\n- Grounded\n- Controlled\n- Psychologically sharp\n\nEMOTIONAL_LIMITS:\n- Discomfort allowed\n- No forced reassurance\n- Emotional restraint preferred\n\nTHEMATIC_FOCUS:\n- Moral ambiguity\n- Consequence\n- Complicity\n- Cost of knowledge\n\nENDING_RULES:\n- Closure optional\n- Consequences must remain\n- No sentimental resolution",
+        "M M WESTERN": "VOICE_ID: URBAN_FANTASY\n\nTONE:\n- Grounded\n- Curious\n- Tense\n\nEMOTIONAL_LIMITS:\n- Wonder balanced with risk\n- No power fantasy\n- Normality cannot fully return\n\nTHEMATIC_FOCUS:\n- Hidden worlds\n- Power with cost\n- Responsibility\n- Altered identity\n\nENDING_RULES:\n- Protagonist changed permanently\n- Victory requires compromise\n- Knowledge alters future behaviour",
+        "B LANE": "VOICE_ID: HORROR\n\nTONE:\n- Atmospheric\n- Unsettling\n- Restrained\n\nEMOTIONAL_LIMITS:\n- Fear may escalate\n- No emotional safety guarantee\n- Unease may persist after ending\n\nTHEMATIC_FOCUS:\n- Vulnerability\n- Loss of control\n- Inevitability\n- Survival with cost\n\nENDING_RULES:\n- Resolution may be partial\n- Horror may persist\n- Fear must have meaning"
+      },
+      knowledge: {
+        "HUNTER WHILES": "KNOWLEDGE_PACK_ID: HUNTER_WHILES\n\nALLOWED_TROPES:\n- Curious child protagonist\n- Manageable mystery\n- Imperfect but caring adults\n- Growth through understanding\n\nFORBIDDEN_TROPES:\n- Adult cruelty\n- Nihilism\n- Hopeless endings\n\nCONFLICT_STYLE:\n- Emotional stakes\n- Problems are solvable\n\nRESOLUTION_RULES:\n- Emotional closure required\n- Not all problems need fixing",
+        "MARCUS CRANE": "KNOWLEDGE_PACK_ID: MARCUS_CRANE\n\nALLOWED_TROPES:\n- Flawed protagonist\n- Moral ambiguity\n- Cost of knowledge\n- Unreliable authority\n- Consequence-driven choices\n\nFORBIDDEN_TROPES:\n- Sentimental redemption\n- Clean victories\n- Authority as saviour\n- Nihilism without meaning\n\nCONFLICT_STYLE:\n- Psychological escalation\n- Choices worsen outcomes\n- Truth increases risk\n\nRESOLUTION_RULES:\n- Change must be lasting\n- Closure may be incomplete\n- Consequences must remain",
+        "M M WESTERN": "KNOWLEDGE_PACK_ID: URBAN_FANTASY\n\nALLOWED_TROPES:\n- Hidden world beneath the ordinary\n- Magic with rules and cost\n- Reluctant initiation\n- Secrecy and discovery\n\nFORBIDDEN_TROPES:\n- Magic without consequence\n- Easy mastery\n- Power fantasy\n- Restored normality\n\nCONFLICT_STYLE:\n- Systems push back\n- Power attracts danger\n- Knowledge creates obligation\n\nRESOLUTION_RULES:\n- Protagonist cannot return unchanged\n- Victory requires compromise\n- Normality is altered",
+        "B LANE": "KNOWLEDGE_PACK_ID: HORROR\n\nALLOWED_TROPES:\n- Encroaching threat\n- Fear of the unknown\n- Isolation\n- Wrongness beneath normality\n\nFORBIDDEN_TROPES:\n- Gratuitous gore\n- Shock without buildup\n- Comic relief\n- Restored innocence\n\nCONFLICT_STYLE:\n- Psychological dread first\n- Escalation over time\n- Options diminish\n\nRESOLUTION_RULES:\n- Survival has cost\n- Horror may persist\n- Fear must have meaning"
+      },
+      emotionGraphs: {
+        "HUNTER WHILES": "BOOK TYPE: Any\nVOICE: Hunter Whiles\nTITLE: Hunter Whiles Emotional Arc\n\nSPINE BEATS:\n1. STATUS QUO UNDER PRESSURE\n2. THEME / EMOTIONAL NEED\n3. CATALYST\n4. RESISTANCE / MISSTEP\n5. COMMITMENT / THRESHOLD\n6. DISCOVERY & EXPLORATION\n7. MIDPOINT REVERSAL\n8. ESCALATION & COST\n9. PRESSURE TIGHTENS\n10. COLLAPSE / LOW POINT\n11. REFLECTION / REALISATION\n12. FINAL ACTION\n13. FINAL IMAGE / ECHO\n\nEMOTIONAL BEATS:\n1. curiosity, warmth, gentle engagement\n2. anticipation, hope, empathy\n3. intrigue, mild suspense, excitement\n4. hesitation, worry, doubt\n5. courage, determination, mild tension\n6. playful delight, curiosity, surprise\n7. astonishment, reflection, mild challenge\n8. tension, emotional growth, worry\n9. urgency, conflict, attentive focus\n10. disappointment, anxiety, concern\n11. insight, clarity, understanding\n12. resolve, empowerment, compassion\n13. satisfaction, relief, gentle closure\n\nNOTES:\n- Tone: warm, playful, reassuring\n- Manageable tension, clear moral and emotional arcs\n- Maintain Hunter Whiles signature voice",
+        "MARCUS CRANE": "BOOK TYPE: Any\nVOICE: Marcus Crane\nTITLE: Marcus Crane Emotional Arc\n\nSPINE BEATS:\n1. STATUS QUO UNDER PRESSURE\n2. THEME / EMOTIONAL NEED\n3. CATALYST\n4. RESISTANCE / MISSTEP\n5. COMMITMENT / THRESHOLD\n6. DISCOVERY & EXPLORATION\n7. MIDPOINT REVERSAL\n8. ESCALATION & COST\n9. PRESSURE TIGHTENS\n10. COLLAPSE / LOW POINT\n11. REFLECTION / REALISATION\n12. FINAL ACTION\n13. FINAL IMAGE / ECHO\n\nEMOTIONAL BEATS:\n1. intrigue, unease, apprehension\n2. anxiety, moral questioning, tension\n3. shock, fear, uncertainty\n4. hesitation, frustration, worry\n5. courage, determination, urgency\n6. curiosity, suspense, engagement\n7. betrayal, doubt, surprise\n8. fear, conflict, moral tension\n9. desperation, urgency, anxiety\n10. despair, hopelessness, stress\n11. insight, resolve, reflection\n12. decisive action, emotional intensity, courage\n13. closure with lingering tension\n\nNOTES:\n- Tone: dramatic, morally complex, heightened stakes\n- Emphasize personal stakes and conflicts",
+        "M M WESTERN": "BOOK TYPE: Dark Fantasy / Magical Realism\nAUTHOR: Neil Gaiman\nTITLE: Average Gaiman Emotional Arc\n\nSPINE BEATS:\n1. STATUS QUO UNDER PRESSURE\n2. THEME / EMOTIONAL NEED\n3. CATALYST\n4. RESISTANCE / MISSTEP\n5. COMMITMENT / THRESHOLD\n6. DISCOVERY & EXPLORATION\n7. MIDPOINT REVERSAL\n8. ESCALATION & COST\n9. PRESSURE TIGHTENS\n10. COLLAPSE / LOW POINT\n11. REFLECTION / REALISATION\n12. FINAL ACTION\n13. FINAL IMAGE / ECHO\n\nEMOTIONAL BEATS:\n1. curiosity, wonder, subtle unease\n2. longing, anticipation, intrigue\n3. amazement, tension, suspense\n4. uncertainty, hesitation, doubt\n5. courage, curiosity, anticipation\n6. fascination, intrigue, mystery\n7. surprise, shock, tension\n8. anxiety, fear, suspense\n9. urgency, tension, emotional engagement\n10. disorientation, worry, unease\n11. insight, understanding, reflection\n12. empowerment, resolve, bravery\n13. eerie satisfaction, curiosity, reflection\n\nNOTES:\n- Themes: wonder, mystery, morality\n- Tone: whimsical, darkly magical, emotionally resonant",
+        "B LANE": "BOOK TYPE: Horror / Thriller\nAUTHOR: Stephen King\nTITLE: Average Stephen King Emotional Arc\n\nSPINE BEATS:\n1. STATUS QUO UNDER PRESSURE\n2. THEME / EMOTIONAL NEED\n3. CATALYST\n4. RESISTANCE / MISSTEP\n5. COMMITMENT / THRESHOLD\n6. DISCOVERY & EXPLORATION\n7. MIDPOINT REVERSAL\n8. ESCALATION & COST\n9. PRESSURE TIGHTENS\n10. COLLAPSE / LOW POINT\n11. REFLECTION / REALISATION\n12. FINAL ACTION\n13. FINAL IMAGE / ECHO\n\nEMOTIONAL BEATS:\n1. unease, tension, curiosity\n2. anxiety, fear, anticipation\n3. shock, alarm, dread\n4. hesitation, worry, confusion\n5. determination, courage, apprehension\n6. intrigue, suspense, escalating fear\n7. betrayal, shock, uncertainty\n8. fear, tension, dread\n9. panic, urgency, vulnerability\n10. despair, hopelessness, vulnerability\n11. clarity, resolve, emotional reflection\n12. courage, determination, relief\n13. lingering dread, apprehension, uneasy closure\n\nNOTES:\n- Emphasize protagonist's vulnerability\n- Secondary characters reflect or amplify fear\n- Tone: psychological tension and dread"
+      },
+      spines: {
+        "RPP SPINE v1": "SPINE_ID: RPP-SPINE-v1\n\nBEAT_ORDER:\n1 Status Quo Under Pressure\n2 Theme / Emotional Need\n3 Catalyst\n4 Resistance / Misstep\n5 Commitment / Threshold\n6 Discovery & Exploration\n7 Midpoint Reversal\n8 Escalation & Cost\n9 Pressure Tightens\n10 Collapse / Low Point\n11 Reflection / Realisation\n12 Final Action\n13 Final Image / Echo\n\nREQUIRED_BEATS:\n- Midpoint Reversal\n- Collapse / Low Point\n- Final Image / Echo\n\nRULES:\n- Beat order must not change\n- All beats must be present\n- Internal change must drive resolution"
+      },
+      renderContracts: {
+        "RPP RENDERER v1": "RENDERER CONTRACT\nVERSION: v1\n\nPURPOSE\nThe renderer defines how outline templates are presented.\nIt ensures consistency, clarity, and usability.\n\n------------------------------------\nOUTPUT RULES\n------------------------------------\n\n- Human-readable\n- Clear headings\n- No prose\n- No invented plot details\n\n------------------------------------\nREQUIRED SECTIONS\n------------------------------------\n\n- Concept\n- Characters\n- Narrative Principles\n- Structural Overview\n- Chapter-by-Chapter Outline\n- Final Checklist\n\n------------------------------------\nRENDERER SUMMARY\n------------------------------------\n\nThe renderer translates structure into usable documents\nwithout altering creative intent."
+      }
+    };
+
+    // v63 â€” UI-only editor grouping.
+    // Existing documents are visually grouped without adding new sheet columns or workspace logic yet.
+    const MARKDOWN_EDITOR_DOC_GROUPS = [
+      {
+        key: "writing",
+        label: "Writing",
+        description: "Draft stages",
+        fields: ["draft_doc_url", "dev_edit_doc_url", "line_edit_doc_url", "copy_edit_doc_url"]
+      },
+      {
+        key: "supplement",
+        label: "Supplement",
+        description: "Planning and support docs",
+        fields: ["short_summary", "outline_doc_url", "notes_doc_url", "outline_template_doc_url", "brainstorm_doc_url", "characters_doc_url", "world_build_doc_url", "concept_doc_url"]
+      },
+      {
+        key: "series_docs",
+        label: "Series Docs",
+        description: "Shared series planning docs",
+        fields: ["series_outline_doc_url", "series_brainstorm_doc_url", "series_characters_doc_url", "series_world_build_doc_url", "series_notes_doc_url"]
+      }
+    ];
+
+    const MARKDOWN_REFERENCE_DOC_GROUPS = [
+      {
+        key: "editorial",
+        label: "Writing",
+        description: "Reference stages",
+        styleKey: "writing"
+      },
+      {
+        key: "supplement",
+        label: "Supplement",
+        description: "Planning and support docs",
+        styleKey: "supplement"
+      },
+      {
+        key: "series_docs",
+        label: "Series Docs",
+        description: "Shared series references",
+        styleKey: "series_docs"
+      }
+    ];
+
+    const EDITORIAL_REFERENCE_FIELDS = [
+      { key: "draft", label: "Draft", urlKey: "draft_doc_url", syncWithDraft: true, referenceGroup: "editorial" },
+      { key: "dev_edit", label: "Development Edit", urlKey: "dev_edit_doc_url", syncWithDraft: true, referenceGroup: "editorial" },
+      { key: "line_edit", label: "Line Edit", urlKey: "line_edit_doc_url", syncWithDraft: true, referenceGroup: "editorial" }
+    ];
+
+    const REFERENCE_DOC_FIELDS = [
+      { key: "outline", label: "Outline", urlKey: "outline_doc_url", syncWithDraft: true, referenceGroup: "supplement" },
+      { key: "notes", label: "Notes", urlKey: "notes_doc_url", syncWithDraft: true, referenceGroup: "supplement" },
+      { key: "outline_template", label: "Outline Template", urlKey: "outline_template_doc_url", syncWithDraft: false, referenceGroup: "supplement" },
+      { key: "brainstorm", label: "Brainstorm", urlKey: "brainstorm_doc_url", syncWithDraft: false, referenceGroup: "supplement" },
+      { key: "characters", label: "Characters", urlKey: "characters_doc_url", syncWithDraft: false, referenceGroup: "supplement" },
+      { key: "world_build", label: "World Build", urlKey: "world_build_doc_url", syncWithDraft: false, referenceGroup: "supplement" },
+      { key: "concept", label: "Concept", urlKey: "concept_doc_url", syncWithDraft: false, referenceGroup: "supplement" },
+      { key: "series_outline", label: "Outline", urlKey: "series_outline_doc_url", syncWithDraft: false, referenceGroup: "series_docs" },
+      { key: "series_brainstorm", label: "Brainstorm", urlKey: "series_brainstorm_doc_url", syncWithDraft: false, referenceGroup: "series_docs" },
+      { key: "series_characters", label: "Characters", urlKey: "series_characters_doc_url", syncWithDraft: false, referenceGroup: "series_docs" },
+      { key: "series_world_build", label: "World Build", urlKey: "series_world_build_doc_url", syncWithDraft: false, referenceGroup: "series_docs" },
+      { key: "series_notes", label: "Notes", urlKey: "series_notes_doc_url", syncWithDraft: false, referenceGroup: "series_docs" }
+    ];
+
+    const SECTIONED_PROJECT_MARKDOWN_DOCS = {
+      draft_doc_url: true,
+      outline_doc_url: true,
+      notes_doc_url: true
+    };
+
+    const SERIES_DOC_URL_FIELDS = [
+      "series_outline_doc_url",
+      "series_brainstorm_doc_url",
+      "series_characters_doc_url",
+      "series_world_build_doc_url",
+      "series_notes_doc_url"
+    ];
+
+    const LINK_HEALTH_FIELDS = [
+      { key: "workspace_url", label: "Workspace", inputId: "detailWorkspaceUrl" }
+    ];
+
+    const MARKDOWN_HELP_CONTENT = {
+      overview: { html: "<h2>Overview</h2><p>The Markdown editor is your focused writing space. The left panel shows the structure of the current document, the centre panel is where you write, and the right panel shows either references or a formatted preview.</p><ul><li>The top document tabs are grouped into Writing and Supplement sections.</li><li>Writing stages move from Draft to Development Edit, Line Edit, and Copy Edit.</li><li>Supplement tabs hold Summary, Outline, Outline Template, Brainstorm, Notes, Characters, World Build, and Concept material.</li></ul><div class='markdown-help-tip'>Draft mode can show grouped reference tabs or a formatted preview on the right. Other document modes use the right side as a preview pane.</div>" },
+      formatting: { html: "<h2>Formatting</h2><p>The editor saves plain Markdown text, not HTML. That keeps the active document light and easy to reopen whether it lives in Google Docs or Supabase.</p><ul><li>Select text, then click <strong>Format Selected</strong> to open Markdown formatting options.</li><li>Use <code># Heading</code>, <code>## Chapter</code>, and <code>### Scene</code> to build the left navigation.</li><li>Use <code>**bold**</code>, <code>*italic*</code>, <code>- bullets</code>, <code>1. numbers</code>, <code>&gt; quotes</code>, and <code>[link](https://...)</code>.</li><li>Advanced: select text, then use <strong>Alt/Option + right-click</strong> to open the Markdown formatting menu.</li></ul>" },
+      spellcheck: { html: "<h2>Spellcheck</h2><ul><li>Normal right-click in the editor is reserved for your browser spelling suggestions.</li><li><strong>Check Spelling</strong> checks the full document using the backend spellcheck flow.</li><li><strong>Check Selection</strong> checks only highlighted text, which is faster for a paragraph or scene.</li><li>Very short words may be ignored by browsers or LanguageTool to avoid false positives.</li></ul><div class='markdown-help-tip'>If you want Markdown formatting from the mouse, select text and use Alt/Option + right-click. For normal spelling suggestions, just right-click normally.</div>" },
+      navigation: { html: "<h2>Chapters & Navigation</h2><ul><li>The left panel is built from Markdown headings.</li><li><code>#</code> headings sit at the top level and display the total word count.</li><li><code>##</code> headings are indented and display section/chapter word counts.</li><li>Heading buttons show the heading title only; indentation carries the H1/H2/H3 hierarchy.</li><li>The editor gutter still shows H1, H2, and H3 markers beside the writing area.</li><li>In Draft, only top-level headings collapse. Chapter-level headings jump directly to that section.</li><li>When Draft Preview or matching reference documents are open, heading clicks also sync the right panel.</li></ul>" },
+      references: { html: "<h2>Right Panel References</h2><p>In Draft mode, the right panel can show reference material while you write prose.</p><ul><li><strong>Preview</strong> shows the formatted version of the draft you are editing.</li><li><strong>Writing</strong> tabs show available earlier-stage documents, such as Draft or Development Edit, when they are useful as references.</li><li><strong>Supplement</strong> tabs show Outline, Outline Template, Brainstorm, Notes, Characters, World Build, and Concept material.</li><li>Reference heading selectors use indentation instead of H1/H2 text labels.</li><li>Reference documents are cached after loading so switching tabs is faster.</li></ul>" },
+      saving: { html: "<h2>Saving & Storage</h2><ul><li>The editor writes Markdown/plain text back into the active document source.</li><li>The Summary tab still saves back to the project record itself.</li><li>In this build, the active writing and support documents are Supabase-backed. Legacy Google Doc links can still be kept for reference when needed.</li><li>Switching between document tabs saves the current document in the background when needed.</li><li>Use <strong>Save</strong> when you want an explicit save before closing the editor.</li><li><strong>Send</strong> copies the current writing-stage text into the next stage: Draft to Development Edit, Development Edit to Line Edit, and Line Edit to Copy Edit.</li></ul><div class='markdown-help-tip'>Send overwrites the target document body. Use it when you are ready to create or refresh the next-stage copy.</div>" },
+      shortcuts: { html: "<h2>Shortcuts</h2><ul><li><code>Ctrl/Cmd + Z</code> â€” Undo</li><li><code>Ctrl/Cmd + Y</code> or <code>Ctrl/Cmd + Shift + Z</code> â€” Redo</li><li><code>Ctrl/Cmd + B</code> â€” Bold selected text</li><li><code>Ctrl/Cmd + I</code> â€” Italic selected text</li><li><code>Alt/Option + right-click</code> â€” Markdown formatting menu when text is selected</li><li><code>Esc</code> â€” Close the editor modal or help modal</li></ul>" }
+    };
