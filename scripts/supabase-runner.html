@@ -1,0 +1,133 @@
+﻿<script>
+    // --- Supabase Runner (drop-in replacement for google.script.run) ---
+    var _sbSuccess = null, _sbFailure = null;
+    var supabaseRunner = {
+      withSuccessHandler: function (fn) { _sbSuccess = fn; return this; },
+      withFailureHandler: function (fn) { _sbFailure = fn; return this; }
+    };
+    var _sbHandlers = function () {
+      var s = _sbSuccess, f = _sbFailure;
+      _sbSuccess = null; _sbFailure = null;
+      return { success: s, failure: f };
+    };
+    var _sbImpl = {};
+    function _sbDefine(name, impl) { _sbImpl[name] = impl; }
+
+    function _sbExec(impl, args, successFn, failureFn) {
+      try {
+        var result = impl.apply(null, args);
+        if (result && typeof result.then === 'function') {
+          result.then(function (data) { if (successFn) successFn(data); })
+            .catch(function (err) { if (failureFn) failureFn(err); else console.error('SB error:', err); });
+        } else {
+          if (successFn) successFn(result);
+        }
+      } catch (err) {
+        if (failureFn) failureFn(err);
+        else console.error('SB error:', err);
+      }
+    }
+
+    // Proxy: intercept method calls to dispatch to _sbImpl or fall back to GAS
+    supabaseRunner = new Proxy(supabaseRunner, {
+      get: function (target, prop) {
+        if (prop === 'withSuccessHandler' || prop === 'withFailureHandler') return target[prop];
+        var impl = _sbImpl[prop];
+        if (impl) {
+          return function () {
+            var args = Array.prototype.slice.call(arguments);
+            var h = _sbHandlers();
+            _sbExec(impl, args, h.success, h.failure);
+            return target;
+          };
+        }
+        // Fall back to google.script.run
+        return function () {
+          var args = Array.prototype.slice.call(arguments);
+          var h = _sbHandlers();
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            var runner = google.script.run;
+            if (h.success) runner = runner.withSuccessHandler(h.success);
+            if (h.failure) runner = runner.withFailureHandler(h.failure);
+            runner[prop].apply(runner, args);
+          } else {
+            var msg = 'No implementation for ' + prop;
+            console.error(msg);
+            if (h.failure) h.failure(new Error(msg));
+          }
+          return target;
+        };
+      }
+    });
+
+    // --- Helper to map project rows from Supabase to client format (mirrors Code.gs) ---
+    function mapSupabaseProjectToClient_(row) {
+      var series = row && row.series && typeof row.series === 'object' ? row.series : {};
+      return {
+        rowNumber: Number(row && row.id || 0),
+        series_id: Number(series.id || row && row.series_id || 0),
+        project_id: String(row && row.legacy_project_id || row && row.id || '').trim(),
+        title: String(row && row.title || '').trim(),
+        series: String(series.name || '').trim(),
+        'b#': row && row.book_number != null ? row.book_number : '',
+        pen_name: String(row && row.pen_name || '').trim(),
+        genre: String(row && row.genre || '').trim(),
+        format: String(row && row.format || '').trim(),
+        status: String(row && row.status || '').trim(),
+        priority: String(row && row.priority || '').trim(),
+        next_step: String(row && row.next_step || '').trim(),
+        short_summary: String(row && row.short_summary || '').trim(),
+        series_summary: String(series.summary || '').trim(),
+        workspace_url: String(row && row.legacy_workspace_url || '').trim(),
+        image: String(row && row.project_image_url || '').trim(),
+        series_image: String(series.series_image_url || '').trim(),
+        draft_doc_url: '',
+        dev_edit_doc_url: '',
+        line_edit_doc_url: '',
+        copy_edit_doc_url: '',
+        outline_doc_url: '',
+        outline_template_doc_url: '',
+        brainstorm_doc_url: '',
+        notes_doc_url: '',
+        characters_doc_url: '',
+        world_build_doc_url: '',
+        concept_doc_url: '',
+        series_outline_doc_url: '',
+        series_brainstorm_doc_url: '',
+        series_characters_doc_url: '',
+        series_world_build_doc_url: '',
+        series_notes_doc_url: '',
+        schedule_template: String(row && row.schedule_template || '').trim(),
+        marketing_template: String(row && row.marketing_template || '').trim(),
+        publish_date: String(row && row.publish_date || '').trim(),
+        publish_ready_date: String(row && row.publish_ready_date || '').trim(),
+        schedule_milestones: row && row.schedule_milestones ? row.schedule_milestones : [],
+        campaigns: row && row.campaigns ? row.campaigns : [],
+        last_updated: String(row && row.updated_at || row && row.created_at || '').trim()
+      };
+    }
+
+    function sortSupabaseProjectRowsForClient_(rows) {
+      return rows.slice().sort(function (a, b) {
+        var seriesA = String(a.series || '').trim().toLowerCase();
+        var seriesB = String(b.series || '').trim().toLowerCase();
+        if (seriesA !== seriesB) return seriesA < seriesB ? -1 : 1;
+        var bnA = a['b#']; var bnB = b['b#'];
+        if (bnA && bnB && bnA !== bnB) return Number(bnA) - Number(bnB);
+        var titleA = String(a.title || '').trim().toLowerCase();
+        var titleB = String(b.title || '').trim().toLowerCase();
+        return titleA < titleB ? -1 : titleA > titleB ? 1 : 0;
+      });
+    }
+
+    function getUniqueColumnValuesFromRows_(rows, key) {
+      var seen = {};
+      return rows.reduce(function (out, row) {
+        var value = String(row && row[key] || '').trim();
+        if (!value || seen[value]) return out;
+        seen[value] = true;
+        out.push(value);
+        return out;
+      }, []).sort(function (a, b) { return a.localeCompare(b); });
+    }
+</script>

@@ -1,0 +1,60 @@
+﻿<script>
+    // --- Auth state ---
+    var _authUser = null;
+    var _authReady = false;
+
+    function _showLoginScreen() {
+      var overlay = document.getElementById('authOverlay');
+      if (overlay) overlay.style.display = 'flex';
+    }
+
+    function _hideLoginScreen() {
+      var overlay = document.getElementById('authOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function _handleLogin(e) {
+      e.preventDefault();
+      var emailInput = document.getElementById('authEmail');
+      var passInput = document.getElementById('authPassword');
+      var msgEl = document.getElementById('authMessage');
+      var email = (emailInput.value || '').trim();
+      var password = passInput.value || '';
+      if (!email || !password) return;
+      msgEl.textContent = 'Logging in...';
+      msgEl.style.color = '#aaa';
+      sbClient.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
+        if (res.error) {
+          msgEl.textContent = 'Error: ' + res.error.message;
+          msgEl.style.color = '#f66';
+        } else {
+          msgEl.textContent = 'Success!';
+          msgEl.style.color = '#6f6';
+        }
+      });
+    }
+
+    function _initAuth() {
+      if (!sbClient) {
+        _authReady = true;
+        return Promise.resolve(null);
+      }
+      return sbClient.auth.getSession().then(function (res) {
+        _authUser = (res.data && res.data.session) ? res.data.session.user : null;
+        _authReady = true;
+        if (!_authUser) {
+          _showLoginScreen();
+        }
+        sbClient.auth.onAuthStateChange(function (event, session) {
+          _authUser = session ? session.user : null;
+          if (_authUser) {
+            _hideLoginScreen();
+            if (typeof loadProjects === 'function') loadProjects();
+          } else {
+            _showLoginScreen();
+          }
+        });
+        return _authUser;
+      });
+    }
+</script>
