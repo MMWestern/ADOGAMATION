@@ -59,7 +59,6 @@
           <button id="darkModeButton" class="settings-menu-item" type="button">Dark Mode</button>
           <button id="scheduleTemplatesButton" class="settings-menu-item" type="button">Schedule Templates</button>
           <button id="marketingTemplatesButton" class="settings-menu-item" type="button">Marketing Templates</button>
-          <button id="seriesAuditButton" class="settings-menu-item" type="button">Series Audit</button>
           <button id="logoutButton" class="settings-menu-item" type="button" style="color:#f66;" onclick="sbClient.auth.signOut()">Logout</button>
           <button id="mainAutoSaveButton" class="settings-menu-item" type="button">Auto-save</button>
         </div>
@@ -2504,37 +2503,6 @@
       </div>
       <div class="modal-footer">
         <button id="campaignTasksCloseButton" type="button">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="seriesAuditModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card series-audit-modal-card">
-      <div class="modal-header">
-        <h3>Series Migration Audit</h3>
-        <div class="muted">Review unused or mismatched series records before doing any cleanup.</div>
-      </div>
-      <div class="modal-body schedule-templates-body series-audit-body">
-        <div id="seriesAuditSummary" class="series-audit-summary">Running audit...</div>
-        <div class="series-audit-section">
-          <div class="schedule-milestone-list-heading">
-            <strong>Orphan Series</strong>
-            <span class="tiny">Series rows with no linked projects</span>
-          </div>
-          <div id="seriesAuditOrphanList" class="series-audit-list"></div>
-        </div>
-        <div class="series-audit-section">
-          <div class="schedule-milestone-list-heading">
-            <strong>Other Issues</strong>
-            <span class="tiny">Only shown when the audit finds anything else</span>
-          </div>
-          <div id="seriesAuditOtherIssues" class="series-audit-list"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="seriesAuditExportButton" type="button">Export</button>
-        <button id="seriesAuditRefreshButton" type="button">Refresh Audit</button>
-        <button id="seriesAuditCloseButton" type="button">Close</button>
       </div>
     </div>
   </div>

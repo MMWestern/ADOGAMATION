@@ -6285,7 +6285,6 @@
     function loadSeriesMeta() {
       if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
         appState.seriesMetaById = {};
-        appState.seriesMigrationReport = null;
         return Promise.resolve({});
       }
       return callAppsScriptJson("getSupabaseSeriesMetaJsonFromClient", [])
@@ -6310,170 +6309,8 @@
         })
         .catch(function () {
           appState.seriesMetaById = {};
-          appState.seriesMigrationReport = null;
           return {};
         });
-    }
-
-    function buildSeriesMigrationWarning(report) {
-      if (!report || !report.issueCounts) return "";
-      var parts = [];
-      if (Number(report.issueCounts.missingSeriesId || 0) > 0) parts.push(String(report.issueCounts.missingSeriesId) + " missing series_id");
-      if (Number(report.issueCounts.missingSeriesRelation || 0) > 0) parts.push(String(report.issueCounts.missingSeriesRelation) + " broken series link");
-      if (Number(report.issueCounts.blankSeriesName || 0) > 0) parts.push(String(report.issueCounts.blankSeriesName) + " blank series name");
-      if (Number(report.issueCounts.orphanSeries || 0) > 0) parts.push(String(report.issueCounts.orphanSeries) + " orphan series");
-      if (Number(report.issueCounts.duplicateSeriesNames || 0) > 0) parts.push(String(report.issueCounts.duplicateSeriesNames) + " duplicate series name");
-      return parts.join(" | ");
-    }
-
-    function formatAuditDate(value) {
-      if (!value) return "";
-      try {
-        return new Date(value).toLocaleString();
-      } catch (e) {
-        return String(value);
-      }
-    }
-
-    function renderSeriesAuditReport(report) {
-      if (!el.seriesAuditSummary || !el.seriesAuditOrphanList || !el.seriesAuditOtherIssues) return;
-      if (!report) {
-        el.seriesAuditSummary.textContent = "No audit report loaded yet.";
-        el.seriesAuditOrphanList.innerHTML = "<div class='empty-state'>No orphan series data available yet.</div>";
-        el.seriesAuditOtherIssues.innerHTML = "<div class='empty-state'>No audit details available yet.</div>";
-        return;
-      }
-
-      var orphanCount = Number(report.issueCounts && report.issueCounts.orphanSeries || 0);
-      var issuesCount = Number(report.issuesCount || 0);
-      if (!issuesCount) {
-        el.seriesAuditSummary.textContent = "No series migration issues found. Active projects and series links look healthy.";
-      } else {
-        el.seriesAuditSummary.textContent =
-          issuesCount + " issue(s) found. " +
-          (orphanCount ? orphanCount + " orphan series currently look unused by any project. " : "") +
-          String(report.autoBackfillReason || "");
-      }
-
-      var orphanRows = Array.isArray(report.orphanSeries) ? report.orphanSeries : [];
-      el.seriesAuditOrphanList.innerHTML = orphanRows.length
-        ? orphanRows.map(function (entry) {
-            return "<div class='series-audit-row'>" +
-              "<div class='series-audit-row-title'>" + escapeHtml(String(entry && entry.name || "Untitled Series").trim() || "Untitled Series") + "</div>" +
-              "<div class='series-audit-row-meta'>Series ID: " + escapeHtml(String(entry && entry.id || "")) + "</div>" +
-              "<div class='series-audit-row-meta'>Last updated: " + escapeHtml(formatAuditDate(entry && entry.updatedAt || "")) + "</div>" +
-            "</div>";
-          }).join("")
-        : "<div class='empty-state'>No orphan series found.</div>";
-
-      var otherIssues = [];
-      [
-        ["Missing series_id", report.missingSeriesId],
-        ["Broken series link", report.missingSeriesRelation],
-        ["Blank series name", report.blankSeriesName],
-        ["Duplicate series names", report.duplicateSeriesNames]
-      ].forEach(function (pair) {
-        var label = pair[0];
-        var items = Array.isArray(pair[1]) ? pair[1] : [];
-        items.forEach(function (item) {
-          if (label === "Duplicate series names") {
-            otherIssues.push(
-              "<div class='series-audit-row'>" +
-                "<div class='series-audit-row-title'>" + escapeHtml(label + ": " + String(item && item.normalizedName || "").trim()) + "</div>" +
-                "<div class='series-audit-row-meta'>" + escapeHtml((item && item.entries || []).map(function (entry) {
-                  return "#" + String(entry && entry.id || "") + " " + String(entry && entry.name || "").trim();
-                }).join(" | ")) + "</div>" +
-              "</div>"
-            );
-            return;
-          }
-          otherIssues.push(
-            "<div class='series-audit-row'>" +
-              "<div class='series-audit-row-title'>" + escapeHtml(label) + "</div>" +
-              "<div class='series-audit-row-meta'>" +
-                escapeHtml("Project: " + String(item && item.title || "").trim()) +
-                (item && item.projectId ? " â€¢ " + escapeHtml("Project ID: " + String(item.projectId || "")) : "") +
-                (item && item.seriesId ? " â€¢ " + escapeHtml("Series ID: " + String(item.seriesId || "")) : "") +
-              "</div>" +
-            "</div>"
-          );
-        });
-      });
-
-      el.seriesAuditOtherIssues.innerHTML = otherIssues.length
-        ? otherIssues.join("")
-        : "<div class='empty-state'>No other migration issues found.</div>";
-    }
-
-    function validateSeriesMigration() {
-      if (!usesSupabaseSeriesOwnedFields()) {
-        appState.seriesMigrationReport = null;
-        return Promise.resolve(null);
-      }
-      return callAppsScriptJson("validateSupabaseSeriesMigrationJsonFromClient", [])
-        .then(function (result) {
-          var report = result && result.report && typeof result.report === "object" ? result.report : null;
-          appState.seriesMigrationReport = report;
-          if (report && Number(report.issuesCount || 0) > 0) {
-            setStatus("Series migration check found " + Number(report.issuesCount || 0) + " issue(s): " + buildSeriesMigrationWarning(report), "warn");
-          } else {
-            console.log("Series migration check passed with no issues.");
-          }
-          return report;
-        })
-        .catch(function (error) {
-          console.warn("Series migration validation failed", error);
-          appState.seriesMigrationReport = null;
-          return null;
-        });
-    }
-
-    function openSeriesAuditModal() {
-      renderSeriesAuditReport(appState.seriesMigrationReport);
-      if (!el.seriesAuditModal) return;
-      el.seriesAuditModal.classList.add("is-open");
-      el.seriesAuditModal.setAttribute("aria-hidden", "false");
-      validateSeriesMigration().then(function () {
-        renderSeriesAuditReport(appState.seriesMigrationReport);
-      });
-    }
-
-    function closeSeriesAuditModal() {
-      if (!el.seriesAuditModal) return;
-      el.seriesAuditModal.classList.remove("is-open");
-      el.seriesAuditModal.setAttribute("aria-hidden", "true");
-    }
-
-    function exportSeriesAuditReport() {
-      var report = appState.seriesMigrationReport;
-      if (!report) {
-        setStatus("No series audit report available yet.", "warn");
-        return;
-      }
-      var lines = [];
-      lines.push("Series Migration Audit");
-      lines.push("Checked: " + String(report.checkedAt || ""));
-      lines.push("Projects: " + String(report.projectCount || 0));
-      lines.push("Series: " + String(report.seriesCount || 0));
-      lines.push("Issues: " + String(report.issuesCount || 0));
-      lines.push("");
-      lines.push("Orphan Series:");
-      (Array.isArray(report.orphanSeries) ? report.orphanSeries : []).forEach(function (entry) {
-        lines.push("- #" + String(entry && entry.id || "") + " " + String(entry && entry.name || "").trim() + " | updated " + formatAuditDate(entry && entry.updatedAt || ""));
-      });
-      if (!Array.isArray(report.orphanSeries) || !report.orphanSeries.length) {
-        lines.push("- None");
-      }
-      var blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = "series-migration-audit-" + new Date().toISOString().replace(/[:.]/g, "-") + ".txt";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      setStatus("Series audit exported.", "ok");
     }
 
     async function optimizeLegacyImages() {
@@ -10183,7 +10020,7 @@
                 " | client_count=" + appState.projects.length,
                 "ok"
               );
-              validateSeriesMigration();
+              // validateSeriesMigration();
             });
           } catch (err) {
             console.error("PARSE ERROR", err, json);
@@ -12592,11 +12429,6 @@
           return;
         }
 
-        if (event.key === "Escape" && el.seriesAuditModal && el.seriesAuditModal.classList.contains("is-open")) {
-          closeSeriesAuditModal();
-          return;
-        }
-
         if (event.key === "Escape" && el.markdownHelpModal && el.markdownHelpModal.classList.contains("is-open")) {
           closeMarkdownHelpModal();
           return;
@@ -12624,22 +12456,6 @@
 
       if (el.scheduleTemplatesButton) el.scheduleTemplatesButton.addEventListener("click", openScheduleTemplatesModal);
       if (el.scheduleTemplatesCloseButton) el.scheduleTemplatesCloseButton.addEventListener("click", closeScheduleTemplatesModal);
-      if (el.seriesAuditButton) el.seriesAuditButton.addEventListener("click", openSeriesAuditModal);
-      if (el.seriesAuditExportButton) el.seriesAuditExportButton.addEventListener("click", exportSeriesAuditReport);
-      if (el.seriesAuditRefreshButton) {
-        el.seriesAuditRefreshButton.addEventListener("click", function () {
-          if (el.seriesAuditSummary) el.seriesAuditSummary.textContent = "Refreshing audit...";
-          validateSeriesMigration().then(function () {
-            renderSeriesAuditReport(appState.seriesMigrationReport);
-          });
-        });
-      }
-      if (el.seriesAuditCloseButton) el.seriesAuditCloseButton.addEventListener("click", closeSeriesAuditModal);
-      if (el.seriesAuditModal) {
-        el.seriesAuditModal.addEventListener("click", function (event) {
-          if (event.target === el.seriesAuditModal) closeSeriesAuditModal();
-        });
-      }
       if (el.scheduleTemplatesSaveButton) el.scheduleTemplatesSaveButton.addEventListener("click", saveScheduleTemplates);
       if (el.scheduleTemplateNewButton) el.scheduleTemplateNewButton.addEventListener("click", newScheduleTemplate);
       if (el.scheduleTemplateDeleteButton) el.scheduleTemplateDeleteButton.addEventListener("click", deleteScheduleTemplate);
