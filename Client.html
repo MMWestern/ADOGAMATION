@@ -22,6 +22,8 @@
 
     <?!= include('scripts/supabase-crud'); ?>
 
+    <?!= include('scripts/utils'); ?>
+
     // --- Images ---
     _sbDefine('listProjectImagesJsonFromClient', function () {
       return sbClient.from('image_assets').select('*').order('created_at', { ascending: false }).limit(5000)
@@ -2150,8 +2152,6 @@
       // Layout stays stable when body overflow is left alone; wheel is guarded at the modal layer instead.
       document.body.classList.remove("modal-open");
     }
-
-    <?!= include('scripts/utils'); ?>
 
     function populateImageGeneratorStyleSelect() {
       if (!el.imageGeneratorStyle) return;
