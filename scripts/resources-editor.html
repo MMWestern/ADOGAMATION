@@ -584,3 +584,40 @@
       el.deleteResourceModal.setAttribute("aria-hidden", "true");
       el.deleteResourceModal._deleteId = 0;
     }
+
+    function deleteResourceConfirmed() {
+      var resourceId = Number(el.deleteResourceModal && el.deleteResourceModal._deleteId || 0);
+      if (!resourceId) {
+        setStatus("No resource selected for deletion.", "error");
+        return;
+      }
+
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+        setStatus("Apps Script backend is not available.", "error");
+        return;
+      }
+
+      if (el.confirmDeleteResourceButton) el.confirmDeleteResourceButton.disabled = true;
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          if (el.confirmDeleteResourceButton) el.confirmDeleteResourceButton.disabled = false;
+          try {
+            const result = JSON.parse(json);
+            if (result.ok === false) throw new Error(result.error || "Resource deletion failed.");
+            closeDeleteResourceModal();
+            var idSet = {};
+            idSet[resourceId] = true;
+            appState.resources = appState.resources.filter(function (r) { return !idSet[Number(r.id)]; });
+            clearResourceEditor();
+            renderResourcesTree();
+            setStatus("Resource deleted.", "ok");
+          } catch (e) {
+            setStatus("Resource deletion failed: " + e.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          if (el.confirmDeleteResourceButton) el.confirmDeleteResourceButton.disabled = false;
+          setStatus("Resource deletion failed: " + (error && error.message ? error.message : error), "error");
+        })
+        .deleteGeneralResourceFromClient(resourceId);
+    }
