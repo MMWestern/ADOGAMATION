@@ -1,5 +1,4 @@
-﻿<script>
-    // --- Supabase Runner (drop-in replacement for google.script.run) ---
+// --- Supabase Runner (drop-in replacement for google.script.run) ---
     var _sbSuccess = null, _sbFailure = null;
     var supabaseRunner = {
       withSuccessHandler: function (fn) { _sbSuccess = fn; return this; },
@@ -130,4 +129,3 @@
         return out;
       }, []).sort(function (a, b) { return a.localeCompare(b); });
     }
-</script>

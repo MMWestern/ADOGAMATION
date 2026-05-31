@@ -1,5 +1,4 @@
-﻿<script>
-    const DEFAULT_STATUS_OPTIONS = [
+const DEFAULT_STATUS_OPTIONS = [
       { value: "Idea", description: "A preliminary concept not yet in development." },
       { value: "Concept", description: "An early-stage idea with some structure and direction established." },
       { value: "Planning", description: "Outlining structure, characters, and research before writing begins." },
@@ -613,4 +612,3 @@
       saving: { html: "<h2>Saving & Storage</h2><ul><li>The editor writes Markdown/plain text back into the active document source.</li><li>The Summary tab still saves back to the project record itself.</li><li>In this build, the active writing and support documents are Supabase-backed. Legacy Google Doc links can still be kept for reference when needed.</li><li>Switching between document tabs saves the current document in the background when needed.</li><li>Use <strong>Save</strong> when you want an explicit save before closing the editor.</li><li><strong>Send</strong> copies the current writing-stage text into the next stage: Draft to Development Edit, Development Edit to Line Edit, and Line Edit to Copy Edit.</li></ul><div class='markdown-help-tip'>Send overwrites the target document body. Use it when you are ready to create or refresh the next-stage copy.</div>" },
       shortcuts: { html: "<h2>Shortcuts</h2><ul><li><code>Ctrl/Cmd + Z</code> â€” Undo</li><li><code>Ctrl/Cmd + Y</code> or <code>Ctrl/Cmd + Shift + Z</code> â€” Redo</li><li><code>Ctrl/Cmd + B</code> â€” Bold selected text</li><li><code>Ctrl/Cmd + I</code> â€” Italic selected text</li><li><code>Alt/Option + right-click</code> â€” Markdown formatting menu when text is selected</li><li><code>Esc</code> â€” Close the editor modal or help modal</li></ul>" }
     };
-</script>

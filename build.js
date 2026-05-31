@@ -11,7 +11,12 @@ if (fs.existsSync(DIST)) {
 fs.mkdirSync(DIST, { recursive: true });
 
 function readFile(filePath) {
-  try { return fs.readFileSync(filePath, "utf8"); } catch { return null; }
+  try {
+    let content = fs.readFileSync(filePath, "utf8");
+    // Strip BOM if present
+    if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+    return content;
+  } catch { return null; }
 }
 
 function processIncludes(content) {
