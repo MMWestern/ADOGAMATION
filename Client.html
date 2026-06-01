@@ -4071,6 +4071,10 @@
       var segment = scope ? segments.find(function (item) { return item.key === scope; }) || null : null;
       var count = segment ? Number(segment.wordCount || 0) : 0;
       el.writingWorkspaceWordCount.textContent = count ? formatWordCount(count) : "0w";
+      if (el.sidebarWordCountBadge) {
+        var total = segments.reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
+        el.sidebarWordCountBadge.textContent = total ? formatWordCount(total) : "0w";
+      }
     }
 
     function applyWritingWorkspaceSpellcheck() {
@@ -6227,6 +6231,14 @@
 
     restoreTimelineFilter();
     applyDarkModePreference();
+    (function syncSidebarThemeButtons() {
+      var darkBtn = document.getElementById("sidebarThemeDark");
+      var lightBtn = document.getElementById("sidebarThemeLight");
+      if (!darkBtn || !lightBtn) return;
+      var isDark = document.body.classList.contains("dark-mode");
+      darkBtn.classList.toggle("is-active", isDark);
+      lightBtn.classList.toggle("is-active", !isDark);
+    })();
     populateImageGeneratorStyleSelect();
     initializeLinkSections();
     setStatus("Binding UI...", "warn");

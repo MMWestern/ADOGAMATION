@@ -743,6 +743,55 @@
       el.newButton.addEventListener("click", openNewProjectModal);
       el.darkModeButton.addEventListener("click", toggleDarkMode);
       if (el.aiSettingsButton) el.aiSettingsButton.addEventListener("click", openAISettingsModal);
+
+      if (el.sidebarAvatarButton) {
+        el.sidebarAvatarButton.addEventListener("click", function () {
+          var popover = el.sidebarAccountPopover;
+          if (!popover) return;
+          var isOpen = popover.classList.toggle("is-open");
+          el.sidebarAvatarButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        });
+      }
+
+      if (el.sidebarThemeLight) {
+        el.sidebarThemeLight.addEventListener("click", function () {
+          document.body.classList.remove("dark-mode");
+          el.sidebarThemeLight.classList.add("is-active");
+          el.sidebarThemeDark.classList.remove("is-active");
+          localStorage.setItem(DARK_MODE_CACHE_KEY, "0");
+        });
+      }
+
+      if (el.sidebarThemeDark) {
+        el.sidebarThemeDark.addEventListener("click", function () {
+          document.body.classList.add("dark-mode");
+          el.sidebarThemeDark.classList.add("is-active");
+          el.sidebarThemeLight.classList.remove("is-active");
+          localStorage.setItem(DARK_MODE_CACHE_KEY, "1");
+        });
+      }
+
+      if (el.sidebarMenuAiConnections) {
+        el.sidebarMenuAiConnections.addEventListener("click", function () {
+          if (typeof openAISettingsModal === "function") openAISettingsModal();
+          el.sidebarAccountPopover.classList.remove("is-open");
+          el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarMenuSettings) {
+        el.sidebarMenuSettings.addEventListener("click", function () {
+          if (typeof openAISettingsModal === "function") openAISettingsModal();
+          el.sidebarAccountPopover.classList.remove("is-open");
+          el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarMenuLogout) {
+        el.sidebarMenuLogout.addEventListener("click", function () {
+          if (window.sbClient && sbClient.auth) sbClient.auth.signOut();
+        });
+      }
       if (el.aiSettingsCloseButton) el.aiSettingsCloseButton.addEventListener("click", closeAISettingsModal);
       if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.addEventListener("click", saveAISettings);
       if (el.aiSettingsTestButton) el.aiSettingsTestButton.addEventListener("click", runAIConnectionTest);
