@@ -806,12 +806,84 @@
         });
       }
 
+      if (el.sidebarAiButton) {
+        el.sidebarAiButton.addEventListener("click", function () {
+          var popover = el.sidebarAiPopover;
+          if (!popover) return;
+          var isOpen = popover.classList.toggle("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        });
+      }
+
+      if (el.sidebarAiTestButton) {
+        el.sidebarAiTestButton.addEventListener("click", function () {
+          if (typeof openMarkdownAITestModal === "function") openMarkdownAITestModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarAiSettingsButton) {
+        el.sidebarAiSettingsButton.addEventListener("click", function () {
+          if (typeof openAISettingsModal === "function") openAISettingsModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarBookCreatorButton) {
+        el.sidebarBookCreatorButton.addEventListener("click", function () {
+          if (typeof openBookCreatorModal === "function") openBookCreatorModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarStorySeedButton) {
+        el.sidebarStorySeedButton.addEventListener("click", function () {
+          if (typeof openStorySeedModal === "function") openStorySeedModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarImageGenButton) {
+        el.sidebarImageGenButton.addEventListener("click", function () {
+          if (typeof openImageGeneratorModal === "function") openImageGeneratorModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarScheduleTemplatesButton) {
+        el.sidebarScheduleTemplatesButton.addEventListener("click", function () {
+          if (typeof openScheduleTemplatesModal === "function") openScheduleTemplatesModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (el.sidebarMarketingTemplatesButton) {
+        el.sidebarMarketingTemplatesButton.addEventListener("click", function () {
+          if (typeof openMarketingTemplatesModal === "function") openMarketingTemplatesModal();
+          el.sidebarAiPopover.classList.remove("is-open");
+          el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
       document.addEventListener("click", function (e) {
-        if (!el.sidebarAccountPopover || !el.sidebarAvatarButton) return;
-        if (!el.sidebarAccountPopover.classList.contains("is-open")) return;
-        if (el.sidebarAccountPopover.contains(e.target) || el.sidebarAvatarButton.contains(e.target)) return;
-        el.sidebarAccountPopover.classList.remove("is-open");
-        el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+        if (el.sidebarAccountPopover && el.sidebarAvatarButton) {
+          if (el.sidebarAccountPopover.classList.contains("is-open") && !el.sidebarAccountPopover.contains(e.target) && !el.sidebarAvatarButton.contains(e.target)) {
+            el.sidebarAccountPopover.classList.remove("is-open");
+            el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+          }
+        }
+        if (el.sidebarAiPopover && el.sidebarAiButton) {
+          if (el.sidebarAiPopover.classList.contains("is-open") && !el.sidebarAiPopover.contains(e.target) && !el.sidebarAiButton.contains(e.target)) {
+            el.sidebarAiPopover.classList.remove("is-open");
+            el.sidebarAiButton.setAttribute("aria-expanded", "false");
+          }
+        }
       });
 
       if (el.aiSettingsCloseButton) el.aiSettingsCloseButton.addEventListener("click", closeAISettingsModal);
