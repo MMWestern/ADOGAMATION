@@ -519,6 +519,29 @@
         if (olEndpoint && safe.ollama.endpoint) olEndpoint.value = safe.ollama.endpoint;
         if (olModel && safe.ollama.model) olModel.value = safe.ollama.model;
       }
+      appState.aiSettings = appState.aiSettings || {};
+      appState.aiSettings.isLoaded = true;
+    }
+
+    function collectAISettingsFormData() {
+      return {
+        provider: el.aiDefaultProvider ? el.aiDefaultProvider.value : "openrouter",
+        openrouter: {
+          apiKey: document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "",
+          clearApiKey: !!(document.getElementById("aiOpenRouterClearKey") && document.getElementById("aiOpenRouterClearKey").checked),
+          model: document.getElementById("aiOpenRouterModel") ? document.getElementById("aiOpenRouterModel").value.trim() : ""
+        },
+        lmstudio: {
+          endpoint: document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "http://localhost:1234/v1",
+          model: document.getElementById("aiLmStudioModel") ? document.getElementById("aiLmStudioModel").value.trim() : "",
+          useBrowser: !!(document.getElementById("aiLmStudioUseBrowser") && document.getElementById("aiLmStudioUseBrowser").checked)
+        },
+        ollama: {
+          endpoint: document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "http://localhost:11434",
+          model: document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "",
+          useBrowser: !!(document.getElementById("aiOllamaUseBrowser") && document.getElementById("aiOllamaUseBrowser").checked)
+        }
+      };
     }
 
     function setAIProviderPanel(provider) {
