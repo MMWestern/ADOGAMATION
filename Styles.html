@@ -733,10 +733,10 @@
     }
 
     .sidebar-account-popover {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: calc(100% - 1px);
+      position: fixed;
+      left: 18px;
+      bottom: 66px;
+      width: 400px;
       z-index: 950;
       overflow: hidden;
       border: 1px solid var(--border);
@@ -6447,6 +6447,12 @@
       }
       .sidebar {
         position: relative;
+      }
+
+      .sidebar-account-popover {
+        left: 18px;
+        right: 18px;
+        width: auto;
       }
 
       .table-wrap {
