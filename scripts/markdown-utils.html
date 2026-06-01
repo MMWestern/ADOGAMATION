@@ -474,6 +474,53 @@
       if (el) { el.textContent = message; el.className = "status-bar" + (mode ? " " + mode : ""); }
     }
 
+    function loadAISettings() {
+      if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
+        setAIStatus("AI settings need the deployed backend.", "error");
+        return;
+      }
+      setAIStatus("Loading AI settings...", "warn");
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
+            if (result.ok === false) throw new Error(result.error || "Load AI settings failed.");
+            applyAISettingsToForm(result.settings || {});
+            appState.aiSettings = appState.aiSettings || {};
+            appState.aiSettings.isLoaded = true;
+            setAIStatus("AI settings loaded.", "ok");
+          } catch (err) {
+            setAIStatus("AI settings load failed: " + err.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          setAIStatus("AI settings load failed: " + (error && error.message ? error.message : error), "error");
+        })
+        .getAISettingsJsonFromClient();
+    }
+
+    function applyAISettingsToForm(settings) {
+      var safe = settings || {};
+      if (el.aiDefaultProvider && safe.provider) el.aiDefaultProvider.value = safe.provider;
+      setAIProviderPanel(safe.provider || "openrouter");
+      if (safe.openrouter) {
+        var orModel = document.getElementById("aiOpenRouterModel");
+        if (orModel && safe.openrouter.model) orModel.value = safe.openrouter.model;
+      }
+      if (safe.lmstudio) {
+        var lsEndpoint = document.getElementById("aiLmStudioEndpoint");
+        var lsModel = document.getElementById("aiLmStudioModel");
+        if (lsEndpoint && safe.lmstudio.endpoint) lsEndpoint.value = safe.lmstudio.endpoint;
+        if (lsModel && safe.lmstudio.model) lsModel.value = safe.lmstudio.model;
+      }
+      if (safe.ollama) {
+        var olEndpoint = document.getElementById("aiOllamaEndpoint");
+        var olModel = document.getElementById("aiOllamaModel");
+        if (olEndpoint && safe.ollama.endpoint) olEndpoint.value = safe.ollama.endpoint;
+        if (olModel && safe.ollama.model) olModel.value = safe.ollama.model;
+      }
+    }
+
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
