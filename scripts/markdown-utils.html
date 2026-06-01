@@ -535,18 +535,14 @@
       if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
 
       var url = "";
-      var headers = { "Content-Type": "application/json" };
-      var body = {};
+      var headers = {};
       if (provider === "openrouter") {
-        url = "https://openrouter.ai/api/v1/chat/completions";
+        url = "https://openrouter.ai/api/v1/models";
         if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
-        body = { model: model || "openai/gpt-3.5-turbo", messages: [{ role: "user", content: "Say hello in one word." }], max_tokens: 5 };
       } else if (provider === "lmstudio") {
-        url = (endpoint || "http://localhost:1234/v1") + "/chat/completions";
-        body = { model: model || "", messages: [{ role: "user", content: "Say hello in one word." }], max_tokens: 5 };
+        url = (endpoint || "http://localhost:1234/v1") + "/models";
       } else if (provider === "ollama") {
-        url = (endpoint || "http://localhost:11434") + "/api/chat";
-        body = { model: model || "", messages: [{ role: "user", content: "Say hello in one word." }], stream: false };
+        url = (endpoint || "http://localhost:11434") + "/api/tags";
       }
 
       setAIStatus("Testing " + provider + " connection...", "warn");
@@ -554,27 +550,33 @@
       var testBody = document.getElementById("aiConnectionTestBody");
       if (testBody) testBody.innerHTML = "<div class='ai-test-pending'>Testing connection...</div>";
 
-      fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
+      fetch(url, { headers: headers })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(function (data) {
-          var reply = "";
+          var count = 0;
+          var sample = "";
           if (provider === "ollama") {
-            reply = data.message ? data.message.content : "";
+            var models = data.models || [];
+            count = models.length;
+            sample = models.slice(0, 3).map(function (m) { return m.name; }).join(", ");
           } else {
-            reply = data.choices && data.choices[0] ? data.choices[0].message.content : "";
+            var list = data.data || data || [];
+            count = list.length;
+            sample = list.slice(0, 3).map(function (m) { return m.id || m.name || m; }).join(", ");
           }
           var providerLabel = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : "Ollama";
           if (testBody) {
             testBody.innerHTML = "<div class='ai-test-success'>" +
               "<div class='ai-test-success-title'>Connection Successful</div>" +
-              "<div class='ai-test-success-detail'>" + providerLabel + " is responding correctly.</div>" +
-              (reply ? "<div class='ai-test-success-reply'>Response: " + escapeHtml(reply.trim()) + "</div>" : "") +
-              "<div class='ai-test-success-model'>Model: " + escapeHtml(model || "(default)") + "</div>" +
+              "<div class='ai-test-success-detail'>" + providerLabel + " is online and responding.</div>" +
+              "<div class='ai-test-success-reply'>Models found: " + count + (sample ? "\n\nSample: " + sample : "") + "</div>" +
+              (model ? "<div class='ai-test-success-model'>Selected model: " + escapeHtml(model) + "</div>" : "") +
             "</div>";
           }
-          setAIStatus(providerLabel + " connection OK.", "ok");
+          setAIStatus(providerLabel + " connection OK. " + count + " model(s) available.", "ok");
         })
         .catch(function (e) {
+          var providerLabel = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : "Ollama";
           if (testBody) {
             testBody.innerHTML = "<div class='ai-test-error'>" +
               "<div class='ai-test-error-title'>Connection Failed</div>" +
