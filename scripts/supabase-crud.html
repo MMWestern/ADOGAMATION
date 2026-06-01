@@ -55,7 +55,13 @@
         next_step: payload.next_step,
         short_summary: payload.short_summary,
         legacy_workspace_url: payload.workspace_url,
-        project_image_url: payload.image
+        project_image_url: payload.image,
+        publish_date: payload.publish_date || null,
+        publish_ready_date: payload.publish_ready_date || null,
+        schedule_template: payload.schedule_template || null,
+        marketing_template: payload.marketing_template || null,
+        schedule_milestones: Array.isArray(payload.schedule_milestones) ? JSON.stringify(payload.schedule_milestones) : null,
+        campaigns: Array.isArray(payload.campaigns) ? JSON.stringify(payload.campaigns) : null
       };
       return sbClient.from('projects').update(record).eq('id', payload.rowNumber)
         .then(function (res) {
