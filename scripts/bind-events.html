@@ -792,6 +792,15 @@
           if (window.sbClient && sbClient.auth) sbClient.auth.signOut();
         });
       }
+
+      document.addEventListener("click", function (e) {
+        if (!el.sidebarAccountPopover || !el.sidebarAvatarButton) return;
+        if (!el.sidebarAccountPopover.classList.contains("is-open")) return;
+        if (el.sidebarAccountPopover.contains(e.target) || el.sidebarAvatarButton.contains(e.target)) return;
+        el.sidebarAccountPopover.classList.remove("is-open");
+        el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+      });
+
       if (el.aiSettingsCloseButton) el.aiSettingsCloseButton.addEventListener("click", closeAISettingsModal);
       if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.addEventListener("click", saveAISettings);
       if (el.aiSettingsTestButton) el.aiSettingsTestButton.addEventListener("click", runAIConnectionTest);
