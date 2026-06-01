@@ -3494,7 +3494,6 @@
           el.writingWorkspaceEmpty.textContent = selected ? "No sections loaded yet." : "Select a project to load its manuscript view.";
         } else {
           el.writingWorkspaceEmpty.hidden = true;
-          applyWritingWorkspaceSpellcheck();
           el.writingWorkspaceEditor.innerHTML = displayText.indexOf("<") !== -1 ? displayText : escapeHtmlForEditor(displayText);
           applyWritingWorkspaceSpellcheck();
         }
@@ -4075,32 +4074,16 @@
       if (!el.writingWorkspaceEditor) return;
       var enabled = !el.writingWorkspaceSpellcheckToggle || el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") !== "false";
       el.writingWorkspaceEditor.spellcheck = enabled;
-      el.writingWorkspaceEditor.setAttribute("spellcheck", enabled ? "true" : "false");
-      el.writingWorkspaceEditor.setAttribute("lang", "en");
-      el.writingWorkspaceEditor.setAttribute("autocomplete", "on");
-      el.writingWorkspaceEditor.setAttribute("autocorrect", enabled ? "on" : "off");
-      el.writingWorkspaceEditor.setAttribute("autocapitalize", "sentences");
+      el.writingWorkspaceEditor.lang = "en";
     }
     function toggleWritingWorkspaceSpellcheck() {
       if (!el.writingWorkspaceSpellcheckToggle || !el.writingWorkspaceEditor) return;
       var nextEnabled = el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") === "false";
       el.writingWorkspaceSpellcheckToggle.setAttribute("aria-pressed", nextEnabled ? "true" : "false");
       applyWritingWorkspaceSpellcheck();
-      // Force browser to re-evaluate spellcheck on contenteditable
-      var editor = el.writingWorkspaceEditor;
-      var wasFocused = document.activeElement === editor;
-      var savedRange = null;
-      if (wasFocused) {
-        var sel = window.getSelection();
-        if (sel.rangeCount) savedRange = sel.getRangeAt(0);
-      }
-      editor.contentEditable = "false";
-      editor.contentEditable = "true";
-      if (wasFocused) {
-        editor.focus();
-        if (savedRange) {
-          try { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange); } catch (e) {}
-        }
+      if (document.activeElement === el.writingWorkspaceEditor) {
+        el.writingWorkspaceEditor.blur();
+        setTimeout(function () { if (el.writingWorkspaceEditor) el.writingWorkspaceEditor.focus(); }, 0);
       }
       setStatus(nextEnabled ? "Spell check enabled." : "Spell check disabled.", "ok");
     }
