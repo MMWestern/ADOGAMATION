@@ -787,8 +787,21 @@
         });
       }
 
+      if (el.sidebarMenuAutoSave) {
+        el.sidebarMenuAutoSave.addEventListener("click", function () {
+          if (typeof applyAutoSaveSettings === "function" && typeof loadAutoSaveFromStorage === "function" && typeof openMarkdownAutoSaveModal === "function") {
+            applyAutoSaveSettings(loadAutoSaveFromStorage());
+            openMarkdownAutoSaveModal();
+          }
+          el.sidebarAccountPopover.classList.remove("is-open");
+          el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
+        });
+      }
+
       if (el.sidebarMenuLogout) {
         el.sidebarMenuLogout.addEventListener("click", function () {
+          el.sidebarAccountPopover.classList.remove("is-open");
+          el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
           if (window.sbClient && sbClient.auth) sbClient.auth.signOut();
         });
       }

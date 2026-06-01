@@ -3757,6 +3757,7 @@
         el.writingWorkspaceSaveButton.textContent = nextMode === "saving" ? "Saving..." : "Save";
       }
       appState.writingWorkspace.lastStateLabel = nextLabel;
+      updateSidebarSaveBadge();
     }
 
     function cacheWritingWorkspaceDraft(project) {
@@ -4071,10 +4072,14 @@
       var segment = scope ? segments.find(function (item) { return item.key === scope; }) || null : null;
       var count = segment ? Number(segment.wordCount || 0) : 0;
       el.writingWorkspaceWordCount.textContent = count ? formatWordCount(count) : "0w";
-      if (el.sidebarWordCountBadge) {
-        var total = segments.reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
-        el.sidebarWordCountBadge.textContent = total ? formatWordCount(total) : "0w";
-      }
+      updateSidebarSaveBadge();
+    }
+
+    function updateSidebarSaveBadge() {
+      if (!el.sidebarSaveBadge) return;
+      var last = appState.writingWorkspace.lastSavedAt;
+      el.sidebarSaveBadge.textContent = last ? "Saved " + last : "Saved";
+    }
     }
 
     function applyWritingWorkspaceSpellcheck() {
