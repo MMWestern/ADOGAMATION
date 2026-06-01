@@ -86,7 +86,6 @@
       grid-template-columns: 400px minmax(820px, 1fr) 520px;
       gap: 16px;
       height: calc(100vh - 100px);
-      overflow: hidden;
     }
 
     .sidebar {
@@ -733,12 +732,14 @@
     }
 
     .sidebar-account-popover {
-      position: fixed;
-      left: 18px;
-      bottom: 66px;
-      width: 400px;
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 48px;
+      width: auto;
+      max-height: calc(100vh - 180px);
+      overflow-y: auto;
       z-index: 950;
-      overflow: hidden;
       border: 1px solid var(--border);
       border-radius: var(--radius) var(--radius) 0 0;
       background: var(--panel);
@@ -6447,12 +6448,6 @@
       }
       .sidebar {
         position: relative;
-      }
-
-      .sidebar-account-popover {
-        left: 18px;
-        right: 18px;
-        width: auto;
       }
 
       .table-wrap {
