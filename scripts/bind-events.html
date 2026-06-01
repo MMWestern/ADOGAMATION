@@ -336,6 +336,14 @@
         bindUiOnce(el.writingWorkspaceSpellcheckToggle, "writing-spellcheck-toggle", "click", toggleWritingWorkspaceSpellcheck);
       }
 
+      if (el.writingWorkspaceAutocompleteToggle) {
+        bindUiOnce(el.writingWorkspaceAutocompleteToggle, "writing-autocomplete-toggle", "click", toggleWritingWorkspaceAutocomplete);
+      }
+
+      if (el.writingWorkspaceAutocorrectToggle) {
+        bindUiOnce(el.writingWorkspaceAutocorrectToggle, "writing-autocorrect-toggle", "click", toggleWritingWorkspaceAutocorrect);
+      }
+
       if (el.writingWorkspaceEditor) {
         bindUiOnce(el.writingWorkspaceEditor, "writing-editor-focus", "focus", applyWritingWorkspaceSpellcheck);
         bindUiOnce(el.writingWorkspaceEditor, "writing-editor-input", "input", function () {

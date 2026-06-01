@@ -3496,6 +3496,8 @@
           el.writingWorkspaceEmpty.hidden = true;
           el.writingWorkspaceEditor.innerHTML = displayText.indexOf("<") !== -1 ? displayText : escapeHtmlForEditor(displayText);
           applyWritingWorkspaceSpellcheck();
+          applyWritingWorkspaceAutocomplete();
+          applyWritingWorkspaceAutocorrect();
           updateWritingWorkspaceTypography();
         }
       }
@@ -4076,8 +4078,6 @@
       var enabled = !el.writingWorkspaceSpellcheckToggle || el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") !== "false";
       el.writingWorkspaceEditor.spellcheck = enabled;
       el.writingWorkspaceEditor.lang = "en";
-      el.writingWorkspaceEditor.setAttribute("autocomplete", "on");
-      el.writingWorkspaceEditor.setAttribute("autocorrect", enabled ? "on" : "off");
       el.writingWorkspaceEditor.setAttribute("autocapitalize", "sentences");
     }
     function toggleWritingWorkspaceSpellcheck() {
@@ -4090,6 +4090,32 @@
         setTimeout(function () { if (el.writingWorkspaceEditor) el.writingWorkspaceEditor.focus(); }, 0);
       }
       setStatus(nextEnabled ? "Spell check enabled." : "Spell check disabled.", "ok");
+    }
+
+    function applyWritingWorkspaceAutocomplete() {
+      if (!el.writingWorkspaceEditor) return;
+      var enabled = !el.writingWorkspaceAutocompleteToggle || el.writingWorkspaceAutocompleteToggle.getAttribute("aria-pressed") !== "false";
+      el.writingWorkspaceEditor.setAttribute("autocomplete", enabled ? "on" : "off");
+    }
+    function toggleWritingWorkspaceAutocomplete() {
+      if (!el.writingWorkspaceAutocompleteToggle || !el.writingWorkspaceEditor) return;
+      var nextEnabled = el.writingWorkspaceAutocompleteToggle.getAttribute("aria-pressed") === "false";
+      el.writingWorkspaceAutocompleteToggle.setAttribute("aria-pressed", nextEnabled ? "true" : "false");
+      applyWritingWorkspaceAutocomplete();
+      setStatus(nextEnabled ? "Autocomplete enabled." : "Autocomplete disabled.", "ok");
+    }
+
+    function applyWritingWorkspaceAutocorrect() {
+      if (!el.writingWorkspaceEditor) return;
+      var enabled = !el.writingWorkspaceAutocorrectToggle || el.writingWorkspaceAutocorrectToggle.getAttribute("aria-pressed") !== "false";
+      el.writingWorkspaceEditor.setAttribute("autocorrect", enabled ? "on" : "off");
+    }
+    function toggleWritingWorkspaceAutocorrect() {
+      if (!el.writingWorkspaceAutocorrectToggle || !el.writingWorkspaceEditor) return;
+      var nextEnabled = el.writingWorkspaceAutocorrectToggle.getAttribute("aria-pressed") === "false";
+      el.writingWorkspaceAutocorrectToggle.setAttribute("aria-pressed", nextEnabled ? "true" : "false");
+      applyWritingWorkspaceAutocorrect();
+      setStatus(nextEnabled ? "Autocorrect enabled." : "Autocorrect disabled.", "ok");
     }
 
     function updateWritingWorkspaceTypography() {
