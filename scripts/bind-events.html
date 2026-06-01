@@ -371,7 +371,6 @@
         }
       });
       bindUiOnce(el.topbarAiMenu, "topbar-ai-menu-dropdown", "click", function (event) {
-        event.stopPropagation();
         if (event.target && event.target.tagName === "BUTTON") {
           closeTopbarAiMenu();
         }
@@ -379,7 +378,6 @@
 
       bindUiOnce(el.settingsMenuButton, "settings-menu-toggle", "click", toggleSettingsMenu);
       bindUiOnce(el.settingsMenuDropdown, "settings-menu-dropdown", "click", function (event) {
-        event.stopPropagation();
         if (event.target && event.target.tagName === "BUTTON") {
           closeSettingsMenu();
         }
@@ -727,7 +725,6 @@
 
       bindUiOnce(el.settingsMenuButton, "settings-menu-toggle", "click", toggleSettingsMenu);
       bindUiOnce(el.settingsMenuDropdown, "settings-menu-dropdown", "click", function (event) {
-        event.stopPropagation();
         if (event.target && event.target.tagName === "BUTTON") {
           closeSettingsMenu();
         }
