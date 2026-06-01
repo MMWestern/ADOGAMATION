@@ -4075,6 +4075,9 @@
       var enabled = !el.writingWorkspaceSpellcheckToggle || el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") !== "false";
       el.writingWorkspaceEditor.spellcheck = enabled;
       el.writingWorkspaceEditor.lang = "en";
+      el.writingWorkspaceEditor.setAttribute("autocomplete", "on");
+      el.writingWorkspaceEditor.setAttribute("autocorrect", enabled ? "on" : "off");
+      el.writingWorkspaceEditor.setAttribute("autocapitalize", "sentences");
     }
     function toggleWritingWorkspaceSpellcheck() {
       if (!el.writingWorkspaceSpellcheckToggle || !el.writingWorkspaceEditor) return;
