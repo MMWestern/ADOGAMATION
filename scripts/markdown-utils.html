@@ -413,6 +413,40 @@
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
 
+    function fetchAIModels(provider) {
+      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
+      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
+      if (!provider) { setStatus("Select a provider first.", "error"); return; }
+      setStatus("Fetching models for " + provider + "...", "warn");
+      if (typeof sbClient !== "undefined" && sbClient) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
+            if (result && result.ok && Array.isArray(result.models)) {
+              var modelSelect = el.aiModel;
+              if (modelSelect) {
+                var current = modelSelect.value;
+                modelSelect.innerHTML = "";
+                result.models.forEach(function (m) {
+                  var opt = document.createElement("option");
+                  opt.value = m.id || m;
+                  opt.textContent = m.name || m.id || m;
+                  modelSelect.appendChild(opt);
+                });
+                if (current) modelSelect.value = current;
+              }
+              setStatus("Loaded " + result.models.length + " models.", "ok");
+            } else {
+              setStatus("Failed to fetch models: " + (result.error || "Unknown error"), "error");
+            }
+          })
+          .withFailureHandler(function (e) {
+            setStatus("Failed to fetch models: " + (e.message || e), "error");
+          })
+          .fetchAIModelsJsonFromClient(JSON.stringify({ provider: provider, endpoint: endpoint, apiKey: apiKey }));
+      }
+    }
+
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
