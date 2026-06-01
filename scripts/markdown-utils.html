@@ -423,6 +423,95 @@
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
 
+    function setMarkdownAITestStatus(message, mode) {
+      var el = document.getElementById("markdownAITestStatus");
+      if (el) { el.textContent = message; el.className = "status-bar" + (mode ? " " + mode : ""); }
+    }
+
+    function setMarkdownAITestOutput(message, mode) {
+      var el = document.getElementById("markdownAITestOutput");
+      if (el) { el.textContent = message; el.className = "markdown-ai-test-output" + (mode ? " " + mode : ""); }
+    }
+
+    function previewMarkdownAITestPrompt() {
+      var systemEl = document.getElementById("markdownAITestSystemPrompt");
+      var userEl = document.getElementById("markdownAITestUserPrompt");
+      var previewEl = document.getElementById("markdownAITestPromptPreview");
+      var system = systemEl ? systemEl.value : "";
+      var user = userEl ? userEl.value : "";
+      if (previewEl) previewEl.textContent = "System: " + system + "\n\nUser: " + user;
+      setMarkdownAITestStatus("Prompt preview updated.", "ok");
+    }
+
+    async function runMarkdownAITest() {
+      var payload = collectAISettingsFormData();
+      var model = getSelectedAIModel(payload);
+      if (!model) { setMarkdownAITestStatus("No model selected. Open AI Settings first.", "error"); return; }
+      var systemEl = document.getElementById("markdownAITestSystemPrompt");
+      var userEl = document.getElementById("markdownAITestUserPrompt");
+      var tempEl = document.getElementById("markdownAITestTemperature");
+      var maxEl = document.getElementById("markdownAITestMaxTokens");
+      var system = systemEl ? systemEl.value : "";
+      var user = userEl ? userEl.value : "";
+      var temperature = tempEl ? Number(tempEl.value) || 0.7 : 0.7;
+      var maxTokens = maxEl ? Number(maxEl.value) || 512 : 512;
+      setMarkdownAITestStatus("Sending test prompt to " + providerLabel(payload.provider) + "...", "warn");
+      setMarkdownAITestOutput("Waiting for AI response...", "warn");
+      try {
+        var result = await callEditorAI({
+          provider: payload.provider,
+          model: model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user }
+          ],
+          temperature: temperature,
+          max_tokens: maxTokens
+        });
+        var text = result && result.text ? result.text.trim() : "No response.";
+        setMarkdownAITestOutput(text, "ok");
+        setMarkdownAITestStatus("AI test complete.", "ok");
+      } catch (err) {
+        setMarkdownAITestOutput("AI test failed: " + (err.message || err), "error");
+        setMarkdownAITestStatus("AI test failed.", "error");
+      }
+    }
+
+    async function callEditorAI(payload) {
+      var provider = payload.provider || "openrouter";
+      var model = payload.model || "";
+      var messages = payload.messages || [];
+      var temperature = payload.temperature != null ? payload.temperature : 0.7;
+      var maxTokens = payload.max_tokens || 512;
+      var url = "";
+      var headers = { "Content-Type": "application/json" };
+      var body = {};
+      if (provider === "openrouter") {
+        var apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        url = "https://openrouter.ai/api/v1/chat/completions";
+        if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens };
+      } else if (provider === "lmstudio") {
+        var endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+        url = (endpoint || "http://localhost:1234/v1") + "/chat/completions";
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens };
+      } else if (provider === "ollama") {
+        var endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+        url = (endpoint || "http://localhost:11434") + "/api/chat";
+        body = { model: model, messages: messages, stream: false, options: { temperature: temperature, num_predict: maxTokens } };
+      }
+      var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      var data = await response.json();
+      var text = "";
+      if (provider === "ollama") {
+        text = data.message ? data.message.content : "";
+      } else {
+        text = data.choices && data.choices[0] ? data.choices[0].message.content : "";
+      }
+      return { text: text, usage: data.usage || null };
+    }
+
     function fetchAIModels(provider) {
       var endpoint = "";
       var apiKey = "";

@@ -1625,14 +1625,61 @@
   <div id="markdownAITestModal" class="modal" aria-hidden="true">
     <div class="modal-card markdown-ai-test-card">
       <div class="modal-header">
-        <h3>AI Test</h3>
-        <div class="muted">Test your connected AI provider with a custom prompt and context.</div>
+        <h3>Editor AI Test</h3>
+        <div class="muted">Test your selected AI provider against the current editor text. This does not edit or replace your draft.</div>
       </div>
       <div class="modal-body markdown-ai-test-body">
-        <div id="markdownAITestStatus" class="status-bar">Ready.</div>
-        <div id="markdownAITestOutput" class="markdown-ai-test-output">No AI test output yet.</div>
+        <div class="markdown-ai-test-top">
+          <div><label class="label">Provider</label><div id="markdownAITestProviderBadge" class="ai-provider-badge">Not loaded</div></div>
+          <div><label class="label">Model</label><div id="markdownAITestModelBadge" class="ai-provider-badge">Not selected</div></div>
+          <div><label class="label">Context</label><div id="markdownAITestContextBadge" class="ai-provider-badge">No context</div></div>
+        </div>
+        <div class="markdown-ai-test-options">
+          <div><label class="label" for="markdownAITestSystemPrompt">System Prompt</label><textarea id="markdownAITestSystemPrompt" class="markdown-ai-small-textarea">You are a helpful fiction-writing assistant. Be concise, practical, and preserve the author's voice.</textarea></div>
+          <div><label class="label" for="markdownAITestUserPrompt">Test Prompt</label><textarea id="markdownAITestUserPrompt" class="markdown-ai-small-textarea">Give me a brief editorial note on this passage and suggest one improvement.</textarea></div>
+        </div>
+        <div class="markdown-ai-params-row">
+          <div><label class="label" for="markdownAITestTemperature">Temperature</label><input id="markdownAITestTemperature" type="number" min="0" max="2" step="0.1" value="0.7" /></div>
+          <div><label class="label" for="markdownAITestMaxTokens">Max Tokens</label><input id="markdownAITestMaxTokens" type="number" min="64" max="4096" step="64" value="512" /></div>
+          <div><label class="label" for="markdownAITestContextLimit">Context Limit</label><input id="markdownAITestContextLimit" type="number" min="500" max="30000" step="500" value="6000" /></div>
+        </div>
+        <div class="markdown-ai-local-context-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Local Context</div>
+            <div class="tiny">Choose selected text, the whole open document, or one H1/H2 section.</div>
+          </div>
+          <select id="markdownAILocalContextSelect"></select>
+        </div>
+        <div class="markdown-ai-context-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Project Context</div>
+            <div class="tiny">Optional linked docs to include with the selected passage.</div>
+          </div>
+          <div id="markdownAIContextSources" class="markdown-ai-context-sources">
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="project_summary" />Project Summary</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_doc_url" />Outline</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_template_doc_url" />Outline Template</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="brainstorm_doc_url" />Brainstorm</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="characters_doc_url" />Characters</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="world_build_doc_url" />World Build</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="concept_doc_url" />Concept</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="notes_doc_url" />Notes</label>
+          </div>
+        </div>
+        <div class="markdown-ai-prompt-preview-panel">
+          <div class="markdown-ai-context-header">
+            <div class="label">Prompt Preview</div>
+            <div class="tiny">Shows the request built from these settings before anything is sent.</div>
+          </div>
+          <pre id="markdownAITestPromptPreview" class="markdown-ai-prompt-preview">No prompt preview has been generated yet.</pre>
+        </div>
+        <div><label class="label">AI Response</label><div id="markdownAITestOutput" class="markdown-ai-test-output">No AI test has been run yet.</div></div>
+        <div id="markdownAITestStatus" class="status-bar">AI editor test ready.</div>
       </div>
       <div class="modal-footer">
+        <button id="markdownAITestConnectionButton" type="button">Test Connection</button>
+        <button id="markdownAITestPreviewButton" type="button">Preview Prompt</button>
+        <button id="markdownAITestSendButton" class="primary" type="button">Send Test Prompt</button>
         <button id="markdownAITestCloseButton" type="button">Close</button>
       </div>
     </div>

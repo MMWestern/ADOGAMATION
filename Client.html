@@ -6120,6 +6120,9 @@
     });
     if (el.markdownHelpCloseButton) bindUiOnce(el.markdownHelpCloseButton, "help-modal-close", "click", closeMarkdownHelpModal);
     if (el.markdownAITestCloseButton) bindUiOnce(el.markdownAITestCloseButton, "ai-test-modal-close", "click", closeMarkdownAITestModal);
+    if (el.markdownAITestConnectionButton) bindUiOnce(el.markdownAITestConnectionButton, "ai-test-connection", "click", runAIConnectionTest);
+    if (el.markdownAITestPreviewButton) bindUiOnce(el.markdownAITestPreviewButton, "ai-test-preview", "click", previewMarkdownAITestPrompt);
+    if (el.markdownAITestSendButton) bindUiOnce(el.markdownAITestSendButton, "ai-test-send", "click", runMarkdownAITest);
     if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", function () {
       saveAutoSaveSettings();
     });
