@@ -327,6 +327,20 @@
       var isOpen = el.settingsMenuDropdown.classList.toggle("is-open");
       el.settingsMenuDropdown.setAttribute("aria-hidden", isOpen ? "false" : "true");
       el.settingsMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (isOpen) {
+        setTimeout(function () {
+          document.addEventListener("click", closeSettingsMenuOnOutsideClick);
+        }, 0);
+      } else {
+        document.removeEventListener("click", closeSettingsMenuOnOutsideClick);
+      }
+    }
+
+    function closeSettingsMenuOnOutsideClick(event) {
+      if (!el.settingsMenuDropdown || !el.settingsMenuButton) return;
+      if (el.settingsMenuDropdown.contains(event.target) || el.settingsMenuButton.contains(event.target)) return;
+      closeSettingsMenu();
+      document.removeEventListener("click", closeSettingsMenuOnOutsideClick);
     }
 
     function closeSettingsMenu() {
@@ -341,6 +355,15 @@
       var btn = document.getElementById("topbarAiMenuButton");
       if (menu) { menu.classList.remove("is-open"); menu.setAttribute("aria-hidden", "true"); }
       if (btn) btn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", closeTopbarAiMenuOnOutsideClick);
+    }
+
+    function closeTopbarAiMenuOnOutsideClick(event) {
+      var menu = document.getElementById("topbarAiMenu");
+      var btn = document.getElementById("topbarAiMenuButton");
+      if (menu && menu.contains(event.target)) return;
+      if (btn && btn.contains(event.target)) return;
+      closeTopbarAiMenu();
     }
 
     function toggleDarkMode() {

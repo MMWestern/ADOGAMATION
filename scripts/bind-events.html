@@ -362,6 +362,13 @@
         var isOpen = menu.classList.toggle("is-open");
         menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
         el.topbarAiMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (isOpen) {
+          setTimeout(function () {
+            document.addEventListener("click", closeTopbarAiMenuOnOutsideClick);
+          }, 0);
+        } else {
+          document.removeEventListener("click", closeTopbarAiMenuOnOutsideClick);
+        }
       });
       bindUiOnce(el.topbarAiMenu, "topbar-ai-menu-dropdown", "click", function (event) {
         event.stopPropagation();
@@ -725,8 +732,6 @@
           closeSettingsMenu();
         }
       });
-      document.addEventListener("click", closeSettingsMenu);
-      document.addEventListener("click", closeTopbarAiMenu);
 
       el.newButton.addEventListener("click", openNewProjectModal);
       el.darkModeButton.addEventListener("click", toggleDarkMode);
