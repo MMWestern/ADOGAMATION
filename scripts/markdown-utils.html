@@ -413,3 +413,29 @@
           .testAIConnectionJsonFromClient(JSON.stringify({ provider: provider, apiKey: apiKey, endpoint: endpoint, model: model }));
       }
     }
+
+    function formatWordCount(count) {
+      var n = Number(count || 0);
+      if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+      return n + "w";
+    }
+
+    function loadAutoSaveFromStorage() {
+      try {
+        var raw = localStorage.getItem("writing_dashboard_auto_save_v1");
+        var parsed = raw ? JSON.parse(raw) : {};
+        return {
+          enabled: parsed.enabled !== false,
+          intervalMs: Number(parsed.intervalMs) || 300000
+        };
+      } catch (e) {
+        return { enabled: true, intervalMs: 300000 };
+      }
+    }
+
+    function stopAutoSaveTimer() {
+      if (appState.autoSaveTimer) {
+        clearInterval(appState.autoSaveTimer);
+        appState.autoSaveTimer = null;
+      }
+    }
