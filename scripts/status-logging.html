@@ -45,6 +45,7 @@
       if (!entries.length) {
         el.errorLogSummary.textContent = allEntries.length ? "No entries match the current filter." : "No log entries yet.";
         el.errorLogList.innerHTML = "<div class='empty-state'>" + (allEntries.length ? "No entries match the current filter." : "No log entries yet.") + "</div>";
+        renderDetailsErrorLog(allEntries);
         return;
       }
       var errorCount = allEntries.filter(function (entry) { return entry.mode === "error"; }).length;
@@ -61,6 +62,24 @@
           "<div class='error-log-entry-title'>" + escapeHtml(title) + "</div>" +
           "<div class='error-log-entry-time'>" + escapeHtml(formatLogEntryTime(entry.timestamp)) + "</div>" +
           "<div class='error-log-entry-message'>" + escapeHtml(entry.message + metaLine) + "</div>" +
+          "</div>";
+      }).join("");
+      renderDetailsErrorLog(allEntries);
+    }
+
+    function renderDetailsErrorLog(allEntries) {
+      if (!el.detailsErrorLogList) return;
+      var recent = (allEntries || []).slice(-10).reverse();
+      if (!recent.length) {
+        el.detailsErrorLogList.innerHTML = "<div class='empty-state tiny'>No log entries yet.</div>";
+        return;
+      }
+      el.detailsErrorLogList.innerHTML = recent.map(function (entry) {
+        var time = formatLogEntryTime(entry.timestamp);
+        var shortTime = time ? time.replace(/^.*,\s*/, "").replace(/\s*AM$|\s*PM$/i, "") : "";
+        return "<div class='details-error-log-entry mode-" + escapeHtml(entry.mode) + "'>" +
+          "<span class='details-error-log-entry-time'>" + escapeHtml(shortTime) + "</span>" +
+          "<span class='details-error-log-entry-message'>" + escapeHtml(entry.message) + "</span>" +
           "</div>";
       }).join("");
     }
