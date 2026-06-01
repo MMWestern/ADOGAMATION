@@ -320,42 +320,40 @@
             </div>
           </div>
 
-          <div id="writingWorkspaceFormatBar" class="writing-workspace-format-bar">
-            <div class="writing-format-left">
-              <select id="writingWorkspaceFontFamily">
-                <option value="'Georgia', serif">Classic Serif</option>
-                <option value="'Times New Roman', serif">Times</option>
-                <option value="'Palatino Linotype', serif">Palatino</option>
-              </select>
-              <select id="writingWorkspaceFontSize">
-                <option value="16">Small</option>
-                <option value="18" selected>Medium</option>
-                <option value="20">Large</option>
-                <option value="22">XL</option>
-              </select>
-              <select id="writingWorkspaceLineHeight">
-                <option value="1.5">Tight</option>
-                <option value="1.75" selected>Comfortable</option>
-                <option value="2">Spacious</option>
-              </select>
-            </div>
-            <div class="writing-format-right">
-              <button id="writingFormatBold" type="button" class="writing-format-btn" title="Bold">B</button>
-              <button id="writingFormatItalic" type="button" class="writing-format-btn" title="Italic">I</button>
-              <button id="writingFormatH1" type="button" class="writing-format-btn" title="Heading 1">H1</button>
-              <button id="writingFormatH2" type="button" class="writing-format-btn" title="Heading 2">H2</button>
-              <button id="writingFormatH3" type="button" class="writing-format-btn" title="Heading 3">H3</button>
-              <button id="writingFormatNormal" type="button" class="writing-format-btn" title="Paragraph">P</button>
-              <button id="writingFormatQuote" type="button" class="writing-format-btn" title="Quote">"</button>
-            </div>
-          </div>
-
           <div class="writing-workspace-editor-wrap">
             <div id="writingWorkspaceEmpty" class="writing-workspace-empty">Select a project to load its manuscript view.</div>
-            <div id="writingWorkspaceChapterHeader" class="writing-workspace-chapter-header" hidden>
-              <span class="writing-workspace-chapter-number" id="writingWorkspaceChapterNumber">CHAPTER 1</span>
-              <span class="writing-workspace-chapter-sep">—</span>
-              <span class="writing-workspace-chapter-title" id="writingWorkspaceChapterTitle" contenteditable="true" spellcheck="false">Untitled</span>
+            <div class="writing-workspace-editor-topbar">
+              <div id="writingWorkspaceChapterHeader" class="writing-workspace-chapter-header" hidden>
+                <span class="writing-workspace-chapter-number" id="writingWorkspaceChapterNumber">CHAPTER 1</span>
+                <span class="writing-workspace-chapter-sep">—</span>
+                <span class="writing-workspace-chapter-title" id="writingWorkspaceChapterTitle" contenteditable="true" spellcheck="false">Untitled</span>
+              </div>
+              <div id="writingWorkspaceFormatBar" class="writing-workspace-format-bar">
+                <select id="writingWorkspaceFontFamily">
+                  <option value="'Georgia', serif">Classic Serif</option>
+                  <option value="'Times New Roman', serif">Times</option>
+                  <option value="'Palatino Linotype', serif">Palatino</option>
+                </select>
+                <select id="writingWorkspaceFontSize">
+                  <option value="16">Small</option>
+                  <option value="18" selected>Medium</option>
+                  <option value="20">Large</option>
+                  <option value="22">XL</option>
+                </select>
+                <select id="writingWorkspaceLineHeight">
+                  <option value="1.5">Tight</option>
+                  <option value="1.75" selected>Comfortable</option>
+                  <option value="2">Spacious</option>
+                </select>
+                <span class="writing-format-divider"></span>
+                <button id="writingFormatBold" type="button" class="writing-format-btn" title="Bold">B</button>
+                <button id="writingFormatItalic" type="button" class="writing-format-btn" title="Italic">I</button>
+                <button id="writingFormatH1" type="button" class="writing-format-btn" title="Heading 1">H1</button>
+                <button id="writingFormatH2" type="button" class="writing-format-btn" title="Heading 2">H2</button>
+                <button id="writingFormatH3" type="button" class="writing-format-btn" title="Heading 3">H3</button>
+                <button id="writingFormatNormal" type="button" class="writing-format-btn" title="Paragraph">P</button>
+                <button id="writingFormatQuote" type="button" class="writing-format-btn" title="Quote">"</button>
+              </div>
             </div>
             <div id="writingWorkspaceEditor" class="writing-workspace-editor" contenteditable="true" spellcheck="true" lang="en-GB" autocomplete="on" autocorrect="on" autocapitalize="sentences"></div>
           </div>
