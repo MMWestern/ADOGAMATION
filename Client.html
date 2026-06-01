@@ -3494,6 +3494,7 @@
           el.writingWorkspaceEmpty.textContent = selected ? "No sections loaded yet." : "Select a project to load its manuscript view.";
         } else {
           el.writingWorkspaceEmpty.hidden = true;
+          applyWritingWorkspaceSpellcheck();
           el.writingWorkspaceEditor.innerHTML = displayText.indexOf("<") !== -1 ? displayText : escapeHtmlForEditor(displayText);
           applyWritingWorkspaceSpellcheck();
         }
@@ -4075,7 +4076,7 @@
       var enabled = !el.writingWorkspaceSpellcheckToggle || el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") !== "false";
       el.writingWorkspaceEditor.spellcheck = enabled;
       el.writingWorkspaceEditor.setAttribute("spellcheck", enabled ? "true" : "false");
-      el.writingWorkspaceEditor.setAttribute("lang", "en-GB");
+      el.writingWorkspaceEditor.setAttribute("lang", "en");
       el.writingWorkspaceEditor.setAttribute("autocomplete", "on");
       el.writingWorkspaceEditor.setAttribute("autocorrect", enabled ? "on" : "off");
       el.writingWorkspaceEditor.setAttribute("autocapitalize", "sentences");
