@@ -368,3 +368,48 @@
       var modal = document.getElementById("aiConnectionTestModal");
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
+
+    function setAIProviderPanel(provider) {
+      document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
+        btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
+      });
+      document.querySelectorAll(".ai-settings-panel").forEach(function (panel) {
+        panel.hidden = panel.getAttribute("data-ai-provider") !== provider;
+      });
+    }
+
+    function saveAISettings() {
+      var provider = el.aiDefaultProvider ? el.aiDefaultProvider.value : "";
+      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
+      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
+      var model = el.aiModel ? el.aiModel.value : "";
+      var payload = { provider: provider, apiKey: apiKey, endpoint: endpoint, model: model };
+      if (typeof sbClient !== "undefined" && sbClient) {
+        supabaseRunner
+          .withSuccessHandler(function () { setStatus("AI settings saved.", "ok"); })
+          .withFailureHandler(function (e) { setStatus("AI settings save failed: " + (e.message || e), "error"); })
+          .saveAISettingsJsonFromClient(JSON.stringify(payload));
+      }
+    }
+
+    function runAIConnectionTest() {
+      var provider = el.aiDefaultProvider ? el.aiDefaultProvider.value : "";
+      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
+      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
+      var model = el.aiModel ? el.aiModel.value : "";
+      if (!provider) { setStatus("Select an AI provider first.", "error"); return; }
+      openAIConnectionTestModal();
+      var statusEl = document.getElementById("aiConnectionTestStatus");
+      if (statusEl) statusEl.textContent = "Testing connection...";
+      if (typeof sbClient !== "undefined" && sbClient) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
+            if (statusEl) statusEl.textContent = result && result.ok ? "Connection successful!" : "Connection failed: " + (result.error || "Unknown error");
+          })
+          .withFailureHandler(function (e) {
+            if (statusEl) statusEl.textContent = "Connection failed: " + (e.message || e);
+          })
+          .testAIConnectionJsonFromClient(JSON.stringify({ provider: provider, apiKey: apiKey, endpoint: endpoint, model: model }));
+      }
+    }
