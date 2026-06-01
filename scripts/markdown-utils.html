@@ -613,3 +613,43 @@
         appState.autoSaveTimer = null;
       }
     }
+
+    function startAutoSaveTimer() {
+      stopAutoSaveTimer();
+      var settings = loadAutoSaveFromStorage();
+      if (!settings.enabled) return;
+      var interval = Math.max(30000, settings.intervalMs || 300000);
+      appState.autoSaveTimer = setInterval(function () {
+        if (typeof autoSaveTick === "function") autoSaveTick();
+      }, interval);
+    }
+
+    function saveAutoSaveSettings() {
+      var enabledEl = document.getElementById("autoSaveEnabledToggle");
+      var intervalEl = document.getElementById("autoSaveIntervalSelect");
+      var settings = {
+        enabled: enabledEl ? enabledEl.checked : true,
+        intervalMs: intervalEl ? Number(intervalEl.value) || 300000 : 300000
+      };
+      try { localStorage.setItem("writing_dashboard_auto_save_v1", JSON.stringify(settings)); } catch (e) {}
+      startAutoSaveTimer();
+      closeMarkdownAutoSaveModal();
+    }
+
+    function applyAutoSaveSettings(settings) {
+      var safe = settings || loadAutoSaveFromStorage();
+      var enabledEl = document.getElementById("autoSaveEnabledToggle");
+      var intervalEl = document.getElementById("autoSaveIntervalSelect");
+      if (enabledEl) enabledEl.checked = safe.enabled !== false;
+      if (intervalEl) intervalEl.value = String(safe.intervalMs || 300000);
+    }
+
+    function autoSaveTick() {
+      var activeTab = document.querySelector(".main-tab-button.is-active");
+      var tabKey = activeTab ? activeTab.getAttribute("data-main-tab") || "" : "";
+      if (tabKey === "resources" && typeof saveResourceEditor === "function") {
+        saveResourceEditor();
+      } else if (tabKey === "workspace" && typeof saveWritingWorkspaceDraft === "function") {
+        saveWritingWorkspaceDraft({ autosave: true });
+      }
+    }

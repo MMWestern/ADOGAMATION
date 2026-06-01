@@ -6115,10 +6115,14 @@
 
     bindUiOnce(el.mainAutoSaveButton, "main-auto-save-modal", "click", function () {
       closeSettingsMenu();
+      applyAutoSaveSettings(loadAutoSaveFromStorage());
       openMarkdownAutoSaveModal();
     });
     if (el.markdownHelpCloseButton) bindUiOnce(el.markdownHelpCloseButton, "help-modal-close", "click", closeMarkdownHelpModal);
-    if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", closeMarkdownAutoSaveModal);
+    if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", function () {
+      saveAutoSaveSettings();
+    });
+    startAutoSaveTimer();
 
     bindUiOnce(el.openErrorLogButton, "open-error-log", "click", openErrorLogModal);
     bindUiOnce(el.resourceOpenErrorLogButton, "open-error-log-resource", "click", openErrorLogModal);
