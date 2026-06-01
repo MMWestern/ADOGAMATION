@@ -3496,6 +3496,7 @@
           el.writingWorkspaceEmpty.hidden = true;
           el.writingWorkspaceEditor.innerHTML = displayText.indexOf("<") !== -1 ? displayText : escapeHtmlForEditor(displayText);
           applyWritingWorkspaceSpellcheck();
+          updateWritingWorkspaceTypography();
         }
       }
       renderWritingWorkspaceInspector(selected);
