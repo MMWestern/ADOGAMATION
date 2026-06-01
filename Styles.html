@@ -5374,33 +5374,6 @@
       white-space: nowrap;
     }
 
-    .markdown-modal-card {
-      width: calc(100vw - 4px);
-      max-width: calc(100vw - 4px);
-      height: calc(100vh - 4px);
-      max-height: calc(100vh - 4px);
-      display: flex;
-      flex-direction: column;
-      border-radius: 12px;
-    }
-
-    .markdown-modal-card .modal-header {
-      padding: 12px 16px 8px;
-    }
-
-    .markdown-modal-card .modal-footer {
-      padding: 10px 16px 12px;
-      flex-shrink: 0;
-    }
-
-    .markdown-modal-body {
-      min-height: 0;
-      flex: 1;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 6px;
-      padding: 8px 16px 10px;
-      overflow: hidden;
-    }
 
     .markdown-meta {
       display: flex;
@@ -5967,7 +5940,6 @@
     }
 
 
-
     .markdown-editor-top-strip {
       display: flex;
       align-items: center;
@@ -6337,7 +6309,6 @@
     }
 
 
-
     /* v24 — corrected editor tab polish.
        Keep left heading navigation at its original scale, but keep the coral active color.
        Make the top Draft / Outline / Notes / Characters / World Build tabs more prominent. */
@@ -6455,8 +6426,6 @@
     }
 
   
-
-
     /* v35 — Markdown source highlighting inside the editable editor */
     .markdown-textarea-wrap { position: relative; min-height: 0; height: 100%; border: 1px solid var(--border); border-radius: 10px; background: #fff; overflow: hidden; }
     .markdown-editor-highlight,
@@ -6731,7 +6700,6 @@
     }
 
 
-
     /* v41 — Editor AI Test Modal */
     .markdown-ai-test-card { width: min(980px, calc(100vw - 36px)); max-width: min(980px, calc(100vw - 36px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
     .markdown-ai-test-body { display: grid; gap: 12px; overflow: auto; min-height: 0; }
@@ -6824,7 +6792,6 @@
     }
 
   
-
     /* v44 — safer measured gutter alignment */
     #markdownTextareaMeasureMirror {
       contain: layout style;
@@ -6873,74 +6840,6 @@
       --doc-concept: #06b6d4;
     }
 
-    .markdown-modal-card.theme-draft {
-      --editor-accent: var(--doc-draft);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-draft) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-draft) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-draft) 75%, #111827);
-    }
-    .markdown-modal-card.theme-outline {
-      --editor-accent: var(--doc-outline);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-outline) 18%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-outline) 50%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-outline) 65%, #111827);
-    }
-    .markdown-modal-card.theme-notes {
-      --editor-accent: var(--doc-notes);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-notes) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-notes) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-notes) 70%, #111827);
-    }
-    .markdown-modal-card.theme-characters {
-      --editor-accent: var(--doc-characters);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-characters) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-characters) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-characters) 62%, #111827);
-    }
-    .markdown-modal-card.theme-world-build {
-      --editor-accent: var(--doc-world-build);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-world-build) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-world-build) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-world-build) 68%, #111827);
-    }
-    .markdown-modal-card.theme-concept {
-      --editor-accent: var(--doc-concept);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-concept) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-concept) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-concept) 72%, #111827);
-    }
-
-    .markdown-modal-card .markdown-editor-top-strip {
-      border-color: var(--editor-accent-border);
-      background: var(--editor-accent-soft);
-    }
-
-    .markdown-modal-card .markdown-active-heading.has-heading,
-    .markdown-modal-card .spellcheck-toggle.is-on {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active,
-    .markdown-modal-card .outline-heading-target.is-synced {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active .markdown-word-count-badge {
-      background: rgba(255,255,255,0.28);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.is-active,
-    .markdown-modal-card .markdown-gutter-marker:hover {
-      background: var(--editor-accent);
-      border-color: var(--editor-accent);
-      color: #ffffff;
-    }
 
     .markdown-edit-tab,
     .markdown-reference-tab {
@@ -7010,14 +6909,6 @@
       border-color: #2a2f37;
     }
 
-    body.dark-mode .markdown-modal-card.theme-draft,
-    body.dark-mode .markdown-modal-card.theme-outline,
-    body.dark-mode .markdown-modal-card.theme-notes,
-    body.dark-mode .markdown-modal-card.theme-characters,
-    body.dark-mode .markdown-modal-card.theme-world-build,
-    body.dark-mode .markdown-modal-card.theme-concept {
-      --editor-accent-text: #e5e7eb;
-    }
 
     @media (max-width: 1200px) {
       .markdown-editor-grid {
@@ -7035,13 +6926,7 @@
     }
 
 
-  
-
     /* v57 — Restore reference tabs and use container indentation for heading hierarchy */
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      box-sizing: border-box;
-    }
 
     /* Restore the small left accent tab on the RIGHT reference heading buttons only. */
     .markdown-preview-wrap .markdown-reference-heading-button::before {
@@ -7082,70 +6967,9 @@
     }
 
     /* Make hierarchy obvious by indenting the whole button/container, not the text inside it. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      margin-left: 0;
-      width: 100%;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
 
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      margin-left: 14px;
-      width: calc(100% - 14px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      margin-left: 28px;
-      width: calc(100% - 28px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4 {
-      margin-left: 42px;
-      width: calc(100% - 42px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      margin-left: 52px;
-      width: calc(100% - 52px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button-title {
-      padding-left: 0 !important;
-    }
 
     /* Give H1/H2/H3 a little more physical difference as the buttons step inward. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      min-height: 34px;
-      font-size: 12px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      min-height: 31px;
-      font-size: 11.5px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      min-height: 28px;
-      font-size: 11px;
-    }
 
 
     /* v58 — active reference tab highlight + H1 accordion hierarchy */
@@ -7254,12 +7078,6 @@
 
 <style>
 /* v70 - Markdown modal identity, settings menu, and Summary tab */
-.markdown-editor-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
 
 .markdown-header-actions {
   display: flex;
@@ -7364,14 +7182,6 @@ body.dark-mode .auto-save-row {
   gap: 4px;
 }
 
-.markdown-editor-modal-header h3 {
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0;
-}
 
 .markdown-editor-identity {
   display: flex;
@@ -7428,12 +7238,6 @@ body.dark-mode .auto-save-row {
   --doc-summary: #14b8a6;
 }
 
-.markdown-modal-card.theme-summary {
-  --editor-accent: var(--doc-summary);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-summary) 16%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-summary) 48%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-summary) 72%, #111827);
-}
 
 .doc-theme-tab-summary {
   --heading-accent: var(--doc-summary);
@@ -7464,14 +7268,8 @@ body.dark-mode .markdown-settings-button {
   background: #1b1f26;
 }
 
-body.dark-mode .markdown-modal-card.theme-summary {
-  --editor-accent-text: #e5e7eb;
-}
 
 @media (max-width: 760px) {
-  .markdown-editor-modal-header {
-    gap: 10px;
-  }
 
   .markdown-header-actions {
     width: 100%;
@@ -7748,74 +7546,6 @@ body.dark-mode .ai-test-result.error {
       --doc-concept: #06b6d4;
     }
 
-    .markdown-modal-card.theme-draft {
-      --editor-accent: var(--doc-draft);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-draft) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-draft) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-draft) 75%, #111827);
-    }
-    .markdown-modal-card.theme-outline {
-      --editor-accent: var(--doc-outline);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-outline) 18%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-outline) 50%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-outline) 65%, #111827);
-    }
-    .markdown-modal-card.theme-notes {
-      --editor-accent: var(--doc-notes);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-notes) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-notes) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-notes) 70%, #111827);
-    }
-    .markdown-modal-card.theme-characters {
-      --editor-accent: var(--doc-characters);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-characters) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-characters) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-characters) 62%, #111827);
-    }
-    .markdown-modal-card.theme-world-build {
-      --editor-accent: var(--doc-world-build);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-world-build) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-world-build) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-world-build) 68%, #111827);
-    }
-    .markdown-modal-card.theme-concept {
-      --editor-accent: var(--doc-concept);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-concept) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-concept) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-concept) 72%, #111827);
-    }
-
-    .markdown-modal-card .markdown-editor-top-strip {
-      border-color: var(--editor-accent-border);
-      background: var(--editor-accent-soft);
-    }
-
-    .markdown-modal-card .markdown-active-heading.has-heading,
-    .markdown-modal-card .spellcheck-toggle.is-on {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active,
-    .markdown-modal-card .outline-heading-target.is-synced {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active .markdown-word-count-badge {
-      background: rgba(255,255,255,0.28);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.is-active,
-    .markdown-modal-card .markdown-gutter-marker:hover {
-      background: var(--editor-accent);
-      border-color: var(--editor-accent);
-      color: #ffffff;
-    }
 
     .markdown-edit-tab,
     .markdown-reference-tab {
@@ -7885,14 +7615,6 @@ body.dark-mode .ai-test-result.error {
       border-color: #2a2f37;
     }
 
-    body.dark-mode .markdown-modal-card.theme-draft,
-    body.dark-mode .markdown-modal-card.theme-outline,
-    body.dark-mode .markdown-modal-card.theme-notes,
-    body.dark-mode .markdown-modal-card.theme-characters,
-    body.dark-mode .markdown-modal-card.theme-world-build,
-    body.dark-mode .markdown-modal-card.theme-concept {
-      --editor-accent-text: #e5e7eb;
-    }
 
     @media (max-width: 1200px) {
       .markdown-editor-grid {
@@ -7910,13 +7632,7 @@ body.dark-mode .ai-test-result.error {
     }
 
 
-  
-
     /* v57 — Restore reference tabs and use container indentation for heading hierarchy */
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      box-sizing: border-box;
-    }
 
     /* Restore the small left accent tab on the RIGHT reference heading buttons only. */
     .markdown-preview-wrap .markdown-reference-heading-button::before {
@@ -7957,70 +7673,9 @@ body.dark-mode .ai-test-result.error {
     }
 
     /* Make hierarchy obvious by indenting the whole button/container, not the text inside it. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      margin-left: 0;
-      width: 100%;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
 
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      margin-left: 14px;
-      width: calc(100% - 14px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      margin-left: 28px;
-      width: calc(100% - 28px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4 {
-      margin-left: 42px;
-      width: calc(100% - 42px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      margin-left: 52px;
-      width: calc(100% - 52px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button-title {
-      padding-left: 0 !important;
-    }
 
     /* Give H1/H2/H3 a little more physical difference as the buttons step inward. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      min-height: 34px;
-      font-size: 12px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      min-height: 31px;
-      font-size: 11.5px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      min-height: 28px;
-      font-size: 11px;
-    }
 
 
     /* v58 — active reference tab highlight + H1 accordion hierarchy */
@@ -8230,74 +7885,6 @@ body.dark-mode .ai-test-result.error {
       --doc-concept: #06b6d4;
     }
 
-    .markdown-modal-card.theme-draft {
-      --editor-accent: var(--doc-draft);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-draft) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-draft) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-draft) 75%, #111827);
-    }
-    .markdown-modal-card.theme-outline {
-      --editor-accent: var(--doc-outline);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-outline) 18%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-outline) 50%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-outline) 65%, #111827);
-    }
-    .markdown-modal-card.theme-notes {
-      --editor-accent: var(--doc-notes);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-notes) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-notes) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-notes) 70%, #111827);
-    }
-    .markdown-modal-card.theme-characters {
-      --editor-accent: var(--doc-characters);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-characters) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-characters) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-characters) 62%, #111827);
-    }
-    .markdown-modal-card.theme-world-build {
-      --editor-accent: var(--doc-world-build);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-world-build) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-world-build) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-world-build) 68%, #111827);
-    }
-    .markdown-modal-card.theme-concept {
-      --editor-accent: var(--doc-concept);
-      --editor-accent-soft: color-mix(in srgb, var(--doc-concept) 16%, transparent);
-      --editor-accent-border: color-mix(in srgb, var(--doc-concept) 48%, transparent);
-      --editor-accent-text: color-mix(in srgb, var(--doc-concept) 72%, #111827);
-    }
-
-    .markdown-modal-card .markdown-editor-top-strip {
-      border-color: var(--editor-accent-border);
-      background: var(--editor-accent-soft);
-    }
-
-    .markdown-modal-card .markdown-active-heading.has-heading,
-    .markdown-modal-card .spellcheck-toggle.is-on {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active,
-    .markdown-modal-card .outline-heading-target.is-synced {
-      background: var(--editor-accent-soft);
-      border-color: var(--editor-accent-border);
-      color: var(--text);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active .markdown-word-count-badge {
-      background: rgba(255,255,255,0.28);
-      color: var(--editor-accent-text);
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.is-active,
-    .markdown-modal-card .markdown-gutter-marker:hover {
-      background: var(--editor-accent);
-      border-color: var(--editor-accent);
-      color: #ffffff;
-    }
 
     .markdown-edit-tab,
     .markdown-reference-tab {
@@ -8367,14 +7954,6 @@ body.dark-mode .ai-test-result.error {
       border-color: #2a2f37;
     }
 
-    body.dark-mode .markdown-modal-card.theme-draft,
-    body.dark-mode .markdown-modal-card.theme-outline,
-    body.dark-mode .markdown-modal-card.theme-notes,
-    body.dark-mode .markdown-modal-card.theme-characters,
-    body.dark-mode .markdown-modal-card.theme-world-build,
-    body.dark-mode .markdown-modal-card.theme-concept {
-      --editor-accent-text: #e5e7eb;
-    }
 
     @media (max-width: 1200px) {
       .markdown-editor-grid {
@@ -8391,8 +7970,6 @@ body.dark-mode .ai-test-result.error {
       }
     }
 
-
-  
 
     /* v52 — themed tabs and heading strength across editor + reference panels */
     :root {
@@ -8454,18 +8031,6 @@ body.dark-mode .ai-test-result.error {
       border-color: color-mix(in srgb, var(--heading-accent) 18%, var(--border));
     }
 
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active {
-      background: var(--heading-accent) !important;
-      border-color: var(--heading-accent) !important;
-      color: #ffffff !important;
-      box-shadow: 0 8px 20px color-mix(in srgb, var(--heading-accent) 24%, transparent);
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active .markdown-word-count-badge {
-      background: rgba(255,255,255,0.24);
-      color: #ffffff;
-    }
 
     body.dark-mode .markdown-heading-button.level-1,
     body.dark-mode .markdown-reference-heading-button.level-1 {
@@ -8490,18 +8055,9 @@ body.dark-mode .ai-test-result.error {
 
     body.dark-mode .markdown-edit-tab.is-active,
     body.dark-mode .markdown-reference-tab.is-active,
-    body.dark-mode .markdown-modal-card .markdown-heading-button.is-active,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.is-active {
-      color: #ffffff !important;
-    }
 
   
-
     /* v57 — Restore reference tabs and use container indentation for heading hierarchy */
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      box-sizing: border-box;
-    }
 
     /* Restore the small left accent tab on the RIGHT reference heading buttons only. */
     .markdown-preview-wrap .markdown-reference-heading-button::before {
@@ -8542,70 +8098,9 @@ body.dark-mode .ai-test-result.error {
     }
 
     /* Make hierarchy obvious by indenting the whole button/container, not the text inside it. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      margin-left: 0;
-      width: 100%;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
 
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      margin-left: 14px;
-      width: calc(100% - 14px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      margin-left: 28px;
-      width: calc(100% - 28px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4 {
-      margin-left: 42px;
-      width: calc(100% - 42px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      margin-left: 52px;
-      width: calc(100% - 52px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button-title {
-      padding-left: 0 !important;
-    }
 
     /* Give H1/H2/H3 a little more physical difference as the buttons step inward. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      min-height: 34px;
-      font-size: 12px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      min-height: 31px;
-      font-size: 11.5px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      min-height: 28px;
-      font-size: 11px;
-    }
 
 
     /* v58 — active reference tab highlight + H1 accordion hierarchy */
@@ -8710,133 +8205,9 @@ body.dark-mode .ai-test-result.error {
 
 <style>
     /* v53 — Theme-aware gutter + gradient heading tabs */
-    .markdown-modal-card .markdown-gutter-marker {
-      color: var(--editor-accent-text);
-      background: color-mix(in srgb, var(--editor-accent) 14%, var(--panel));
-      border-color: color-mix(in srgb, var(--editor-accent) 34%, var(--border));
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.level-1 {
-      background: var(--editor-accent);
-      border-color: var(--editor-accent);
-      color: #ffffff;
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.level-2 {
-      background: color-mix(in srgb, var(--editor-accent) 22%, var(--panel));
-      border-color: color-mix(in srgb, var(--editor-accent) 46%, var(--border));
-      color: color-mix(in srgb, var(--editor-accent) 70%, var(--text));
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.level-3,
-    .markdown-modal-card .markdown-gutter-marker.level-4,
-    .markdown-modal-card .markdown-gutter-marker.level-5,
-    .markdown-modal-card .markdown-gutter-marker.level-6 {
-      background: color-mix(in srgb, var(--editor-accent) 12%, var(--panel));
-      border-color: color-mix(in srgb, var(--editor-accent) 30%, var(--border));
-      color: color-mix(in srgb, var(--editor-accent) 58%, var(--text));
-    }
-
-    .markdown-modal-card .markdown-gutter-marker.is-active {
-      outline-color: color-mix(in srgb, var(--editor-accent) 36%, transparent);
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker {
-      background: color-mix(in srgb, var(--editor-accent) 13%, #15181d);
-      border-color: color-mix(in srgb, var(--editor-accent) 34%, #2a2f37);
-      color: color-mix(in srgb, var(--editor-accent) 40%, #ffffff);
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-1 {
-      background: var(--editor-accent);
-      border-color: var(--editor-accent);
-      color: #ffffff;
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-2 {
-      background: color-mix(in srgb, var(--editor-accent) 20%, #15181d);
-      border-color: color-mix(in srgb, var(--editor-accent) 46%, #2a2f37);
-      color: color-mix(in srgb, var(--editor-accent) 50%, #ffffff);
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-3,
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-4,
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-5,
-    body.dark-mode .markdown-modal-card .markdown-gutter-marker.level-6 {
-      background: color-mix(in srgb, var(--editor-accent) 12%, #15181d);
-      border-color: color-mix(in srgb, var(--editor-accent) 30%, #2a2f37);
-      color: color-mix(in srgb, var(--editor-accent) 36%, #ffffff);
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 28%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 12%, var(--panel)));
-      border-color: color-mix(in srgb, var(--heading-accent) 58%, var(--border));
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 18%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 8%, var(--panel)));
-      border-color: color-mix(in srgb, var(--heading-accent) 42%, var(--border));
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 12%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 5%, var(--panel)));
-      border-color: color-mix(in srgb, var(--heading-accent) 30%, var(--border));
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4,
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 7%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 3%, var(--panel)));
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active {
-      background: linear-gradient(135deg,
-        var(--heading-accent),
-        color-mix(in srgb, var(--heading-accent) 74%, #ffffff)) !important;
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-1,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 26%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 12%, #15181d));
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-2,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 18%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 8%, #15181d));
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-3,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 12%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 5%, #15181d));
-    }
 
 
     /* v57 — Restore reference tabs and use container indentation for heading hierarchy */
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      box-sizing: border-box;
-    }
 
     /* Restore the small left accent tab on the RIGHT reference heading buttons only. */
     .markdown-preview-wrap .markdown-reference-heading-button::before {
@@ -8877,70 +8248,9 @@ body.dark-mode .ai-test-result.error {
     }
 
     /* Make hierarchy obvious by indenting the whole button/container, not the text inside it. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      margin-left: 0;
-      width: 100%;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
 
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      margin-left: 14px;
-      width: calc(100% - 14px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      margin-left: 28px;
-      width: calc(100% - 28px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4 {
-      margin-left: 42px;
-      width: calc(100% - 42px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      margin-left: 52px;
-      width: calc(100% - 52px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button-title {
-      padding-left: 0 !important;
-    }
 
     /* Give H1/H2/H3 a little more physical difference as the buttons step inward. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      min-height: 34px;
-      font-size: 12px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      min-height: 31px;
-      font-size: 11.5px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      min-height: 28px;
-      font-size: 11px;
-    }
 
 
     /* v58 — active reference tab highlight + H1 accordion hierarchy */
@@ -9073,135 +8383,6 @@ body.dark-mode .ai-test-result.error {
       }
     }
 
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      position: relative;
-      overflow: hidden;
-    }
-
-    .markdown-modal-card .markdown-heading-button::before,
-    .markdown-modal-card .markdown-reference-heading-button::before {
-      content: "";
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 4px;
-      border-radius: inherit;
-      background: color-mix(in srgb, var(--heading-accent) 48%, transparent);
-      opacity: 0.65;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 42%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 20%, var(--panel))) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 72%, var(--border)) !important;
-      color: color-mix(in srgb, var(--heading-accent) 86%, var(--text)) !important;
-      font-weight: 800;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-1::before,
-    .markdown-modal-card .markdown-reference-heading-button.level-1::before {
-      width: 7px;
-      background: var(--heading-accent);
-      opacity: 0.95;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 28%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 13%, var(--panel))) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 56%, var(--border)) !important;
-      color: color-mix(in srgb, var(--heading-accent) 72%, var(--text)) !important;
-      font-weight: 700;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2::before,
-    .markdown-modal-card .markdown-reference-heading-button.level-2::before {
-      width: 5px;
-      background: color-mix(in srgb, var(--heading-accent) 78%, transparent);
-      opacity: 0.82;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 13%, var(--panel)),
-        color-mix(in srgb, var(--heading-accent) 5%, var(--panel))) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 30%, var(--border)) !important;
-      color: color-mix(in srgb, var(--heading-accent) 50%, var(--text)) !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3::before,
-    .markdown-modal-card .markdown-reference-heading-button.level-3::before {
-      width: 3px;
-      opacity: 0.55;
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active,
-    .markdown-modal-card .markdown-reference-heading-button.is-active {
-      background: linear-gradient(135deg,
-        var(--heading-accent),
-        color-mix(in srgb, var(--heading-accent) 82%, #ffffff)) !important;
-      border-color: var(--heading-accent) !important;
-      color: #ffffff !important;
-      box-shadow: 0 10px 24px color-mix(in srgb, var(--heading-accent) 28%, transparent) !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.is-active::before,
-    .markdown-modal-card .markdown-reference-heading-button.is-active::before {
-      background: rgba(255, 255, 255, 0.75);
-      width: 7px;
-      opacity: 1;
-    }
-
-    .markdown-modal-card .outline-heading-target.is-synced {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--editor-accent) 24%, transparent),
-        color-mix(in srgb, var(--editor-accent) 10%, transparent)) !important;
-      border-left: 5px solid var(--editor-accent) !important;
-      border-radius: 10px;
-      padding: 6px 8px;
-      margin-left: -8px;
-      box-shadow: 0 8px 20px color-mix(in srgb, var(--editor-accent) 16%, transparent);
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-1,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 34%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 16%, #15181d)) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 70%, #2a2f37) !important;
-      color: color-mix(in srgb, var(--heading-accent) 62%, #ffffff) !important;
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-2,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 24%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 11%, #15181d)) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 52%, #2a2f37) !important;
-      color: color-mix(in srgb, var(--heading-accent) 48%, #ffffff) !important;
-    }
-
-    body.dark-mode .markdown-modal-card .markdown-heading-button.level-3,
-    body.dark-mode .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--heading-accent) 13%, #15181d),
-        color-mix(in srgb, var(--heading-accent) 5%, #15181d)) !important;
-      border-color: color-mix(in srgb, var(--heading-accent) 30%, #2a2f37) !important;
-      color: color-mix(in srgb, var(--heading-accent) 34%, #ffffff) !important;
-    }
-
-    body.dark-mode .markdown-modal-card .outline-heading-target.is-synced {
-      background: linear-gradient(135deg,
-        color-mix(in srgb, var(--editor-accent) 22%, #15181d),
-        color-mix(in srgb, var(--editor-accent) 8%, #15181d)) !important;
-      border-left-color: var(--editor-accent) !important;
-      box-shadow: 0 8px 22px color-mix(in srgb, var(--editor-accent) 14%, transparent);
-    }
-
 
     /* v56 — Reference polish, stable current-section pill, and slimmer editor column */
     .markdown-editor-grid {
@@ -9310,10 +8491,6 @@ body.dark-mode .ai-test-result.error {
 
 
     /* v57 — Restore reference tabs and use container indentation for heading hierarchy */
-    .markdown-modal-card .markdown-heading-button,
-    .markdown-modal-card .markdown-reference-heading-button {
-      box-sizing: border-box;
-    }
 
     /* Restore the small left accent tab on the RIGHT reference heading buttons only. */
     .markdown-preview-wrap .markdown-reference-heading-button::before {
@@ -9354,70 +8531,9 @@ body.dark-mode .ai-test-result.error {
     }
 
     /* Make hierarchy obvious by indenting the whole button/container, not the text inside it. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      margin-left: 0;
-      width: 100%;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
 
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      margin-left: 14px;
-      width: calc(100% - 14px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      margin-left: 28px;
-      width: calc(100% - 28px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-4,
-    .markdown-modal-card .markdown-reference-heading-button.level-4 {
-      margin-left: 42px;
-      width: calc(100% - 42px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-5,
-    .markdown-modal-card .markdown-reference-heading-button.level-5,
-    .markdown-modal-card .markdown-heading-button.level-6,
-    .markdown-modal-card .markdown-reference-heading-button.level-6 {
-      margin-left: 52px;
-      width: calc(100% - 52px);
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-    }
-
-    .markdown-modal-card .markdown-heading-button-title {
-      padding-left: 0 !important;
-    }
 
     /* Give H1/H2/H3 a little more physical difference as the buttons step inward. */
-    .markdown-modal-card .markdown-heading-button.level-1,
-    .markdown-modal-card .markdown-reference-heading-button.level-1 {
-      min-height: 34px;
-      font-size: 12px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-2,
-    .markdown-modal-card .markdown-reference-heading-button.level-2 {
-      min-height: 31px;
-      font-size: 11.5px;
-    }
-
-    .markdown-modal-card .markdown-heading-button.level-3,
-    .markdown-modal-card .markdown-reference-heading-button.level-3 {
-      min-height: 28px;
-      font-size: 11px;
-    }
 
 
     /* v58 — active reference tab highlight + H1 accordion hierarchy */
@@ -10068,30 +9184,6 @@ body.dark-mode .image-choice img.is-thumb-loading {
   --doc-outline-template: #f59e0b;
 }
 
-.markdown-modal-card.theme-dev-edit {
-  --editor-accent: var(--doc-dev-edit);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-dev-edit) 16%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-dev-edit) 48%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-dev-edit) 72%, #111827);
-}
-.markdown-modal-card.theme-line-edit {
-  --editor-accent: var(--doc-line-edit);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-line-edit) 16%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-line-edit) 48%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-line-edit) 70%, #111827);
-}
-.markdown-modal-card.theme-copy-edit {
-  --editor-accent: var(--doc-copy-edit);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-copy-edit) 18%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-copy-edit) 48%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-copy-edit) 82%, #111827);
-}
-.markdown-modal-card.theme-outline-template {
-  --editor-accent: var(--doc-outline-template);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-outline-template) 18%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-outline-template) 50%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-outline-template) 68%, #111827);
-}
 
 .doc-theme-tab-dev-edit { border-left-color: var(--doc-dev-edit); }
 .doc-theme-tab-line-edit { border-left-color: var(--doc-line-edit); }
@@ -10112,12 +9204,6 @@ body.dark-mode .image-choice img.is-thumb-loading {
 .markdown-preview-wrap.ref-theme-copy-edit { --reference-accent: var(--doc-copy-edit); --heading-accent: var(--doc-copy-edit); }
 .markdown-preview-wrap.ref-theme-outline-template { --reference-accent: var(--doc-outline-template); --heading-accent: var(--doc-outline-template); }
 
-body.dark-mode .markdown-modal-card.theme-dev-edit,
-body.dark-mode .markdown-modal-card.theme-line-edit,
-body.dark-mode .markdown-modal-card.theme-copy-edit,
-body.dark-mode .markdown-modal-card.theme-outline-template {
-  --editor-accent-text: #e5e7eb;
-}
 </style>
 
 <style>
@@ -10829,12 +9915,6 @@ body.dark-mode *::-webkit-scrollbar-thumb:hover {
   --doc-brainstorm: #84cc16;
 }
 
-.markdown-modal-card.theme-brainstorm {
-  --editor-accent: var(--doc-brainstorm);
-  --editor-accent-soft: color-mix(in srgb, var(--doc-brainstorm) 16%, transparent);
-  --editor-accent-border: color-mix(in srgb, var(--doc-brainstorm) 48%, transparent);
-  --editor-accent-text: color-mix(in srgb, var(--doc-brainstorm) 60%, #111827);
-}
 
 .doc-theme-tab-brainstorm {
   border-left-color: var(--doc-brainstorm);
@@ -10853,9 +9933,6 @@ body.dark-mode *::-webkit-scrollbar-thumb:hover {
   --heading-accent: var(--doc-brainstorm);
 }
 
-body.dark-mode .markdown-modal-card.theme-brainstorm {
-  --editor-accent-text: #e5e7eb;
-}
 
 .schedule-templates-card {
   width: min(640px, calc(100vw - 36px));

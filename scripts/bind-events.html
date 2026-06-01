@@ -698,237 +698,7 @@
         });
       });
 
-      MARKDOWN_FIELDS.forEach(function (field) {
-        if (!field.buttonId) return;
-        const button = document.getElementById(field.buttonId);
-        if (!button) throw new Error("Missing markdown edit button: " + field.buttonId);
-        button.addEventListener("click", function () {
-          openMarkdownEditor(field.key);
-        });
-      });
 
-      el.markdownEditorTextarea.addEventListener("input", function () {
-        recordMarkdownUndoSnapshot();
-        cacheActiveEditorText();
-        scheduleMarkdownPreviewRefresh();
-      });
-      el.markdownEditorTextarea.addEventListener("focus", applyNativeSpellcheckSettings);
-      el.markdownEditorTextarea.addEventListener("click", function () {
-        applyNativeSpellcheckSettings();
-        scheduleMarkdownNavigationRefresh();
-      });
-      el.markdownEditorTextarea.addEventListener("keyup", function () {
-        scheduleMarkdownNavigationRefresh();
-      });
-      el.markdownEditorTextarea.addEventListener("select", function () {
-        scheduleMarkdownNavigationRefresh();
-      });
-      el.markdownEditorTextarea.addEventListener("contextmenu", showMarkdownContextMenu);
-      el.markdownEditorTextarea.addEventListener("scroll", syncMarkdownHighlightScroll);
-      ["mouseup"].forEach(function (eventName) {
-        el.markdownEditorTextarea.addEventListener(eventName, function () {
-          scheduleMarkdownNavigationRefresh();
-        });
-      });
-      if (el.markdownFormatButton) {
-        el.markdownFormatButton.addEventListener("click", openMarkdownFormatMenuFromButton);
-      }
-      if (el.markdownHelpButton) {
-        el.markdownHelpButton.addEventListener("click", function () { openMarkdownHelpModal("overview"); });
-      }
-      if (el.markdownThemeButton) {
-        el.markdownThemeButton.addEventListener("click", openMarkdownThemeModal);
-      }
-      if (el.markdownSettingsButton) {
-        el.markdownSettingsButton.addEventListener("click", toggleMarkdownSettingsMenu);
-      }
-      if (el.markdownSettingsMenu) {
-        el.markdownSettingsMenu.addEventListener("click", function (event) {
-          event.stopPropagation();
-        });
-      }
-      if (el.markdownSettingsNewButton) {
-        el.markdownSettingsNewButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          openNewProjectModal();
-        });
-      }
-      if (el.markdownSettingsAiButton) {
-        el.markdownSettingsAiButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          openAISettingsModal();
-        });
-      }
-      if (el.markdownSettingsThemeButton) {
-        el.markdownSettingsThemeButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          openMarkdownThemeModal();
-        });
-      }
-      if (el.markdownSettingsHelpButton) {
-        el.markdownSettingsHelpButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          openMarkdownHelpModal("overview");
-        });
-      }
-      if (el.markdownSettingsDarkModeButton) {
-        el.markdownSettingsDarkModeButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          toggleDarkMode();
-        });
-      }
-      if (el.markdownSettingsAutoSaveButton) {
-        el.markdownSettingsAutoSaveButton.addEventListener("click", function () {
-          closeMarkdownSettingsMenu();
-          openMarkdownAutoSaveModal();
-        });
-      }
-      if (el.markdownPromoteButton) {
-        el.markdownPromoteButton.addEventListener("click", openMarkdownPromotionModal);
-      }
-      if (el.markdownSyncHeadingsButton) {
-        el.markdownSyncHeadingsButton.addEventListener("click", syncOutlineHeadingsToProjectDocs);
-      }
-      if (el.markdownPromotionCancelButton) {
-        el.markdownPromotionCancelButton.addEventListener("click", closeMarkdownPromotionModal);
-      }
-      if (el.markdownPromotionConfirmButton) {
-        el.markdownPromotionConfirmButton.addEventListener("click", confirmMarkdownPromotion);
-      }
-      if (el.markdownPromotionModal) {
-        el.markdownPromotionModal.addEventListener("click", function (event) {
-          if (event.target === el.markdownPromotionModal) closeMarkdownPromotionModal();
-        });
-      }
-      if (el.markdownThemeCloseButton) {
-        el.markdownThemeCloseButton.addEventListener("click", closeMarkdownThemeModal);
-      }
-      if (el.markdownThemeSaveButton) {
-        el.markdownThemeSaveButton.addEventListener("click", saveMarkdownThemeSettings);
-      }
-      if (el.markdownThemeResetButton) {
-        el.markdownThemeResetButton.addEventListener("click", resetMarkdownThemeSettings);
-      }
-      if (el.markdownThemeModal) {
-        el.markdownThemeModal.addEventListener("click", function (event) {
-          if (event.target === el.markdownThemeModal) closeMarkdownThemeModal();
-        });
-      }
-      if (el.markdownAutoSaveCloseButton) {
-        el.markdownAutoSaveCloseButton.addEventListener("click", closeMarkdownAutoSaveModal);
-      }
-      if (el.markdownAutoSaveSaveButton) {
-        el.markdownAutoSaveSaveButton.addEventListener("click", saveAutoSaveSettings);
-      }
-      if (el.markdownAutoSaveModal) {
-        el.markdownAutoSaveModal.addEventListener("click", function (event) {
-          if (event.target === el.markdownAutoSaveModal) closeMarkdownAutoSaveModal();
-        });
-      }
-      if (el.autoSaveInterval) {
-        el.autoSaveInterval.addEventListener("change", function () {
-          if (el.autoSaveCustomRow) {
-            el.autoSaveCustomRow.hidden = el.autoSaveInterval.value !== "custom";
-          }
-        });
-      }
-      if (el.markdownAiMenuButton) {
-        el.markdownAiMenuButton.addEventListener("click", toggleMarkdownAiMenu);
-      }
-      if (el.markdownAiMenu) {
-        el.markdownAiMenu.addEventListener("click", function (event) {
-          event.stopPropagation();
-          if (event.target && event.target.tagName === "BUTTON") {
-            closeMarkdownAiMenu();
-          }
-        });
-      }
-      if (el.markdownAITestButton) el.markdownAITestButton.addEventListener("click", openMarkdownAITestModal);
-      if (el.markdownAITestConnectionButton) el.markdownAITestConnectionButton.addEventListener("click", function () { runMarkdownAITest(true); });
-      if (el.markdownAITestPreviewButton) el.markdownAITestPreviewButton.addEventListener("click", previewMarkdownAITestPrompt);
-      if (el.markdownAITestSendButton) el.markdownAITestSendButton.addEventListener("click", function () { runMarkdownAITest(false); });
-      if (el.markdownAITestCloseButton) el.markdownAITestCloseButton.addEventListener("click", closeMarkdownAITestModal);
-      if (el.markdownAITestSystemPrompt) el.markdownAITestSystemPrompt.addEventListener("input", markMarkdownAITestPromptPreviewStale);
-      if (el.markdownAITestUserPrompt) el.markdownAITestUserPrompt.addEventListener("input", markMarkdownAITestPromptPreviewStale);
-      if (el.markdownAITestTemperature) el.markdownAITestTemperature.addEventListener("input", markMarkdownAITestPromptPreviewStale);
-      if (el.markdownAITestMaxTokens) el.markdownAITestMaxTokens.addEventListener("input", markMarkdownAITestPromptPreviewStale);
-      if (el.markdownAILocalContextSelect) el.markdownAILocalContextSelect.addEventListener("change", handleMarkdownAITestContextSettingsChanged);
-      if (el.markdownAIContextSources) el.markdownAIContextSources.addEventListener("change", handleMarkdownAITestContextSettingsChanged);
-      if (el.markdownAITestContextLimit) el.markdownAITestContextLimit.addEventListener("input", handleMarkdownAITestContextSettingsChanged);
-      if (el.markdownAITestModal) {
-        el.markdownAITestModal.addEventListener("click", function (event) {
-          if (event.target === el.markdownAITestModal) closeMarkdownAITestModal();
-        });
-      }
-      if (el.markdownHelpCloseButton) {
-        el.markdownHelpCloseButton.addEventListener("click", closeMarkdownHelpModal);
-      }
-      if (el.markdownHelpNav) {
-        el.markdownHelpNav.querySelectorAll("button[data-help-topic]").forEach(function (button) {
-          button.addEventListener("click", function () {
-            renderMarkdownHelpTopic(button.getAttribute("data-help-topic"));
-          });
-        });
-      }
-      if (el.markdownHelpModal) {
-        el.markdownHelpModal.addEventListener("click", function (event) {
-          if (event.target === el.markdownHelpModal) closeMarkdownHelpModal();
-        });
-      }
-      if (el.markdownSpellcheckToggleButton) {
-        el.markdownSpellcheckToggleButton.addEventListener("click", toggleMarkdownSpellcheck);
-      }
-
-      if (el.markdownSpellcheckButton) {
-        el.markdownSpellcheckButton.addEventListener("click", function () {
-          runServerSpellcheck("full");
-        });
-      }
-
-      if (el.markdownSpellcheckSelectionButton) {
-        el.markdownSpellcheckSelectionButton.addEventListener("click", function () {
-          runServerSpellcheck("selection");
-        });
-      }
-      document.querySelectorAll("[data-md-format]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          applyMarkdownFormat(button.dataset.mdFormat);
-        });
-      });
-      document.querySelectorAll("[data-md-action]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          hideMarkdownContextMenu();
-          if (button.dataset.mdAction === "undo") undoMarkdownEdit();
-          if (button.dataset.mdAction === "redo") redoMarkdownEdit();
-          if (button.dataset.mdAction === "ai-test") openMarkdownAITestModal();
-          if (button.dataset.mdAction === "spellcheck-selection") runServerSpellcheck("selection");
-          if (button.dataset.mdAction === "spellcheck-full") runServerSpellcheck("full");
-        });
-      });
-      document.addEventListener("click", function (event) {
-        if (!el.markdownContextMenu || !el.markdownContextMenu.contains(event.target)) {
-          hideMarkdownContextMenu();
-        }
-      });
-      el.markdownUndoButton.addEventListener("click", undoMarkdownEdit);
-      el.markdownRedoButton.addEventListener("click", redoMarkdownEdit);
-      if (el.markdownCopyButton) el.markdownCopyButton.addEventListener("click", copyMarkdownToClipboard);
-      if (el.markdownPreview) el.markdownPreview.addEventListener("contextmenu", showMarkdownPreviewContextMenu);
-      el.markdownCancelButton.addEventListener("click", closeMarkdownEditor);
-      el.markdownSaveButton.addEventListener("click", saveMarkdownEditor);
-
-      window.addEventListener("beforeunload", function (event) {
-        if (hasUnsavedMarkdownDocChanges()) {
-          event.preventDefault();
-          event.returnValue = "";
-        }
-      });
-
-      el.markdownEditorModal.addEventListener("click", function (event) {
-        if (event.target === el.markdownEditorModal) {
-          closeMarkdownEditor();
-        }
-      });
 
       el.workspaceButton.addEventListener("click", function () {
         if (areRequiredProjectLinksFilled()) {
@@ -955,8 +725,6 @@
         }
       });
       document.addEventListener("click", closeSettingsMenu);
-      document.addEventListener("click", closeMarkdownSettingsMenu);
-      document.addEventListener("click", closeMarkdownAiMenu);
       document.addEventListener("click", closeTopbarAiMenu);
 
       el.newButton.addEventListener("click", openNewProjectModal);
@@ -998,15 +766,8 @@
         }
       });
 
-      document.addEventListener("keydown", function (event) {
-        if (el.markdownEditorModal.classList.contains("is-open") && (event.ctrlKey || event.metaKey)) {
-          const key = String(event.key || "").toLowerCase();
-          if (key === "z" && !event.shiftKey) { event.preventDefault(); undoMarkdownEdit(); return; }
-          if ((key === "z" && event.shiftKey) || key === "y") { event.preventDefault(); redoMarkdownEdit(); return; }
-          if (key === "b") { event.preventDefault(); applyMarkdownFormat("bold"); return; }
-          if (key === "i") { event.preventDefault(); applyMarkdownFormat("italic"); return; }
-        }
 
+      document.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && el.aiConnectionTestModal && el.aiConnectionTestModal.classList.contains("is-open")) {
           closeAIConnectionTestModal();
           return;
@@ -1017,10 +778,6 @@
           return;
         }
 
-        if (event.key === "Escape" && el.markdownAITestModal && el.markdownAITestModal.classList.contains("is-open")) {
-          closeMarkdownAITestModal();
-          return;
-        }
 
         if (event.key === "Escape" && el.bookCreatorModal && el.bookCreatorModal.classList.contains("is-open")) {
           closeBookCreatorModal();
@@ -1045,25 +802,6 @@
           return;
         }
 
-        if (event.key === "Escape" && el.markdownHelpModal && el.markdownHelpModal.classList.contains("is-open")) {
-          closeMarkdownHelpModal();
-          return;
-        }
-
-        if (event.key === "Escape" && el.markdownPromotionModal && el.markdownPromotionModal.classList.contains("is-open")) {
-          closeMarkdownPromotionModal();
-          return;
-        }
-
-        if (event.key === "Escape") {
-          closeSettingsMenu();
-          closeMarkdownSettingsMenu();
-        }
-
-        if (event.key === "Escape" && el.markdownEditorModal.classList.contains("is-open")) {
-          closeMarkdownEditor();
-          return;
-        }
 
         if (event.key === "Escape" && el.newProjectModal.classList.contains("is-open")) {
           closeNewProjectModal();
