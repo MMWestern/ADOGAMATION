@@ -1089,6 +1089,7 @@
         if (el.marketingTimelineGhostToggle) el.marketingTimelineGhostToggle.checked = checked;
         if (el.timelineGhostToggle) el.timelineGhostToggle.checked = checked;
         appState.timelineGhostMode = checked;
+        try { localStorage.setItem("writing_dashboard_timeline_ghost_v1", checked ? "1" : "0"); } catch (e) {}
         renderTimeline();
       }
 
