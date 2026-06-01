@@ -4085,6 +4085,22 @@
       var nextEnabled = el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") === "false";
       el.writingWorkspaceSpellcheckToggle.setAttribute("aria-pressed", nextEnabled ? "true" : "false");
       applyWritingWorkspaceSpellcheck();
+      // Force browser to re-evaluate spellcheck on contenteditable
+      var editor = el.writingWorkspaceEditor;
+      var wasFocused = document.activeElement === editor;
+      var savedRange = null;
+      if (wasFocused) {
+        var sel = window.getSelection();
+        if (sel.rangeCount) savedRange = sel.getRangeAt(0);
+      }
+      editor.contentEditable = "false";
+      editor.contentEditable = "true";
+      if (wasFocused) {
+        editor.focus();
+        if (savedRange) {
+          try { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange); } catch (e) {}
+        }
+      }
       setStatus(nextEnabled ? "Spell check enabled." : "Spell check disabled.", "ok");
     }
 
