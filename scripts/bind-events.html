@@ -440,6 +440,7 @@
             populateTimelineProjectFilter();
             el.timelineProjectFilter.value = appState.timelineFilterProject;
             el.marketingTimelineProjectFilter.value = appState.timelineFilterProject;
+            persistTimelineFilter();
             renderTimeline();
             var firstMonth = getProjectFirstMonthKey(rowNumber);
             if (firstMonth) scrollTimelineTo(firstMonth);
@@ -464,6 +465,7 @@
             populateTimelineProjectFilter();
             el.timelineProjectFilter.value = appState.timelineFilterProject;
             el.marketingTimelineProjectFilter.value = appState.timelineFilterProject;
+            persistTimelineFilter();
             renderTimeline();
             var firstMonth = getProjectFirstMonthKey(rowNumber);
             if (firstMonth) scrollTimelineTo(firstMonth);
@@ -1065,6 +1067,7 @@
             el.marketingTimelineProjectFilter.value = appState.timelineFilterProject;
             el.timelineProjectFilter.value = appState.timelineFilterProject;
           }
+          persistTimelineFilter();
         }
         renderTimeline();
         if (appState.timelineFilterProject !== "All") {
