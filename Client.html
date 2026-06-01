@@ -4063,8 +4063,11 @@
 
     function updateWritingWorkspaceWordCount() {
       if (!el.writingWorkspaceWordCount) return;
-      var total = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
-      el.writingWorkspaceWordCount.textContent = total ? formatWordCount(total) : "0w";
+      var scope = String(appState.writingWorkspace.scope || "");
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var segment = scope ? segments.find(function (item) { return item.key === scope; }) || null : null;
+      var count = segment ? Number(segment.wordCount || 0) : 0;
+      el.writingWorkspaceWordCount.textContent = count ? formatWordCount(count) : "0w";
     }
 
     function applyWritingWorkspaceSpellcheck() {
@@ -4081,7 +4084,6 @@
       if (!el.writingWorkspaceSpellcheckToggle || !el.writingWorkspaceEditor) return;
       var nextEnabled = el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") === "false";
       el.writingWorkspaceSpellcheckToggle.setAttribute("aria-pressed", nextEnabled ? "true" : "false");
-      el.writingWorkspaceSpellcheckToggle.textContent = nextEnabled ? "Spell: On" : "Spell: Off";
       applyWritingWorkspaceSpellcheck();
       setStatus(nextEnabled ? "Spell check enabled." : "Spell check disabled.", "ok");
     }

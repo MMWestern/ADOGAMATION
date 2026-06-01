@@ -313,10 +313,11 @@
             <div class="writing-workspace-controls">
               <select id="writingWorkspaceScopeSelect" class="writing-workspace-scope"></select>
               <div id="writingWorkspaceSaveState" class="writing-workspace-save-state is-idle">No draft loaded</div>
-              <button id="writingWorkspaceSaveButton" type="button" class="writing-workspace-ghost-button">Save</button>
-              <button id="writingWorkspaceFocusButton" type="button" class="writing-workspace-ghost-button">Focus</button>
-              <button id="writingWorkspaceSpellcheckToggle" type="button" class="writing-workspace-ghost-button" aria-pressed="true">Spell: On</button>
               <span id="writingWorkspaceWordCount" class="writing-workspace-word-count">0w</span>
+              <div class="writing-controls-right">
+                <button id="writingWorkspaceSaveButton" type="button" class="writing-workspace-ghost-button">Save</button>
+                <button id="writingWorkspaceFocusButton" type="button" class="writing-workspace-ghost-button">Focus</button>
+              </div>
             </div>
           </div>
 
@@ -348,7 +349,7 @@
                   <option value="20">Large</option>
                   <option value="22">XL</option>
                 </select>
-                <select id="writingWorkspaceLineHeight">
+                <select id="writingWorkspaceLineHeight" class="writing-lh-select">
                   <option value="1.5">Tight</option>
                   <option value="1.75" selected>Comfortable</option>
                   <option value="2">Spacious</option>
@@ -361,6 +362,8 @@
                 <button id="writingFormatH3" type="button" class="writing-format-btn" title="Heading 3">H3</button>
                 <button id="writingFormatNormal" type="button" class="writing-format-btn" title="Paragraph">P</button>
                 <button id="writingFormatQuote" type="button" class="writing-format-btn" title="Quote">"</button>
+                <span class="writing-format-divider"></span>
+                <button id="writingWorkspaceSpellcheckToggle" type="button" class="writing-spell-toggle" aria-pressed="true">Spell</button>
               </div>
             </div>
             <div id="writingWorkspaceEditor" class="writing-workspace-editor" contenteditable="true" spellcheck="true" lang="en-GB" autocomplete="on" autocorrect="on" autocapitalize="sentences"></div>
