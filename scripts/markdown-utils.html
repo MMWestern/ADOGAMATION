@@ -544,6 +544,18 @@
       };
     }
 
+    function getSelectedProviderConfig(payload) {
+      var provider = (payload && payload.provider) || "openrouter";
+      if (provider === "lmstudio") return (payload && payload.lmstudio) || {};
+      if (provider === "ollama") return (payload && payload.ollama) || {};
+      return (payload && payload.openrouter) || {};
+    }
+
+    function getSelectedAIModel(payload) {
+      var config = getSelectedProviderConfig(payload || {});
+      return String(config.model || "").trim();
+    }
+
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
