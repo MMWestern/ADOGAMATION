@@ -414,9 +414,16 @@
     }
 
     function fetchAIModels(provider) {
-      var endpoint = el.aiEndpoint ? el.aiEndpoint.value.trim() : "";
-      var apiKey = el.aiApiKey ? el.aiApiKey.value.trim() : "";
-      if (!provider) { setStatus("Select a provider first.", "error"); return; }
+      var endpoint = "";
+      var apiKey = "";
+      if (provider === "openrouter") {
+        apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+      } else if (provider === "lmstudio") {
+        endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+      } else if (provider === "ollama") {
+        endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+      }
+      if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
 
       var url = "";
       var headers = {};
@@ -424,86 +431,139 @@
         url = "https://openrouter.ai/api/v1/models";
         if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
       } else if (provider === "lmstudio") {
-        url = (endpoint || "http://localhost:1234") + "/v1/models";
+        url = (endpoint || "http://localhost:1234/v1") + "/models";
       } else if (provider === "ollama") {
         url = (endpoint || "http://localhost:11434") + "/api/tags";
       } else {
-        setStatus("Unknown provider: " + provider, "error");
+        setAIStatus("Unknown provider: " + provider, "error");
         return;
       }
 
-      setStatus("Fetching " + provider + " models...", "warn");
+      setAIStatus("Fetching " + provider + " models...", "warn");
+      var fetchBtn = provider === "openrouter" ? document.getElementById("aiOpenRouterFetchModelsButton") : provider === "lmstudio" ? document.getElementById("aiLmStudioFetchModelsButton") : document.getElementById("aiOllamaFetchModelsButton");
+      if (fetchBtn) fetchBtn.disabled = true;
       fetch(url, { headers: headers })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(function (data) {
           var models = [];
           if (provider === "ollama") {
-            models = (data.models || []).map(function (m) { return { id: m.name, name: m.name }; });
+            models = (data.models || []).map(function (m) { return m.name; });
           } else {
-            models = (data.data || data || []).map(function (m) { return { id: m.id || m, name: m.name || m.id || m }; });
+            models = (data.data || data || []).map(function (m) { return m.id || m; });
           }
-          var modelSelect = el.aiModel;
-          if (modelSelect && models.length) {
-            var current = modelSelect.value;
-            modelSelect.innerHTML = "";
+          var modelInput = provider === "openrouter" ? document.getElementById("aiOpenRouterModel") : provider === "lmstudio" ? document.getElementById("aiLmStudioModel") : document.getElementById("aiOllamaModel");
+          var modelList = provider === "openrouter" ? document.getElementById("aiOpenRouterModelList") : provider === "lmstudio" ? document.getElementById("aiLmStudioModelList") : document.getElementById("aiOllamaModelList");
+          if (modelList) {
+            modelList.innerHTML = "";
             models.forEach(function (m) {
               var opt = document.createElement("option");
-              opt.value = m.id;
-              opt.textContent = m.name;
-              modelSelect.appendChild(opt);
+              opt.value = m;
+              modelList.appendChild(opt);
             });
-            if (current) modelSelect.value = current;
           }
-          setStatus("Loaded " + models.length + " " + provider + " model(s).", "ok");
+          setAIStatus("Loaded " + models.length + " " + provider + " model(s).", "ok");
         })
         .catch(function (e) {
-          setStatus("Failed to fetch models: " + (e.message || e) + ". Check endpoint and that the server is running.", "error");
-        });
+          setAIStatus("Failed to fetch models: " + (e.message || e) + ". Check endpoint and that the server is running.", "error");
+        })
+        .then(function () { if (fetchBtn) fetchBtn.disabled = false; });
+    }
+
+    function setAIStatus(message, mode) {
+      var el = document.getElementById("aiSettingsStatus");
+      if (el) { el.textContent = message; el.className = "status-bar" + (mode ? " " + mode : ""); }
     }
 
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
       });
-      document.querySelectorAll(".ai-settings-panel").forEach(function (panel) {
-        panel.hidden = panel.getAttribute("data-ai-provider") !== provider;
+      document.querySelectorAll("[data-ai-panel]").forEach(function (panel) {
+        panel.hidden = panel.getAttribute("data-ai-panel") !== provider;
       });
+      var badge = document.getElementById("aiActiveProviderBadge");
+      if (badge) badge.textContent = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : provider === "ollama" ? "Ollama" : provider;
     }
 
     function saveAISettings() {
-      var provider = el.aiDefaultProvider ? el.aiDefaultProvider.value : "";
-      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
-      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
-      var model = el.aiModel ? el.aiModel.value : "";
-      var payload = { provider: provider, apiKey: apiKey, endpoint: endpoint, model: model };
+      var provider = document.getElementById("aiDefaultProvider") ? document.getElementById("aiDefaultProvider").value : "";
+      var payload = { provider: provider };
+      if (provider === "openrouter") {
+        var orKey = document.getElementById("aiOpenRouterApiKey");
+        var orModel = document.getElementById("aiOpenRouterModel");
+        var orClear = document.getElementById("aiOpenRouterClearKey");
+        payload.apiKey = orKey ? orKey.value.trim() : "";
+        payload.model = orModel ? orModel.value.trim() : "";
+        payload.clearKey = orClear ? orClear.checked : false;
+      } else if (provider === "lmstudio") {
+        var lsEndpoint = document.getElementById("aiLmStudioEndpoint");
+        var lsModel = document.getElementById("aiLmStudioModel");
+        payload.endpoint = lsEndpoint ? lsEndpoint.value.trim() : "";
+        payload.model = lsModel ? lsModel.value.trim() : "";
+      } else if (provider === "ollama") {
+        var olEndpoint = document.getElementById("aiOllamaEndpoint");
+        var olModel = document.getElementById("aiOllamaModel");
+        payload.endpoint = olEndpoint ? olEndpoint.value.trim() : "";
+        payload.model = olModel ? olModel.value.trim() : "";
+      }
+      setAIStatus("Saving...", "warn");
       if (typeof sbClient !== "undefined" && sbClient) {
         supabaseRunner
-          .withSuccessHandler(function () { setStatus("AI settings saved.", "ok"); })
-          .withFailureHandler(function (e) { setStatus("AI settings save failed: " + (e.message || e), "error"); })
+          .withSuccessHandler(function () { setAIStatus("AI settings saved.", "ok"); })
+          .withFailureHandler(function (e) { setAIStatus("Save failed: " + (e.message || e), "error"); })
           .saveAISettingsJsonFromClient(JSON.stringify(payload));
+      } else {
+        setAIStatus("AI settings saved locally.", "ok");
       }
     }
 
     function runAIConnectionTest() {
-      var provider = el.aiDefaultProvider ? el.aiDefaultProvider.value : "";
-      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
-      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
-      var model = el.aiModel ? el.aiModel.value : "";
-      if (!provider) { setStatus("Select an AI provider first.", "error"); return; }
-      openAIConnectionTestModal();
-      var statusEl = document.getElementById("aiConnectionTestStatus");
-      if (statusEl) statusEl.textContent = "Testing connection...";
-      if (typeof sbClient !== "undefined" && sbClient) {
-        supabaseRunner
-          .withSuccessHandler(function (json) {
-            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
-            if (statusEl) statusEl.textContent = result && result.ok ? "Connection successful!" : "Connection failed: " + (result.error || "Unknown error");
-          })
-          .withFailureHandler(function (e) {
-            if (statusEl) statusEl.textContent = "Connection failed: " + (e.message || e);
-          })
-          .testAIConnectionJsonFromClient(JSON.stringify({ provider: provider, apiKey: apiKey, endpoint: endpoint, model: model }));
+      var provider = document.getElementById("aiDefaultProvider") ? document.getElementById("aiDefaultProvider").value : "";
+      var endpoint = "";
+      var apiKey = "";
+      var model = "";
+      if (provider === "openrouter") {
+        apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        model = document.getElementById("aiOpenRouterModel") ? document.getElementById("aiOpenRouterModel").value.trim() : "";
+      } else if (provider === "lmstudio") {
+        endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+        model = document.getElementById("aiLmStudioModel") ? document.getElementById("aiLmStudioModel").value.trim() : "";
+      } else if (provider === "ollama") {
+        endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+        model = document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "";
       }
+      if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
+      setAIStatus("Testing " + provider + " connection...", "warn");
+
+      var url = "";
+      var headers = { "Content-Type": "application/json" };
+      var body = {};
+      if (provider === "openrouter") {
+        url = "https://openrouter.ai/api/v1/chat/completions";
+        if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+        body = { model: model || "openai/gpt-3.5-turbo", messages: [{ role: "user", content: "Say hello in one word." }], max_tokens: 5 };
+      } else if (provider === "lmstudio") {
+        url = (endpoint || "http://localhost:1234/v1") + "/chat/completions";
+        body = { model: model || "", messages: [{ role: "user", content: "Say hello in one word." }], max_tokens: 5 };
+      } else if (provider === "ollama") {
+        url = (endpoint || "http://localhost:11434") + "/api/chat";
+        body = { model: model || "", messages: [{ role: "user", content: "Say hello in one word." }], stream: false };
+      }
+
+      fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function (data) {
+          var reply = "";
+          if (provider === "ollama") {
+            reply = data.message ? data.message.content : "";
+          } else {
+            reply = data.choices && data.choices[0] ? data.choices[0].message.content : "";
+          }
+          setAIStatus("Connection OK! Response: " + (reply || "(empty)").substring(0, 80), "ok");
+        })
+        .catch(function (e) {
+          setAIStatus("Connection failed: " + (e.message || e), "error");
+        });
     }
 
     function formatWordCount(count) {
