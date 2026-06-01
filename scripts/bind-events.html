@@ -356,6 +356,20 @@
       if (el.topbarBookCreatorButton) bindUiOnce(el.topbarBookCreatorButton, "topbar-book-creator", "click", openBookCreatorModal);
       if (el.topbarStorySeedButton) bindUiOnce(el.topbarStorySeedButton, "topbar-story-seed", "click", openStorySeedModal);
 
+      bindUiOnce(el.topbarAiMenuButton, "topbar-ai-menu-toggle", "click", function () {
+        var menu = el.topbarAiMenu;
+        if (!menu || !el.topbarAiMenuButton) return;
+        var isOpen = menu.classList.toggle("is-open");
+        menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
+        el.topbarAiMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      });
+      bindUiOnce(el.topbarAiMenu, "topbar-ai-menu-dropdown", "click", function (event) {
+        event.stopPropagation();
+        if (event.target && event.target.tagName === "BUTTON") {
+          closeTopbarAiMenu();
+        }
+      });
+
       bindUiOnce(el.settingsMenuButton, "settings-menu-toggle", "click", toggleSettingsMenu);
       bindUiOnce(el.settingsMenuDropdown, "settings-menu-dropdown", "click", function (event) {
         event.stopPropagation();

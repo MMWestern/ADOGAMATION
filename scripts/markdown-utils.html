@@ -117,7 +117,7 @@
         return stripInlineMarkdown(String(line || "")
           .replace(/^#{1,6}\s+/, "")
           .replace(/^>\s?/, "")
-          .replace(/^[-*]\s+/, "â€¢ ")
+          .replace(/^[-*]\s+/, "\u2022 ")
           .replace(/^\d+[.)]\s+/, ""));
       }).join("\n");
 
