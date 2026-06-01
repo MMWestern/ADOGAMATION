@@ -314,45 +314,39 @@
               <select id="writingWorkspaceScopeSelect" class="writing-workspace-scope"></select>
               <div id="writingWorkspaceSaveState" class="writing-workspace-save-state is-idle">No draft loaded</div>
               <button id="writingWorkspaceSaveButton" type="button" class="writing-workspace-ghost-button">Save</button>
-              <button id="writingWorkspaceFormatButton" type="button" class="writing-workspace-ghost-button">Format</button>
               <button id="writingWorkspaceFocusButton" type="button" class="writing-workspace-ghost-button">Focus</button>
               <button id="writingWorkspaceSpellcheckToggle" type="button" class="writing-workspace-ghost-button" aria-pressed="true">Spell: On</button>
+              <span id="writingWorkspaceWordCount" class="writing-workspace-word-count">0w</span>
             </div>
           </div>
 
-          <div id="writingWorkspaceFormatPanel" class="writing-workspace-format-panel" hidden>
-            <div class="writing-format-group">
-              <div class="tiny">Typography</div>
-              <div class="writing-format-row">
-                <select id="writingWorkspaceFontFamily">
-                  <option value="'Georgia', serif">Classic Serif</option>
-                  <option value="'Times New Roman', serif">Times</option>
-                  <option value="'Palatino Linotype', serif">Palatino</option>
-                </select>
-                <select id="writingWorkspaceFontSize">
-                  <option value="16">Small</option>
-                  <option value="18" selected>Medium</option>
-                  <option value="20">Large</option>
-                  <option value="22">XL</option>
-                </select>
-                <select id="writingWorkspaceLineHeight">
-                  <option value="1.5">Tight</option>
-                  <option value="1.75" selected>Comfortable</option>
-                  <option value="2">Spacious</option>
-                </select>
-              </div>
+          <div id="writingWorkspaceFormatBar" class="writing-workspace-format-bar">
+            <div class="writing-format-left">
+              <select id="writingWorkspaceFontFamily">
+                <option value="'Georgia', serif">Classic Serif</option>
+                <option value="'Times New Roman', serif">Times</option>
+                <option value="'Palatino Linotype', serif">Palatino</option>
+              </select>
+              <select id="writingWorkspaceFontSize">
+                <option value="16">Small</option>
+                <option value="18" selected>Medium</option>
+                <option value="20">Large</option>
+                <option value="22">XL</option>
+              </select>
+              <select id="writingWorkspaceLineHeight">
+                <option value="1.5">Tight</option>
+                <option value="1.75" selected>Comfortable</option>
+                <option value="2">Spacious</option>
+              </select>
             </div>
-            <div class="writing-format-group">
-              <div class="tiny">Formatting</div>
-              <div class="writing-format-row">
-                <button id="writingFormatBold" type="button">Bold</button>
-                <button id="writingFormatItalic" type="button">Italic</button>
-                <button id="writingFormatH1" type="button">H1</button>
-                <button id="writingFormatH2" type="button">H2</button>
-                <button id="writingFormatH3" type="button">H3</button>
-                <button id="writingFormatNormal" type="button">P</button>
-                <button id="writingFormatQuote" type="button">Quote</button>
-              </div>
+            <div class="writing-format-right">
+              <button id="writingFormatBold" type="button" class="writing-format-btn" title="Bold">B</button>
+              <button id="writingFormatItalic" type="button" class="writing-format-btn" title="Italic">I</button>
+              <button id="writingFormatH1" type="button" class="writing-format-btn" title="Heading 1">H1</button>
+              <button id="writingFormatH2" type="button" class="writing-format-btn" title="Heading 2">H2</button>
+              <button id="writingFormatH3" type="button" class="writing-format-btn" title="Heading 3">H3</button>
+              <button id="writingFormatNormal" type="button" class="writing-format-btn" title="Paragraph">P</button>
+              <button id="writingFormatQuote" type="button" class="writing-format-btn" title="Quote">"</button>
             </div>
           </div>
 

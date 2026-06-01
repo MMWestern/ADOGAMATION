@@ -3499,6 +3499,7 @@
         }
       }
       renderWritingWorkspaceInspector(selected);
+      updateWritingWorkspaceWordCount();
     }
 
     function loadWritingWorkspaceDraft(forceRefresh, loadVersion) {
@@ -3959,6 +3960,7 @@
       renderWritingWorkspaceInspector(getSelectedProject());
       refreshWritingWorkspaceSaveState();
       updateWritingCodexInfoWordCount();
+      updateWritingWorkspaceWordCount();
       renderWritingChapterList(getSelectedProject());
       renderPlanOutline();
     }
@@ -4059,9 +4061,10 @@
       });
     }
 
-    function toggleWritingWorkspaceFormatPanel() {
-      if (!el.writingWorkspaceFormatPanel) return;
-      el.writingWorkspaceFormatPanel.hidden = !el.writingWorkspaceFormatPanel.hidden;
+    function updateWritingWorkspaceWordCount() {
+      if (!el.writingWorkspaceWordCount) return;
+      var total = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
+      el.writingWorkspaceWordCount.textContent = total ? formatWordCount(total) : "0w";
     }
 
     function applyWritingWorkspaceSpellcheck() {

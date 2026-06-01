@@ -2055,35 +2055,63 @@
       background: #fff;
     }
 
-    .writing-workspace-format-panel {
-      display: grid;
+    .writing-workspace-format-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 10px;
-      padding: 12px 14px;
+      padding: 8px 12px;
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: 10px;
       background: #f8fafc;
     }
 
-    .writing-workspace-format-panel[hidden] {
-      display: none !important;
-    }
-
-    .writing-format-group {
-      display: grid;
-      gap: 6px;
-    }
-
-    .writing-format-row {
+    .writing-format-left {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
     }
 
-    .writing-format-row button,
-    .writing-format-row select {
-      min-height: 32px;
+    .writing-format-left select {
+      min-height: 30px;
       font-size: 12px;
+      padding: 2px 6px;
+    }
+
+    .writing-format-right {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .writing-format-btn {
+      min-height: 30px;
+      min-width: 30px;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .writing-format-btn:hover {
+      background: #e2e8f0;
+    }
+
+    .writing-workspace-word-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      white-space: nowrap;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      line-height: 1;
     }
 
     .writing-workspace-editor-wrap {
@@ -10808,9 +10836,25 @@ body.dark-mode .writing-workspace-save-state.is-saved {
   color: #86efac;
 }
 
-body.dark-mode .writing-workspace-format-panel {
+body.dark-mode .writing-workspace-format-bar {
   background: #111827;
   border-color: #334155;
+}
+
+body.dark-mode .writing-format-btn {
+  background: #1e293b;
+  border-color: #374151;
+  color: #e2e8f0;
+}
+
+body.dark-mode .writing-format-btn:hover {
+  background: #334155;
+}
+
+body.dark-mode .writing-workspace-word-count {
+  background: #1e293b;
+  border-color: #374151;
+  color: #94a3b8;
 }
 
 body.dark-mode .writing-workspace-editor-wrap {

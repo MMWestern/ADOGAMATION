@@ -286,7 +286,6 @@
       bindUiOnce(el.writingWorkspaceSaveButton, "writing-save", "click", function () {
         saveWritingWorkspaceDraft({ autosave: false });
       });
-      bindUiOnce(el.writingWorkspaceFormatButton, "writing-format-toggle", "click", toggleWritingWorkspaceFormatPanel);
 
       if (el.writingWorkspaceChapterTitle) {
         bindUiOnce(el.writingWorkspaceChapterTitle, "writing-chapter-title-blur", "blur", function () {
