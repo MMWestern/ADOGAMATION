@@ -321,3 +321,50 @@
       closeLists();
       return html || "<div class='tiny'>Nothing to show yet.</div>";
     }
+
+    function toggleSettingsMenu() {
+      if (!el.settingsMenuDropdown || !el.settingsMenuButton) return;
+      var isOpen = el.settingsMenuDropdown.classList.toggle("is-open");
+      el.settingsMenuDropdown.setAttribute("aria-hidden", isOpen ? "false" : "true");
+      el.settingsMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    function closeSettingsMenu() {
+      if (!el.settingsMenuDropdown || !el.settingsMenuButton) return;
+      el.settingsMenuDropdown.classList.remove("is-open");
+      el.settingsMenuDropdown.setAttribute("aria-hidden", "true");
+      el.settingsMenuButton.setAttribute("aria-expanded", "false");
+    }
+
+    function closeTopbarAiMenu() {
+      var menu = document.getElementById("topbarAiMenu");
+      var btn = document.getElementById("topbarAiMenuButton");
+      if (menu) { menu.classList.remove("is-open"); menu.setAttribute("aria-hidden", "true"); }
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+      var isDark = document.body.classList.contains("dark-mode");
+      try { localStorage.setItem("writing_dashboard_dark_mode_v1", isDark ? "1" : "0"); } catch (e) {}
+    }
+
+    function openAISettingsModal() {
+      var modal = document.getElementById("aiSettingsModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+    }
+
+    function closeAISettingsModal() {
+      var modal = document.getElementById("aiSettingsModal");
+      if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
+    }
+
+    function openAIConnectionTestModal() {
+      var modal = document.getElementById("aiConnectionTestModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+    }
+
+    function closeAIConnectionTestModal() {
+      var modal = document.getElementById("aiConnectionTestModal");
+      if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
+    }

@@ -353,14 +353,6 @@
         });
       }
 
-      bindUiOnce(el.topbarAiMenuButton, "topbar-ai-menu-toggle", "click", toggleTopbarAiMenu);
-      bindUiOnce(el.topbarAiMenu, "topbar-ai-menu-dropdown", "click", function (event) {
-        event.stopPropagation();
-        if (event.target && event.target.tagName === "BUTTON") {
-          closeTopbarAiMenu();
-        }
-      });
-      if (el.topbarAITestButton) bindUiOnce(el.topbarAITestButton, "topbar-ai-test", "click", openMarkdownAITestModal);
       if (el.topbarBookCreatorButton) bindUiOnce(el.topbarBookCreatorButton, "topbar-book-creator", "click", openBookCreatorModal);
       if (el.topbarStorySeedButton) bindUiOnce(el.topbarStorySeedButton, "topbar-story-seed", "click", openStorySeedModal);
 
@@ -370,11 +362,6 @@
         if (event.target && event.target.tagName === "BUTTON") {
           closeSettingsMenu();
         }
-      });
-
-      bindUiOnce(el.mainAutoSaveButton, "main-auto-save-modal", "click", function () {
-        closeSettingsMenu();
-        openMarkdownAutoSaveModal();
       });
 
       bindUiOnce(el.resourceTreeContainer, "resource-tree-select", "click", function (event) {
@@ -730,8 +717,6 @@
       el.newButton.addEventListener("click", openNewProjectModal);
       el.darkModeButton.addEventListener("click", toggleDarkMode);
       if (el.aiSettingsButton) el.aiSettingsButton.addEventListener("click", openAISettingsModal);
-      if (el.topThemeButton) el.topThemeButton.addEventListener("click", openMarkdownThemeModal);
-      if (el.topHelpButton) el.topHelpButton.addEventListener("click", function () { openMarkdownHelpModal("overview"); });
       if (el.aiSettingsCloseButton) el.aiSettingsCloseButton.addEventListener("click", closeAISettingsModal);
       if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.addEventListener("click", saveAISettings);
       if (el.aiSettingsTestButton) el.aiSettingsTestButton.addEventListener("click", runAIConnectionTest);
