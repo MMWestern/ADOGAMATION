@@ -994,11 +994,13 @@
     }
 
     function getCachedDoc(docUrl) {
+      if (!appState.markdownEditor) return null;
       const key = getDocCacheKey(docUrl);
       return key ? appState.markdownEditor.docCache[key] || null : null;
     }
 
     function setCachedDoc(docUrl, data) {
+      if (!appState.markdownEditor) return null;
       const key = getDocCacheKey(docUrl);
       if (!key) return null;
       const existing = appState.markdownEditor.docCache[key] || {};
@@ -1169,6 +1171,7 @@
     }
 
     function rememberReferenceDoc(field, cached) {
+      if (!appState.markdownEditor) return null;
       if (!field || !cached || typeof cached.text !== "string") return null;
       const referenceText = cached.text || "";
       appState.markdownEditor.referenceDocs[field.key] = {
@@ -1182,6 +1185,7 @@
     }
 
     function preloadReferencePanelSelections(project, activeField) {
+      if (!appState.markdownEditor) return;
       if (!project || (!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) return;
       getReferenceFieldsForActiveEditor(activeField).forEach(function (field) {
         const url = String(project[field.urlKey] || "").trim();
@@ -1238,7 +1242,7 @@
     }
 
     function updateBackgroundSaveTabs() {
-      if (!el.markdownEditTabs) return;
+      if (!appState.markdownEditor || !el.markdownEditTabs) return;
       el.markdownEditTabs.querySelectorAll("button[data-editor-doc-key]").forEach(function (button) {
         const key = button.getAttribute("data-editor-doc-key");
         button.classList.toggle("is-background-saving", !!appState.markdownEditor.backgroundSaves[key]);
@@ -2325,7 +2329,7 @@
       }
       fillDetailForm(project);
       preloadProjectDocs(project);
-      preloadReferencePanelSelections(project, appState.markdownEditor.field);
+      preloadReferencePanelSelections(project, appState.markdownEditor && appState.markdownEditor.field);
       if (activeMainTab === "resources") {
         renderSeriesKnowledgePanel(project);
         loadSeriesKnowledgeForSelectedProject(false);
