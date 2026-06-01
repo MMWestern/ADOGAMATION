@@ -51,7 +51,7 @@
             runner[prop].apply(runner, args);
           } else {
             var msg = 'No implementation for ' + prop;
-            console.error(msg);
+            console.warn(msg);
             if (h.failure) h.failure(new Error(msg));
           }
           return target;

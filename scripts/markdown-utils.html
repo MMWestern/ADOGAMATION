@@ -413,6 +413,16 @@
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
 
+    function openMarkdownAITestModal() {
+      var modal = document.getElementById("markdownAITestModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+    }
+
+    function closeMarkdownAITestModal() {
+      var modal = document.getElementById("markdownAITestModal");
+      if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
+    }
+
     function fetchAIModels(provider) {
       var endpoint = "";
       var apiKey = "";

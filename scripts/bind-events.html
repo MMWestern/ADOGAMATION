@@ -353,6 +353,7 @@
         });
       }
 
+      if (el.topbarAITestButton) bindUiOnce(el.topbarAITestButton, "topbar-ai-test", "click", openMarkdownAITestModal);
       if (el.topbarBookCreatorButton) bindUiOnce(el.topbarBookCreatorButton, "topbar-book-creator", "click", openBookCreatorModal);
       if (el.topbarStorySeedButton) bindUiOnce(el.topbarStorySeedButton, "topbar-story-seed", "click", openStorySeedModal);
 

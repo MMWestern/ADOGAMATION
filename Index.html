@@ -45,6 +45,7 @@
         <div class="settings-menu-wrap">
           <button id="topbarAiMenuButton" class="settings-cog-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="topbarAiMenu" title="AI tools">AI</button>
           <div id="topbarAiMenu" class="settings-menu" aria-hidden="true">
+            <button id="topbarAITestButton" class="settings-menu-item" type="button">AI Test</button>
             <button id="topbarBookCreatorButton" class="settings-menu-item" type="button">Book Creator</button>
             <button id="topbarStorySeedButton" class="settings-menu-item" type="button">Story Seed</button>
           </div>
@@ -1617,6 +1618,22 @@
       </div>
       <div class="modal-footer">
         <button id="markdownAutoSaveCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownAITestModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-ai-test-card">
+      <div class="modal-header">
+        <h3>AI Test</h3>
+        <div class="muted">Test your connected AI provider with a custom prompt and context.</div>
+      </div>
+      <div class="modal-body markdown-ai-test-body">
+        <div id="markdownAITestStatus" class="status-bar">Ready.</div>
+        <div id="markdownAITestOutput" class="markdown-ai-test-output">No AI test output yet.</div>
+      </div>
+      <div class="modal-footer">
+        <button id="markdownAITestCloseButton" type="button">Close</button>
       </div>
     </div>
   </div>

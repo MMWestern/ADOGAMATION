@@ -6119,6 +6119,7 @@
       openMarkdownAutoSaveModal();
     });
     if (el.markdownHelpCloseButton) bindUiOnce(el.markdownHelpCloseButton, "help-modal-close", "click", closeMarkdownHelpModal);
+    if (el.markdownAITestCloseButton) bindUiOnce(el.markdownAITestCloseButton, "ai-test-modal-close", "click", closeMarkdownAITestModal);
     if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", function () {
       saveAutoSaveSettings();
     });
