@@ -556,6 +556,13 @@
       return String(config.model || "").trim();
     }
 
+    function providerLabel(provider) {
+      if (provider === "openrouter") return "OpenRouter";
+      if (provider === "lmstudio") return "LM Studio";
+      if (provider === "ollama") return "Ollama";
+      return provider || "Unknown";
+    }
+
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);
