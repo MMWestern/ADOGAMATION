@@ -392,6 +392,27 @@
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
 
+    function openMarkdownHelpModal(topicKey) {
+      var modal = document.getElementById("markdownHelpModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+      if (typeof renderMarkdownHelpTopic === "function") renderMarkdownHelpTopic(topicKey || "overview");
+    }
+
+    function closeMarkdownHelpModal() {
+      var modal = document.getElementById("markdownHelpModal");
+      if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
+    }
+
+    function openMarkdownAutoSaveModal() {
+      var modal = document.getElementById("markdownAutoSaveModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+    }
+
+    function closeMarkdownAutoSaveModal() {
+      var modal = document.getElementById("markdownAutoSaveModal");
+      if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
+    }
+
     function setAIProviderPanel(provider) {
       document.querySelectorAll("[data-ai-provider]").forEach(function (btn) {
         btn.classList.toggle("is-active", btn.getAttribute("data-ai-provider") === provider);

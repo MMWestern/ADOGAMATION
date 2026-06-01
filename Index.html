@@ -57,6 +57,7 @@
           <button id="darkModeButton" class="settings-menu-item" type="button">Dark Mode</button>
           <button id="scheduleTemplatesButton" class="settings-menu-item" type="button">Schedule Templates</button>
           <button id="marketingTemplatesButton" class="settings-menu-item" type="button">Marketing Templates</button>
+          <button id="mainAutoSaveButton" class="settings-menu-item" type="button">Auto-save</button>
           <button id="logoutButton" class="settings-menu-item" type="button" style="color:#f66;" onclick="sbClient.auth.signOut()">Logout</button>
         </div>
       </div>
@@ -1573,6 +1574,50 @@
       </div>
       <div class="modal-footer">
         <button id="aiConnectionTestCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownHelpModal" class="modal" aria-hidden="true">
+    <div class="modal-card markdown-help-modal-card">
+      <div class="modal-header">
+        <h3>Help</h3>
+      </div>
+      <div class="modal-body markdown-help-body">
+        <div id="markdownHelpNav" class="markdown-help-nav"></div>
+        <div id="markdownHelpContent" class="markdown-help-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="markdownHelpCloseButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="markdownAutoSaveModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Auto-save Settings</h3>
+        <div class="muted">Configure automatic saving behavior for your documents.</div>
+      </div>
+      <div class="modal-body">
+        <div class="auto-save-row">
+          <label>
+            <input id="autoSaveEnabledToggle" type="checkbox" checked />
+            Enable auto-save
+          </label>
+        </div>
+        <div class="auto-save-row">
+          <label class="label" for="autoSaveIntervalSelect">Save interval</label>
+          <select id="autoSaveIntervalSelect">
+            <option value="60000">1 minute</option>
+            <option value="120000">2 minutes</option>
+            <option value="300000" selected>5 minutes</option>
+            <option value="600000">10 minutes</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="markdownAutoSaveCloseButton" type="button">Close</button>
       </div>
     </div>
   </div>

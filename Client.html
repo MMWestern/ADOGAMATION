@@ -6113,6 +6113,13 @@
 
     <?!= include('scripts/bind-events'); ?>
 
+    bindUiOnce(el.mainAutoSaveButton, "main-auto-save-modal", "click", function () {
+      closeSettingsMenu();
+      openMarkdownAutoSaveModal();
+    });
+    if (el.markdownHelpCloseButton) bindUiOnce(el.markdownHelpCloseButton, "help-modal-close", "click", closeMarkdownHelpModal);
+    if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", closeMarkdownAutoSaveModal);
+
     bindUiOnce(el.openErrorLogButton, "open-error-log", "click", openErrorLogModal);
     bindUiOnce(el.resourceOpenErrorLogButton, "open-error-log-resource", "click", openErrorLogModal);
     bindUiOnce(el.closeErrorLogButton, "close-error-log", "click", closeErrorLogModal);
