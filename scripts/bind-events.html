@@ -802,7 +802,7 @@
         el.sidebarMenuLogout.addEventListener("click", function () {
           el.sidebarAccountPopover.classList.remove("is-open");
           el.sidebarAvatarButton.setAttribute("aria-expanded", "false");
-          if (window.sbClient && sbClient.auth) sbClient.auth.signOut();
+          if (typeof sbClient !== "undefined" && sbClient && sbClient.auth) sbClient.auth.signOut();
         });
       }
 
