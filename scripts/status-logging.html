@@ -69,7 +69,7 @@
 
     function renderDetailsErrorLog(allEntries) {
       if (!el.detailsErrorLogList) return;
-      var recent = (allEntries || []).slice(-10).reverse();
+      var recent = (allEntries || []).slice(-1).reverse();
       if (!recent.length) {
         el.detailsErrorLogList.innerHTML = "<div class='empty-state tiny'>No log entries yet.</div>";
         return;
