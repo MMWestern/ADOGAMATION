@@ -364,33 +364,6 @@
       if (el.topbarBookCreatorButton) bindUiOnce(el.topbarBookCreatorButton, "topbar-book-creator", "click", openBookCreatorModal);
       if (el.topbarStorySeedButton) bindUiOnce(el.topbarStorySeedButton, "topbar-story-seed", "click", openStorySeedModal);
 
-      bindUiOnce(el.topbarAiMenuButton, "topbar-ai-menu-toggle", "click", function () {
-        var menu = el.topbarAiMenu;
-        if (!menu || !el.topbarAiMenuButton) return;
-        var isOpen = menu.classList.toggle("is-open");
-        menu.setAttribute("aria-hidden", isOpen ? "false" : "true");
-        el.topbarAiMenuButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        if (isOpen) {
-          setTimeout(function () {
-            document.addEventListener("click", closeTopbarAiMenuOnOutsideClick);
-          }, 0);
-        } else {
-          document.removeEventListener("click", closeTopbarAiMenuOnOutsideClick);
-        }
-      });
-      bindUiOnce(el.topbarAiMenu, "topbar-ai-menu-dropdown", "click", function (event) {
-        if (event.target && event.target.tagName === "BUTTON") {
-          closeTopbarAiMenu();
-        }
-      });
-
-      bindUiOnce(el.settingsMenuButton, "settings-menu-toggle", "click", toggleSettingsMenu);
-      bindUiOnce(el.settingsMenuDropdown, "settings-menu-dropdown", "click", function (event) {
-        if (event.target && event.target.tagName === "BUTTON") {
-          closeSettingsMenu();
-        }
-      });
-
       bindUiOnce(el.resourceTreeContainer, "resource-tree-select", "click", function (event) {
         var item = event.target && event.target.closest(".tree-resource");
         if (!item) return;
@@ -733,15 +706,8 @@
         window.open(url, "_blank", "noopener,noreferrer");
       });
 
-      bindUiOnce(el.settingsMenuButton, "settings-menu-toggle", "click", toggleSettingsMenu);
-      bindUiOnce(el.settingsMenuDropdown, "settings-menu-dropdown", "click", function (event) {
-        if (event.target && event.target.tagName === "BUTTON") {
-          closeSettingsMenu();
-        }
-      });
-
-      el.newButton.addEventListener("click", openNewProjectModal);
-      el.darkModeButton.addEventListener("click", toggleDarkMode);
+      if (el.newButton) el.newButton.addEventListener("click", openNewProjectModal);
+      if (el.darkModeButton) el.darkModeButton.addEventListener("click", toggleDarkMode);
       if (el.aiSettingsButton) el.aiSettingsButton.addEventListener("click", openAISettingsModal);
 
       if (el.sidebarAvatarButton) {

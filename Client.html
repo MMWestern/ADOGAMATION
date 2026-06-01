@@ -4842,11 +4842,11 @@
       }
       if (safeTab !== "workspace") {
         stopAutoSaveTimer();
-        if (el.topbarAutoSaveTimerCircle) el.topbarAutoSaveTimerCircle.hidden = true;
+        if (el.sidebarAutoSaveTimerCircle) el.sidebarAutoSaveTimerCircle.hidden = true;
       } else {
         var wsSettings = loadAutoSaveFromStorage();
-        if (el.topbarAutoSaveTimerCircle) {
-          el.topbarAutoSaveTimerCircle.hidden = !wsSettings.enabled;
+        if (el.sidebarAutoSaveTimerCircle) {
+          el.sidebarAutoSaveTimerCircle.hidden = !wsSettings.enabled;
         }
         if (wsSettings.enabled && wsSettings.intervalMs >= 60000) {
           startAutoSaveTimer();

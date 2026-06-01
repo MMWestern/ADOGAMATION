@@ -38,28 +38,6 @@
           <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
         </svg>
         <span id="resourceUnsavedIndicator" class="markdown-unsaved-indicator" hidden title="Resource save status">&#9679;</span>
-        <svg id="topbarAutoSaveTimerCircle" class="auto-save-timer" width="28" height="28" viewBox="0 0 16 16" aria-hidden="true" hidden>
-          <circle class="auto-save-timer-bg" cx="8" cy="8" r="6" fill="none" stroke-width="2" />
-          <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
-        </svg>
-        <div class="settings-menu-wrap">
-          <button id="topbarAiMenuButton" class="settings-cog-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="topbarAiMenu" title="AI tools">AI</button>
-          <div id="topbarAiMenu" class="settings-menu" aria-hidden="true">
-            <button id="topbarAITestButton" class="settings-menu-item" type="button">AI Test</button>
-            <button id="topbarBookCreatorButton" class="settings-menu-item" type="button">Book Creator</button>
-            <button id="topbarStorySeedButton" class="settings-menu-item" type="button">Story Seed</button>
-          </div>
-        </div>
-        <button id="settingsMenuButton" class="settings-cog-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenuDropdown" title="Dashboard settings">⚙</button>
-        <div id="settingsMenuDropdown" class="settings-menu" aria-hidden="true">
-          <button id="newButton" class="settings-menu-item primary-action" type="button">New Project</button>
-          <button id="aiSettingsButton" class="settings-menu-item" type="button">AI Settings</button>
-          <button id="darkModeButton" class="settings-menu-item" type="button">Dark Mode</button>
-          <button id="scheduleTemplatesButton" class="settings-menu-item" type="button">Schedule Templates</button>
-          <button id="marketingTemplatesButton" class="settings-menu-item" type="button">Marketing Templates</button>
-          <button id="mainAutoSaveButton" class="settings-menu-item" type="button">Auto-save</button>
-          <button id="logoutButton" class="settings-menu-item" type="button" style="color:#f66;" onclick="sbClient.auth.signOut()">Logout</button>
-        </div>
       </div>
     </div>
 
@@ -204,7 +182,11 @@
           <span class="sidebar-toolbar-divider"></span>
           <div class="sidebar-toolbar-right">
             <button id="sidebarAiButton" class="sidebar-ai-btn" type="button" aria-label="AI tools" aria-expanded="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M20.2 8.2A4 4 0 0 0 15.8 3.8"/></svg>
+              <svg class="sidebar-ai-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M20.2 8.2A4 4 0 0 0 15.8 3.8"/></svg>
+              <svg id="sidebarAutoSaveTimerCircle" class="auto-save-timer sidebar-ai-btn-timer" width="28" height="28" viewBox="0 0 16 16" aria-hidden="true" hidden>
+                <circle class="auto-save-timer-bg" cx="8" cy="8" r="6" fill="none" stroke-width="2" />
+                <circle class="auto-save-timer-progress" cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-dasharray="37.699" stroke-dashoffset="0" transform="rotate(-90 8 8)" />
+              </svg>
             </button>
             <span id="sidebarSaveBadge" class="sidebar-toolbar-pill" title="Last saved">Saved</span>
           </div>
