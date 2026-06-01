@@ -533,7 +533,6 @@
         model = document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "";
       }
       if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
-      setAIStatus("Testing " + provider + " connection...", "warn");
 
       var url = "";
       var headers = { "Content-Type": "application/json" };
@@ -550,6 +549,11 @@
         body = { model: model || "", messages: [{ role: "user", content: "Say hello in one word." }], stream: false };
       }
 
+      setAIStatus("Testing " + provider + " connection...", "warn");
+      openAIConnectionTestModal();
+      var testBody = document.getElementById("aiConnectionTestBody");
+      if (testBody) testBody.innerHTML = "<div class='ai-test-pending'>Testing connection...</div>";
+
       fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(function (data) {
@@ -559,9 +563,25 @@
           } else {
             reply = data.choices && data.choices[0] ? data.choices[0].message.content : "";
           }
-          setAIStatus("Connection OK! Response: " + (reply || "(empty)").substring(0, 80), "ok");
+          var providerLabel = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : "Ollama";
+          if (testBody) {
+            testBody.innerHTML = "<div class='ai-test-success'>" +
+              "<div class='ai-test-success-title'>Connection Successful</div>" +
+              "<div class='ai-test-success-detail'>" + providerLabel + " is responding correctly.</div>" +
+              (reply ? "<div class='ai-test-success-reply'>Response: " + escapeHtml(reply.trim()) + "</div>" : "") +
+              "<div class='ai-test-success-model'>Model: " + escapeHtml(model || "(default)") + "</div>" +
+            "</div>";
+          }
+          setAIStatus(providerLabel + " connection OK.", "ok");
         })
         .catch(function (e) {
+          if (testBody) {
+            testBody.innerHTML = "<div class='ai-test-error'>" +
+              "<div class='ai-test-error-title'>Connection Failed</div>" +
+              "<div class='ai-test-error-detail'>" + escapeHtml(e.message || String(e)) + "</div>" +
+              "<div class='ai-test-error-hints'>Check that the server is running, the endpoint is correct, and CORS allows browser requests.</div>" +
+            "</div>";
+          }
           setAIStatus("Connection failed: " + (e.message || e), "error");
         });
     }

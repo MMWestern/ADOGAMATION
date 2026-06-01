@@ -7351,6 +7351,81 @@ body.dark-mode .ai-test-result.error {
   margin-top: 6px;
 }
 
+.ai-test-success {
+  padding: 20px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 2px solid #6ee7b7;
+  border-radius: 14px;
+  text-align: center;
+}
+.ai-test-success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+.ai-test-success-detail {
+  font-size: 14px;
+  color: #047857;
+  margin-bottom: 6px;
+}
+.ai-test-success-reply {
+  font-size: 13px;
+  color: #065f46;
+  background: rgba(255,255,255,.5);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  white-space: pre-wrap;
+}
+.ai-test-success-model {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+.ai-test-error {
+  padding: 20px;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  border: 2px solid #fca5a5;
+  border-radius: 14px;
+  text-align: center;
+}
+.ai-test-error-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #991b1b;
+  margin-bottom: 8px;
+}
+.ai-test-error-detail {
+  font-size: 14px;
+  color: #be123c;
+  margin-bottom: 6px;
+}
+.ai-test-error-hints {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 8px;
+}
+.ai-test-pending {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+body.dark-mode .ai-test-success {
+  background: linear-gradient(135deg, rgba(34,197,94,.15) 0%, rgba(34,197,94,.08) 100%);
+  border-color: rgba(34,197,94,.5);
+}
+body.dark-mode .ai-test-success-title { color: #86efac; }
+body.dark-mode .ai-test-success-detail { color: #4ade80; }
+body.dark-mode .ai-test-success-reply { background: rgba(0,0,0,.2); color: #86efac; }
+body.dark-mode .ai-test-error {
+  background: linear-gradient(135deg, rgba(239,68,68,.15) 0%, rgba(239,68,68,.08) 100%);
+  border-color: rgba(239,68,68,.5);
+}
+body.dark-mode .ai-test-error-title { color: #fca5a5; }
+body.dark-mode .ai-test-error-detail { color: #f87171; }
+
 
     /* v43 — Safe heading highlights: gutter markers + current section label.
        This does not overlay or recolour textarea text, so the cursor/input mapping stays stable. */
