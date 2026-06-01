@@ -4081,6 +4081,19 @@
       el.sidebarSaveBadge.textContent = last ? "Saved " + last : "Saved";
     }
 
+    function updateSidebarUserInfo() {
+      if (!el.sidebarPopoverName || !el.sidebarPopoverEmail) return;
+      var user = typeof _authUser !== "undefined" ? _authUser : null;
+      if (user) {
+        var name = (user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || user.email || "User";
+        el.sidebarPopoverName.textContent = name;
+        el.sidebarPopoverEmail.textContent = user.email || "";
+      } else {
+        el.sidebarPopoverName.textContent = "User";
+        el.sidebarPopoverEmail.textContent = "Not logged in";
+      }
+    }
+
     function applyWritingWorkspaceSpellcheck() {
       if (!el.writingWorkspaceEditor) return;
       var enabled = !el.writingWorkspaceSpellcheckToggle || el.writingWorkspaceSpellcheckToggle.getAttribute("aria-pressed") !== "false";
@@ -6250,6 +6263,7 @@
     updateLinksPanelUi();
     setStatus("Checking authentication...", "warn");
     _initAuth().then(function (user) {
+      updateSidebarUserInfo();
       if (user) {
         setStatus("UI bound. Loading data...", "warn");
         loadProjects();
@@ -6257,6 +6271,11 @@
         setStatus("Please log in to continue.", "warn");
       }
     });
+    if (typeof sbClient !== "undefined" && sbClient && sbClient.auth) {
+      sbClient.auth.onAuthStateChange(function () {
+        updateSidebarUserInfo();
+      });
+    }
   
 </script>
 
