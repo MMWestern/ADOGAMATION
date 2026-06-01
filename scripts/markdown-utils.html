@@ -414,37 +414,51 @@
     }
 
     function fetchAIModels(provider) {
-      var endpoint = el.aiEndpoint ? el.aiEndpoint.value : "";
-      var apiKey = el.aiApiKey ? el.aiApiKey.value : "";
+      var endpoint = el.aiEndpoint ? el.aiEndpoint.value.trim() : "";
+      var apiKey = el.aiApiKey ? el.aiApiKey.value.trim() : "";
       if (!provider) { setStatus("Select a provider first.", "error"); return; }
-      setStatus("Fetching models for " + provider + "...", "warn");
-      if (typeof sbClient !== "undefined" && sbClient) {
-        supabaseRunner
-          .withSuccessHandler(function (json) {
-            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
-            if (result && result.ok && Array.isArray(result.models)) {
-              var modelSelect = el.aiModel;
-              if (modelSelect) {
-                var current = modelSelect.value;
-                modelSelect.innerHTML = "";
-                result.models.forEach(function (m) {
-                  var opt = document.createElement("option");
-                  opt.value = m.id || m;
-                  opt.textContent = m.name || m.id || m;
-                  modelSelect.appendChild(opt);
-                });
-                if (current) modelSelect.value = current;
-              }
-              setStatus("Loaded " + result.models.length + " models.", "ok");
-            } else {
-              setStatus("Failed to fetch models: " + (result.error || "Unknown error"), "error");
-            }
-          })
-          .withFailureHandler(function (e) {
-            setStatus("Failed to fetch models: " + (e.message || e), "error");
-          })
-          .fetchAIModelsJsonFromClient(JSON.stringify({ provider: provider, endpoint: endpoint, apiKey: apiKey }));
+
+      var url = "";
+      var headers = {};
+      if (provider === "openrouter") {
+        url = "https://openrouter.ai/api/v1/models";
+        if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+      } else if (provider === "lmstudio") {
+        url = (endpoint || "http://localhost:1234") + "/v1/models";
+      } else if (provider === "ollama") {
+        url = (endpoint || "http://localhost:11434") + "/api/tags";
+      } else {
+        setStatus("Unknown provider: " + provider, "error");
+        return;
       }
+
+      setStatus("Fetching " + provider + " models...", "warn");
+      fetch(url, { headers: headers })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function (data) {
+          var models = [];
+          if (provider === "ollama") {
+            models = (data.models || []).map(function (m) { return { id: m.name, name: m.name }; });
+          } else {
+            models = (data.data || data || []).map(function (m) { return { id: m.id || m, name: m.name || m.id || m }; });
+          }
+          var modelSelect = el.aiModel;
+          if (modelSelect && models.length) {
+            var current = modelSelect.value;
+            modelSelect.innerHTML = "";
+            models.forEach(function (m) {
+              var opt = document.createElement("option");
+              opt.value = m.id;
+              opt.textContent = m.name;
+              modelSelect.appendChild(opt);
+            });
+            if (current) modelSelect.value = current;
+          }
+          setStatus("Loaded " + models.length + " " + provider + " model(s).", "ok");
+        })
+        .catch(function (e) {
+          setStatus("Failed to fetch models: " + (e.message || e) + ". Check endpoint and that the server is running.", "error");
+        });
     }
 
     function setAIProviderPanel(provider) {
