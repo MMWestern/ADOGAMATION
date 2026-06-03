@@ -1182,12 +1182,28 @@
 
     function loadSkLore(seriesId) {
         if (!seriesId) return Promise.resolve([]);
-        return callAppsScriptJson("listSupabaseSeriesLoreJsonFromClient", [seriesId])
-            .then(function (result) {
-                var list = result && result.lore ? result.lore : [];
-                skCache.lore[seriesId] = list;
-                return list;
-            }).catch(function () {});
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesLoreJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesLoreBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].lore ? results[0].lore : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksByLore = {};
+            links.forEach(function (lk) {
+                var lid = Number(lk.lore_id || 0);
+                if (!lid) return;
+                if (!linksByLore[lid]) linksByLore[lid] = [];
+                linksByLore[lid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (item) {
+                var lid = Number(item.id || 0);
+                if (linksByLore[lid]) {
+                    item.bookLinks = linksByLore[lid];
+                }
+            });
+            skCache.lore[seriesId] = list;
+            return list;
+        }).catch(function () {});
     }
 
     /* ---- Subplots ---- */

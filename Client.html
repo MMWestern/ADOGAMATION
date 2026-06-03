@@ -2474,7 +2474,8 @@
           title: String(item.name || "Untitled").trim() || "Untitled",
           body: String(item.description || "").trim(),
           color: String(item.color || "").trim(),
-          scope: String(item.scope || "series").trim() || "series"
+          scope: String(item.scope || "series").trim() || "series",
+          bookLinks: item.bookLinks || []
         });
       });
 
