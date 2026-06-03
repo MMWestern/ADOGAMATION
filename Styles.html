@@ -1855,7 +1855,10 @@
     }
     .writing-codex-modal-content {
       flex: 1;
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
       min-height: 0;
     }
 
@@ -1918,10 +1921,11 @@
     .writing-codex-modal-form[hidden] { display: none; }
     .writing-codex-modal-tab-panel {
       padding: 12px 0;
-      height: 100%;
+      flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
+      overflow-y: auto;
     }
     .writing-codex-relations-panel[hidden] {
       display: none !important;
@@ -2205,8 +2209,9 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      height: 100%;
+      flex: 1;
       justify-content: flex-start;
+      overflow-y: auto;
     }
 
     .writing-codex-modal-group {
