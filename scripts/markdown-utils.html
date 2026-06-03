@@ -375,10 +375,10 @@
     function applyDarkModePreference() {
       var saved = "";
       try { saved = localStorage.getItem("writing_dashboard_dark_mode_v1") || ""; } catch (e) {}
-      if (saved === "1") {
-        document.body.classList.add("dark-mode");
-      } else if (saved === "0") {
+      if (saved === "0") {
         document.body.classList.remove("dark-mode");
+      } else {
+        document.body.classList.add("dark-mode");
       }
     }
 
