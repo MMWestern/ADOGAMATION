@@ -1948,15 +1948,25 @@
       cursor: pointer;
     }
 
+    .writing-codex-modal-card {
+      position: relative;
+    }
     .writing-codex-modal-series-banner {
       font-size: 11px;
-      color: #94a3b8;
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      border-radius: 5px;
-      padding: 4px 8px;
+      color: #166534;
+      background: #dcfce7;
+      border-bottom: 1px solid #86efac;
+      padding: 5px 12px;
       text-align: center;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    @media (prefers-color-scheme: dark) {
+      .writing-codex-modal-series-banner {
+        color: #86efac;
+        background: #052e16;
+        border-bottom-color: #166534;
+      }
     }
 
     .writing-codex-modal-badge-input {
