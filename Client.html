@@ -50,6 +50,8 @@
 
     <?!= include('scripts/el-cache'); ?>
 
+    <?!= include('scripts/save-manager'); ?>
+
     <?!= include('scripts/status-logging'); ?>
 
     function loadLastSelectedResourceId() {
@@ -3942,6 +3944,11 @@
     }
 
     function scheduleWritingWorkspaceAutoSave() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        sm.schedule("workspace", { autosave: true });
+        return;
+      }
       if (appState.writingWorkspace.saveTimer) {
         clearTimeout(appState.writingWorkspace.saveTimer);
       }
@@ -4027,6 +4034,11 @@
     }
 
     function schedulePlanOutlineSave() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        sm.schedule("planOutline", {});
+        return;
+      }
       if (appState.writingWorkspace.outlineSaveTimer) {
         clearTimeout(appState.writingWorkspace.outlineSaveTimer);
       }
@@ -6064,6 +6076,12 @@
       optimisticUpdateSelectedProject();
       appState.isDirty = true;
 
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        sm.schedule("projectDetails", { isAutosave: true });
+        return;
+      }
+
       if (appState.autosaveTimer) {
         clearTimeout(appState.autosaveTimer);
       }
@@ -6166,6 +6184,42 @@
     <?!= include('scripts/campaigns'); ?>
 
     <?!= include('scripts/resources-editor'); ?>
+
+    if (typeof saveManager !== "undefined") {
+      saveManager
+        .loadConfig()
+        .register("workspace", {
+          saveFn: function (opts) {
+            opts = opts || {};
+            return saveWritingWorkspaceDraft({ autosave: opts.autosave !== false });
+          }
+        })
+        .register("projectDetails", {
+          saveFn: function (opts) {
+            opts = opts || {};
+            saveSelectedProject(opts.isAutosave !== false);
+          }
+        })
+        .register("planOutline", {
+          saveFn: function () { return savePlanOutline(); }
+        })
+        .register("resources", {
+          saveFn: function () {
+            return new Promise(function (resolve) {
+              saveResourceEditor();
+              resolve(true);
+            });
+          }
+        })
+        .register("seriesKnowledge", {
+          saveFn: function () {
+            return new Promise(function (resolve) {
+              saveSeriesKnowledge();
+              resolve(true);
+            });
+          }
+        });
+    }
 
     <?!= include('scripts/bind-events'); ?>
 

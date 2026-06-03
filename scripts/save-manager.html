@@ -1,0 +1,261 @@
+    const saveManager = {
+      _config: null,
+      _timers: {},
+      _queues: {},
+      _registered: {},
+      _isOnline: navigator.onLine !== false,
+      _offlineQueue: [],
+      _offlineRetryTimer: null,
+
+      _defaultConfig() {
+        return {
+          enabled: true,
+          intervalMs: 300000,
+          areas: {
+            workspace: { debounceMs: 1800, enabled: true },
+            projectDetails: { debounceMs: 700, enabled: true },
+            planOutline: { debounceMs: 3000, enabled: true },
+            resources: { debounceMs: 0, enabled: true },
+            seriesKnowledge: { debounceMs: 0, enabled: true }
+          },
+          offlineRetryCount: 3,
+          offlineRetryIntervalMs: 5000
+        };
+      },
+
+      loadConfig() {
+        try {
+          var raw = localStorage.getItem("writing_dashboard_auto_save_v1");
+          var p = raw ? JSON.parse(raw) : {};
+          var d = this._defaultConfig();
+          this._config = {
+            enabled: p.enabled !== false,
+            intervalMs: Number(p.intervalMs) || d.intervalMs,
+            areas: {
+              workspace: {
+                debounceMs: p.workspaceDebounceMs >= 0 ? Number(p.workspaceDebounceMs) : d.areas.workspace.debounceMs,
+                enabled: p.workspaceEnabled !== false
+              },
+              projectDetails: {
+                debounceMs: p.projectDetailsDebounceMs >= 0 ? Number(p.projectDetailsDebounceMs) : d.areas.projectDetails.debounceMs,
+                enabled: p.projectDetailsEnabled !== false
+              },
+              planOutline: {
+                debounceMs: p.planOutlineDebounceMs >= 0 ? Number(p.planOutlineDebounceMs) : d.areas.planOutline.debounceMs,
+                enabled: p.planOutlineEnabled !== false
+              },
+              resources: {
+                debounceMs: p.resourcesDebounceMs >= 0 ? Number(p.resourcesDebounceMs) : d.areas.resources.debounceMs,
+                enabled: p.resourcesEnabled !== false
+              },
+              seriesKnowledge: {
+                debounceMs: p.seriesKnowledgeDebounceMs >= 0 ? Number(p.seriesKnowledgeDebounceMs) : d.areas.seriesKnowledge.debounceMs,
+                enabled: p.seriesKnowledgeEnabled !== false
+              }
+            },
+            offlineRetryCount: Number(p.offlineRetryCount) || d.offlineRetryCount,
+            offlineRetryIntervalMs: Number(p.offlineRetryIntervalMs) || d.offlineRetryIntervalMs
+          };
+        } catch (e) {
+          this._config = this._defaultConfig();
+        }
+        return this._config;
+      },
+
+      getConfig() {
+        if (!this._config) this.loadConfig();
+        return this._config;
+      },
+
+      saveConfig() {
+        var c = this._config || this.loadConfig();
+        try {
+          localStorage.setItem("writing_dashboard_auto_save_v1", JSON.stringify({
+            enabled: c.enabled,
+            intervalMs: c.intervalMs,
+            workspaceDebounceMs: c.areas.workspace.debounceMs,
+            workspaceEnabled: c.areas.workspace.enabled,
+            projectDetailsDebounceMs: c.areas.projectDetails.debounceMs,
+            projectDetailsEnabled: c.areas.projectDetails.enabled,
+            planOutlineDebounceMs: c.areas.planOutline.debounceMs,
+            planOutlineEnabled: c.areas.planOutline.enabled,
+            resourcesDebounceMs: c.areas.resources.debounceMs,
+            resourcesEnabled: c.areas.resources.enabled,
+            seriesKnowledgeDebounceMs: c.areas.seriesKnowledge.debounceMs,
+            seriesKnowledgeEnabled: c.areas.seriesKnowledge.enabled,
+            offlineRetryCount: c.offlineRetryCount,
+            offlineRetryIntervalMs: c.offlineRetryIntervalMs
+          }));
+        } catch (e) {}
+        return this;
+      },
+
+      register(areaName, opts) {
+        this._registered[areaName] = opts;
+        if (!this._queues[areaName]) {
+          this._queues[areaName] = { pending: null, isSaving: false, retries: 0 };
+        }
+        return this;
+      },
+
+      schedule(areaName, payload) {
+        var c = this._config || this.loadConfig();
+        var a = c.areas[areaName];
+        var reg = this._registered[areaName];
+        if (!reg || !a || !c.enabled || !a.enabled) return false;
+        this._queues[areaName].pending = payload;
+        if (this._timers[areaName]) {
+          clearTimeout(this._timers[areaName]);
+        }
+        var db = a.debounceMs || 0;
+        if (db > 0) {
+          this._timers[areaName] = setTimeout(() => {
+            this._timers[areaName] = null;
+            this._flush(areaName);
+          }, db);
+        } else {
+          this._flush(areaName);
+        }
+        return true;
+      },
+
+      saveImmediate(areaName, payload) {
+        var reg = this._registered[areaName];
+        if (!reg) return false;
+        this._queues[areaName].pending = payload;
+        if (this._timers[areaName]) {
+          clearTimeout(this._timers[areaName]);
+          this._timers[areaName] = null;
+        }
+        this._flush(areaName);
+        return true;
+      },
+
+      cancel(areaName) {
+        if (this._timers[areaName]) {
+          clearTimeout(this._timers[areaName]);
+          this._timers[areaName] = null;
+        }
+        if (this._queues[areaName]) this._queues[areaName].pending = null;
+      },
+
+      _flush(areaName) {
+        var q = this._queues[areaName];
+        var reg = this._registered[areaName];
+        if (!reg || !q || q.isSaving || !q.pending) return;
+        var payload = q.pending;
+        q.pending = null;
+        q.isSaving = true;
+        if (typeof reg.onBeforeSave === "function") reg.onBeforeSave(payload);
+        Promise.resolve()
+          .then(() => reg.saveFn(payload))
+          .then((result) => {
+            q.isSaving = false;
+            q.retries = 0;
+            if (typeof reg.onSuccess === "function") reg.onSuccess(result, payload);
+            if (q.pending) this._flush(areaName);
+          })
+          .catch((error) => {
+            q.isSaving = false;
+            if (typeof reg.onError === "function") reg.onError(error, payload);
+            if (!this._isOnline && q.retries < this._config.offlineRetryCount) {
+              q.retries++;
+              this._enqueueOffline(areaName, payload);
+            } else if (q.pending) {
+              this._flush(areaName);
+            }
+          });
+      },
+
+      _enqueueOffline(areaName, payload) {
+        this._offlineQueue.push({ area: areaName, payload: payload });
+        if (!this._offlineRetryTimer) {
+          this._offlineRetryTimer = setInterval(() => {
+            this._processOfflineQueue();
+          }, this._config.offlineRetryIntervalMs || 5000);
+        }
+      },
+
+      _processOfflineQueue() {
+        if (!this._isOnline) return;
+        var queue = this._offlineQueue;
+        this._offlineQueue = [];
+        if (this._offlineRetryTimer) {
+          clearInterval(this._offlineRetryTimer);
+          this._offlineRetryTimer = null;
+        }
+        queue.forEach((item) => {
+          var q = this._queues[item.area];
+          if (q && !q.pending) {
+            q.pending = item.payload;
+            this._flush(item.area);
+          }
+        });
+      },
+
+      setOnline(online) {
+        this._isOnline = online;
+        if (online) this._processOfflineQueue();
+      },
+
+      updateAreaConfig(areaName, overrides) {
+        var c = this._config || this.loadConfig();
+        if (!c.areas[areaName]) return this;
+        if (overrides.debounceMs !== undefined) c.areas[areaName].debounceMs = Number(overrides.debounceMs) || 0;
+        if (overrides.enabled !== undefined) c.areas[areaName].enabled = overrides.enabled !== false;
+        return this;
+      },
+
+      applyModalSettings() {
+        var c = this._config || this.loadConfig();
+        var enabledEl = document.getElementById("autoSaveEnabledToggle");
+        var intervalEl = document.getElementById("autoSaveIntervalSelect");
+        c.enabled = enabledEl ? enabledEl.checked : true;
+        c.intervalMs = intervalEl ? Number(intervalEl.value) || 300000 : 300000;
+        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge"];
+        areaKeys.forEach(function (key) {
+          var debounceEl = document.getElementById("smDebounce" + key.charAt(0).toUpperCase() + key.slice(1));
+          var enableEl = document.getElementById("smEnable" + key.charAt(0).toUpperCase() + key.slice(1));
+          if (debounceEl) c.areas[key].debounceMs = Number(debounceEl.value) || 0;
+          if (enableEl) c.areas[key].enabled = enableEl.checked;
+        });
+        var retryCountEl = document.getElementById("smOfflineRetryCount");
+        var retryIntervalEl = document.getElementById("smOfflineRetryInterval");
+        if (retryCountEl) c.offlineRetryCount = Number(retryCountEl.value) || 3;
+        if (retryIntervalEl) c.offlineRetryIntervalMs = Number(retryIntervalEl.value) || 5000;
+        this.saveConfig();
+        return c;
+      },
+
+      populateModal() {
+        var c = this._config || this.loadConfig();
+        var enabledEl = document.getElementById("autoSaveEnabledToggle");
+        var intervalEl = document.getElementById("autoSaveIntervalSelect");
+        if (enabledEl) enabledEl.checked = c.enabled;
+        if (intervalEl) intervalEl.value = String(c.intervalMs);
+        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge"];
+        areaKeys.forEach(function (key) {
+          var ds = c.areas[key].debounceMs;
+          var en = c.areas[key].enabled;
+          var debounceEl = document.getElementById("smDebounce" + key.charAt(0).toUpperCase() + key.slice(1));
+          var enableEl = document.getElementById("smEnable" + key.charAt(0).toUpperCase() + key.slice(1));
+          if (debounceEl) debounceEl.value = String(ds);
+          if (enableEl) enableEl.checked = en;
+        });
+        var retryCountEl = document.getElementById("smOfflineRetryCount");
+        var retryIntervalEl = document.getElementById("smOfflineRetryInterval");
+        if (retryCountEl) retryCountEl.value = String(c.offlineRetryCount);
+        if (retryIntervalEl) retryIntervalEl.value = String(c.offlineRetryIntervalMs);
+      },
+
+      statusFor(areaName) {
+        var q = this._queues[areaName];
+        if (!q) return "idle";
+        if (q.isSaving) return "saving";
+        if (q.pending) return "pending";
+        return "idle";
+      }
+    };
+
+    window.addEventListener("online", function () { saveManager.setOnline(true); });
+    window.addEventListener("offline", function () { saveManager.setOnline(false); });

@@ -822,6 +822,11 @@
     }
 
     function loadAutoSaveFromStorage() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        var cfg = sm.getConfig();
+        return { enabled: cfg.enabled, intervalMs: cfg.intervalMs };
+      }
       try {
         var raw = localStorage.getItem("writing_dashboard_auto_save_v1");
         var parsed = raw ? JSON.parse(raw) : {};
@@ -852,6 +857,13 @@
     }
 
     function saveAutoSaveSettings() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        var cfg = sm.applyModalSettings();
+        startAutoSaveTimer();
+        closeMarkdownAutoSaveModal();
+        return;
+      }
       var enabledEl = document.getElementById("autoSaveEnabledToggle");
       var intervalEl = document.getElementById("autoSaveIntervalSelect");
       var settings = {
@@ -864,6 +876,11 @@
     }
 
     function applyAutoSaveSettings(settings) {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        sm.populateModal();
+        return;
+      }
       var safe = settings || loadAutoSaveFromStorage();
       var enabledEl = document.getElementById("autoSaveEnabledToggle");
       var intervalEl = document.getElementById("autoSaveIntervalSelect");
@@ -872,6 +889,17 @@
     }
 
     function autoSaveTick() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        var activeTab = document.querySelector(".main-tab-button.is-active");
+        var tabKey = activeTab ? activeTab.getAttribute("data-main-tab") || "" : "";
+        if (tabKey === "resources") {
+          sm.saveImmediate("resources", { autosave: true });
+        } else if (tabKey === "workspace") {
+          sm.saveImmediate("workspace", { autosave: true });
+        }
+        return;
+      }
       var activeTab = document.querySelector(".main-tab-button.is-active");
       var tabKey = activeTab ? activeTab.getAttribute("data-main-tab") || "" : "";
       if (tabKey === "resources" && typeof saveResourceEditor === "function") {

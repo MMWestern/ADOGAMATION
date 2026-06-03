@@ -284,6 +284,7 @@
       }
 
       bindUiOnce(el.writingWorkspaceSaveButton, "writing-save", "click", function () {
+        if (typeof saveManager !== "undefined") { saveManager.saveImmediate("workspace", { autosave: false }); return; }
         saveWritingWorkspaceDraft({ autosave: false });
       });
 
@@ -355,6 +356,7 @@
         bindUiOnce(el.writingWorkspaceEditor, "writing-editor-save-shortcut", "keydown", function (event) {
           if ((event.ctrlKey || event.metaKey) && String(event.key || "").toLowerCase() === "s") {
             event.preventDefault();
+            if (typeof saveManager !== "undefined") { saveManager.saveImmediate("workspace", { autosave: false }); return; }
             saveWritingWorkspaceDraft({ autosave: false });
           }
         });
@@ -372,7 +374,10 @@
       });
 
       bindUiOnce(el.resourceTreeAddButton, "resource-tree-add", "click", openNewResourceModal);
-      bindUiOnce(el.resourceEditorSaveButton, "resource-editor-save", "click", saveResourceEditor);
+      bindUiOnce(el.resourceEditorSaveButton, "resource-editor-save", "click", function () {
+        if (typeof saveManager !== "undefined") { saveManager.saveImmediate("resources", {}); return; }
+        saveResourceEditor();
+      });
 
       [
         el.searchInput,
@@ -587,6 +592,7 @@
       });
 
       el.saveButton.addEventListener("click", function () {
+        if (typeof saveManager !== "undefined") { saveManager.saveImmediate("projectDetails", { isAutosave: false }); return; }
         saveSelectedProject(false);
       });
       if (el.markdownBookCreatorButton) {
@@ -1263,8 +1269,6 @@
 
       bindUiOnce(el.resourceTreeAddButton, "resource-tree-add", "click", openNewResourceModal);
 
-      bindUiOnce(el.resourceEditorSaveButton, "resource-editor-save", "click", saveResourceEditor);
-
       if (el.resourceEditorTitle) {
         el.resourceEditorTitle.addEventListener("input", function () {
           if (appState.selectedResourceId) appState.resourceDirtyMap[appState.selectedResourceId] = true;
@@ -1293,6 +1297,7 @@
         el.resourceEditorTextarea.addEventListener("keydown", function (event) {
           if ((event.ctrlKey || event.metaKey) && event.key === "s") {
             event.preventDefault();
+            if (typeof saveManager !== "undefined") { saveManager.saveImmediate("resources", {}); return; }
             saveResourceEditor();
           }
         });
@@ -1368,7 +1373,10 @@
 
       bindUiOnce(el.resourceInspectorSaveButton, "resource-inspector-save", "click", saveInspectorOptions);
 
-      bindUiOnce(el.resourceSeriesKnowledgeSaveButton, "resource-series-knowledge-save", "click", saveSeriesKnowledge);
+      bindUiOnce(el.resourceSeriesKnowledgeSaveButton, "resource-series-knowledge-save", "click", function () {
+        if (typeof saveManager !== "undefined") { saveManager.saveImmediate("seriesKnowledge", {}); return; }
+        saveSeriesKnowledge();
+      });
 
       bindUiOnce(el.resourceSeriesKnowledgeLore, "sk-lore-blur", "focusout", autoSaveLore);
 

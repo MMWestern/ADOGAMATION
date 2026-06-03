@@ -1689,7 +1689,7 @@
   </div>
 
   <div id="markdownAutoSaveModal" class="modal" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card auto-save-modal-card">
       <div class="modal-header">
         <h3>Auto-save Settings</h3>
         <div class="muted">Configure automatic saving behavior for your documents.</div>
@@ -1708,6 +1708,87 @@
             <option value="120000">2 minutes</option>
             <option value="300000" selected>5 minutes</option>
             <option value="600000">10 minutes</option>
+          </select>
+        </div>
+        <div class="sm-divider"></div>
+        <div class="sm-section-title">Per-area debounce (milliseconds)</div>
+        <div class="sm-area-list">
+          <div class="sm-area-row">
+            <label class="sm-area-label"><input id="smEnableWorkspace" type="checkbox" checked /> Writing workspace</label>
+            <select id="smDebounceWorkspace">
+              <option value="0">0 (immediate)</option>
+              <option value="500">500ms</option>
+              <option value="1000">1s</option>
+              <option value="1800" selected>1.8s</option>
+              <option value="3000">3s</option>
+              <option value="5000">5s</option>
+              <option value="10000">10s</option>
+            </select>
+          </div>
+          <div class="sm-area-row">
+            <label class="sm-area-label"><input id="smEnableProjectDetails" type="checkbox" checked /> Project details</label>
+            <select id="smDebounceProjectDetails">
+              <option value="0">0 (immediate)</option>
+              <option value="300">300ms</option>
+              <option value="500">500ms</option>
+              <option value="700" selected>700ms</option>
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="3000">3s</option>
+            </select>
+          </div>
+          <div class="sm-area-row">
+            <label class="sm-area-label"><input id="smEnablePlanOutline" type="checkbox" checked /> Plan outline</label>
+            <select id="smDebouncePlanOutline">
+              <option value="0">0 (immediate)</option>
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="3000" selected>3s</option>
+              <option value="5000">5s</option>
+              <option value="10000">10s</option>
+            </select>
+          </div>
+          <div class="sm-area-row">
+            <label class="sm-area-label"><input id="smEnableResources" type="checkbox" checked /> Resources</label>
+            <select id="smDebounceResources">
+              <option value="0" selected>0 (immediate)</option>
+              <option value="500">500ms</option>
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="3000">3s</option>
+            </select>
+          </div>
+          <div class="sm-area-row">
+            <label class="sm-area-label"><input id="smEnableSeriesKnowledge" type="checkbox" checked /> Series knowledge</label>
+            <select id="smDebounceSeriesKnowledge">
+              <option value="0" selected>0 (immediate)</option>
+              <option value="500">500ms</option>
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="3000">3s</option>
+            </select>
+          </div>
+        </div>
+        <div class="sm-divider"></div>
+        <div class="sm-section-title">Offline save retry</div>
+        <div class="sm-offline-row">
+          <label class="label" for="smOfflineRetryCount">Max retries</label>
+          <select id="smOfflineRetryCount">
+            <option value="0">None</option>
+            <option value="1">1</option>
+            <option value="3" selected>3</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+        <div class="sm-offline-row">
+          <label class="label" for="smOfflineRetryInterval">Retry interval</label>
+          <select id="smOfflineRetryInterval">
+            <option value="1000">1 second</option>
+            <option value="3000">3 seconds</option>
+            <option value="5000" selected>5 seconds</option>
+            <option value="10000">10 seconds</option>
+            <option value="30000">30 seconds</option>
           </select>
         </div>
       </div>

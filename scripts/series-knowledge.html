@@ -207,6 +207,7 @@
             var lore = el.resourceSeriesKnowledgeLore.value;
             var cached = getSeriesKnowledgeForProject(getSelectedProject());
             if (cached && cached.lore === lore) return;
+            if (typeof saveManager !== "undefined") { saveManager.saveImmediate("seriesKnowledge", {}); return; }
             saveSeriesKnowledge();
         }
     }
