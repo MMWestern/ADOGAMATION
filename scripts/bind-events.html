@@ -170,7 +170,7 @@
           }
           scheduleCodexAutoSave();
         });
-      }
+      });
       bindUiOnce(document, "writing-codex-modal-outside-close", "click", function (event) {
         if (!el.writingCodexModal || !el.writingCodexModal.classList.contains("is-open")) return;
         if (Date.now() - Number(appState.writingWorkspace.codexModalOpenedAt || 0) < 120) return;
