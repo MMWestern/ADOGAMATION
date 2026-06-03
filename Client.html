@@ -316,6 +316,7 @@
     function shouldBlockModalOverlayWheel(event) {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return !!document.querySelector(".modal.is-open");
+      if (target.closest(".writing-codex-panel")) return false;
       const openModal = target.closest(".modal.is-open") || document.querySelector(".modal.is-open");
       if (!openModal) return false;
       const card = target.closest(".modal-card");
