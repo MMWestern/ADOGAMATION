@@ -5,10 +5,17 @@
       if (!Array.isArray(appState.statusLog)) appState.statusLog = [];
       var entryMode = String(mode || "").trim().toLowerCase() || "info";
       var meta = details && typeof details === "object" ? details : {};
+      var kind = String(meta.kind || (entryMode === "error" ? "error" : "status")).trim();
+      if (kind === "status") {
+        var lm = String(message || "").toLowerCase();
+        if (lm.indexOf("sav") !== -1 || lm.indexOf("autosav") !== -1 || lm.indexOf("queued") !== -1) {
+          kind = "save";
+        }
+      }
       appState.statusLog.push({
         id: "log-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
         mode: entryMode,
-        kind: String(meta.kind || (entryMode === "error" ? "error" : "status")).trim(),
+        kind: kind,
         message: String(message == null ? "" : message),
         timestamp: new Date().toISOString(),
         source: String(meta.source || "").trim(),
@@ -36,9 +43,10 @@
       var activeFilter = String(appState.statusLogFilter || "all").trim().toLowerCase() || "all";
       var entries = allEntries.filter(function (entry) {
         if (activeFilter === "all") return true;
+        if (activeFilter === "save") return String(entry && entry.kind || "").trim().toLowerCase() === "save";
         return String(entry && entry.mode || "").trim().toLowerCase() === activeFilter;
       });
-      [el.errorLogFilterAll, el.errorLogFilterError, el.errorLogFilterWarn, el.errorLogFilterOk].forEach(function (button) {
+      [el.errorLogFilterAll, el.errorLogFilterError, el.errorLogFilterWarn, el.errorLogFilterOk, el.errorLogFilterSave].forEach(function (button) {
         if (!button) return;
         button.classList.toggle("is-active", String(button.getAttribute("data-log-filter") || "all") === activeFilter);
       });
@@ -51,14 +59,15 @@
       var errorCount = allEntries.filter(function (entry) { return entry.mode === "error"; }).length;
       var warnCount = allEntries.filter(function (entry) { return entry.mode === "warn"; }).length;
       var okCount = allEntries.filter(function (entry) { return entry.mode === "ok"; }).length;
-      el.errorLogSummary.textContent = entries.length + " shown â€¢ " + allEntries.length + " total" + (errorCount ? " â€¢ " + errorCount + " error" + (errorCount === 1 ? "" : "s") : "") + (warnCount ? " â€¢ " + warnCount + " warning" + (warnCount === 1 ? "" : "s") : "") + (okCount ? " â€¢ " + okCount + " success" + (okCount === 1 ? "" : "es") : "");
+      var saveCount = allEntries.filter(function (entry) { return entry.kind === "save"; }).length;
+      el.errorLogSummary.textContent = entries.length + " shown â€¢ " + allEntries.length + " total" + (errorCount ? " â€¢ " + errorCount + " error" + (errorCount === 1 ? "" : "s") : "") + (warnCount ? " â€¢ " + warnCount + " warning" + (warnCount === 1 ? "" : "s") : "") + (okCount ? " â€¢ " + okCount + " success" + (okCount === 1 ? "" : "es") : "") + (saveCount ? " â€¢ " + saveCount + " save" + (saveCount === 1 ? "" : "s") : "");
       el.errorLogList.innerHTML = entries.slice().reverse().map(function (entry) {
-        var title = entry.kind === "error" ? "JavaScript Error" : (entry.mode === "warn" ? "Warning" : entry.mode === "ok" ? "Success" : "Status");
+        var title = entry.kind === "error" ? "JavaScript Error" : (entry.kind === "save" ? "Save" : entry.mode === "warn" ? "Warning" : entry.mode === "ok" ? "Success" : "Status");
         var sourceBits = [];
         if (entry.source) sourceBits.push(entry.source);
         if (entry.line) sourceBits.push("line " + entry.line + (entry.column ? ":" + entry.column : ""));
         var metaLine = sourceBits.length ? " â€¢ " + sourceBits.join(" â€¢ ") : "";
-        return "<div class='error-log-entry mode-" + escapeHtml(entry.mode) + "'>" +
+        return "<div class='error-log-entry mode-" + escapeHtml(entry.mode) + (entry.kind === "save" ? " kind-save" : "") + "'>" +
           "<div class='error-log-entry-title'>" + escapeHtml(title) + "</div>" +
           "<div class='error-log-entry-time'>" + escapeHtml(formatLogEntryTime(entry.timestamp)) + "</div>" +
           "<div class='error-log-entry-message'>" + escapeHtml(entry.message + metaLine) + "</div>" +
@@ -77,7 +86,7 @@
       el.detailsErrorLogList.innerHTML = recent.map(function (entry) {
         var time = formatLogEntryTime(entry.timestamp);
         var shortTime = time ? time.replace(/^.*,\s*/, "").replace(/\s*AM$|\s*PM$/i, "") : "";
-        return "<div class='details-error-log-entry mode-" + escapeHtml(entry.mode) + "'>" +
+        return "<div class='details-error-log-entry mode-" + escapeHtml(entry.mode) + (entry.kind === "save" ? " kind-save" : "") + "'>" +
           "<span class='details-error-log-entry-time'>" + escapeHtml(shortTime) + "</span>" +
           "<span class='details-error-log-entry-message'>" + escapeHtml(entry.message) + "</span>" +
           "</div>";

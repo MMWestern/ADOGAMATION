@@ -6242,7 +6242,7 @@
     bindUiOnce(el.closeErrorLogButton, "close-error-log", "click", closeErrorLogModal);
     bindUiOnce(el.clearErrorLogButton, "clear-error-log", "click", clearErrorLog);
     bindUiOnce(el.exportErrorLogButton, "export-error-log", "click", exportErrorLog);
-    [el.errorLogFilterAll, el.errorLogFilterError, el.errorLogFilterWarn, el.errorLogFilterOk].forEach(function (button) {
+    [el.errorLogFilterAll, el.errorLogFilterError, el.errorLogFilterWarn, el.errorLogFilterOk, el.errorLogFilterSave].forEach(function (button) {
       if (!button) return;
       bindUiOnce(button, "error-log-filter", "click", function () {
         setStatusLogFilter(button.getAttribute("data-log-filter") || "all");

@@ -758,10 +758,12 @@
     .details-error-log-entry.mode-ok .details-error-log-entry-message { color: #16a34a; }
     .details-error-log-entry.mode-warn .details-error-log-entry-message { color: #d97706; }
     .details-error-log-entry.mode-error .details-error-log-entry-message { color: #dc2626; }
+    .details-error-log-entry.kind-save .details-error-log-entry-message { color: #2563eb; }
 
     body.dark-mode .details-error-log-entry.mode-ok .details-error-log-entry-message { color: #4ade80; }
     body.dark-mode .details-error-log-entry.mode-warn .details-error-log-entry-message { color: #fbbf24; }
     body.dark-mode .details-error-log-entry.mode-error .details-error-log-entry-message { color: #f87171; }
+    body.dark-mode .details-error-log-entry.kind-save .details-error-log-entry-message { color: #60a5fa; }
 
     .sidebar-bottom-toolbar {
       display: flex;
@@ -5605,6 +5607,10 @@
       color: #be123c;
     }
 
+    .error-log-entry.kind-save {
+      color: #1d4ed8;
+    }
+
     .field-error {
       border-color: #e11d48 !important;
       box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12) !important;
@@ -5753,6 +5759,10 @@
 
     body.dark-mode .error-log-entry.mode-error {
       color: #fca5a5;
+    }
+
+    body.dark-mode .error-log-entry.kind-save {
+      color: #93c5fd;
     }
 
     body.dark-mode .error-log-filter.is-active {
