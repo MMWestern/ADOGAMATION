@@ -1210,22 +1210,54 @@
 
     function loadSkSubplots(seriesId) {
         if (!seriesId) return Promise.resolve([]);
-        return callAppsScriptJson("listSupabaseSeriesSubplotsJsonFromClient", [seriesId])
-            .then(function (result) {
-                var list = result && result.subplots ? result.subplots : [];
-                skCache.subplots[seriesId] = list;
-                return list;
-            }).catch(function () {});
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesSubplotsJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesSubplotBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].subplots ? results[0].subplots : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksById = {};
+            links.forEach(function (lk) {
+                var lid = Number(lk.subplot_id || 0);
+                if (!lid) return;
+                if (!linksById[lid]) linksById[lid] = [];
+                linksById[lid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (item) {
+                var lid = Number(item.id || 0);
+                if (linksById[lid]) {
+                    item.bookLinks = linksById[lid];
+                }
+            });
+            skCache.subplots[seriesId] = list;
+            return list;
+        }).catch(function () {});
     }
 
     /* ---- Other ---- */
 
     function loadSkOther(seriesId) {
         if (!seriesId) return Promise.resolve([]);
-        return callAppsScriptJson("listSupabaseSeriesOtherJsonFromClient", [seriesId])
-            .then(function (result) {
-                var list = result && result.other ? result.other : [];
-                skCache.other[seriesId] = list;
-                return list;
-            }).catch(function () {});
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesOtherJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesOtherBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].other ? results[0].other : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksById = {};
+            links.forEach(function (lk) {
+                var lid = Number(lk.other_id || 0);
+                if (!lid) return;
+                if (!linksById[lid]) linksById[lid] = [];
+                linksById[lid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (item) {
+                var lid = Number(item.id || 0);
+                if (linksById[lid]) {
+                    item.bookLinks = linksById[lid];
+                }
+            });
+            skCache.other[seriesId] = list;
+            return list;
+        }).catch(function () {});
     }

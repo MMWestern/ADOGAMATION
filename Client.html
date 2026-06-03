@@ -2486,7 +2486,8 @@
           title: String(item.name || "Untitled").trim() || "Untitled",
           body: String(item.description || "").trim(),
           color: String(item.color || "").trim(),
-          scope: String(item.scope || "book").trim() || "book"
+          scope: String(item.scope || "book").trim() || "book",
+          bookLinks: item.bookLinks || []
         });
       });
 
@@ -2497,7 +2498,8 @@
           title: String(item.name || "Untitled").trim() || "Untitled",
           body: String(item.description || "").trim(),
           color: String(item.color || "").trim(),
-          scope: String(item.scope || "book").trim() || "book"
+          scope: String(item.scope || "book").trim() || "book",
+          bookLinks: item.bookLinks || []
         });
       });
 

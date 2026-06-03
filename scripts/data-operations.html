@@ -471,6 +471,32 @@
         });
     });
 
+    _sbDefine('listSeriesSubplotBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_subplots').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_subplot_books').select('subplot_id,project_id').in('subplot_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
+    _sbDefine('listSeriesOtherBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_other').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_other_books').select('other_id,project_id').in('other_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
     _sbDefine('getSupabaseSeriesLocationJsonFromClient', function (locationId) {
       var safeId = Number(locationId || 0);
       if (!safeId) throw new Error('Location id is required.');
