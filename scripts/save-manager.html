@@ -59,7 +59,7 @@
         } catch (e) {
           this._config = this._defaultConfig();
         }
-        return this._config;
+        return this;
       },
 
       getConfig() {
@@ -68,7 +68,8 @@
       },
 
       saveConfig() {
-        var c = this._config || this.loadConfig();
+        if (!this._config) this.loadConfig();
+        var c = this._config;
         try {
           localStorage.setItem("writing_dashboard_auto_save_v1", JSON.stringify({
             enabled: c.enabled,
@@ -99,7 +100,8 @@
       },
 
       schedule(areaName, payload) {
-        var c = this._config || this.loadConfig();
+        if (!this._config) this.loadConfig();
+        var c = this._config;
         var a = c.areas[areaName];
         var reg = this._registered[areaName];
         if (!reg || !a || !c.enabled || !a.enabled) return false;
@@ -170,9 +172,10 @@
       _enqueueOffline(areaName, payload) {
         this._offlineQueue.push({ area: areaName, payload: payload });
         if (!this._offlineRetryTimer) {
+          var interval = this._config ? this._config.offlineRetryIntervalMs : 5000;
           this._offlineRetryTimer = setInterval(() => {
             this._processOfflineQueue();
-          }, this._config.offlineRetryIntervalMs || 5000);
+          }, interval);
         }
       },
 
@@ -199,7 +202,8 @@
       },
 
       updateAreaConfig(areaName, overrides) {
-        var c = this._config || this.loadConfig();
+        if (!this._config) this.loadConfig();
+        var c = this._config;
         if (!c.areas[areaName]) return this;
         if (overrides.debounceMs !== undefined) c.areas[areaName].debounceMs = Number(overrides.debounceMs) || 0;
         if (overrides.enabled !== undefined) c.areas[areaName].enabled = overrides.enabled !== false;
@@ -207,7 +211,8 @@
       },
 
       applyModalSettings() {
-        var c = this._config || this.loadConfig();
+        if (!this._config) this.loadConfig();
+        var c = this._config;
         var enabledEl = document.getElementById("autoSaveEnabledToggle");
         var intervalEl = document.getElementById("autoSaveIntervalSelect");
         c.enabled = enabledEl ? enabledEl.checked : true;
@@ -228,7 +233,8 @@
       },
 
       populateModal() {
-        var c = this._config || this.loadConfig();
+        if (!this._config) this.loadConfig();
+        var c = this._config;
         var enabledEl = document.getElementById("autoSaveEnabledToggle");
         var intervalEl = document.getElementById("autoSaveIntervalSelect");
         if (enabledEl) enabledEl.checked = c.enabled;
