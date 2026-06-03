@@ -2729,7 +2729,6 @@
     function populateWritingCodexModal(entry, payload, extra) {
       var type = String(entry && entry.type || "").trim();
       appState.writingWorkspace.codexModalType = type;
-      appState.writingWorkspace.codexModalTab = "details";
       appState.writingWorkspace.codexModalPayload = payload || {};
       appState.writingWorkspace.codexModalExtra = extra || {};
       if (el.writingCodexModalType) {
@@ -2926,7 +2925,6 @@
       if (el.writingCodexModalTitle) el.writingCodexModalTitle.disabled = false;
       if (el.writingCodexTabRelations) el.writingCodexTabRelations.hidden = type !== "characters" && type !== "objects";
       renderWritingCodexRelations(entry, extra || {});
-      setWritingCodexModalTab("details");
       updateWritingCodexModalPreview();
       updateWritingCodexModalWordCount();
     }
@@ -2953,11 +2951,14 @@
       var seriesId = Number(project && project.series_id || 0);
       if (!entry || !seriesId || !el.writingCodexModal) return;
       appState.writingWorkspace.codexModalKey = String(entry.key || "");
+      appState.writingWorkspace.codexModalTab = "details";
+      appState.writingWorkspace.codexModalSaveCount = 0;
       appState.writingWorkspace.codexModalOpenedAt = Date.now();
       positionWritingCodexModal(anchorNode);
       el.writingCodexModal.classList.add("is-open");
       el.writingCodexModal.setAttribute("aria-hidden", "false");
       updateModalScrollLock();
+      setWritingCodexModalTab("details");
       if (entry.type === "lore") {
         var knowledge = getSeriesKnowledgeForProject(project) || {};
         populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, {});
@@ -2992,12 +2993,14 @@
                   ? "getSupabaseSeriesOtherJsonFromClient"
                   : "getSupabaseSeriesContinuityEntryJsonFromClient";
       var projectsReady = loadSkSeriesProjects(seriesId);
+      var fetchSaveCount = appState.writingWorkspace.codexModalSaveCount || 0;
       callAppsScriptJson(loaderName, [id])
         .then(function (result) {
           return projectsReady.then(function () { return result; });
         })
         .then(function (result) {
           if (String(appState.writingWorkspace.codexModalKey || "") !== String(entry.key || "")) return;
+          if ((appState.writingWorkspace.codexModalSaveCount || 0) !== fetchSaveCount) return;
           if (!result || !result.ok) throw new Error("Unable to load codex details.");
           var payload = result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other || {};
           var extra = {
@@ -3013,7 +3016,15 @@
           } else if (entry.type === "locations") {
             skCache.locationDetails[id] = extra;
           } else if (entry.type === "continuity") {
-            skCache.continuityDetails[id] = extra;
+            var existingCont = skCache.continuityDetails[id] || {};
+            if (extra.linkedCharacterIds.length || extra.linkedLocationIds.length || extra.linkedProjectIds.length) {
+              skCache.continuityDetails[id] = extra;
+            } else {
+              extra.linkedCharacterIds = existingCont.linkedCharacterIds || [];
+              extra.linkedLocationIds = existingCont.linkedLocationIds || [];
+              extra.linkedProjectIds = existingCont.linkedProjectIds || [];
+              skCache.continuityDetails[id] = extra;
+            }
           } else if (entry.type === "objects") {
             skCache.objectDetails[id] = extra;
           }
@@ -3040,11 +3051,14 @@
       var entry = { key: "new::" + type, type: type, title: "", body: "", badge: badge || "", color: "", scope: type === "lore" ? "series" : "book" };
       appState.writingWorkspace.codexModalKey = entry.key;
       appState.writingWorkspace.codexModalType = type;
+      appState.writingWorkspace.codexModalTab = "details";
+      appState.writingWorkspace.codexModalSaveCount = 0;
       appState.writingWorkspace.codexModalOpenedAt = Date.now();
       positionWritingCodexModal(null);
       el.writingCodexModal.classList.add("is-open");
       el.writingCodexModal.setAttribute("aria-hidden", "false");
       updateModalScrollLock();
+      setWritingCodexModalTab("details");
       populateWritingCodexModal(entry, {}, {});
       if (badge && el.writingCodexModalBadgeInput) {
         el.writingCodexModalBadgeInput.value = badge;
@@ -3192,6 +3206,7 @@
           });
           if (!skCache[type]) skCache[type] = {};
           skCache[type][seriesId] = nextList;
+          appState.writingWorkspace.codexModalSaveCount = (appState.writingWorkspace.codexModalSaveCount || 0) + 1;
           if (type === "characters") {
             if (!skCache.characterDetails) skCache.characterDetails = {};
             skCache.characterDetails[savedId] = { bookLinks: saved.bookLinks };
@@ -3201,6 +3216,13 @@
           } else if (type === "objects") {
             if (!skCache.objectDetails) skCache.objectDetails = {};
             skCache.objectDetails[savedId] = { bookLinks: saved.bookLinks };
+          } else if (type === "continuity") {
+            if (!skCache.continuityDetails) skCache.continuityDetails = {};
+            skCache.continuityDetails[savedId] = {
+              linkedCharacterIds: saved.linkedCharacterIds || payload.linkedCharacterIds || [],
+              linkedLocationIds: saved.linkedLocationIds || payload.linkedLocationIds || [],
+              linkedProjectIds: saved.linkedProjectIds || payload.linkedProjectIds || []
+            };
           }
           if (isNew && savedId) {
             var newKey = type === "characters" ? "character::" + savedId
@@ -3215,7 +3237,10 @@
           }
           appState.writingWorkspace.codexModalExtra = {
             bookLinks: saved.bookLinks || [],
-            linkedProjectIds: saved.linkedProjectIds || [],
+            linkedProjectIds: saved.linkedProjectIds || payload.linkedProjectIds || [],
+            linkedCharacterIds: saved.linkedCharacterIds || payload.linkedCharacterIds || [],
+            linkedLocationIds: saved.linkedLocationIds || payload.linkedLocationIds || [],
+            linkedLoreIds: saved.linkedLoreIds || payload.linkedLoreIds || [],
             researchNotes: String(payload.researchNotes || "").trim(),
             mentions: String(payload.mentions || "").trim(),
             trackingNotes: String(payload.trackingNotes || "").trim()
