@@ -2,10 +2,15 @@
         characters: {},
         locations: {},
         continuity: {},
+        objects: {},
+        lore: {},
+        subplots: {},
+        other: {},
         seriesProjects: {},
         characterDetails: {},
         locationDetails: {},
-        continuityDetails: {}
+        continuityDetails: {},
+        objectDetails: {}
     };
 
     var skActiveCharacterId = 0;
@@ -1137,4 +1142,70 @@
             .catch(function (error) {
                 setResourceSeriesKnowledgeStatus("Failed to delete continuity entry: " + (error && error.message ? error.message : error), "error");
             });
+    }
+
+    /* ---- Objects ---- */
+
+    function loadSkObjects(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        skCache.objectDetails = {};
+        return Promise.all([
+            callAppsScriptJson("listSupabaseSeriesObjectsJsonFromClient", [seriesId]),
+            callAppsScriptJson("listSeriesObjectBookLinksJsonFromClient", [seriesId]).catch(function () { return { links: [] }; })
+        ]).then(function (results) {
+            var list = results[0] && results[0].objects ? results[0].objects : [];
+            var links = results[1] && results[1].links ? results[1].links : [];
+            var linksByObj = {};
+            links.forEach(function (lk) {
+                var oid = Number(lk.object_id || 0);
+                if (!oid) return;
+                if (!linksByObj[oid]) linksByObj[oid] = [];
+                linksByObj[oid].push({ project_id: Number(lk.project_id || 0) });
+            });
+            list.forEach(function (obj) {
+                var oid = Number(obj.id || 0);
+                if (linksByObj[oid]) {
+                    obj.bookLinks = linksByObj[oid];
+                    skCache.objectDetails[oid] = { bookLinks: linksByObj[oid] };
+                }
+            });
+            skCache.objects[seriesId] = list;
+            return list;
+        }).catch(function () {});
+    }
+
+    /* ---- Lore ---- */
+
+    function loadSkLore(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listSupabaseSeriesLoreJsonFromClient", [seriesId])
+            .then(function (result) {
+                var list = result && result.lore ? result.lore : [];
+                skCache.lore[seriesId] = list;
+                return list;
+            }).catch(function () {});
+    }
+
+    /* ---- Subplots ---- */
+
+    function loadSkSubplots(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listSupabaseSeriesSubplotsJsonFromClient", [seriesId])
+            .then(function (result) {
+                var list = result && result.subplots ? result.subplots : [];
+                skCache.subplots[seriesId] = list;
+                return list;
+            }).catch(function () {});
+    }
+
+    /* ---- Other ---- */
+
+    function loadSkOther(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listSupabaseSeriesOtherJsonFromClient", [seriesId])
+            .then(function (result) {
+                var list = result && result.other ? result.other : [];
+                skCache.other[seriesId] = list;
+                return list;
+            }).catch(function () {});
     }

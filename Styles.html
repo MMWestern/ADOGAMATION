@@ -1436,6 +1436,85 @@
       border-radius: 1px;
     }
 
+    .writing-codex-new-entry-wrap {
+      position: relative;
+      margin-left: auto;
+    }
+
+    .writing-codex-new-entry {
+      min-height: 24px;
+      padding: 3px 8px;
+      border: none;
+      border-radius: 0;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      background: transparent;
+      color: #7fa7d9;
+      cursor: pointer;
+    }
+
+    .writing-codex-new-entry:hover {
+      color: #a5c4e8;
+      background: rgba(127, 167, 217, 0.08);
+    }
+
+    .writing-codex-new-entry[aria-expanded="true"] {
+      color: #a5c4e8;
+    }
+
+    .writing-codex-new-entry-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      z-index: 100;
+      min-width: 170px;
+      display: grid;
+      gap: 2px;
+      padding: 6px;
+      border: 1px solid #2a2a2f;
+      border-radius: 10px;
+      background: #191b20;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+    }
+
+    .writing-codex-new-entry-dropdown[hidden] {
+      display: none;
+    }
+
+    .writing-codex-new-entry-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      height: 30px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: #c5cada;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .writing-codex-new-entry-option:hover {
+      background: #232833;
+      color: #f2f2f4;
+    }
+
+    .writing-codex-new-entry-icon {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+      color: #777884;
+    }
+
+    .writing-codex-new-entry-option:hover .writing-codex-new-entry-icon {
+      color: #a5a5ad;
+    }
+
     .writing-codex-list {
       flex: 1;
       min-height: 0;

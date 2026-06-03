@@ -445,6 +445,19 @@
         });
     });
 
+    _sbDefine('listSeriesObjectBookLinksJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_objects').select('id').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var ids = (res.data || []).map(function (r) { return Number(r.id || 0); }).filter(Boolean);
+          if (!ids.length) return JSON.stringify({ ok: true, links: [] });
+          return sbClient.from('series_object_books').select('object_id,project_id').in('object_id', ids).limit(5000)
+            .then(function (res2) { if (res2.error) throw res2.error; return JSON.stringify({ ok: true, links: res2.data || [] }); });
+        });
+    });
+
     _sbDefine('getSupabaseSeriesLocationJsonFromClient', function (locationId) {
       var safeId = Number(locationId || 0);
       if (!safeId) throw new Error('Location id is required.');
@@ -543,6 +556,293 @@
       if (!safeId) throw new Error('Entry id is required.');
       return sbClient.from('series_continuity_entries').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Objects ---
+
+    _sbDefine('listSupabaseSeriesObjectsJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_objects').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, objects: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesObjectJsonFromClient', function (objectId) {
+      var safeId = Number(objectId || 0);
+      if (!safeId) throw new Error('Object id is required.');
+      return Promise.all([
+        sbClient.from('series_objects').select('*').eq('id', safeId).single(),
+        sbClient.from('series_object_books').select('id,project_id,notes').eq('object_id', safeId).limit(5000),
+        sbClient.from('series_object_character_links').select('character_id').eq('object_id', safeId).limit(5000),
+        sbClient.from('series_object_location_links').select('location_id').eq('object_id', safeId).limit(5000),
+        sbClient.from('series_object_lore_links').select('lore_id').eq('object_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({
+          ok: true, object: results[0].data, bookLinks: results[1].data || [],
+          linkedCharacterIds: (results[2].data || []).map(function (r) { return r.character_id; }),
+          linkedLocationIds: (results[3].data || []).map(function (r) { return r.location_id; }),
+          linkedLoreIds: (results[4].data || []).map(function (r) { return r.lore_id; })
+        });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesObjectJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var objId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(), type: String(parsed.type || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(), significance: String(parsed.significance || '').trim(),
+        notable_events: String(parsed.notable_events || parsed.notableEvents || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var linkedCharIds = Array.isArray(parsed.linkedCharacterIds) ? parsed.linkedCharacterIds : [];
+      var linkedLocIds = Array.isArray(parsed.linkedLocationIds) ? parsed.linkedLocationIds : [];
+      var linkedLoreIds = Array.isArray(parsed.linkedLoreIds) ? parsed.linkedLoreIds : [];
+      var saveOp = objId
+        ? sbClient.from('series_objects').update(payload).eq('id', objId).select().single()
+        : sbClient.from('series_objects').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_object_books').delete().eq('object_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_object_books').insert([{ object_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        var delCharLinks = sbClient.from('series_object_character_links').delete().eq('object_id', savedId).then(function () { return null; });
+        var insCharLinks = linkedCharIds.length
+          ? sbClient.from('series_object_character_links').insert(linkedCharIds.map(function (cid) { return { object_id: savedId, character_id: cid }; })).then(function () { return null; })
+          : Promise.resolve(null);
+        var delLocLinks = sbClient.from('series_object_location_links').delete().eq('object_id', savedId).then(function () { return null; });
+        var insLocLinks = linkedLocIds.length
+          ? sbClient.from('series_object_location_links').insert(linkedLocIds.map(function (lid) { return { object_id: savedId, location_id: lid }; })).then(function () { return null; })
+          : Promise.resolve(null);
+        var delLoreLinks = sbClient.from('series_object_lore_links').delete().eq('object_id', savedId).then(function () { return null; });
+        var insLoreLinks = linkedLoreIds.length
+          ? sbClient.from('series_object_lore_links').insert(linkedLoreIds.map(function (lid) { return { object_id: savedId, lore_id: lid }; })).then(function () { return null; })
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks, delCharLinks, insCharLinks, delLocLinks, insLocLinks, delLoreLinks, insLoreLinks]).then(function () {
+          return JSON.stringify({ ok: true, object: saved, bookLinks: bookLinks, linkedCharacterIds: linkedCharIds, linkedLocationIds: linkedLocIds, linkedLoreIds: linkedLoreIds });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesObjectJsonFromClient', function (objectId) {
+      var safeId = Number(objectId || 0);
+      if (!safeId) throw new Error('Object id is required.');
+      return Promise.all([
+        sbClient.from('series_object_books').delete().eq('object_id', safeId),
+        sbClient.from('series_object_character_links').delete().eq('object_id', safeId),
+        sbClient.from('series_object_location_links').delete().eq('object_id', safeId),
+        sbClient.from('series_object_lore_links').delete().eq('object_id', safeId),
+        sbClient.from('series_objects').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Lore ---
+
+    _sbDefine('listSupabaseSeriesLoreJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_lore').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, lore: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesLoreJsonFromClient', function (loreId) {
+      var safeId = Number(loreId || 0);
+      if (!safeId) throw new Error('Lore id is required.');
+      return Promise.all([
+        sbClient.from('series_lore').select('*').eq('id', safeId).single(),
+        sbClient.from('series_lore_books').select('id,project_id,notes').eq('lore_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({ ok: true, lore: results[0].data, bookLinks: results[1].data || [] });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesLoreJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var loreId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'series').trim() || 'series'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var saveOp = loreId
+        ? sbClient.from('series_lore').update(payload).eq('id', loreId).select().single()
+        : sbClient.from('series_lore').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_lore_books').delete().eq('lore_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_lore_books').insert([{ lore_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks]).then(function () {
+          return JSON.stringify({ ok: true, lore: saved, bookLinks: bookLinks });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesLoreJsonFromClient', function (loreId) {
+      var safeId = Number(loreId || 0);
+      if (!safeId) throw new Error('Lore id is required.');
+      return Promise.all([
+        sbClient.from('series_lore_books').delete().eq('lore_id', safeId),
+        sbClient.from('series_lore').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Subplots ---
+
+    _sbDefine('listSupabaseSeriesSubplotsJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_subplots').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, subplots: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesSubplotJsonFromClient', function (subplotId) {
+      var safeId = Number(subplotId || 0);
+      if (!safeId) throw new Error('Subplot id is required.');
+      return Promise.all([
+        sbClient.from('series_subplots').select('*').eq('id', safeId).single(),
+        sbClient.from('series_subplot_books').select('id,project_id,notes').eq('subplot_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({ ok: true, subplot: results[0].data, bookLinks: results[1].data || [] });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesSubplotJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var subplotId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var saveOp = subplotId
+        ? sbClient.from('series_subplots').update(payload).eq('id', subplotId).select().single()
+        : sbClient.from('series_subplots').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_subplot_books').delete().eq('subplot_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_subplot_books').insert([{ subplot_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks]).then(function () {
+          return JSON.stringify({ ok: true, subplot: saved, bookLinks: bookLinks });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesSubplotJsonFromClient', function (subplotId) {
+      var safeId = Number(subplotId || 0);
+      if (!safeId) throw new Error('Subplot id is required.');
+      return Promise.all([
+        sbClient.from('series_subplot_books').delete().eq('subplot_id', safeId),
+        sbClient.from('series_subplots').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Series Other ---
+
+    _sbDefine('listSupabaseSeriesOtherJsonFromClient', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('series_other').select('*').eq('series_id', safeId).order('sort_order', { ascending: true }).order('id', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, other: res.data || [] }); });
+    });
+
+    _sbDefine('getSupabaseSeriesOtherJsonFromClient', function (otherId) {
+      var safeId = Number(otherId || 0);
+      if (!safeId) throw new Error('Other id is required.');
+      return Promise.all([
+        sbClient.from('series_other').select('*').eq('id', safeId).single(),
+        sbClient.from('series_other_books').select('id,project_id,notes').eq('other_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        return JSON.stringify({ ok: true, other: results[0].data, bookLinks: results[1].data || [] });
+      });
+    });
+
+    _sbDefine('saveSupabaseSeriesOtherJsonFromClient', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var otherId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId, name: String(parsed.name || '').trim(),
+        image_url: String(parsed.image_url || parsed.imageUrl || '').trim(),
+        description: String(parsed.description || '').trim(),
+        sort_order: Number(parsed.sort_order || parsed.sortOrder || 0) || 0,
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'book').trim() || 'book'
+      };
+      var bookLinks = Array.isArray(parsed.bookLinks || parsed.book_links) ? (parsed.bookLinks || parsed.book_links) : [];
+      var saveOp = otherId
+        ? sbClient.from('series_other').update(payload).eq('id', otherId).select().single()
+        : sbClient.from('series_other').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delBooks = sbClient.from('series_other_books').delete().eq('other_id', savedId).then(function () { return null; });
+        var insBooks = bookLinks.length
+          ? Promise.all(bookLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('series_other_books').insert([{ other_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delBooks, insBooks]).then(function () {
+          return JSON.stringify({ ok: true, other: saved, bookLinks: bookLinks });
+        });
+      });
+    });
+
+    _sbDefine('deleteSupabaseSeriesOtherJsonFromClient', function (otherId) {
+      var safeId = Number(otherId || 0);
+      if (!safeId) throw new Error('Other id is required.');
+      return Promise.all([
+        sbClient.from('series_other_books').delete().eq('other_id', safeId),
+        sbClient.from('series_other').delete().eq('id', safeId)
+      ]).then(function () { return JSON.stringify({ ok: true }); });
     });
 
     // --- AI ---

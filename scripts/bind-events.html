@@ -70,6 +70,33 @@
         });
       });
 
+      if (el.writingCodexNewEntry && el.writingCodexNewEntryDropdown) {
+        bindUiOnce(el.writingCodexNewEntry, "writing-codex-new-entry", "click", function (e) {
+          e.stopPropagation();
+          var isOpen = !el.writingCodexNewEntryDropdown.hidden;
+          el.writingCodexNewEntryDropdown.hidden = isOpen;
+          el.writingCodexNewEntry.setAttribute("aria-expanded", String(!isOpen));
+        });
+        el.writingCodexNewEntryDropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (option) {
+          bindUiOnce(option, "writing-codex-new-entry-option", "click", function () {
+            var type = option.getAttribute("data-new-type") || "";
+            var badge = option.getAttribute("data-new-badge") || "";
+            el.writingCodexNewEntryDropdown.hidden = true;
+            el.writingCodexNewEntry.setAttribute("aria-expanded", "false");
+            if (type) openNewCodexModal(type, badge);
+          });
+        });
+        document.addEventListener("click", function (e) {
+          if (!el.writingCodexNewEntryDropdown.hidden) {
+            var wrap = el.writingCodexNewEntry.closest(".writing-codex-new-entry-wrap");
+            if (!wrap || !wrap.contains(e.target)) {
+              el.writingCodexNewEntryDropdown.hidden = true;
+              el.writingCodexNewEntry.setAttribute("aria-expanded", "false");
+            }
+          }
+        });
+      }
+
       if (el.writingInspectorOutline) {
         bindUiOnce(el.writingInspectorOutline, "writing-inspector-outline-pill", "click", function (event) {
           var tag = event.target && event.target.closest ? event.target.closest(".plan-scene-tag") : null;
@@ -77,7 +104,7 @@
           var codexType = tag.getAttribute("data-codex-type");
           var codexId = tag.getAttribute("data-codex-id");
           if (!codexType || !codexId) return;
-          var singular = codexType === "characters" ? "character" : codexType === "locations" ? "location" : codexType;
+          var singular = codexType === "characters" ? "character" : codexType === "locations" ? "location" : codexType === "objects" ? "object" : codexType === "continuity" ? "continuity" : codexType === "lore" ? "lore" : codexType === "subplots" ? "subplot" : codexType;
           var key = singular + "::" + codexId;
           appState.writingWorkspace.selectedCodexKey = key;
           updateWritingInspectorCodex(getSelectedProject());

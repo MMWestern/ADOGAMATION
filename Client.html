@@ -2453,6 +2453,53 @@
         });
       });
 
+      (skCache.objects && skCache.objects[seriesId] || []).forEach(function (item) {
+        var detail = skCache.objectDetails && skCache.objectDetails[item.id] || {};
+        entries.push({
+          key: "object::" + String(item.id || ""),
+          type: "objects",
+          title: String(item.name || "Unnamed").trim() || "Unnamed",
+          body: String(item.description || item.significance || item.type || "").trim(),
+          badge: String(item.type || "").trim(),
+          color: String(item.color || "").trim(),
+          scope: String(item.scope || "book").trim() || "book",
+          bookLinks: detail.bookLinks || item.bookLinks || []
+        });
+      });
+
+      (skCache.lore && skCache.lore[seriesId] || []).forEach(function (item) {
+        entries.push({
+          key: "lore::" + String(item.id || ""),
+          type: "lore",
+          title: String(item.name || "Untitled").trim() || "Untitled",
+          body: String(item.description || "").trim(),
+          color: String(item.color || "").trim(),
+          scope: String(item.scope || "series").trim() || "series"
+        });
+      });
+
+      (skCache.subplots && skCache.subplots[seriesId] || []).forEach(function (item) {
+        entries.push({
+          key: "subplot::" + String(item.id || ""),
+          type: "subplots",
+          title: String(item.name || "Untitled").trim() || "Untitled",
+          body: String(item.description || "").trim(),
+          color: String(item.color || "").trim(),
+          scope: String(item.scope || "book").trim() || "book"
+        });
+      });
+
+      (skCache.other && skCache.other[seriesId] || []).forEach(function (item) {
+        entries.push({
+          key: "other::" + String(item.id || ""),
+          type: "other",
+          title: String(item.name || "Untitled").trim() || "Untitled",
+          body: String(item.description || "").trim(),
+          color: String(item.color || "").trim(),
+          scope: String(item.scope || "book").trim() || "book"
+        });
+      });
+
       return entries;
     }
 
@@ -2479,6 +2526,18 @@
       if (type === "continuity") {
         return (skCache.continuity[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
       }
+      if (type === "objects") {
+        return (skCache.objects[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
+      }
+      if (type === "lore") {
+        return (skCache.lore[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
+      }
+      if (type === "subplots") {
+        return (skCache.subplots[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
+      }
+      if (type === "other") {
+        return (skCache.other[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
+      }
       return null;
     }
 
@@ -2493,6 +2552,9 @@
       }
       if (type === "continuity") {
         return skCache.continuityDetails[safeId] || {};
+      }
+      if (type === "objects") {
+        return skCache.objectDetails[safeId] || {};
       }
       return {};
     }
@@ -2540,20 +2602,52 @@
     function renderWritingCodexRelations(entry, extra) {
       if (!el.writingCodexRelationsPanel || !el.writingCodexRelationsList || !el.writingCodexRelationsEmpty) return;
       var type = String(entry && entry.type || "").trim();
-      var relationships = type === "characters" && Array.isArray(extra && extra.relationships) ? extra.relationships : [];
-      el.writingCodexRelationsEmpty.hidden = relationships.length > 0;
-      el.writingCodexRelationsList.innerHTML = relationships.map(function (rel) {
-        var currentId = Number(appState.writingWorkspace.codexModalPayload && appState.writingWorkspace.codexModalPayload.id || 0);
-        var otherId = Number(rel.character_id_a || 0) === currentId ? Number(rel.character_id_b || 0) : Number(rel.character_id_a || 0);
-        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
-        var match = list.find(function (item) { return Number(item.id || 0) === otherId; });
-        var otherName = match ? String(match.name || "").trim() : "Unknown";
-        return "<div class='writing-codex-relation-row'>" +
-          "<div class='writing-codex-relation-name'>" + escapeHtml(otherName) + "</div>" +
-          "<div class='writing-codex-relation-type'>" + escapeHtml(String(rel.relationship_type || "Relationship").trim()) + "</div>" +
-          (rel.description ? "<div class='writing-codex-relation-copy'>" + escapeHtml(String(rel.description || "").trim()) + "</div>" : "") +
-        "</div>";
-      }).join("");
+      var rows = [];
+      var seriesId = skCurrentSeriesId || Number(getSelectedProject && getSelectedProject() && (getSelectedProject().series_id || 0) || 0);
+      if (type === "characters" && Array.isArray(extra && extra.relationships)) {
+        extra.relationships.forEach(function (rel) {
+          var currentId = Number(appState.writingWorkspace.codexModalPayload && appState.writingWorkspace.codexModalPayload.id || 0);
+          var otherId = Number(rel.character_id_a || 0) === currentId ? Number(rel.character_id_b || 0) : Number(rel.character_id_a || 0);
+          var list = seriesId ? (skCache.characters[seriesId] || []) : [];
+          var match = list.find(function (item) { return Number(item.id || 0) === otherId; });
+          var otherName = match ? String(match.name || "").trim() : "Unknown";
+          rows.push("<div class='writing-codex-relation-row'>" +
+            "<div class='writing-codex-relation-name'>" + escapeHtml(otherName) + "</div>" +
+            "<div class='writing-codex-relation-type'>" + escapeHtml(String(rel.relationship_type || "Relationship").trim()) + "</div>" +
+            (rel.description ? "<div class='writing-codex-relation-copy'>" + escapeHtml(String(rel.description || "").trim()) + "</div>" : "") +
+          "</div>");
+        });
+      } else if (type === "objects") {
+        var charIds = Array.isArray(extra && extra.linkedCharacterIds) ? extra.linkedCharacterIds : [];
+        var locIds = Array.isArray(extra && extra.linkedLocationIds) ? extra.linkedLocationIds : [];
+        var loreIds = Array.isArray(extra && extra.linkedLoreIds) ? extra.linkedLoreIds : [];
+        charIds.forEach(function (cid) {
+          var list = seriesId ? (skCache.characters[seriesId] || []) : [];
+          var match = list.find(function (item) { return Number(item.id || 0) === Number(cid); });
+          rows.push("<div class='writing-codex-relation-row'>" +
+            "<div class='writing-codex-relation-name'>" + escapeHtml(match ? String(match.name || "").trim() : "Unknown") + "</div>" +
+            "<div class='writing-codex-relation-type'>Character</div>" +
+          "</div>");
+        });
+        locIds.forEach(function (lid) {
+          var list = seriesId ? (skCache.locations[seriesId] || []) : [];
+          var match = list.find(function (item) { return Number(item.id || 0) === Number(lid); });
+          rows.push("<div class='writing-codex-relation-row'>" +
+            "<div class='writing-codex-relation-name'>" + escapeHtml(match ? String(match.name || "").trim() : "Unknown") + "</div>" +
+            "<div class='writing-codex-relation-type'>Location</div>" +
+          "</div>");
+        });
+        loreIds.forEach(function (lid) {
+          var list = seriesId ? (skCache.lore[seriesId] || []) : [];
+          var match = list.find(function (item) { return Number(item.id || 0) === Number(lid); });
+          rows.push("<div class='writing-codex-relation-row'>" +
+            "<div class='writing-codex-relation-name'>" + escapeHtml(match ? String(match.name || "").trim() : "Unknown") + "</div>" +
+            "<div class='writing-codex-relation-type'>Lore</div>" +
+          "</div>");
+        });
+      }
+      el.writingCodexRelationsEmpty.hidden = rows.length > 0;
+      el.writingCodexRelationsList.innerHTML = rows.join("");
     }
 
     function getWritingCharacterArcOptions() {
@@ -2640,24 +2734,28 @@
           ? "character"
           : type === "locations"
             ? "location"
-            : type === "continuity"
-              ? "continuity note"
-              : type === "lore"
-                ? "series lore"
-                : "codex entry";
+            : type === "objects"
+              ? "object"
+              : type === "continuity"
+                ? "continuity note"
+                : type === "lore"
+                  ? "lore"
+                  : type === "subplots"
+                    ? "subplot"
+                    : type === "other"
+                      ? "entry"
+                      : "codex entry";
         el.writingCodexModalType.textContent = titleCase(typeLabel);
       }
       if (el.writingCodexModalTitle) {
-        el.writingCodexModalTitle.value = type === "lore"
-          ? "Series Lore"
-          : String((payload && (payload.name || payload.title)) || entry.title || "").trim();
-        el.writingCodexModalTitle.disabled = type === "lore";
+        el.writingCodexModalTitle.value = String((payload && (payload.name || payload.title)) || entry.title || "").trim();
+        el.writingCodexModalTitle.disabled = false;
       }
       if (el.writingCodexModalBadgeWrap) {
-        el.writingCodexModalBadgeWrap.hidden = type === "lore";
+        el.writingCodexModalBadgeWrap.hidden = type === "lore" || type === "subplots" || type === "other";
       }
       if (el.writingCodexModalBadgeInput) {
-        el.writingCodexModalBadgeInput.hidden = type === "continuity" || type === "lore" || type === "characters";
+        el.writingCodexModalBadgeInput.hidden = type === "continuity" || type === "lore" || type === "characters" || type === "subplots" || type === "other";
         el.writingCodexModalBadgeInput.value = type === "characters"
           ? ""
           : String(payload && payload.type || entry.badge || "").trim();
@@ -2702,7 +2800,7 @@
         el.writingCodexModalSeveritySelect.value = String(payload && payload.severity || entry.badge || "minor").trim() || "minor";
       }
       if (el.writingCodexTabRelations) {
-        el.writingCodexTabRelations.hidden = type !== "characters";
+        el.writingCodexTabRelations.hidden = type !== "characters" && type !== "objects";
       }
       if (el.writingCodexModalPrimaryLabel) {
         el.writingCodexModalPrimaryLabel.textContent = type === "lore" ? "Lore / Rules" : "Description";
@@ -2710,19 +2808,25 @@
       if (el.writingCodexModalPrimaryHelp) {
         el.writingCodexModalPrimaryHelp.textContent = type === "lore"
           ? "Capture the rules, atmosphere, and shared world details that should stay consistent."
-          : "Write about all the necessary details. Be specific, but concise. Sometimes splitting up an entry helps with organization.";
+          : type === "objects"
+            ? "Describe this object — what it is, what it does, and why it matters."
+            : type === "subplots"
+              ? "Outline this subplot — the thread, the tension, and how it weaves into the main story."
+              : "Write about all the necessary details. Be specific, but concise. Sometimes splitting up an entry helps with organization.";
       }
       if (el.writingCodexModalPrimary) {
         el.writingCodexModalPrimary.value = String(payload && (payload.description || payload.lore) || entry.body || "").trim();
       }
       if (el.writingCodexModalSecondaryGroup && el.writingCodexModalSecondaryLabel && el.writingCodexModalSecondary) {
-        el.writingCodexModalSecondaryGroup.hidden = type === "continuity" || type === "lore";
+        el.writingCodexModalSecondaryGroup.hidden = type === "continuity" || type === "lore" || type === "subplots" || type === "other";
         el.writingCodexModalSecondaryLabel.textContent = type === "characters" ? "Motivation / Arc" : "Significance";
-        el.writingCodexModalSecondary.placeholder = type === "characters" ? "" : "Why this location matters in the series...";
+        el.writingCodexModalSecondary.placeholder = type === "characters" ? "" : type === "objects" ? "Why this object matters in the story..." : "Why this location matters in the series...";
         if (el.writingCodexModalSecondaryHelp) {
           el.writingCodexModalSecondaryHelp.textContent = type === "characters"
             ? "What drives them, where they are emotionally, and how they are likely to change."
-            : "Why this place matters to the plot, the world, or the emotional shape of the series.";
+            : type === "objects"
+              ? "Why this object matters to the plot, the characters, or the world."
+              : "Why this place matters to the plot, the world, or the emotional shape of the series.";
         }
         if (el.writingCodexModalSecondarySelect) {
           if (type === "characters") {
@@ -2739,13 +2843,15 @@
           : String(payload && payload.significance || "").trim();
       }
       if (el.writingCodexModalTertiaryGroup && el.writingCodexModalTertiaryLabel && el.writingCodexModalTertiary) {
-        el.writingCodexModalTertiaryGroup.hidden = type === "continuity" || type === "lore";
+        el.writingCodexModalTertiaryGroup.hidden = type === "continuity" || type === "lore" || type === "subplots" || type === "other";
         el.writingCodexModalTertiaryLabel.textContent = type === "characters" ? "Backstory" : "Notable Events";
-        el.writingCodexModalTertiary.placeholder = type === "characters" ? "Past events, emotional history, and shaping detail..." : "Key scenes or events tied to this place...";
+        el.writingCodexModalTertiary.placeholder = type === "characters" ? "Past events, emotional history, and shaping detail..." : type === "objects" ? "Key scenes or events involving this object..." : "Key scenes or events tied to this place...";
         if (el.writingCodexModalTertiaryHelp) {
           el.writingCodexModalTertiaryHelp.textContent = type === "characters"
             ? "Past events, formative moments, and background detail that influence how they behave now."
-            : "Key scenes or turning points that shaped how this place is understood in the story world.";
+            : type === "objects"
+              ? "Key scenes, turning points, or moments where this object played a role."
+              : "Key scenes or turning points that shaped how this place is understood in the story world.";
         }
         el.writingCodexModalTertiary.value = type === "characters"
           ? String(payload && payload.backstory || "").trim()
@@ -2766,7 +2872,7 @@
         }
       }
       if (el.writingCodexModalColor) {
-        el.writingCodexModalColor.hidden = type === "lore";
+        el.writingCodexModalColor.hidden = false;
         var curColor = String((payload && payload.color) || entry.color || "").trim();
         if (el.writingCodexModalColorTrigger) {
           el.writingCodexModalColorTrigger.setAttribute("data-color", curColor);
@@ -2802,7 +2908,7 @@
           if (pid) opts += '<option value="book:' + pid + '"' + (scopeVal === "book" && pid === linkedBookId ? " selected" : "") + '>' + escapeHtml(ptitle) + '</option>';
         });
         el.writingCodexModalScopeSelect.innerHTML = opts;
-        el.writingCodexModalScopeSelect.hidden = type === "lore";
+        el.writingCodexModalScopeSelect.hidden = false;
         if (el.writingCodexModalSeriesBanner) {
           if (scopeVal === "series" && seriesName) {
             el.writingCodexModalSeriesBanner.textContent = "This entry belongs to the " + seriesName + " series";
@@ -2812,10 +2918,10 @@
           }
         }
       }
-      setWritingCodexModalMeta(type === "lore" ? "Shared guide" : "Ready to edit");
+      setWritingCodexModalMeta("Ready to edit");
       setWritingCodexModalLoading(false, "");
-      if (el.writingCodexModalTitle) el.writingCodexModalTitle.disabled = type === "lore";
-      if (el.writingCodexTabRelations) el.writingCodexTabRelations.hidden = type !== "characters";
+      if (el.writingCodexModalTitle) el.writingCodexModalTitle.disabled = false;
+      if (el.writingCodexTabRelations) el.writingCodexTabRelations.hidden = type !== "characters" && type !== "objects";
       renderWritingCodexRelations(entry, extra || {});
       setWritingCodexModalTab("details");
       updateWritingCodexModalPreview();
@@ -2873,7 +2979,15 @@
         ? "getSupabaseSeriesCharacterJsonFromClient"
         : entry.type === "locations"
           ? "getSupabaseSeriesLocationJsonFromClient"
-          : "getSupabaseSeriesContinuityEntryJsonFromClient";
+          : entry.type === "objects"
+            ? "getSupabaseSeriesObjectJsonFromClient"
+            : entry.type === "lore"
+              ? "getSupabaseSeriesLoreJsonFromClient"
+              : entry.type === "subplots"
+                ? "getSupabaseSeriesSubplotJsonFromClient"
+                : entry.type === "other"
+                  ? "getSupabaseSeriesOtherJsonFromClient"
+                  : "getSupabaseSeriesContinuityEntryJsonFromClient";
       var projectsReady = loadSkSeriesProjects(seriesId);
       callAppsScriptJson(loaderName, [id])
         .then(function (result) {
@@ -2882,12 +2996,13 @@
         .then(function (result) {
           if (String(appState.writingWorkspace.codexModalKey || "") !== String(entry.key || "")) return;
           if (!result || !result.ok) throw new Error("Unable to load codex details.");
-          var payload = result.character || result.location || result.entry || {};
+          var payload = result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other || {};
           var extra = {
             bookLinks: result.bookLinks || [],
             relationships: result.relationships || [],
             linkedCharacterIds: result.linkedCharacterIds || [],
             linkedLocationIds: result.linkedLocationIds || [],
+            linkedLoreIds: result.linkedLoreIds || [],
             linkedProjectIds: result.linkedProjectIds || []
           };
           if (entry.type === "characters") {
@@ -2896,6 +3011,8 @@
             skCache.locationDetails[id] = extra;
           } else if (entry.type === "continuity") {
             skCache.continuityDetails[id] = extra;
+          } else if (entry.type === "objects") {
+            skCache.objectDetails[id] = extra;
           }
           populateWritingCodexModal(entry, payload, extra);
           setWritingCodexModalMeta("Synced");
@@ -2910,13 +3027,47 @@
         });
     }
 
+    function openNewCodexModal(type, badge) {
+      var project = getSelectedProject();
+      var seriesId = Number(project && project.series_id || 0);
+      if (!seriesId || !el.writingCodexModal) {
+        if (!seriesId) setStatus("Select a series project first.", "error");
+        return;
+      }
+      if (type === "lore" && skCache.lore && skCache.lore[seriesId] && skCache.lore[seriesId].length) {
+        var existing = skCache.lore[seriesId][0];
+        openWritingCodexModal("lore::" + existing.id);
+        return;
+      }
+      var entry = { key: "new::" + type, type: type, title: "", body: "", badge: badge || "", color: "", scope: type === "lore" ? "series" : "book" };
+      appState.writingWorkspace.codexModalKey = entry.key;
+      appState.writingWorkspace.codexModalType = type;
+      appState.writingWorkspace.codexModalOpenedAt = Date.now();
+      positionWritingCodexModal(null);
+      el.writingCodexModal.classList.add("is-open");
+      el.writingCodexModal.setAttribute("aria-hidden", "false");
+      updateModalScrollLock();
+      populateWritingCodexModal(entry, {}, {});
+      if (badge && el.writingCodexModalBadgeInput) {
+        el.writingCodexModalBadgeInput.value = badge;
+      }
+    }
+
     function saveWritingCodexModal() {
       var project = getSelectedProject();
       var seriesId = Number(project && project.series_id || 0);
       var key = String(appState.writingWorkspace.codexModalKey || "").trim();
       var type = String(appState.writingWorkspace.codexModalType || "").trim();
-      var entry = getWritingCodexEntryByKey(project, key);
-      if (!seriesId || !key || !type || !entry) return;
+      var isNew = key.indexOf("new::") === 0;
+      var entry = isNew ? { key: key, type: type, title: "", body: "", badge: "", scope: "book" } : getWritingCodexEntryByKey(project, key);
+      if (!seriesId || !key || !type) return;
+      if (!isNew && !entry) return;
+      var titleVal = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
+      if (!titleVal) {
+        setStatus("Title is required to save.", "error");
+        if (el.writingCodexModalTitle) el.writingCodexModalTitle.focus();
+        return;
+      }
       if (type === "lore") {
         var lorePayload = normalizeSeriesKnowledgeRecord(getSeriesKnowledgeForProject(project) || {});
         lorePayload.lore = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
@@ -2940,9 +3091,9 @@
           });
         return;
       }
-      var id = Number(String(key).split("::")[1] || 0);
+      var id = isNew ? 0 : Number(String(key).split("::")[1] || 0);
       var payload = { id: id };
-      var scopeRaw = el.writingCodexModalScopeSelect && type !== "lore" ? String(el.writingCodexModalScopeSelect.value || "") : "";
+      var scopeRaw = el.writingCodexModalScopeSelect ? String(el.writingCodexModalScopeSelect.value || "") : "";
       var scopeBookId = 0;
       if (scopeRaw === "series") {
         payload.scope = "series";
@@ -2994,6 +3145,36 @@
         payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
         payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
         payload.linkedProjectIds = payload.scope === "book" && scopeBookId ? [scopeBookId] : [];
+      } else if (type === "objects") {
+        payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
+        payload.type = String(el.writingCodexModalBadgeInput && el.writingCodexModalBadgeInput.value || "").trim();
+        payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
+        payload.significance = String(el.writingCodexModalSecondary && el.writingCodexModalSecondary.value || "").trim();
+        payload.notable_events = String(el.writingCodexModalTertiary && el.writingCodexModalTertiary.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
+        payload.color = getActiveColor();
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
+        payload.linkedCharacterIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedCharacterIds || [];
+        payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
+        payload.linkedLoreIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLoreIds || [];
+      } else if (type === "lore") {
+        payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
+        payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
+        payload.color = getActiveColor();
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
+      } else if (type === "subplots") {
+        payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
+        payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
+        payload.color = getActiveColor();
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
+      } else if (type === "other") {
+        payload.name = String(el.writingCodexModalTitle && el.writingCodexModalTitle.value || "").trim();
+        payload.description = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
+        payload.image_url = String(el.writingCodexModalImage && el.writingCodexModalImage.src || "").trim();
+        payload.color = getActiveColor();
+        payload.bookLinks = payload.scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [];
       }
       payload.researchNotes = String(el.writingCodexModalResearch && el.writingCodexModalResearch.value || "").trim();
       payload.mentions = String(el.writingCodexModalMentions && el.writingCodexModalMentions.value || "").trim();
@@ -3002,16 +3183,30 @@
         ? "saveSupabaseSeriesCharacterJsonFromClient"
         : type === "locations"
           ? "saveSupabaseSeriesLocationJsonFromClient"
-          : "saveSupabaseSeriesContinuityEntryJsonFromClient";
-      setWritingCodexModalLoading(true, "Saving " + titleCase(type === "characters" ? "character" : type === "locations" ? "location" : "continuity entry") + "...");
+          : type === "objects"
+            ? "saveSupabaseSeriesObjectJsonFromClient"
+            : type === "lore"
+              ? "saveSupabaseSeriesLoreJsonFromClient"
+              : type === "subplots"
+                ? "saveSupabaseSeriesSubplotJsonFromClient"
+                : type === "other"
+                  ? "saveSupabaseSeriesOtherJsonFromClient"
+                  : "saveSupabaseSeriesContinuityEntryJsonFromClient";
+      var typeLabel = type === "characters" ? "character" : type === "locations" ? "location" : type === "objects" ? "object" : type === "lore" ? "lore" : type === "subplots" ? "subplot" : type === "other" ? "entry" : "continuity entry";
+      setWritingCodexModalLoading(true, "Saving " + titleCase(typeLabel) + "...");
       callAppsScriptJson(saverName, [seriesId, JSON.stringify(payload)])
         .then(function (result) {
-          var saved = result && (result.character || result.location || result.entry) ? (result.character || result.location || result.entry) : payload;
+          var saved = result && (result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other) ? (result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other) : payload;
           saved.scope = payload.scope;
-          if (type !== "continuity") {
-            saved.bookLinks = payload.bookLinks || [];
-          } else {
+          if (type === "continuity") {
             saved.linkedProjectIds = payload.linkedProjectIds || [];
+          } else if (type === "objects") {
+            saved.bookLinks = payload.bookLinks || [];
+            saved.linkedCharacterIds = result.linkedCharacterIds || payload.linkedCharacterIds || [];
+            saved.linkedLocationIds = result.linkedLocationIds || payload.linkedLocationIds || [];
+            saved.linkedLoreIds = result.linkedLoreIds || payload.linkedLoreIds || [];
+          } else {
+            saved.bookLinks = payload.bookLinks || [];
           }
           var list = skCache[type] && skCache[type][seriesId] ? skCache[type][seriesId] : [];
           var savedId = Number(saved.id || id || 0);
@@ -3028,6 +3223,20 @@
           } else if (type === "locations") {
             if (!skCache.locationDetails) skCache.locationDetails = {};
             skCache.locationDetails[savedId] = { bookLinks: saved.bookLinks };
+          } else if (type === "objects") {
+            if (!skCache.objectDetails) skCache.objectDetails = {};
+            skCache.objectDetails[savedId] = { bookLinks: saved.bookLinks };
+          }
+          if (isNew && savedId) {
+            var newKey = type === "characters" ? "character::" + savedId
+              : type === "locations" ? "location::" + savedId
+              : type === "objects" ? "object::" + savedId
+              : type === "lore" ? "lore::" + savedId
+              : type === "subplots" ? "subplot::" + savedId
+              : type === "other" ? "other::" + savedId
+              : "continuity::" + savedId;
+            appState.writingWorkspace.codexModalKey = newKey;
+            entry = getWritingCodexEntryByKey(project, newKey) || entry;
           }
           appState.writingWorkspace.codexModalExtra = {
             bookLinks: saved.bookLinks || [],
@@ -3092,7 +3301,6 @@
         if (filterKey === "series") return entry.scope === "series";
         if (filterKey === "book") {
           if (entry.scope === "series") return false;
-          if (entry.type === "lore") return false;
           var links = entry.bookLinks || entry.linkedProjectIds || [];
           if (!links.length) return false;
           return links.some(function (link) {
@@ -3116,12 +3324,15 @@
       if (!visible.some(function (entry) { return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || ""); })) {
         appState.writingWorkspace.selectedCodexKey = String(visible[0] && visible[0].key || "");
       }
-      var groupOrder = ["characters", "locations", "continuity", "lore"];
+      var groupOrder = ["characters", "locations", "objects", "continuity", "lore", "subplots", "other"];
       var groupLabels = {
         characters: "Characters",
         locations: "Locations",
+        objects: "Objects",
         continuity: "Continuity",
-        lore: "Other"
+        lore: "Lore",
+        subplots: "Subplots",
+        other: "Other"
       };
       var grouped = {};
       visible.forEach(function (entry) {
@@ -3196,7 +3407,7 @@
         return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || "");
       }) || null;
       if (el.writingInspectorCodexTitle) el.writingInspectorCodexTitle.textContent = match ? match.title : "Nothing selected";
-      if (el.writingInspectorCodexBody) el.writingInspectorCodexBody.textContent = match ? (match.body || "No details yet.") : "Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.";
+      if (el.writingInspectorCodexBody) el.writingInspectorCodexBody.textContent = match ? (match.body || "No details yet.") : "Pick a codex entry from the left to keep it in view while you write.";
     }
 
     function getChapterActMap() {

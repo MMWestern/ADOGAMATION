@@ -134,6 +134,35 @@
               <button id="writingCodexFilterAll" type="button" class="writing-codex-filter is-active" data-codex-filter="all">All</button>
               <button id="writingCodexFilterSeries" type="button" class="writing-codex-filter" data-codex-filter="series">Series</button>
               <button id="writingCodexFilterBook" type="button" class="writing-codex-filter" data-codex-filter="book">Book</button>
+              <div class="writing-codex-new-entry-wrap">
+                <button id="writingCodexNewEntry" type="button" class="writing-codex-new-entry" aria-expanded="false">+ New Entry</button>
+                <div id="writingCodexNewEntryDropdown" class="writing-codex-new-entry-dropdown" hidden>
+                  <button class="writing-codex-new-entry-option" data-new-type="characters" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Character</span>
+                  </button>
+                  <button class="writing-codex-new-entry-option" data-new-type="locations" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span>Location</span>
+                  </button>
+                  <button class="writing-codex-new-entry-option" data-new-type="objects" data-new-badge="" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    <span>Object / Item</span>
+                  </button>
+                  <button class="writing-codex-new-entry-option" data-new-type="lore" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                    <span>Lore</span>
+                  </button>
+                  <button class="writing-codex-new-entry-option" data-new-type="subplots" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    <span>Subplot</span>
+                  </button>
+                  <button class="writing-codex-new-entry-option" data-new-type="other" type="button">
+                    <svg class="writing-codex-new-entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span>Other</span>
+                  </button>
+                </div>
+              </div>
             </div>
             <div id="writingCodexList" class="writing-codex-list">
               <div class="landing-empty" style="padding:10px 12px;color:#777884;background:transparent;border-color:#303038;">Select a series-based project to load codex entries.</div>
