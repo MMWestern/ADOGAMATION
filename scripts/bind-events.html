@@ -114,7 +114,7 @@
         });
       }
 
-      [el.writingCodexModalTitle, el.writingCodexModalPrimary, el.writingCodexModalSecondary, el.writingCodexModalTertiary].forEach(function (node) {
+      [el.writingCodexModalTitle, el.writingCodexModalPrimary, el.writingCodexModalSecondary, el.writingCodexModalTertiary, el.writingCodexModalResearch, el.writingCodexModalMentions, el.writingCodexModalTracking].forEach(function (node) {
         if (!node) return;
         bindUiOnce(node, "writing-codex-modal-live", "input", function () {
           updateWritingCodexModalWordCount();
@@ -139,16 +139,18 @@
           }
         });
       }
-      if (el.writingCodexTabDetails) {
-        bindUiOnce(el.writingCodexTabDetails, "writing-codex-tab-details", "click", function () {
-          setWritingCodexModalTab("details");
+      [
+        { el: el.writingCodexTabDetails, key: "details" },
+        { el: el.writingCodexTabResearch, key: "research" },
+        { el: el.writingCodexTabRelations, key: "relations" },
+        { el: el.writingCodexTabMentions, key: "mentions" },
+        { el: el.writingCodexTabTracking, key: "tracking" }
+      ].forEach(function (t) {
+        if (!t.el) return;
+        bindUiOnce(t.el, "writing-codex-tab-" + t.key, "click", function () {
+          setWritingCodexModalTab(t.key);
         });
-      }
-      if (el.writingCodexTabRelations) {
-        bindUiOnce(el.writingCodexTabRelations, "writing-codex-tab-relations", "click", function () {
-          setWritingCodexModalTab("relations");
-        });
-      }
+      });
       if (el.writingCodexModalSaveButton) {
         bindUiOnce(el.writingCodexModalSaveButton, "writing-codex-modal-save", "click", saveWritingCodexModal);
       }

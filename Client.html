@@ -2576,10 +2576,17 @@
     function setWritingCodexModalTab(tabKey) {
       var nextTab = String(tabKey || "details").trim() || "details";
       appState.writingWorkspace.codexModalTab = nextTab;
-      if (el.writingCodexTabDetails) el.writingCodexTabDetails.classList.toggle("is-active", nextTab === "details");
-      if (el.writingCodexTabRelations) el.writingCodexTabRelations.classList.toggle("is-active", nextTab === "relations");
-      if (el.writingCodexModalForm) el.writingCodexModalForm.hidden = nextTab !== "details";
-      if (el.writingCodexRelationsPanel) el.writingCodexRelationsPanel.hidden = nextTab !== "relations";
+      var allTabs = [
+        { key: "details", tab: el.writingCodexTabDetails, panel: el.writingCodexModalForm },
+        { key: "research", tab: el.writingCodexTabResearch, panel: el.writingCodexModalResearchPanel },
+        { key: "relations", tab: el.writingCodexTabRelations, panel: el.writingCodexRelationsPanel },
+        { key: "mentions", tab: el.writingCodexTabMentions, panel: el.writingCodexModalMentionsPanel },
+        { key: "tracking", tab: el.writingCodexTabTracking, panel: el.writingCodexModalTrackingPanel }
+      ];
+      allTabs.forEach(function (t) {
+        if (t.tab) t.tab.classList.toggle("is-active", nextTab === t.key);
+        if (t.panel) t.panel.hidden = nextTab !== t.key;
+      });
     }
 
     function updateWritingCodexModalPreview() {
@@ -2741,6 +2748,10 @@
           ? String(payload && payload.backstory || "").trim()
           : String(payload && payload.notable_events || "").trim();
       }
+      var extraData = extra || appState.writingWorkspace.codexModalExtra || {};
+      if (el.writingCodexModalResearch) el.writingCodexModalResearch.value = String(extraData.researchNotes || payload && payload.researchNotes || "").trim();
+      if (el.writingCodexModalMentions) el.writingCodexModalMentions.value = String(extraData.mentions || payload && payload.mentions || "").trim();
+      if (el.writingCodexModalTracking) el.writingCodexModalTracking.value = String(extraData.trackingNotes || payload && payload.trackingNotes || "").trim();
       if (el.writingCodexModalImage) {
         var imgUrl = String(payload && payload.image_url || "").trim();
         if (imgUrl && imgUrl !== window.location.href) {
@@ -2913,7 +2924,7 @@
             knowledge.updatedAt = String(result && result.updatedAt || "");
             appState.seriesKnowledgeById[seriesId] = knowledge;
             if (el.resourceSeriesKnowledgeLore) el.resourceSeriesKnowledgeLore.value = String(knowledge.lore || "");
-            populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, {});
+            populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, appState.writingWorkspace.codexModalExtra || {});
             renderWritingCodexList(project);
             updateWritingInspectorCodex(project);
             setStatus("Codex lore saved.", "ok");
@@ -2979,6 +2990,9 @@
         payload.linkedLocationIds = appState.writingWorkspace.codexModalExtra && appState.writingWorkspace.codexModalExtra.linkedLocationIds || [];
         payload.linkedProjectIds = payload.scope === "book" && scopeBookId ? [scopeBookId] : [];
       }
+      payload.researchNotes = String(el.writingCodexModalResearch && el.writingCodexModalResearch.value || "").trim();
+      payload.mentions = String(el.writingCodexModalMentions && el.writingCodexModalMentions.value || "").trim();
+      payload.trackingNotes = String(el.writingCodexModalTracking && el.writingCodexModalTracking.value || "").trim();
       var saverName = type === "characters"
         ? "saveSupabaseSeriesCharacterJsonFromClient"
         : type === "locations"
@@ -3012,7 +3026,10 @@
           }
           appState.writingWorkspace.codexModalExtra = {
             bookLinks: saved.bookLinks || [],
-            linkedProjectIds: saved.linkedProjectIds || []
+            linkedProjectIds: saved.linkedProjectIds || [],
+            researchNotes: String(payload.researchNotes || "").trim(),
+            mentions: String(payload.mentions || "").trim(),
+            trackingNotes: String(payload.trackingNotes || "").trim()
           };
           populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra);
           renderWritingCodexList(project);

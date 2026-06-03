@@ -1492,10 +1492,10 @@
         </div>
         <div class="writing-codex-modal-tabs">
           <button id="writingCodexTabDetails" type="button" class="writing-codex-modal-tab is-active">Details</button>
-          <button type="button" class="writing-codex-modal-tab" disabled>Research</button>
+          <button id="writingCodexTabResearch" type="button" class="writing-codex-modal-tab">Research</button>
           <button id="writingCodexTabRelations" type="button" class="writing-codex-modal-tab">Relations</button>
-          <button type="button" class="writing-codex-modal-tab" disabled>Mentions</button>
-          <button type="button" class="writing-codex-modal-tab" disabled>Tracking</button>
+          <button id="writingCodexTabMentions" type="button" class="writing-codex-modal-tab">Mentions</button>
+          <button id="writingCodexTabTracking" type="button" class="writing-codex-modal-tab">Tracking</button>
           <div id="writingCodexModalColor" class="sk-color-picker" title="Color tag">
             <button type="button" id="writingCodexModalColorTrigger" class="sk-color-dot-trigger" style="background:#3a3a42" title="Color tag"></button>
             <div id="writingCodexModalColorDropdown" class="sk-color-dropdown" hidden>
@@ -1538,6 +1538,27 @@
         <div id="writingCodexRelationsPanel" class="writing-codex-relations-panel" hidden>
           <div id="writingCodexRelationsEmpty" class="writing-codex-relations-empty">No relationships linked yet.</div>
           <div id="writingCodexRelationsList" class="writing-codex-relations-list"></div>
+        </div>
+        <div id="writingCodexModalResearchPanel" class="writing-codex-modal-tab-panel" hidden>
+          <div class="writing-codex-modal-group">
+            <label class="label" for="writingCodexModalResearch">Research Notes</label>
+            <div class="writing-codex-modal-help">Add background research, references, and source material for this entry.</div>
+            <textarea id="writingCodexModalResearch" class="writing-codex-modal-textarea" placeholder="Research notes..."></textarea>
+          </div>
+        </div>
+        <div id="writingCodexModalMentionsPanel" class="writing-codex-modal-tab-panel" hidden>
+          <div class="writing-codex-modal-group">
+            <label class="label" for="writingCodexModalMentions">Mentions &amp; Appearances</label>
+            <div class="writing-codex-modal-help">Track where this entry appears across your stories.</div>
+            <textarea id="writingCodexModalMentions" class="writing-codex-modal-textarea" placeholder="Mentions and appearances..."></textarea>
+          </div>
+        </div>
+        <div id="writingCodexModalTrackingPanel" class="writing-codex-modal-tab-panel" hidden>
+          <div class="writing-codex-modal-group">
+            <label class="label" for="writingCodexModalTracking">Tracking Notes</label>
+            <div class="writing-codex-modal-help">Personal notes for tracking progress, status, and next steps.</div>
+            <textarea id="writingCodexModalTracking" class="writing-codex-modal-textarea" placeholder="Tracking notes..."></textarea>
+          </div>
         </div>
       </div>
       <div class="modal-footer writing-codex-modal-footer">
