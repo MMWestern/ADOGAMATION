@@ -717,34 +717,42 @@
         return;
       }
       var q = String(query || "").trim().toLowerCase();
-      var entries = [];
-      (skCache.characters && skCache.characters[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "characters", color: String(c.color || "").trim() });
+      var typeGroups = [
+        { key: "characters", label: "Characters", cache: skCache.characters, nameField: "name" },
+        { key: "locations", label: "Locations", cache: skCache.locations, nameField: "name" },
+        { key: "continuity", label: "Continuity", cache: skCache.continuity, nameField: "title" }
+      ];
+      var html = "";
+      var totalVisible = 0;
+      typeGroups.forEach(function (group) {
+        var items = (group.cache && group.cache[seriesId] || []).map(function (c) {
+          return { id: c.id, name: String(c[group.nameField] || "").trim(), type: group.key, color: String(c.color || "").trim() };
+        });
+        items.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+        if (q) {
+          items = items.filter(function (e) { return String(e.name).toLowerCase().indexOf(q) !== -1; });
+        }
+        if (!items.length) return;
+        totalVisible += items.length;
+        html += '<div class="plan-codex-tag-group">';
+        html += '<div class="plan-codex-tag-group-header">' + escapeHtml(group.label) + '</div>';
+        html += items.map(function (entry) {
+          var initials = String(entry.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join("") || "?";
+          var color = String(entry.color || "").trim();
+          var dotHtml = color ? '<span class="plan-codex-tag-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+          return '<div class="plan-codex-tag-item' + (color ? ' has-color' : '') + '" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
+            '<div class="plan-codex-tag-avatar">' + dotHtml + escapeHtml(initials) + '</div>' +
+            '<div class="plan-codex-tag-name">' + escapeHtml(entry.name || "Untitled") + '</div>' +
+            '<div class="plan-codex-tag-type">' + escapeHtml(entry.type) + '</div>' +
+            '</div>';
+        }).join("");
+        html += '</div>';
       });
-      (skCache.locations && skCache.locations[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.name || "").trim(), type: "locations", color: String(c.color || "").trim() });
-      });
-      (skCache.continuity && skCache.continuity[seriesId] || []).forEach(function (c) {
-        entries.push({ id: c.id, name: String(c.title || "").trim(), type: "continuity", color: String(c.color || "").trim() });
-      });
-      entries.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-      if (q) {
-        entries = entries.filter(function (e) { return String(e.name).toLowerCase().indexOf(q) !== -1; });
-      }
-      if (!entries.length) {
+      if (!totalVisible) {
         el.planCodexTagList.innerHTML = "<div style='padding:8px;font-size:11px;color:#777884;text-align:center;'>No matching entries.</div>";
         return;
       }
-      el.planCodexTagList.innerHTML = entries.map(function (entry) {
-        var initials = String(entry.name || "").split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join("") || "?";
-        var color = String(entry.color || "").trim();
-        var dotHtml = color ? '<span class="plan-codex-tag-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
-        return '<div class="plan-codex-tag-item' + (color ? ' has-color' : '') + '" data-codex-id="' + escapeHtml(String(entry.id)) + '" data-codex-type="' + escapeHtml(entry.type) + '">' +
-          '<div class="plan-codex-tag-avatar">' + dotHtml + escapeHtml(initials) + '</div>' +
-          '<div class="plan-codex-tag-name">' + escapeHtml(entry.name || "Untitled") + '</div>' +
-          '<div class="plan-codex-tag-type">' + escapeHtml(entry.type) + '</div>' +
-          '</div>';
-      }).join("");
+      el.planCodexTagList.innerHTML = html;
       el.planCodexTagList.querySelectorAll(".plan-codex-tag-item").forEach(function (item) {
         item.addEventListener("click", function () {
           var cid = Number(this.getAttribute("data-codex-id") || 0);
