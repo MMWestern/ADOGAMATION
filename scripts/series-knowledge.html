@@ -195,10 +195,12 @@
                 appState.seriesKnowledgeById[seriesId] = knowledge;
                 renderSeriesKnowledgePanel(project);
                 setResourceSeriesKnowledgeStatus("Lore saved.", "ok");
+                setStatus("Series lore saved.", "ok");
             })
             .catch(function (error) {
                 setSeriesKnowledgeInputsDisabled(false);
                 setResourceSeriesKnowledgeStatus("Failed to save lore: " + (error && error.message ? error.message : error), "error");
+                setStatus("Series lore save failed: " + (error && error.message ? error.message : error), "error");
             });
     }
 
@@ -525,6 +527,8 @@
         callAppsScriptJson("saveSupabaseSeriesCharacterJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
             .then(function (result) {
                 setResourceSeriesKnowledgeStatus("Character saved.", "ok");
+                var skName = String(payload.name || "").trim();
+                setStatus("Series character saved" + (skName ? ": " + skName : "") + ".", "ok");
                 var savedId = result && result.character ? Number(result.character.id) : id;
                 return loadSkCharacters(skCurrentSeriesId).then(function () {
                     if (savedId) editSkCharacter(savedId);
@@ -532,6 +536,7 @@
             })
             .catch(function (error) {
                 setResourceSeriesKnowledgeStatus("Failed to save character: " + (error && error.message ? error.message : error), "error");
+                setStatus("Series character save failed: " + (error && error.message ? error.message : error), "error");
             });
     }
 
@@ -789,6 +794,8 @@
         callAppsScriptJson("saveSupabaseSeriesLocationJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
             .then(function (result) {
                 setResourceSeriesKnowledgeStatus("Location saved.", "ok");
+                var skLocName = String(payload.name || "").trim();
+                setStatus("Series location saved" + (skLocName ? ": " + skLocName : "") + ".", "ok");
                 var savedId = result && result.location ? Number(result.location.id) : id;
                 return loadSkLocations(skCurrentSeriesId).then(function () {
                     if (savedId) editSkLocation(savedId);
@@ -796,6 +803,7 @@
             })
             .catch(function (error) {
                 setResourceSeriesKnowledgeStatus("Failed to save location: " + (error && error.message ? error.message : error), "error");
+                setStatus("Series location save failed: " + (error && error.message ? error.message : error), "error");
             });
     }
 
@@ -1102,6 +1110,8 @@
         callAppsScriptJson("saveSupabaseSeriesContinuityEntryJsonFromClient", [skCurrentSeriesId, JSON.stringify(payload)])
             .then(function (result) {
                 setResourceSeriesKnowledgeStatus("Continuity entry saved.", "ok");
+                var skContTitle = String(payload.title || "").trim();
+                setStatus("Series continuity saved" + (skContTitle ? ": " + skContTitle : "") + ".", "ok");
                 var savedId = result && result.entry ? Number(result.entry.id) : id;
                 return loadSkContinuityEntries(skCurrentSeriesId).then(function () {
                     if (savedId) editSkContinuityEntry(savedId);
@@ -1109,6 +1119,7 @@
             })
             .catch(function (error) {
                 setResourceSeriesKnowledgeStatus("Failed to save continuity entry: " + (error && error.message ? error.message : error), "error");
+                setStatus("Series continuity save failed: " + (error && error.message ? error.message : error), "error");
             });
     }
 

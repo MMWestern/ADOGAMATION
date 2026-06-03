@@ -4027,13 +4027,15 @@
         renderPlanOutline();
         setWritingWorkspaceMeta(project, "Saved " + appState.writingWorkspace.lastSavedAt);
         refreshWritingWorkspaceSaveState();
-        setStatus(settings.autosave ? "Writing workspace autosaved." : "Writing workspace saved.", "ok");
+        var wsTitle = String(project && project.title || "").trim();
+        setStatus((settings.autosave ? "Workspace autosaved" : "Workspace saved") + (wsTitle ? ": " + wsTitle : "") + ".", "ok");
         return true;
       }).catch(function (error) {
         appState.writingWorkspace.isSaving = false;
         setWritingWorkspaceMeta(project, "Save failed");
         refreshWritingWorkspaceSaveState();
-        setStatus("Writing workspace save failed: " + (error && error.message ? error.message : error), "error");
+        var wsErrTitle = String(project && project.title || "").trim();
+        setStatus("Workspace save failed" + (wsErrTitle ? " (" + wsErrTitle + ")" : "") + ": " + (error && error.message ? error.message : error), "error");
         return null;
       });
     }
@@ -4074,7 +4076,8 @@
         snapshot
       ]).then(function () {
         appState.writingWorkspace.outlineSnapshot = snapshot;
-        setStatus("Outline saved.", "ok");
+        var ot = String(project && project.title || "").trim();
+        setStatus("Plan outline saved" + (ot ? ": " + ot : "") + ".", "ok");
         return true;
       }).catch(function (error) {
         setStatus("Outline save failed: " + (error && error.message ? error.message : error), "error");
@@ -5737,7 +5740,8 @@
       appState.hasPendingSave = false;
       appState.pendingSavePayload = null;
 
-      setStatus(isAutosave ? "Autosaving in background..." : "Saving changes...", "warn");
+      var pdTitle = String(detailPayload && detailPayload.title || el.detailTitleInput && el.detailTitleInput.value || "").trim();
+      setStatus((isAutosave ? "Autosaving" : "Saving") + (pdTitle ? " '" + pdTitle + "'" : " changes") + "...", "warn");
 
       supabaseRunner
         .withSuccessHandler(function (json) {
@@ -5757,11 +5761,12 @@
               appState.isDirty = false;
               appState.pendingSavePayload = null;
               const propagatedCount = Number(result && result.propagatedSeriesImageCount || 0);
-              const savedMessage = isAutosave ? "Changes autosaved." : "Changes saved.";
+              var projTitle = String(detailPayload && detailPayload.title || el.detailTitleInput && el.detailTitleInput.value || "Project").trim();
+              var savedMessage = (isAutosave ? "Project autosaved" : "Project saved") + ": " + projTitle;
               setStatus(
                 propagatedCount > 1
-                  ? savedMessage + " Series image applied to " + propagatedCount + " books."
-                  : savedMessage,
+                  ? savedMessage + ". Series image applied to " + propagatedCount + " books."
+                  : savedMessage + ".",
                 "ok"
               );
             } else {
@@ -5769,7 +5774,8 @@
             }
           } catch (err) {
             console.error("SAVE PARSE ERROR", err, json);
-            setStatus("Save failed: " + err.message, "error");
+            var pdErrTitle = String(detailPayload && detailPayload.title || el.detailTitleInput && el.detailTitleInput.value || "").trim();
+            setStatus("Save failed" + (pdErrTitle ? " '" + pdErrTitle + "'" : "") + ": " + err.message, "error");
           }
 
           if (appState.hasPendingSave || appState.isDirty) {
@@ -5781,7 +5787,8 @@
         .withFailureHandler(function (error) {
           appState.isSaving = false;
           console.error("SAVE ERROR", error);
-          setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
+          var pdErrTitle = String(detailPayload && detailPayload.title || el.detailTitleInput && el.detailTitleInput.value || "").trim();
+          setStatus("Save failed" + (pdErrTitle ? " '" + pdErrTitle + "'" : "") + ": " + (error && error.message ? error.message : error), "error");
 
           if (appState.hasPendingSave || appState.isDirty) {
             appState.hasPendingSave = false;
