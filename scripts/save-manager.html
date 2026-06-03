@@ -16,7 +16,8 @@
             projectDetails: { debounceMs: 700, enabled: true },
             planOutline: { debounceMs: 3000, enabled: true },
             resources: { debounceMs: 0, enabled: true },
-            seriesKnowledge: { debounceMs: 0, enabled: true }
+            seriesKnowledge: { debounceMs: 0, enabled: true },
+            writingCodex: { debounceMs: 1000, enabled: true }
           },
           offlineRetryCount: 3,
           offlineRetryIntervalMs: 5000
@@ -51,6 +52,10 @@
               seriesKnowledge: {
                 debounceMs: p.seriesKnowledgeDebounceMs >= 0 ? Number(p.seriesKnowledgeDebounceMs) : d.areas.seriesKnowledge.debounceMs,
                 enabled: p.seriesKnowledgeEnabled !== false
+              },
+              writingCodex: {
+                debounceMs: p.writingCodexDebounceMs >= 0 ? Number(p.writingCodexDebounceMs) : d.areas.writingCodex.debounceMs,
+                enabled: p.writingCodexEnabled !== false
               }
             },
             offlineRetryCount: Number(p.offlineRetryCount) || d.offlineRetryCount,
@@ -84,6 +89,8 @@
             resourcesEnabled: c.areas.resources.enabled,
             seriesKnowledgeDebounceMs: c.areas.seriesKnowledge.debounceMs,
             seriesKnowledgeEnabled: c.areas.seriesKnowledge.enabled,
+            writingCodexDebounceMs: c.areas.writingCodex.debounceMs,
+            writingCodexEnabled: c.areas.writingCodex.enabled,
             offlineRetryCount: c.offlineRetryCount,
             offlineRetryIntervalMs: c.offlineRetryIntervalMs
           }));
@@ -217,7 +224,7 @@
         var intervalEl = document.getElementById("autoSaveIntervalSelect");
         c.enabled = enabledEl ? enabledEl.checked : true;
         c.intervalMs = intervalEl ? Number(intervalEl.value) || 300000 : 300000;
-        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge"];
+        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge", "writingCodex"];
         areaKeys.forEach(function (key) {
           var debounceEl = document.getElementById("smDebounce" + key.charAt(0).toUpperCase() + key.slice(1));
           var enableEl = document.getElementById("smEnable" + key.charAt(0).toUpperCase() + key.slice(1));
@@ -239,7 +246,7 @@
         var intervalEl = document.getElementById("autoSaveIntervalSelect");
         if (enabledEl) enabledEl.checked = c.enabled;
         if (intervalEl) intervalEl.value = String(c.intervalMs);
-        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge"];
+        var areaKeys = ["workspace", "projectDetails", "planOutline", "resources", "seriesKnowledge", "writingCodex"];
         areaKeys.forEach(function (key) {
           var ds = c.areas[key].debounceMs;
           var en = c.areas[key].enabled;

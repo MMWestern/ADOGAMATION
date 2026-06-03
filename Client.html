@@ -6097,6 +6097,21 @@
       }, 700);
     }
 
+    function scheduleCodexAutoSave() {
+      var sm = typeof saveManager !== "undefined" ? saveManager : null;
+      if (sm) {
+        sm.schedule("writingCodex", {});
+        return;
+      }
+      if (appState.writingWorkspace.codexSaveTimer) {
+        clearTimeout(appState.writingWorkspace.codexSaveTimer);
+      }
+      appState.writingWorkspace.codexSaveTimer = setTimeout(function () {
+        appState.writingWorkspace.codexSaveTimer = 0;
+        saveWritingCodexModal();
+      }, 1000);
+    }
+
     function handleDetailFieldInput(event) {
       renderLivePills(el.detailStatus.value, el.detailPriority.value);
       updateSeriesBrowseButton(el.detailSeries.value);
@@ -6215,6 +6230,14 @@
           saveFn: function () {
             return new Promise(function (resolve) {
               saveSeriesKnowledge();
+              resolve(true);
+            });
+          }
+        })
+        .register("writingCodex", {
+          saveFn: function () {
+            return new Promise(function (resolve) {
+              saveWritingCodexModal();
               resolve(true);
             });
           }

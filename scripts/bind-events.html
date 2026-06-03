@@ -121,6 +121,7 @@
           if (node === el.writingCodexModalTitle) {
             updateWritingCodexModalPreview();
           }
+          scheduleCodexAutoSave();
         });
       });
       if (el.writingCodexModalCopyButton) {
@@ -151,19 +152,23 @@
       if (el.writingCodexModalSaveButton) {
         bindUiOnce(el.writingCodexModalSaveButton, "writing-codex-modal-save", "click", saveWritingCodexModal);
       }
-      if (el.writingCodexModalScopeSelect) {
-        bindUiOnce(el.writingCodexModalScopeSelect, "writing-codex-modal-scope-change", "change", function () {
-          var val = String(el.writingCodexModalScopeSelect.value || "");
-          var project = getSelectedProject();
-          var seriesName = project ? String(project.series || "").trim() : "";
-          if (el.writingCodexModalSeriesBanner) {
-            if (val === "series" && seriesName) {
-              el.writingCodexModalSeriesBanner.textContent = "This entry belongs to the " + seriesName + " series";
-              el.writingCodexModalSeriesBanner.hidden = false;
-            } else {
-              el.writingCodexModalSeriesBanner.hidden = true;
+      [el.writingCodexModalScopeSelect, el.writingCodexModalRoleSelect, el.writingCodexModalArchetypeSelect, el.writingCodexModalSeveritySelect].forEach(function (sel) {
+        if (!sel) return;
+        bindUiOnce(sel, "writing-codex-modal-select-" + (sel.id || Math.random()), "change", function () {
+          if (sel === el.writingCodexModalScopeSelect) {
+            var val = String(el.writingCodexModalScopeSelect.value || "");
+            var project = getSelectedProject();
+            var seriesName = project ? String(project.series || "").trim() : "";
+            if (el.writingCodexModalSeriesBanner) {
+              if (val === "series" && seriesName) {
+                el.writingCodexModalSeriesBanner.textContent = "This entry belongs to the " + seriesName + " series";
+                el.writingCodexModalSeriesBanner.hidden = false;
+              } else {
+                el.writingCodexModalSeriesBanner.hidden = true;
+              }
             }
           }
+          scheduleCodexAutoSave();
         });
       }
       bindUiOnce(document, "writing-codex-modal-outside-close", "click", function (event) {
@@ -191,6 +196,7 @@
           if (el.writingCodexModalColorDropdown) {
             el.writingCodexModalColorDropdown.hidden = true;
           }
+          scheduleCodexAutoSave();
           var key = String(appState.writingWorkspace.selectedCodexKey || "");
           if (!key) return;
           var parts = key.split("::");
@@ -239,6 +245,18 @@
       if (el.writingCodexModalAvatarShell) {
         el.writingCodexModalAvatarShell.addEventListener("click", function () {
           if (typeof openImagePickerModal === "function") openImagePickerModal();
+        });
+      }
+
+      if (el.writingCodexModalResolved) {
+        bindUiOnce(el.writingCodexModalResolved, "writing-codex-modal-resolved", "change", function () {
+          scheduleCodexAutoSave();
+        });
+      }
+
+      if (el.writingCodexModalBadgeInput) {
+        bindUiOnce(el.writingCodexModalBadgeInput, "writing-codex-modal-badge", "input", function () {
+          scheduleCodexAutoSave();
         });
       }
 
