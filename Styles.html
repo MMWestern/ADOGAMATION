@@ -1842,6 +1842,7 @@
     .writing-codex-modal-body {
       display: flex;
       flex-direction: column;
+      gap: 0;
       height: calc(100% - 42px);
       padding: 10px 12px 14px;
       overflow: hidden;
@@ -1854,6 +1855,8 @@
     }
     .writing-codex-modal-content {
       flex: 1;
+      display: flex;
+      flex-direction: column;
       overflow-y: auto;
       min-height: 0;
     }
@@ -1917,6 +1920,9 @@
     .writing-codex-modal-form[hidden] { display: none; }
     .writing-codex-modal-tab-panel {
       padding: 12px 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     .writing-codex-relations-panel[hidden] {
       display: none !important;
@@ -2200,6 +2206,7 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      flex: 1;
     }
 
     .writing-codex-modal-group {
@@ -2211,18 +2218,23 @@
     #writingCodexModalPrimaryGroup {
       flex: 1;
     }
+    .writing-codex-modal-tab-panel > .writing-codex-modal-group {
+      flex: 1;
+    }
 
     #writingCodexModalPrimaryGroup .writing-codex-modal-textarea {
       flex: 1;
     }
 
     .writing-codex-modal-group .label {
-      display: inline-flex;
+      display: flex;
       align-items: center;
       gap: 6px;
+      margin: 0;
       font-size: 14px;
       font-weight: 700;
       color: #d8dbe4;
+      text-align: left;
     }
 
     .writing-codex-modal-group .label::after {
