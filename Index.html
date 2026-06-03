@@ -1460,60 +1460,63 @@
     <div class="modal-card writing-codex-modal-card">
       <div id="writingCodexModalSeriesBanner" class="writing-codex-modal-series-banner" hidden></div>
       <div class="modal-body writing-codex-modal-body">
-        <div class="writing-codex-modal-kicker"><span class="writing-codex-modal-kicker-icon">&#9673;</span><span id="writingCodexModalType">Codex Entry</span></div>
-        <div class="writing-codex-modal-hero">
-          <div class="writing-codex-modal-hero-copy">
-            <input id="writingCodexModalTitle" class="writing-codex-modal-title-input" type="text" placeholder="Entry title" />
-          <div id="writingCodexModalBadgeWrap" class="writing-codex-modal-badge-wrap">
-            <div id="writingCodexModalRolePill" class="sk-entity-role-badge" style="display:none;"></div>
-            <div id="writingCodexModalArchetypePill" class="sk-entity-role-badge" style="display:none;"></div>
-            <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
-            <div id="writingCodexModalRoleArchetypeRow" class="writing-codex-modal-role-archetype-row" hidden>
-              <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select"></select>
-              <select id="writingCodexModalArchetypeSelect" class="writing-codex-modal-badge-select"></select>
+        <div class="writing-codex-modal-top">
+          <div class="writing-codex-modal-kicker"><span class="writing-codex-modal-kicker-icon">&#9673;</span><span id="writingCodexModalType">Codex Entry</span></div>
+          <div class="writing-codex-modal-hero">
+            <div class="writing-codex-modal-hero-copy">
+              <input id="writingCodexModalTitle" class="writing-codex-modal-title-input" type="text" placeholder="Entry title" />
+            <div id="writingCodexModalBadgeWrap" class="writing-codex-modal-badge-wrap">
+              <div id="writingCodexModalRolePill" class="sk-entity-role-badge" style="display:none;"></div>
+              <div id="writingCodexModalArchetypePill" class="sk-entity-role-badge" style="display:none;"></div>
+              <input id="writingCodexModalBadgeInput" class="writing-codex-modal-badge-input" type="text" placeholder="Tag / role / type" />
+              <div id="writingCodexModalRoleArchetypeRow" class="writing-codex-modal-role-archetype-row" hidden>
+                <select id="writingCodexModalRoleSelect" class="writing-codex-modal-badge-select"></select>
+                <select id="writingCodexModalArchetypeSelect" class="writing-codex-modal-badge-select"></select>
+              </div>
+              <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
+                <option value="minor">minor</option>
+                <option value="moderate">moderate</option>
+                <option value="major">major</option>
+                <option value="critical">critical</option>
+              </select>
             </div>
-            <select id="writingCodexModalSeveritySelect" class="writing-codex-modal-badge-select" hidden>
-              <option value="minor">minor</option>
-              <option value="moderate">moderate</option>
-              <option value="major">major</option>
-              <option value="critical">critical</option>
-            </select>
-          </div>
-          <div id="writingCodexModalScopeWrap" class="writing-codex-modal-scope-wrap">
-            <select id="writingCodexModalScopeSelect" class="writing-codex-modal-scope-select">
-              <option value="book">This book</option>
-            </select>
-          </div>
-          </div>
-          <div class="writing-codex-modal-avatar-shell" id="writingCodexModalAvatarShell" title="Click to set image">
-            <img id="writingCodexModalImage" class="writing-codex-modal-image" alt="" />
-            <div id="writingCodexModalAvatarFallback" class="writing-codex-modal-avatar-fallback">CE</div>
-          </div>
-        </div>
-        <div class="writing-codex-modal-tabs">
-          <button id="writingCodexTabDetails" type="button" class="writing-codex-modal-tab is-active">Details</button>
-          <button id="writingCodexTabResearch" type="button" class="writing-codex-modal-tab">Research</button>
-          <button id="writingCodexTabRelations" type="button" class="writing-codex-modal-tab">Relations</button>
-          <button id="writingCodexTabMentions" type="button" class="writing-codex-modal-tab">Mentions</button>
-          <button id="writingCodexTabTracking" type="button" class="writing-codex-modal-tab">Tracking</button>
-          <div id="writingCodexModalColor" class="sk-color-picker" title="Color tag">
-            <button type="button" id="writingCodexModalColorTrigger" class="sk-color-dot-trigger" style="background:#3a3a42" title="Color tag"></button>
-            <div id="writingCodexModalColorDropdown" class="sk-color-dropdown" hidden>
-              <button type="button" class="sk-color-option" data-color="" style="background:#3a3a42" title="None"></button>
-              <button type="button" class="sk-color-option" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
-              <button type="button" class="sk-color-option" data-color="#f97316" style="background:#f97316" title="Orange"></button>
-              <button type="button" class="sk-color-option" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
-              <button type="button" class="sk-color-option" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
-              <button type="button" class="sk-color-option" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
-              <button type="button" class="sk-color-option" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
-              <button type="button" class="sk-color-option" data-color="#6366f1" style="background:#6366f1" title="Indigo"></button>
-              <button type="button" class="sk-color-option" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
-              <button type="button" class="sk-color-option" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
-              <button type="button" class="sk-color-option" data-color="#f43f5e" style="background:#f43f5e" title="Rose"></button>
+            <div id="writingCodexModalScopeWrap" class="writing-codex-modal-scope-wrap">
+              <select id="writingCodexModalScopeSelect" class="writing-codex-modal-scope-select">
+                <option value="book">This book</option>
+              </select>
+            </div>
+            </div>
+            <div class="writing-codex-modal-avatar-shell" id="writingCodexModalAvatarShell" title="Click to set image">
+              <img id="writingCodexModalImage" class="writing-codex-modal-image" alt="" />
+              <div id="writingCodexModalAvatarFallback" class="writing-codex-modal-avatar-fallback">CE</div>
             </div>
           </div>
+          <div class="writing-codex-modal-tabs">
+            <button id="writingCodexTabDetails" type="button" class="writing-codex-modal-tab is-active">Details</button>
+            <button id="writingCodexTabResearch" type="button" class="writing-codex-modal-tab">Research</button>
+            <button id="writingCodexTabRelations" type="button" class="writing-codex-modal-tab">Relations</button>
+            <button id="writingCodexTabMentions" type="button" class="writing-codex-modal-tab">Mentions</button>
+            <button id="writingCodexTabTracking" type="button" class="writing-codex-modal-tab">Tracking</button>
+            <div id="writingCodexModalColor" class="sk-color-picker" title="Color tag">
+              <button type="button" id="writingCodexModalColorTrigger" class="sk-color-dot-trigger" style="background:#3a3a42" title="Color tag"></button>
+              <div id="writingCodexModalColorDropdown" class="sk-color-dropdown" hidden>
+                <button type="button" class="sk-color-option" data-color="" style="background:#3a3a42" title="None"></button>
+                <button type="button" class="sk-color-option" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+                <button type="button" class="sk-color-option" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+                <button type="button" class="sk-color-option" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
+                <button type="button" class="sk-color-option" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+                <button type="button" class="sk-color-option" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+                <button type="button" class="sk-color-option" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+                <button type="button" class="sk-color-option" data-color="#6366f1" style="background:#6366f1" title="Indigo"></button>
+                <button type="button" class="sk-color-option" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+                <button type="button" class="sk-color-option" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+                <button type="button" class="sk-color-option" data-color="#f43f5e" style="background:#f43f5e" title="Rose"></button>
+              </div>
+            </div>
+          </div>
+          <div id="writingCodexModalStatus" class="writing-codex-modal-status muted">Loading entry...</div>
         </div>
-        <div id="writingCodexModalStatus" class="writing-codex-modal-status muted">Loading entry...</div>
+        <div class="writing-codex-modal-content">
         <div id="writingCodexModalForm" class="writing-codex-modal-form">
           <div id="writingCodexModalPrimaryGroup" class="writing-codex-modal-group">
             <label id="writingCodexModalPrimaryLabel" class="label" for="writingCodexModalPrimary">Description</label>
@@ -1559,6 +1562,7 @@
             <div class="writing-codex-modal-help">Personal notes for tracking progress, status, and next steps.</div>
             <textarea id="writingCodexModalTracking" class="writing-codex-modal-textarea" placeholder="Tracking notes..."></textarea>
           </div>
+        </div>
         </div>
       </div>
       <div class="modal-footer writing-codex-modal-footer">
