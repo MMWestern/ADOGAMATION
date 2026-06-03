@@ -3245,9 +3245,13 @@
             mentions: String(payload.mentions || "").trim(),
             trackingNotes: String(payload.trackingNotes || "").trim()
           };
-          var prevTab = appState.writingWorkspace.codexModalTab;
-          populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra);
-          setWritingCodexModalTab(prevTab || "details");
+          if (isNew) {
+            var prevTab = appState.writingWorkspace.codexModalTab;
+            populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra);
+            setWritingCodexModalTab(prevTab || "details");
+          } else {
+            setWritingCodexModalLoading(false, "");
+          }
           renderWritingCodexList(project);
           updateWritingInspectorCodex(project);
           if (type === "characters" && typeof renderSkCharacterList === "function") {
