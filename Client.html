@@ -3063,29 +3063,6 @@
         if (el.writingCodexModalTitle) el.writingCodexModalTitle.focus();
         return;
       }
-      if (type === "lore") {
-        var lorePayload = normalizeSeriesKnowledgeRecord(getSeriesKnowledgeForProject(project) || {});
-        lorePayload.lore = String(el.writingCodexModalPrimary && el.writingCodexModalPrimary.value || "").trim();
-        setWritingCodexModalLoading(true, "Saving lore...");
-        callAppsScriptJson("saveSupabaseSeriesKnowledgeJsonFromClient", [seriesId, JSON.stringify(lorePayload)])
-          .then(function (result) {
-            var knowledge = normalizeSeriesKnowledgeRecord(result && result.knowledge);
-            knowledge.updatedAt = String(result && result.updatedAt || "");
-            appState.seriesKnowledgeById[seriesId] = knowledge;
-            if (el.resourceSeriesKnowledgeLore) el.resourceSeriesKnowledgeLore.value = String(knowledge.lore || "");
-            var prevTab = appState.writingWorkspace.codexModalTab;
-            populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, appState.writingWorkspace.codexModalExtra || {});
-            setWritingCodexModalTab(prevTab || "details");
-            renderWritingCodexList(project);
-            updateWritingInspectorCodex(project);
-            setStatus("Codex lore saved.", "ok");
-          })
-          .catch(function (error) {
-            setWritingCodexModalLoading(false, "Failed to save lore: " + (error && error.message ? error.message : error));
-            setStatus("Codex lore save failed: " + (error && error.message ? error.message : error), "error");
-          });
-        return;
-      }
       var id = isNew ? 0 : Number(String(key).split("::")[1] || 0);
       var payload = { id: id };
       var scopeRaw = el.writingCodexModalScopeSelect ? String(el.writingCodexModalScopeSelect.value || "") : "";
