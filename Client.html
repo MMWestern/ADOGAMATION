@@ -2916,9 +2916,11 @@
             populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, {});
             renderWritingCodexList(project);
             updateWritingInspectorCodex(project);
+            setStatus("Codex lore saved.", "ok");
           })
           .catch(function (error) {
             setWritingCodexModalLoading(false, "Failed to save lore: " + (error && error.message ? error.message : error));
+            setStatus("Codex lore save failed: " + (error && error.message ? error.message : error), "error");
           });
         return;
       }
@@ -3021,9 +3023,12 @@
               editSkCharacter(savedId);
             }
           }
+          var entryName = String(entry.name || entry.title || type || "").trim();
+          setStatus("Codex " + type + " saved" + (entryName ? ": " + entryName : "") + ".", "ok");
         })
         .catch(function (error) {
           setWritingCodexModalLoading(false, "Failed to save entry: " + (error && error.message ? error.message : error));
+          setStatus("Codex entry save failed: " + (error && error.message ? error.message : error), "error");
         });
     }
 
