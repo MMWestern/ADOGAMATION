@@ -1853,7 +1853,10 @@
       gap: 10px;
     }
     .writing-codex-modal-content {
-      flex: 1 1 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
       overflow-y: auto;
       min-height: 0;
     }
@@ -1917,6 +1920,7 @@
     .writing-codex-modal-form[hidden] { display: none; }
     .writing-codex-modal-tab-panel {
       padding: 12px 0;
+      flex: none;
     }
     .writing-codex-relations-panel[hidden] {
       display: none !important;
@@ -2314,6 +2318,7 @@
       display: grid;
       gap: 8px;
       align-content: start;
+      flex: none;
     }
 
     .writing-codex-relations-empty {
