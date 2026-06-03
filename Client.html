@@ -3034,11 +3034,6 @@
         if (!seriesId) setStatus("Select a series project first.", "error");
         return;
       }
-      if (type === "lore" && skCache.lore && skCache.lore[seriesId] && skCache.lore[seriesId].length) {
-        var existing = skCache.lore[seriesId][0];
-        openWritingCodexModal("lore::" + existing.id);
-        return;
-      }
       var entry = { key: "new::" + type, type: type, title: "", body: "", badge: badge || "", color: "", scope: type === "lore" ? "series" : "book" };
       appState.writingWorkspace.codexModalKey = entry.key;
       appState.writingWorkspace.codexModalType = type;
