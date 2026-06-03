@@ -2925,6 +2925,7 @@
             appState.seriesKnowledgeById[seriesId] = knowledge;
             if (el.resourceSeriesKnowledgeLore) el.resourceSeriesKnowledgeLore.value = String(knowledge.lore || "");
             populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, appState.writingWorkspace.codexModalExtra || {});
+            setWritingCodexModalTab(appState.writingWorkspace.codexModalTab || "details");
             renderWritingCodexList(project);
             updateWritingInspectorCodex(project);
             setStatus("Codex lore saved.", "ok");
@@ -3032,6 +3033,7 @@
             trackingNotes: String(payload.trackingNotes || "").trim()
           };
           populateWritingCodexModal(entry, saved, appState.writingWorkspace.codexModalExtra);
+          setWritingCodexModalTab(appState.writingWorkspace.codexModalTab || "details");
           renderWritingCodexList(project);
           updateWritingInspectorCodex(project);
           if (type === "characters" && typeof renderSkCharacterList === "function") {
