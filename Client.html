@@ -2587,6 +2587,8 @@
         if (t.tab) t.tab.classList.toggle("is-active", nextTab === t.key);
         if (t.panel) t.panel.hidden = nextTab !== t.key;
       });
+      var contentEl = document.querySelector(".writing-codex-modal-content");
+      if (contentEl) contentEl.scrollTop = 0;
     }
 
     function updateWritingCodexModalPreview() {
