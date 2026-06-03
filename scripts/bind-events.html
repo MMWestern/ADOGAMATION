@@ -152,7 +152,7 @@
       if (el.writingCodexModalSaveButton) {
         bindUiOnce(el.writingCodexModalSaveButton, "writing-codex-modal-save", "click", saveWritingCodexModal);
       }
-      [el.writingCodexModalScopeSelect, el.writingCodexModalRoleSelect, el.writingCodexModalArchetypeSelect, el.writingCodexModalSeveritySelect].forEach(function (sel) {
+      [el.writingCodexModalScopeSelect, el.writingCodexModalRoleSelect, el.writingCodexModalArchetypeSelect, el.writingCodexModalSeveritySelect, el.writingCodexModalSecondarySelect].forEach(function (sel) {
         if (!sel) return;
         bindUiOnce(sel, "writing-codex-modal-select-" + (sel.id || Math.random()), "change", function () {
           if (sel === el.writingCodexModalScopeSelect) {
