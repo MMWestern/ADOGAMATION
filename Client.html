@@ -2893,11 +2893,14 @@
         var currentProject = getSelectedProject();
         var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
         var seriesName = currentProject ? String(currentProject.series || "").trim() : "";
-        var bookLinks = (extra && extra.bookLinks) || [];
+        var bookLinks = (extra && extra.bookLinks) || (payload && payload.bookLinks) || (entry && entry.bookLinks) || [];
         var linkedBookId = 0;
         if (scopeVal === "book" && bookLinks.length) {
           var link = bookLinks[0];
           linkedBookId = Number(typeof link === "object" ? (link.project_id || link.id) : link);
+        }
+        if (!linkedBookId && extra && extra.linkedProjectIds && extra.linkedProjectIds.length) {
+          linkedBookId = Number(extra.linkedProjectIds[0] || 0);
         }
         var allProjects = getSkProjectsForSeries();
         var opts = '<option value="series"' + (scopeVal === "series" ? " selected" : "") + '>All books in series</option>';
@@ -2959,7 +2962,7 @@
       el.writingCodexModal.setAttribute("aria-hidden", "false");
       updateModalScrollLock();
       setWritingCodexModalTab("details");
-      if (entry.type === "lore") {
+      if (entry.type === "lore" && entry.key === "lore::series") {
         var knowledge = getSeriesKnowledgeForProject(project) || {};
         populateWritingCodexModal(entry, { lore: knowledge.lore || "" }, {});
         return;
