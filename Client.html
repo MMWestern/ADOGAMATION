@@ -3238,6 +3238,7 @@
               : type === "other" ? "other::" + savedId
               : "continuity::" + savedId;
             appState.writingWorkspace.codexModalKey = newKey;
+            appState.writingWorkspace.selectedCodexKey = newKey;
             entry = getWritingCodexEntryByKey(project, newKey) || entry;
           }
           appState.writingWorkspace.codexModalExtra = {
