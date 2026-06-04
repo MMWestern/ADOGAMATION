@@ -3705,10 +3705,7 @@
       }
       var segIdx = segment ? segments.indexOf(segment) : -1;
       if (el.writingInspectorScopeChapter) {
-        el.writingInspectorScopeChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
-      }
-      if (el.writingInspectorOutlineChapter) {
-        el.writingInspectorOutlineChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
+        el.writingInspectorScopeChapter.textContent = segIdx >= 0 ? "— CHAPTER " + (segIdx + 1) : "";
       }
       if (el.writingInspectorOutline) {
         if (segment) {
