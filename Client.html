@@ -3703,13 +3703,12 @@
           el.writingInspectorScopeNote.textContent = "FULL MANUSCRIPT - " + String(fullWordCount || 0) + " words - " + formatWritingWorkspaceReadTime(fullWordCount);
         }
       }
+      var segIdx = segment ? segments.indexOf(segment) : -1;
+      if (el.writingInspectorScopeChapter) {
+        el.writingInspectorScopeChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
+      }
       if (el.writingInspectorOutlineChapter) {
-        if (segment) {
-          var segIdx = segments.indexOf(segment);
-          el.writingInspectorOutlineChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
-        } else {
-          el.writingInspectorOutlineChapter.textContent = "";
-        }
+        el.writingInspectorOutlineChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
       }
       if (el.writingInspectorOutline) {
         if (segment) {
