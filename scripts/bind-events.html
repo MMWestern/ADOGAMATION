@@ -1161,6 +1161,16 @@
           openSeriesBooksModal(el.detailSeries.value);
         });
       }
+      [el.planInfoSeries, el.writingCodexInfoSeries].forEach(function (seriesEl) {
+        if (seriesEl) {
+          seriesEl.style.cursor = "pointer";
+          seriesEl.addEventListener("click", function () {
+            var project = getSelectedProject();
+            var seriesName = project && String(project.series || "").trim();
+            if (seriesName) openSeriesBooksModal(seriesName);
+          });
+        }
+      });
       if (el.detailEditSeriesSummaryButton) {
         el.detailEditSeriesSummaryButton.addEventListener("click", function () {
           const project = getSelectedProject();
