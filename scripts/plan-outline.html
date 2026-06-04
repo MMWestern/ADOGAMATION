@@ -285,10 +285,14 @@
                 var lines = sceneText.split("\n").map(function (l) { return String(l || "").trim(); }).filter(Boolean);
                 parts.push("<div style='font-size:10px;color:#94a3b8;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
               }
-              if (scene.purpose) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Purpose:</strong> " + escapeHtml(scene.purpose) + "</div>");
-              if (scene.pov) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + escapeHtml(scene.pov) + "</div>");
+              if (scene.povType || scene.povCharacterId) {
+                var povParts = [];
+                if (scene.povType) povParts.push(escapeHtml(scene.povType));
+                var povCharName = _getPovCharacterName(scene, characters);
+                if (povCharName) povParts.push(escapeHtml(povCharName));
+                if (povParts.length) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + povParts.join(" · ") + "</div>");
+              }
               if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
-              if (scene.mainPlotFunction) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Plot:</strong> " + escapeHtml(scene.mainPlotFunction) + "</div>");
               var codexTags = getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity);
               if (codexTags) {
                 parts.push("<div style='margin-top:4px;'>" + codexTags + "</div>");
