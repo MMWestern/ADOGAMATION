@@ -279,18 +279,39 @@
             var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
             var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
               var parts = [];
-              parts.push("<div style='font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:4px;'>SCENE " + (sIdx + 1) + (scene.title ? " - " + escapeHtml(scene.title) : "") + "</div>");
+              var headerParts = [];
+              headerParts.push("<span style='font-size:13px;font-weight:700;color:#e2e8f0;'>SCENE " + (sIdx + 1) + (scene.title ? " - " + escapeHtml(scene.title) : "") + "</span>");
+              var povPills = [];
+              if (scene.povType) {
+                povPills.push("<span style='display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:#1e293b;color:#94a3b8;'>" + escapeHtml(scene.povType) + "</span>");
+              }
+              if (scene.povCharacterId) {
+                var povCharName = "";
+                var povCharColor = "";
+                var cid = String(scene.povCharacterId || "");
+                if (cid === "narrator") {
+                  povCharName = "Narrator";
+                  povCharColor = "#64748b";
+                } else {
+                  var match = characters.find(function (c) { return String(c.id || "") === cid; });
+                  if (match) {
+                    povCharName = String(match.name || "").trim();
+                    povCharColor = String(match.color || "").trim() || "#64748b";
+                  }
+                }
+                if (povCharName) {
+                  povPills.push("<span style='display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:" + escapeHtml(povCharColor) + "dd;color:#fff;'>" + escapeHtml(povCharName) + "</span>");
+                }
+              }
+              if (povPills.length) {
+                parts.push("<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;'>" + headerParts.join("") + "<div style='display:flex;gap:3px;flex-shrink:0;'>" + povPills.join("") + "</div></div>");
+              } else {
+                parts.push("<div style='margin-bottom:4px;'>" + headerParts.join("") + "</div>");
+              }
               var sceneText = stripHtmlTags(scene.text || "").trim();
               if (sceneText) {
                 var lines = sceneText.split("\n").map(function (l) { return String(l || "").trim(); }).filter(Boolean);
                 parts.push("<div style='font-size:10px;color:#94a3b8;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
-              }
-              if (scene.povType || scene.povCharacterId) {
-                var povParts = [];
-                if (scene.povType) povParts.push(escapeHtml(scene.povType));
-                var povCharName = _getPovCharacterName(scene, characters);
-                if (povCharName) povParts.push(escapeHtml(povCharName));
-                if (povParts.length) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + povParts.join(" · ") + "</div>");
               }
               if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
               var codexTags = getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity);
