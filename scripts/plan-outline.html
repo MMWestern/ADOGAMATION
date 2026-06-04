@@ -439,22 +439,12 @@
                       '<div class="plan-scene-fields">' +
                         '<div class="plan-scene-field">' +
                           '<span class="plan-scene-field-label">POV:</span>' +
-                          '<select class="plan-scene-field-select" data-scene-id="' + escapeHtml(scene.id) + '" data-field="povType">' +
-                            '<option value="">— Type —</option>' +
-                            '<option value="First Person"' + (scene.povType === "First Person" ? " selected" : "") + '>First Person</option>' +
-                            '<option value="Second Person"' + (scene.povType === "Second Person" ? " selected" : "") + '>Second Person</option>' +
-                            '<option value="Third Person Limited"' + (scene.povType === "Third Person Limited" ? " selected" : "") + '>Third Person Limited</option>' +
-                            '<option value="Third Person Omniscient"' + (scene.povType === "Third Person Omniscient" ? " selected" : "") + '>Third Person Omniscient</option>' +
-                            '<option value="Third Person Close"' + (scene.povType === "Third Person Close" ? " selected" : "") + '>Third Person Close</option>' +
-                            '<option value="Omniscient"' + (scene.povType === "Omniscient" ? " selected" : "") + '>Omniscient</option>' +
-                          '</select>' +
-                          '<select class="plan-scene-field-select" data-scene-id="' + escapeHtml(scene.id) + '" data-field="povCharacterId">' +
-                            '<option value="">— Who —</option>' +
-                            characters.map(function (c) {
-                              var cid = String(c.id || "");
-                              return '<option value="' + escapeHtml(cid) + '"' + (String(scene.povCharacterId || "") === cid ? " selected" : "") + '>' + escapeHtml(c.name || "") + '</option>';
-                            }).join("") +
-                          '</select>' +
+                          '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '">' +
+                            '<span class="plan-scene-pov-type">' + escapeHtml(scene.povType || "Type") + '</span>' +
+                            '<span class="plan-scene-pov-sep">·</span>' +
+                            '<span class="plan-scene-pov-who">' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
+                            '<span class="plan-scene-pov-arrow">&#9660;</span>' +
+                          '</span>' +
                         '</div>' +
                         '<div class="plan-scene-field">' +
                           '<span class="plan-scene-field-label">Target:</span>' +
@@ -526,16 +516,6 @@
         });
       });
 
-      grid.querySelectorAll(".plan-scene-field-select").forEach(function (sel) {
-        sel.addEventListener("change", function () {
-          var sceneId = this.getAttribute("data-scene-id");
-          var field = this.getAttribute("data-field");
-          if (sceneId && field) {
-            updatePlanSceneField(sceneId, field, this.value);
-          }
-        });
-      });
-
       grid.querySelectorAll("[data-action]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var action = this.getAttribute("data-action");
@@ -589,6 +569,14 @@
             renderPlanOutline();
             schedulePlanOutlineSave();
           }
+        });
+      });
+
+      grid.querySelectorAll(".plan-scene-pov-chip").forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          var sceneId = this.getAttribute("data-scene-id");
+          if (!sceneId) return;
+          openPlanScenePovPopup(sceneId, this);
         });
       });
 
@@ -769,6 +757,99 @@
         html += '</div>';
       });
       return html;
+    }
+
+    function _getPovCharacterName(scene, characters) {
+      var cid = String(scene.povCharacterId || "");
+      if (!cid) return "";
+      if (cid === "narrator") return "Narrator";
+      var match = characters.find(function (c) { return String(c.id || "") === cid; });
+      return match ? String(match.name || "").trim() : "";
+    }
+
+    function _getSceneTaggedCharacters(scene, characters) {
+      var ids = {};
+      (scene.codexEntries || []).forEach(function (e) {
+        if (String(e.type || "").trim() === "characters") ids[String(e.id || "")] = true;
+      });
+      (scene.characterIds || []).forEach(function (id) { ids[String(id || "")] = true; });
+      return characters.filter(function (c) { return ids[String(c.id || "")]; });
+    }
+
+    function openPlanScenePovPopup(sceneId, triggerEl) {
+      closePlanScenePovPopup();
+      var outline = getPlanOutline();
+      var scene = findPlanNodeById(outline, sceneId);
+      if (!scene) return;
+      var project = getSelectedProject();
+      var seriesId = Number(project && project.series_id || 0);
+      var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+      var rect = triggerEl.getBoundingClientRect();
+      var popup = document.createElement("div");
+      popup.className = "plan-scene-pov-popup";
+      popup.style.cssText = "position:fixed;z-index:9999;top:" + (rect.bottom + 4) + "px;left:" + Math.max(4, Math.min(rect.left, window.innerWidth - 220)) + "px;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px;min-width:180px;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.5);font-size:11px;";
+      var html = "";
+      html += "<div style='color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;padding:0 4px;'>POV Type</div>";
+      var povTypes = ["First Person", "Second Person", "Third Person Limited", "Third Person Omniscient", "Third Person Close", "Omniscient"];
+      html += "<div style='display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:0 4px;'>";
+      povTypes.forEach(function (t) {
+        var active = scene.povType === t ? " background:#3b82f6;color:#fff" : " background:#0f1729;color:#94a3b8";
+        html += "<span class='plan-pov-option' data-pov-type='" + escapeHtml(t) + "' style='cursor:pointer;padding:2px 6px;border-radius:3px;font-size:10px;" + active + "'>" + escapeHtml(t) + "</span>";
+      });
+      html += "</div>";
+      html += "<div style='color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;padding:0 4px;'>Character</div>";
+      html += "<div style='padding:0 4px;'>";
+      var tagChars = _getSceneTaggedCharacters(scene, characters);
+      var hasNarrator = tagChars.length === 0 || tagChars.some(function () { return true; });
+      var narratorActive = String(scene.povCharacterId || "") === "narrator" ? " background:#3b82f6;color:#fff" : " background:transparent;color:#94a3b8";
+      html += "<div class='plan-pov-option' data-pov-char='narrator' style='cursor:pointer;padding:3px 6px;border-radius:3px;display:flex;align-items:center;gap:6px;" + narratorActive + "'>" +
+        "<span style='width:8px;height:8px;border-radius:50%;background:#64748b;display:inline-block;flex-shrink:0;'></span>" +
+        "<span>Narrator</span></div>";
+      tagChars.forEach(function (c) {
+        var cid = String(c.id || "");
+        var active = String(scene.povCharacterId || "") === cid ? " background:#3b82f6;color:#fff" : " background:transparent;color:#94a3b8";
+        var color = String(c.color || "").trim();
+        var dotStyle = color ? "background:" + color : "background:#64748b";
+        html += "<div class='plan-pov-option' data-pov-char='" + escapeHtml(cid) + "' style='cursor:pointer;padding:3px 6px;border-radius:3px;display:flex;align-items:center;gap:6px;" + active + "'>" +
+          "<span style='width:8px;height:8px;border-radius:50%;" + dotStyle + ";display:inline-block;flex-shrink:0;'></span>" +
+          "<span>" + escapeHtml(c.name || "") + "</span></div>";
+      });
+      html += "</div>";
+      popup.innerHTML = html;
+      document.body.appendChild(popup);
+      popup.addEventListener("click", function (e) {
+        var typeEl = e.target.closest("[data-pov-type]");
+        if (typeEl) {
+          var val = typeEl.getAttribute("data-pov-type");
+          updatePlanSceneField(sceneId, "povType", val);
+          closePlanScenePovPopup();
+          renderPlanOutline();
+          return;
+        }
+        var charEl = e.target.closest("[data-pov-char]");
+        if (charEl) {
+          var val = charEl.getAttribute("data-pov-char");
+          updatePlanSceneField(sceneId, "povCharacterId", val);
+          closePlanScenePovPopup();
+          renderPlanOutline();
+          return;
+        }
+      });
+      setTimeout(function () {
+        document.addEventListener("click", _closePovPopupHandler, true);
+      }, 0);
+    }
+
+    function _closePovPopupHandler(e) {
+      if (!e.target.closest(".plan-scene-pov-popup") && !e.target.closest(".plan-scene-pov-chip")) {
+        closePlanScenePovPopup();
+      }
+    }
+
+    function closePlanScenePovPopup() {
+      document.removeEventListener("click", _closePovPopupHandler, true);
+      var popup = document.querySelector(".plan-scene-pov-popup");
+      if (popup) popup.remove();
     }
 
     var _planCodexTagTargetSceneId = "";

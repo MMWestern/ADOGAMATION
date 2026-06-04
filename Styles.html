@@ -3770,25 +3770,45 @@
       min-height: 14px;
     }
 
+    .plan-scene-pov-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: #94a3b8;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1.5;
+    }
+    .plan-scene-pov-chip:hover {
+      border-color: #3b82f6;
+    }
+    .plan-scene-pov-type {
+      color: #94a3b8;
+    }
+    .plan-scene-pov-sep {
+      color: #475569;
+    }
+    .plan-scene-pov-who {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+    .plan-scene-pov-arrow {
+      color: #64748b;
+      font-size: 7px;
+      margin-left: 2px;
+    }
+    .plan-pov-option:hover {
+      background: #334155 !important;
+    }
+
     .plan-scene-field-value:empty::before {
       content: attr(data-placeholder);
       color: #475569;
-    }
-
-    .plan-scene-field-select {
-      background: #1e293b;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      border-radius: 3px;
-      padding: 1px 4px;
-      font-size: 10px;
-      font-family: inherit;
-      outline: none;
-      cursor: pointer;
-      max-width: 130px;
-    }
-    .plan-scene-field-select:focus {
-      border-color: #3b82f6;
     }
 
     .plan-scene-text-box {
