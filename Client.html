@@ -3703,6 +3703,14 @@
           el.writingInspectorScopeNote.textContent = "FULL MANUSCRIPT - " + String(fullWordCount || 0) + " words - " + formatWritingWorkspaceReadTime(fullWordCount);
         }
       }
+      if (el.writingInspectorOutlineChapter) {
+        if (segment) {
+          var segIdx = segments.indexOf(segment);
+          el.writingInspectorOutlineChapter.textContent = segIdx >= 0 ? "— Ch " + (segIdx + 1) : "";
+        } else {
+          el.writingInspectorOutlineChapter.textContent = "";
+        }
+      }
       if (el.writingInspectorOutline) {
         if (segment) {
           var sceneHtml = getOutlineScenesForChapterHtml(segment.key);
