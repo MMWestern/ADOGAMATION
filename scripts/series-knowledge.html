@@ -844,7 +844,9 @@
                 renderSkContinuityList();
                 return list;
             })
-            .catch(function () {});
+            .catch(function (err) {
+                console.error('loadSkContinuityEntries failed for series', seriesId, err);
+            });
     }
 
     function renderSkContinuityList() {

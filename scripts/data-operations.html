@@ -566,7 +566,24 @@
       var safeId = Number(entryId || 0);
       if (!safeId) throw new Error('Entry id is required.');
       return sbClient.from('series_continuity_entries').select('*').eq('id', safeId).single()
-        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
+        .then(function (mainRes) {
+          if (mainRes.error) throw mainRes.error;
+          var entry = mainRes.data;
+          var charPromise = sbClient.from('series_continuity_character_links').select('character_id').eq('continuity_entry_id', safeId).limit(5000)
+            .catch(function () { return { data: [] }; });
+          var locPromise = sbClient.from('series_continuity_location_links').select('location_id').eq('continuity_entry_id', safeId).limit(5000)
+            .catch(function () { return { data: [] }; });
+          var projPromise = sbClient.from('series_continuity_project_links').select('project_id').eq('continuity_entry_id', safeId).limit(5000)
+            .catch(function () { return { data: [] }; });
+          return Promise.all([charPromise, locPromise, projPromise]).then(function (linkResults) {
+            return JSON.stringify({
+              ok: true, entry: entry,
+              linkedCharacterIds: (linkResults[0].data || []).map(function (r) { return r.character_id; }),
+              linkedLocationIds: (linkResults[1].data || []).map(function (r) { return r.location_id; }),
+              linkedProjectIds: (linkResults[2].data || []).map(function (r) { return r.project_id; })
+            });
+          });
+        });
     });
 
     _sbDefine('saveSupabaseSeriesContinuityEntryJsonFromClient', function (seriesId, payloadJson) {
@@ -584,16 +601,43 @@
         color: String(parsed.color || '').trim(),
         scope: String(parsed.scope || 'book').trim() || 'book'
       };
-      var op = entryId
+      var linkedCharIds = Array.isArray(parsed.linkedCharacterIds) ? parsed.linkedCharacterIds : [];
+      var linkedLocIds = Array.isArray(parsed.linkedLocationIds) ? parsed.linkedLocationIds : [];
+      var linkedProjIds = Array.isArray(parsed.linkedProjectIds) ? parsed.linkedProjectIds : [];
+      var saveOp = entryId
         ? sbClient.from('series_continuity_entries').update(payload).eq('id', entryId).select().single()
         : sbClient.from('series_continuity_entries').insert([payload]).select().single();
-      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var safeOp = function (promise) { return promise.then(function () { return null; }).catch(function () { return null; }); };
+        var delChars = safeOp(sbClient.from('series_continuity_character_links').delete().eq('continuity_entry_id', savedId));
+        var insChars = linkedCharIds.length
+          ? safeOp(sbClient.from('series_continuity_character_links').insert(linkedCharIds.map(function (cid) { return { continuity_entry_id: savedId, character_id: cid }; })))
+          : Promise.resolve(null);
+        var delLocs = safeOp(sbClient.from('series_continuity_location_links').delete().eq('continuity_entry_id', savedId));
+        var insLocs = linkedLocIds.length
+          ? safeOp(sbClient.from('series_continuity_location_links').insert(linkedLocIds.map(function (lid) { return { continuity_entry_id: savedId, location_id: lid }; })))
+          : Promise.resolve(null);
+        var delProjs = safeOp(sbClient.from('series_continuity_project_links').delete().eq('continuity_entry_id', savedId));
+        var insProjs = linkedProjIds.length
+          ? safeOp(sbClient.from('series_continuity_project_links').insert(linkedProjIds.map(function (pid) { return { continuity_entry_id: savedId, project_id: pid }; })))
+          : Promise.resolve(null);
+        return Promise.all([delChars, insChars, delLocs, insLocs, delProjs, insProjs]).then(function () {
+          return JSON.stringify({ ok: true, entry: saved, linkedCharacterIds: linkedCharIds, linkedLocationIds: linkedLocIds, linkedProjectIds: linkedProjIds });
+        });
+      });
     });
 
     _sbDefine('deleteSupabaseSeriesContinuityEntryJsonFromClient', function (entryId) {
       var safeId = Number(entryId || 0);
       if (!safeId) throw new Error('Entry id is required.');
-      return sbClient.from('series_continuity_entries').delete().eq('id', safeId)
+      var safeOp = function (promise) { return promise.then(function () { return null; }).catch(function () { return null; }); };
+      return safeOp(sbClient.from('series_continuity_character_links').delete().eq('continuity_entry_id', safeId))
+        .then(function () { return safeOp(sbClient.from('series_continuity_location_links').delete().eq('continuity_entry_id', safeId)); })
+        .then(function () { return safeOp(sbClient.from('series_continuity_project_links').delete().eq('continuity_entry_id', safeId)); })
+        .then(function () { return sbClient.from('series_continuity_entries').delete().eq('id', safeId); })
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
 

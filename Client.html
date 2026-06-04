@@ -3188,7 +3188,9 @@
           var saved = result && (result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other) ? (result.character || result.location || result.entry || result.object || result.lore || result.subplot || result.other) : payload;
           saved.scope = payload.scope;
           if (type === "continuity") {
-            saved.linkedProjectIds = payload.linkedProjectIds || [];
+            saved.linkedProjectIds = result.linkedProjectIds || payload.linkedProjectIds || [];
+            saved.linkedCharacterIds = result.linkedCharacterIds || payload.linkedCharacterIds || [];
+            saved.linkedLocationIds = result.linkedLocationIds || payload.linkedLocationIds || [];
           } else if (type === "objects") {
             saved.bookLinks = payload.bookLinks || [];
             saved.linkedCharacterIds = result.linkedCharacterIds || payload.linkedCharacterIds || [];
@@ -3219,9 +3221,9 @@
           } else if (type === "continuity") {
             if (!skCache.continuityDetails) skCache.continuityDetails = {};
             skCache.continuityDetails[savedId] = {
-              linkedCharacterIds: saved.linkedCharacterIds || payload.linkedCharacterIds || [],
-              linkedLocationIds: saved.linkedLocationIds || payload.linkedLocationIds || [],
-              linkedProjectIds: saved.linkedProjectIds || payload.linkedProjectIds || []
+              linkedCharacterIds: result.linkedCharacterIds || saved.linkedCharacterIds || payload.linkedCharacterIds || [],
+              linkedLocationIds: result.linkedLocationIds || saved.linkedLocationIds || payload.linkedLocationIds || [],
+              linkedProjectIds: result.linkedProjectIds || saved.linkedProjectIds || payload.linkedProjectIds || []
             };
           }
           if (isNew && savedId) {
@@ -6533,6 +6535,13 @@
         event.preventDefault();
         event.returnValue = "";
         return "";
+      }
+      var codexOpen = el.writingCodexModal && el.writingCodexModal.classList.contains("is-open");
+      if (codexOpen) {
+        var codexKey = appState.writingWorkspace && appState.writingWorkspace.codexModalKey;
+        if (codexKey && codexKey.indexOf("new::") !== 0) {
+          saveWritingCodexModal();
+        }
       }
     });
 
