@@ -3284,6 +3284,7 @@
       if (el.writingCodexInfoSeries) {
         el.writingCodexInfoSeries.textContent = selected && selected.series ? String(selected.series).trim() : "No series";
       }
+      if (el.writingCodexSeriesButton) el.writingCodexSeriesButton.hidden = !selected || !selected.series;
       if (el.writingCodexInfoGenre) {
         el.writingCodexInfoGenre.textContent = selected && selected.genre ? String(selected.genre).trim() : "—";
       }

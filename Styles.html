@@ -1250,6 +1250,33 @@
       -webkit-box-orient: vertical;
     }
 
+    .writing-codex-series-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      padding: 2px 6px;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: 1px solid #303038;
+      border-radius: 3px;
+      background: #202024;
+      color: #777884;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .writing-codex-series-btn:hover {
+      background: #3b82f6;
+      color: #fff;
+      border-color: #3b82f6;
+    }
+
+    .series-books-modal-card {
+      width: min(760px, calc(100vw - 36px));
+      max-width: min(760px, calc(100vw - 36px));
+      margin-left: -120px;
+    }
+
     .writing-codex-info-series {
       font-size: 10px;
       line-height: 1.2;
@@ -1257,9 +1284,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    .writing-codex-info-series:hover {
-      color: #3b82f6;
     }
 
     .writing-codex-info-grid {
@@ -4504,16 +4528,6 @@
       font-size: 11px;
       border-radius: 999px;
       white-space: nowrap;
-    }
-
-    .series-books-modal-card {
-      width: min(760px, calc(100vw - 36px));
-      max-width: min(760px, calc(100vw - 36px));
-    }
-
-    .series-books-body {
-      display: grid;
-      gap: 12px;
     }
 
     .series-books-list {

@@ -386,6 +386,7 @@
         if (el.planInfoImage) { el.planInfoImage.src = getProjectDisplayImageUrl(project); el.planInfoImage.alt = String(project.title || "").trim() + " cover"; }
         if (el.planInfoTitle) el.planInfoTitle.textContent = String(project.title || "").trim() || "Untitled";
         if (el.planInfoSeries) el.planInfoSeries.textContent = String(project.series || "").trim() || "No series";
+    if (el.planSeriesButton) el.planSeriesButton.hidden = !project || !project.series;
         if (el.planInfoGenre) el.planInfoGenre.textContent = String(project.genre || "").trim() || "—";
         if (el.planInfoAuthor) el.planInfoAuthor.textContent = String(project.pen_name || "").trim() || "—";
         if (el.planInfoWords) {

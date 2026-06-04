@@ -1161,10 +1161,9 @@
           openSeriesBooksModal(el.detailSeries.value);
         });
       }
-      [el.planInfoSeries, el.writingCodexInfoSeries].forEach(function (seriesEl) {
-        if (seriesEl) {
-          seriesEl.style.cursor = "pointer";
-          seriesEl.addEventListener("click", function () {
+      [el.planSeriesButton, el.writingCodexSeriesButton].forEach(function (btn) {
+        if (btn) {
+          btn.addEventListener("click", function () {
             var project = getSelectedProject();
             var seriesName = project && String(project.series || "").trim();
             if (seriesName) openSeriesBooksModal(seriesName);
