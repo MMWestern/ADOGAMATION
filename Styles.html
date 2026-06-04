@@ -3775,6 +3775,47 @@
       color: #475569;
     }
 
+    .plan-scene-field-select {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 10px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      max-width: 130px;
+    }
+    .plan-scene-field-select:focus {
+      border-color: #3b82f6;
+    }
+
+    .plan-scene-text-box {
+      color: #94a3b8;
+      background: #0f1729;
+      border: 1px solid #1e293b;
+      border-radius: 3px;
+      padding: 4px 6px;
+      min-height: 48px;
+      outline: none;
+      font-size: 10px;
+      line-height: 1.4;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .plan-scene-text-box:focus {
+      border-color: #3b82f6;
+    }
+    .plan-scene-text-box:empty::before {
+      content: attr(data-placeholder);
+      color: #475569;
+    }
+    .plan-scene-field-textarea {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
     .plan-scene-wc {
       color: #64748b;
       font-size: 9px;

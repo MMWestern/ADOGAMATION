@@ -438,21 +438,31 @@
                       '</div>' +
                       '<div class="plan-scene-fields">' +
                         '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-field-label">Purpose:</span>' +
-                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="What happens..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="purpose">' + escapeHtml(scene.purpose || "") + '</span>' +
-                        '</div>' +
-                        '<div class="plan-scene-field">' +
                           '<span class="plan-scene-field-label">POV:</span>' +
-                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="Character..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="pov">' + escapeHtml(scene.pov || "") + '</span>' +
+                          '<select class="plan-scene-field-select" data-scene-id="' + escapeHtml(scene.id) + '" data-field="povType">' +
+                            '<option value="">— Type —</option>' +
+                            '<option value="First Person"' + (scene.povType === "First Person" ? " selected" : "") + '>First Person</option>' +
+                            '<option value="Second Person"' + (scene.povType === "Second Person" ? " selected" : "") + '>Second Person</option>' +
+                            '<option value="Third Person Limited"' + (scene.povType === "Third Person Limited" ? " selected" : "") + '>Third Person Limited</option>' +
+                            '<option value="Third Person Omniscient"' + (scene.povType === "Third Person Omniscient" ? " selected" : "") + '>Third Person Omniscient</option>' +
+                            '<option value="Third Person Close"' + (scene.povType === "Third Person Close" ? " selected" : "") + '>Third Person Close</option>' +
+                            '<option value="Omniscient"' + (scene.povType === "Omniscient" ? " selected" : "") + '>Omniscient</option>' +
+                          '</select>' +
+                          '<select class="plan-scene-field-select" data-scene-id="' + escapeHtml(scene.id) + '" data-field="povCharacterId">' +
+                            '<option value="">— Who —</option>' +
+                            characters.map(function (c) {
+                              var cid = String(c.id || "");
+                              return '<option value="' + escapeHtml(cid) + '"' + (String(scene.povCharacterId || "") === cid ? " selected" : "") + '>' + escapeHtml(c.name || "") + '</option>';
+                            }).join("") +
+                          '</select>' +
                         '</div>' +
                         '<div class="plan-scene-field">' +
                           '<span class="plan-scene-field-label">Target:</span>' +
                           '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
                           '<span class="plan-scene-wc">words</span>' +
                         '</div>' +
-                        '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-field-label">Plot:</span>' +
-                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="Main plot function..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="mainPlotFunction">' + escapeHtml(scene.mainPlotFunction || "") + '</span>' +
+                        '<div class="plan-scene-field plan-scene-field-textarea">' +
+                          '<div class="plan-scene-text-box" contenteditable="true" spellcheck="false" data-placeholder="Write scene details here..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="text">' + escapeHtml(scene.text || "") + '</div>' +
                         '</div>' +
                       '</div>' +
                       '<div class="plan-scene-tags">' + codexTags +
@@ -493,9 +503,35 @@
           }
         });
         node.addEventListener("keydown", function (e) {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && this.getAttribute("data-field") !== "text") {
             e.preventDefault();
             this.blur();
+          }
+          if (e.key === "Enter" && this.getAttribute("data-field") === "text" && e.shiftKey) {
+            return;
+          }
+          if (e.key === "Enter" && this.getAttribute("data-field") === "text" && !e.shiftKey) {
+            e.preventDefault();
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+            var range = sel.getRangeAt(0);
+            var br = document.createElement("br");
+            range.deleteContents();
+            range.insertNode(br);
+            range.setStartAfter(br);
+            range.setEndAfter(br);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        });
+      });
+
+      grid.querySelectorAll(".plan-scene-field-select").forEach(function (sel) {
+        sel.addEventListener("change", function () {
+          var sceneId = this.getAttribute("data-scene-id");
+          var field = this.getAttribute("data-field");
+          if (sceneId && field) {
+            updatePlanSceneField(sceneId, field, this.value);
           }
         });
       });
