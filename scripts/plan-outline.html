@@ -272,6 +272,10 @@
             var seriesId = project && Number(project.series_id || 0) ? Number(project.series_id) : 0;
             var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
             var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+            var objects = seriesId ? (skCache.objects && skCache.objects[seriesId] || []) : [];
+            var lore = seriesId ? (skCache.lore && skCache.lore[seriesId] || []) : [];
+            var subplots = seriesId ? (skCache.subplots && skCache.subplots[seriesId] || []) : [];
+            var other = seriesId ? (skCache.other && skCache.other[seriesId] || []) : [];
             var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
             var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
               var parts = [];
@@ -285,9 +289,9 @@
               if (scene.pov) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>POV:</strong> " + escapeHtml(scene.pov) + "</div>");
               if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
               if (scene.mainPlotFunction) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Plot:</strong> " + escapeHtml(scene.mainPlotFunction) + "</div>");
-              var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity);
+              var codexTags = getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity);
               if (codexTags) {
-                parts.push("<div style='display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;'>" + codexTags + "</div>");
+                parts.push("<div style='margin-top:4px;'>" + codexTags + "</div>");
               }
               return "<div style='margin-bottom:8px;padding:6px 8px;background:#0f1419;border:1px solid #1e293b;border-radius:4px;'>" +
                 parts.join("") +
@@ -376,8 +380,12 @@
       var seriesId = Number(project && project.series_id || 0);
       var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
       var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
+      var objects = seriesId ? (skCache.objects && skCache.objects[seriesId] || []) : [];
+      var lore = seriesId ? (skCache.lore && skCache.lore[seriesId] || []) : [];
+      var subplots = seriesId ? (skCache.subplots && skCache.subplots[seriesId] || []) : [];
+      var other = seriesId ? (skCache.other && skCache.other[seriesId] || []) : [];
       var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
-      var _planRenderedWithData = !seriesId || characters.length || locations.length || continuity.length;
+      var _planRenderedWithData = !seriesId || characters.length || locations.length || objects.length || lore.length || subplots.length || other.length || continuity.length;
       if (!_planRenderedWithData) {
         loadSeriesKnowledgeForSelectedProject(false).finally(function () {
           if (!el.planOutlineGrid) return;
@@ -418,7 +426,7 @@
                     sceneNum += 1;
                     var wc = Number(scene.targetWordCount || 0);
                     var wcLabel = wc ? wc.toLocaleString() : "—";
-                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, continuity, true);
+                    var codexTags = getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity, true);
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
                         '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
@@ -665,29 +673,66 @@
       });
     }
 
-    function getPlanSceneCodexTags(scene, characters, locations, continuity, showRemove) {
-      var tags = [];
+    function getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity, showRemove) {
+      var typeArrays = {
+        characters: characters,
+        locations: locations,
+        objects: objects,
+        lore: lore,
+        subplots: subplots,
+        other: other,
+        continuity: continuity
+      };
+      var typeLabels = {
+        characters: "Characters",
+        locations: "Locations",
+        objects: "Objects",
+        lore: "Lore",
+        subplots: "Subplots",
+        other: "Other",
+        continuity: "Continuity"
+      };
+      var tagGroups = {
+        characters: [],
+        locations: [],
+        objects: [],
+        lore: [],
+        subplots: [],
+        other: [],
+        continuity: []
+      };
       (scene.codexEntries || []).forEach(function (entry) {
         var id = Number(entry.id || 0);
         var type = String(entry.type || "").trim();
-        var arr = type === "characters" ? characters : type === "locations" ? locations : type === "continuity" ? continuity : null;
+        var arr = typeArrays[type] || null;
         var obj = arr ? arr.find(function (x) { return Number(x.id || 0) === id; }) : null;
         var name = obj ? String(obj.name || obj.title || "").trim() : "?";
         var color = obj ? String(obj.color || "").trim() : "";
-        tags.push({ id: id, type: type, name: name, color: color });
+        if (tagGroups[type]) {
+          tagGroups[type].push({ id: id, type: type, name: name, color: color });
+        }
       });
       (scene.characterIds || []).forEach(function (cid) {
         var id = Number(cid || 0);
-        if (!id || tags.some(function (t) { return t.id === id && t.type === "characters"; })) return;
+        if (!id || tagGroups.characters.some(function (t) { return t.id === id; })) return;
         var charObj = characters.find(function (c) { return Number(c.id) === id; });
-        tags.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
+        tagGroups.characters.push({ id: id, type: "characters", name: charObj ? String(charObj.name || "").trim() : "?", color: charObj ? String(charObj.color || "").trim() : "" });
       });
-      return tags.map(function (t) {
-        var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
-        var removeHtml = showRemove ? '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span>' : "";
-        return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
-          escapeHtml(t.name) + removeHtml + '</span>';
-      }).join("");
+      var html = "";
+      Object.keys(tagGroups).forEach(function (type) {
+        var tags = tagGroups[type];
+        if (!tags.length) return;
+        html += '<div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 2px;">' + typeLabels[type] + '</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px;">';
+        html += tags.map(function (t) {
+          var colorStyle = t.color ? ' data-color="' + escapeHtml(t.color) + '" style="background:' + escapeHtml(t.color) + 'dd;color:#fff"' : "";
+          var removeHtml = showRemove ? '<span class="plan-scene-tag-remove" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '">&#10005;</span>' : "";
+          return '<span class="plan-scene-tag" data-scene-id="' + escapeHtml(scene.id) + '" data-codex-id="' + escapeHtml(t.id) + '" data-codex-type="' + escapeHtml(t.type) + '"' + colorStyle + '>' +
+            escapeHtml(t.name) + removeHtml + '</span>';
+        }).join("");
+        html += '</div>';
+      });
+      return html;
     }
 
     var _planCodexTagTargetSceneId = "";
