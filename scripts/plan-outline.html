@@ -822,8 +822,10 @@
         if (typeEl) {
           var val = typeEl.getAttribute("data-pov-type");
           updatePlanSceneField(sceneId, "povType", val);
-          closePlanScenePovPopup();
-          renderPlanOutline();
+          popup.querySelectorAll("[data-pov-type]").forEach(function (el) {
+            el.style.background = el === typeEl ? "#3b82f6" : "#0f1729";
+            el.style.color = el === typeEl ? "#fff" : "#94a3b8";
+          });
           return;
         }
         var charEl = e.target.closest("[data-pov-char]");
