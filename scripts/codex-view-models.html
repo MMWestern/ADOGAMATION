@@ -31,6 +31,7 @@
         body: String(safe.summary || safe.description || '').trim(),
         badge: String(safe.custom_data && safe.custom_data.role_archetype || safe.custom_data && safe.custom_data.type || '').trim(),
         color: String(safe.color || '').trim(),
+        image_url: String(safe.image_url || '').trim(),
         role: String(safe.custom_data && safe.custom_data.role_archetype || '').trim(),
         archetype: String(safe.custom_data && safe.custom_data.archetype || '').trim(),
         scope: String(safe.scope || 'series').trim(),

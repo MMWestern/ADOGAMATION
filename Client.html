@@ -2719,6 +2719,7 @@
           body: String(item.description || item.motivation_arc || item.role_archetype || "").trim(),
           badge: String(item.role_archetype || item.archetype || "").trim(),
           color: String(item.color || "").trim(),
+          image_url: String(item.image_url || "").trim(),
           role: String(item.role_archetype || "").trim(),
           archetype: String(item.archetype || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
@@ -2735,6 +2736,7 @@
           body: String(item.description || item.significance || item.type || "").trim(),
           badge: String(item.type || "").trim(),
           color: String(item.color || "").trim(),
+          image_url: String(item.image_url || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
           bookLinks: detail.bookLinks || item.bookLinks || []
         });
@@ -2763,6 +2765,7 @@
           body: String(item.description || item.significance || item.type || "").trim(),
           badge: String(item.type || "").trim(),
           color: String(item.color || "").trim(),
+          image_url: String(item.image_url || "").trim(),
           scope: String(item.scope || "book").trim() || "book",
           bookLinks: detail.bookLinks || item.bookLinks || []
         });
@@ -2775,6 +2778,7 @@
           title: String(item.name || "Untitled").trim() || "Untitled",
           body: String(item.description || "").trim(),
           color: String(item.color || "").trim(),
+          image_url: String(item.image_url || "").trim(),
           scope: String(item.scope || "series").trim() || "series",
           bookLinks: item.bookLinks || []
         });
@@ -3738,6 +3742,11 @@
         var color = String(entry.color || "").trim();
         var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
         var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+        var imgUrl = String(entry.image_url || "").trim();
+        var thumbStyle = color ? ' style="border-color:' + escapeHtml(color) + '"' : '';
+        var avatarHtml = imgUrl
+          ? '<div class="writing-codex-entry-thumb"' + thumbStyle + '><img src="' + escapeHtml(imgUrl) + '" alt="" /></div>'
+          : '<div class="writing-codex-entry-avatar">' + dotHtml + escapeHtml(initials) + '</div>';
         var badge = String(entry.badge || "").trim();
         var role = String(entry.role || "").trim();
         var archetype = String(entry.archetype || "").trim();
@@ -3752,7 +3761,7 @@
           pillsHtml = '<span class="writing-codex-entry-pill" style="background:#5f6971;color:#f1e6c8">' + escapeHtml(badge) + '</span>';
         }
         return "<button type='button' class='writing-codex-entry" + active + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "'>" +
-          "<div class='writing-codex-entry-avatar'>" + dotHtml + escapeHtml(initials) + "</div>" +
+          avatarHtml +
           "<div class='writing-codex-entry-content'>" +
             "<div class='writing-codex-entry-top'>" +
               "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
