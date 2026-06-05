@@ -1088,6 +1088,17 @@
         if (el.skCodexInspectorImageFallback) {
             el.skCodexInspectorImageFallback.style.display = safe ? "none" : "flex";
         }
+        if (el.writingCodexModalImage && el.writingCodexModal && el.writingCodexModal.classList.contains("is-open")) {
+            var modalKey = appState.writingWorkspace.codexModalKey || "";
+            var inspectorId = el.skCodexInspectorId ? el.skCodexInspectorId.value : "";
+            if (inspectorId && modalKey.indexOf("::" + inspectorId) !== -1) {
+                el.writingCodexModalImage.src = safe;
+                el.writingCodexModalImage.style.display = safe ? "block" : "none";
+                if (el.writingCodexModalAvatarFallback) {
+                    el.writingCodexModalAvatarFallback.style.display = safe ? "none" : "flex";
+                }
+            }
+        }
     }
 
     function updateSkCodexInspectorImage(url) {

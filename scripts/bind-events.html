@@ -1580,6 +1580,7 @@
       bindUiOnce(el.skCodexInspectorDeleteButton, "sk-inspector-delete", "click", deleteSkCodexInspector);
       if (el.skCodexInspectorGenerateButton) {
         el.skCodexInspectorGenerateButton.addEventListener("click", function () {
+          appState.imagePicker.targetMode = "codexInspector";
           if (typeof openImageGeneratorModal === "function") openImageGeneratorModal("codex");
         });
       }
