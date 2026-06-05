@@ -30,7 +30,9 @@
               legacyDriveUrl: legacyDriveUrl,
               legacyDriveFileId: driveFileId,
               legacyDriveThumbnailFileId: legacyThumbId,
-              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {}
+              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {},
+              category: String(row.category || 'general').trim(),
+              cropData: row.crop_data && typeof row.crop_data === 'object' ? row.crop_data : null
             };
           });
           return JSON.stringify({ ok: true, backend: 'supabase', bucket: bucket, count: files.length, files: files });
@@ -70,7 +72,7 @@
       return { originalPath: 'originals/' + leaf + '.' + origExt, thumbnailPath: 'thumbnails/' + leaf + '-thumb.' + prevExt };
     }
 
-    _sbDefine('uploadProjectImageJsonFromClient', function (folderId, fileName, mimeType, dataUrl, previewFileName, previewMimeType, previewDataUrl, generatorSettingsJson) {
+    _sbDefine('uploadProjectImageJsonFromClient', function (folderId, fileName, mimeType, dataUrl, previewFileName, previewMimeType, previewDataUrl, generatorSettingsJson, category) {
       try {
         var originalBlob = _dataUrlToBlob(dataUrl, mimeType);
         var hasPreview = String(previewDataUrl || '').trim();
@@ -103,6 +105,7 @@
             file_name: safeName,
             mime_type: safeMime,
             scope: 'library',
+            category: String(category || 'general').trim() || 'general',
             generator_settings: generatorSettings,
             legacy_drive_file_id: '',
             legacy_drive_thumbnail_file_id: '',
@@ -122,7 +125,8 @@
               url: storagePath ? baseUrl + storagePath : '',
               thumbnailUrl: thumbnailPath ? baseUrl + thumbnailPath : (storagePath ? baseUrl + storagePath : ''),
               thumbnailFileId: thumbnailPath || '',
-              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {}
+              generatorSettings: row.generator_settings && typeof row.generator_settings === 'object' ? row.generator_settings : {},
+              category: String(row.category || 'general').trim()
             });
           });
         });
@@ -155,6 +159,36 @@
       } catch (e) {
         return Promise.resolve(JSON.stringify({ ok: false, error: e.message || 'deleteProjectImage failed' }));
       }
+    });
+
+    _sbDefine('updateImageCategoryJsonFromClient', function (imageId, category) {
+      var safeId = String(imageId || '').trim();
+      var safeCategory = String(category || 'general').trim() || 'general';
+      if (!safeId) throw new Error('Image id is required.');
+      return sbClient.from('image_assets').update({ category: safeCategory }).eq('id', safeId).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, category: safeCategory });
+        });
+    });
+
+    _sbDefine('saveImageCropJsonFromClient', function (imageId, cropDataJson, croppedStoragePath) {
+      var safeId = String(imageId || '').trim();
+      if (!safeId) throw new Error('Image id is required.');
+      var cropData = {};
+      if (cropDataJson != null && String(cropDataJson).trim()) {
+        try { cropData = JSON.parse(String(cropDataJson)); } catch (e) { cropData = {}; }
+      }
+      var safePath = String(croppedStoragePath || '').trim();
+      cropData.cropped_path = safePath;
+      return sbClient.from('image_assets').update({ crop_data: cropData }).eq('id', safeId).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var bucket = 'project-images';
+          var baseUrl = 'https://bmssizjfkowberhhpyff.supabase.co/storage/v1/object/public/' + bucket + '/';
+          var croppedUrl = safePath ? baseUrl + safePath : '';
+          return JSON.stringify({ ok: true, cropData: cropData, croppedUrl: croppedUrl });
+        });
     });
 
     // --- Resources ---

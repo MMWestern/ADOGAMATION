@@ -272,10 +272,8 @@
     function updateStorySeedProviderBadge() {
       if (!el.storySeedProviderBadge) return;
       const payload = collectAISettingsFormData();
-      const provider = appState.aiSettings.activeProvider || payload.provider || "openrouter";
-      payload.provider = provider;
       const model = getSelectedAIModel(payload);
-      el.storySeedProviderBadge.textContent = model ? (providerLabel(provider) + " · " + model) : (providerLabel(provider) + " · no model");
+      el.storySeedProviderBadge.textContent = model ? (providerLabel(payload.provider) + " · " + model) : (providerLabel(payload.provider) + " · no model");
     }
 
     function setStorySeedGuidance(message) {
@@ -563,8 +561,6 @@
 
     function buildStorySeedAiPayload(briefMarkdown, briefData) {
       const payload = collectAISettingsFormData();
-      const provider = appState.aiSettings.activeProvider || payload.provider || "openrouter";
-      payload.provider = provider;
       const model = getSelectedAIModel(payload);
       if (!model) {
         throw new Error("No AI model selected. Open AI Settings, choose a model, then try again.");
@@ -603,6 +599,13 @@
         "Structured brief data:",
         JSON.stringify(briefData || {}, null, 2)
       ].join("\n");
+      payload.model = model;
+      payload.messages = [
+        { role: "system", content: system },
+        { role: "user", content: prompt }
+      ];
+      payload.temperature = 0.9;
+      payload.max_tokens = 1800;
       payload.request = {
         model: model,
         system: system,

@@ -1,5 +1,5 @@
     function bindEvents() {
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabSeriesKnowledge].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex].forEach(function (btn) {
         if (!btn) return;
         bindUiOnce(btn, "main-tab-switch", "click", function () {
           switchMainTab(btn.getAttribute("data-main-tab"));
@@ -273,7 +273,11 @@
 
       if (el.writingCodexModalAvatarShell) {
         el.writingCodexModalAvatarShell.addEventListener("click", function () {
-          if (typeof openImagePickerModal === "function") openImagePickerModal();
+          appState.imagePicker.targetMode = "codexInspector";
+          var codexType = appState.writingWorkspace.codexModalType || "";
+          var typeFilterMap = { characters: "character", locations: "location", objects: "object" };
+          var filter = typeFilterMap[codexType] || "all";
+          if (typeof openImagePickerModal === "function") openImagePickerModal(filter);
         });
       }
 
@@ -1028,7 +1032,18 @@
       el.uploadLocalImageButton.addEventListener("click", triggerLocalImageUpload);
       el.uploadFromPickerButton.addEventListener("click", triggerLocalImageUpload);
       if (el.openImageGeneratorButton) {
-        el.openImageGeneratorButton.addEventListener("click", openImageGeneratorModal);
+        el.openImageGeneratorButton.addEventListener("click", function () {
+          var isCodexContext = (el.skCodexInspector && !el.skCodexInspector.hidden) ||
+            (appState.imagePicker.targetMode === "codexInspector");
+          var genMode = isCodexContext ? "codex" : "cover";
+          openImageGeneratorModal(genMode);
+        });
+      }
+      if (el.imageGeneratorModeCover) {
+        el.imageGeneratorModeCover.addEventListener("click", function () { setImageGeneratorMode("cover"); });
+      }
+      if (el.imageGeneratorModeCodex) {
+        el.imageGeneratorModeCodex.addEventListener("click", function () { setImageGeneratorMode("codex"); });
       }
       if (el.optimizeLegacyImagesButton) {
         el.optimizeLegacyImagesButton.addEventListener("click", optimizeLegacyImages);
@@ -1052,6 +1067,28 @@
       document.addEventListener("wheel", handleModalOverlayWheel, { passive: false });
       el.cancelImagePickerButton.addEventListener("click", closeImagePickerModal);
       el.applySelectedImageButton.addEventListener("click", function () { applySelectedImageUrl(); });
+      if (el.cropSelectedImageButton) {
+        el.cropSelectedImageButton.addEventListener("click", function () {
+          if (appState.imagePicker.selectedUrl) openImageCropModal(appState.imagePicker.selectedUrl);
+        });
+      }
+      if (el.imagePickerFilters) {
+        el.imagePickerFilters.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-image-filter]");
+          if (btn) setImagePickerFilter(btn.getAttribute("data-image-filter"));
+        });
+      }
+      if (el.imagePickerMetaCategory) {
+        el.imagePickerMetaCategory.addEventListener("change", saveImagePickerMetaCategory);
+      }
+      if (el.cancelCropButton) el.cancelCropButton.addEventListener("click", closeImageCropModal);
+      if (el.applyCropButton) el.applyCropButton.addEventListener("click", applyImageCrop);
+      if (el.imageCropModal) {
+        el.imageCropModal.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-aspect]");
+          if (btn) setCropAspect(btn.getAttribute("data-aspect"));
+        });
+      }
       el.localImageFileInput.addEventListener("change", function () {
         const file = el.localImageFileInput.files && el.localImageFileInput.files[0];
         uploadLocalImageFile(file);
@@ -1067,6 +1104,9 @@
         el.imageGeneratorTypography,
         el.imageGeneratorTextPlacement,
         el.imageGeneratorFontStyle,
+        el.imageGeneratorPose,
+        el.imageGeneratorSetting,
+        el.imageGeneratorLighting,
         el.imageGeneratorAmount,
         el.imageGeneratorSize,
         el.imageGeneratorUseSeriesSummaries
@@ -1137,13 +1177,13 @@
       if (el.detailImageWrap) {
         el.detailImageWrap.addEventListener("click", function () {
           setDetailImageMode("project");
-          openImagePickerModal();
+          openImagePickerModal("cover");
         });
       }
       if (el.detailSeriesImageWrap) {
         el.detailSeriesImageWrap.addEventListener("click", function () {
           setDetailImageMode("series");
-          openImagePickerModal();
+          openImagePickerModal("cover");
         });
       }
       if (el.detailImageModeProject) {
@@ -1225,7 +1265,7 @@
       }
       el.clearFiltersButton.addEventListener("click", clearFilters);
 
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabSeriesKnowledge].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex].forEach(function (btn) {
         if (!btn) return;
         bindUiOnce(btn, "main-tab-switch", "click", function () {
           switchMainTab(btn.getAttribute("data-main-tab"));
@@ -1437,7 +1477,13 @@
 
       bindUiOnce(el.resourceSeriesKnowledgeLore, "sk-lore-blur", "focusout", autoSaveLore);
 
-      [el.skSubTabLore, el.skSubTabCharacters, el.skSubTabLocations, el.skSubTabContinuity].forEach(function (btn) {
+      bindUiOnce(el.skLoreAddButton, "sk-lore-add", "click", function () {
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+          if (typeof openSkCodexInspector === "function") openSkCodexInspector("lore", 0);
+        }
+      });
+
+      [el.skSubTabLore, el.skSubTabCharacters, el.skSubTabLocations, el.skSubTabObjects, el.skSubTabContinuity, el.skSubTabConnections, el.skSubTabTimelines, el.skSubTabMentions, el.skSubTabAssets, el.skSubTabAi].forEach(function (btn) {
         if (!btn) return;
         bindUiOnce(btn, "sk-sub-tab", "click", function () {
           setSkSubTab(btn.getAttribute("data-sk-tab") || "lore");
@@ -1486,7 +1532,13 @@
         });
       }
 
-      bindUiOnce(el.skCharacterAddButton, "sk-char-add", "click", function () { editSkCharacter(0); });
+      bindUiOnce(el.skCharacterAddButton, "sk-char-add", "click", function () {
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+          if (typeof openSkCodexInspector === "function") openSkCodexInspector("characters", 0);
+        } else {
+          editSkCharacter(0);
+        }
+      });
       bindUiOnce(el.skCharacterFormSaveButton, "sk-char-save", "click", saveSkCharacter);
       bindUiOnce(el.skCharacterFormCancelButton, "sk-char-cancel", "click", function () {
         if (el.skCharacterForm) el.skCharacterForm.hidden = true;
@@ -1495,13 +1547,25 @@
       bindUiOnce(el.skCharacterFormDeleteButton, "sk-char-delete", "click", deleteSkCharacter);
       bindUiOnce(el.skCharacterRelAddButton, "sk-char-rel-add", "click", addSkRelationship);
 
-      bindUiOnce(el.skLocationAddButton, "sk-loc-add", "click", function () { editSkLocation(0); });
+      bindUiOnce(el.skLocationAddButton, "sk-loc-add", "click", function () {
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+          if (typeof openSkCodexInspector === "function") openSkCodexInspector("locations", 0);
+        } else {
+          editSkLocation(0);
+        }
+      });
       bindUiOnce(el.skLocationFormSaveButton, "sk-loc-save", "click", saveSkLocation);
       bindUiOnce(el.skLocationFormCancelButton, "sk-loc-cancel", "click", function () {
         if (el.skLocationForm) el.skLocationForm.hidden = true;
         skEditingLocationId = 0;
       });
       bindUiOnce(el.skLocationFormDeleteButton, "sk-loc-delete", "click", deleteSkLocation);
+
+      bindUiOnce(el.skObjectAddButton, "sk-obj-add", "click", function () {
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+          if (typeof openSkCodexInspector === "function") openSkCodexInspector("objects", 0);
+        }
+      });
 
       bindUiOnce(el.skContinuityAddButton, "sk-cont-add", "click", function () { editSkContinuityEntry(0); });
       bindUiOnce(el.skContinuityFormSaveButton, "sk-cont-save", "click", saveSkContinuityEntry);
@@ -1510,6 +1574,42 @@
         skEditingContinuityId = 0;
       });
       bindUiOnce(el.skContinuityFormDeleteButton, "sk-cont-delete", "click", deleteSkContinuityEntry);
+
+      bindUiOnce(el.skCodexInspectorSaveButton, "sk-inspector-save", "click", saveSkCodexInspector);
+      bindUiOnce(el.skCodexInspectorCancelButton, "sk-inspector-cancel", "click", closeSkCodexInspector);
+      bindUiOnce(el.skCodexInspectorDeleteButton, "sk-inspector-delete", "click", deleteSkCodexInspector);
+      if (el.skCodexInspectorGenerateButton) {
+        el.skCodexInspectorGenerateButton.addEventListener("click", function () {
+          if (typeof openImageGeneratorModal === "function") openImageGeneratorModal("codex");
+        });
+      }
+      if (el.skCodexInspectorImageWrap) {
+        el.skCodexInspectorImageWrap.addEventListener("click", function () {
+          appState.imagePicker.targetMode = "codexInspector";
+          var entityType = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
+          var typeFilterMap = { characters: "character", locations: "location", objects: "object" };
+          var defaultFilter = typeFilterMap[entityType] || "all";
+          if (typeof openImagePickerModal === "function") openImagePickerModal(defaultFilter);
+        });
+      }
+      if (el.skCodexInspectorName) {
+        el.skCodexInspectorName.addEventListener("input", function () {
+          if (el.skCodexInspectorNameDisplay) el.skCodexInspectorNameDisplay.textContent = el.skCodexInspectorName.value || "Unnamed";
+          if (typeof updateSkCodexInspectorFallback === "function") updateSkCodexInspectorFallback(el.skCodexInspectorName.value);
+        });
+      }
+      if (el.skCodexInspectorColorTrigger && el.skCodexInspectorColorDropdown) {
+        el.skCodexInspectorColorTrigger.addEventListener("click", function (e) {
+          e.stopPropagation();
+          el.skCodexInspectorColorDropdown.hidden = !el.skCodexInspectorColorDropdown.hidden;
+        });
+        el.skCodexInspectorColorDropdown.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-color]");
+          if (!btn) return;
+          setSkCodexInspectorColor(btn.getAttribute("data-color") || "");
+          el.skCodexInspectorColorDropdown.hidden = true;
+        });
+      }
 
       if (el.skContinuityCharAdd) {
         el.skContinuityCharAdd.addEventListener("change", function () {
@@ -1544,6 +1644,65 @@
           el.skContinuityProjectAdd.value = "";
         });
       }
+
+      bindUiOnce(el.skContinuityScanButton, "sk-cont-scan", "click", scanSkContinuity);
+
+      bindUiOnce(el.skConnectionAddButton, "sk-conn-add", "click", function () { editSkConnection(0); });
+      bindUiOnce(el.skConnectionFormSaveButton, "sk-conn-save", "click", saveSkConnection);
+      bindUiOnce(el.skConnectionFormCancelButton, "sk-conn-cancel", "click", function () {
+        if (el.skConnectionForm) el.skConnectionForm.hidden = true;
+        skEditingConnectionId = 0;
+      });
+      bindUiOnce(el.skConnectionFormDeleteButton, "sk-conn-delete", "click", deleteSkConnection);
+
+      bindUiOnce(el.skCalendarAddButton, "sk-cal-add", "click", function () { editSkCalendar(0); });
+      bindUiOnce(el.skCalendarFormSaveButton, "sk-cal-save", "click", saveSkCalendar);
+      bindUiOnce(el.skCalendarFormCancelButton, "sk-cal-cancel", "click", function () {
+        if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+        skEditingCalendarId = 0;
+      });
+      bindUiOnce(el.skCalendarFormDeleteButton, "sk-cal-delete", "click", deleteSkCalendar);
+      bindUiOnce(el.skEventAddButton, "sk-evt-add", "click", function () { editSkEvent(0); });
+      bindUiOnce(el.skEventFormSaveButton, "sk-evt-save", "click", saveSkEvent);
+      bindUiOnce(el.skEventFormCancelButton, "sk-evt-cancel", "click", function () {
+        if (el.skEventForm) el.skEventForm.hidden = true;
+        skEditingEventId = 0;
+      });
+      bindUiOnce(el.skEventFormDeleteButton, "sk-evt-delete", "click", deleteSkEvent);
+
+      bindUiOnce(el.skMentionAddButton, "sk-mention-add", "click", function () { editSkMention(0); });
+      bindUiOnce(el.skMentionFormSaveButton, "sk-mention-save", "click", saveSkMention);
+      bindUiOnce(el.skMentionFormCancelButton, "sk-mention-cancel", "click", function () {
+        if (el.skMentionForm) el.skMentionForm.hidden = true;
+        skEditingMentionId = 0;
+      });
+      bindUiOnce(el.skMentionFormDeleteButton, "sk-mention-delete", "click", deleteSkMention);
+
+      bindUiOnce(el.skAssetAddButton, "sk-asset-add", "click", function () { editSkAsset(0); });
+      bindUiOnce(el.skAssetFormSaveButton, "sk-asset-save", "click", saveSkAsset);
+      bindUiOnce(el.skAssetFormCancelButton, "sk-asset-cancel", "click", function () {
+        if (el.skAssetForm) el.skAssetForm.hidden = true;
+        skEditingAssetId = 0;
+      });
+      bindUiOnce(el.skAssetFormDeleteButton, "sk-asset-delete", "click", deleteSkAsset);
+
+      bindUiOnce(el.skAiGenerateButton, "sk-ai-generate", "click", generateSkAiSuggestion);
+      bindUiOnce(el.skAiDetailAdoptButton, "sk-ai-adopt-btn", "click", function () {
+        var id = Number(el.skAiDetailId ? el.skAiDetailId.value : 0);
+        if (id) reviewSkAiSuggestion(id, "adopted");
+      });
+      bindUiOnce(el.skAiDetailDismissButton, "sk-ai-dismiss-btn", "click", function () {
+        var id = Number(el.skAiDetailId ? el.skAiDetailId.value : 0);
+        if (id) reviewSkAiSuggestion(id, "dismissed");
+      });
+      bindUiOnce(el.skAiDetailCloseButton, "sk-ai-close-btn", "click", function () {
+        if (el.skAiSuggestionDetail) el.skAiSuggestionDetail.hidden = true;
+      });
+      bindUiOnce(el.skAiEmbedGenerateButton, "sk-embed-gen", "click", generateSkEmbeddings);
+      bindUiOnce(el.skAiSemanticSearchButton, "sk-semantic-search", "click", searchSkSemantic);
+      bindUiOnce(el.skAiSemanticQuery, "sk-semantic-enter", "keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); searchSkSemantic(); }
+      });
 
       if (el.resourceEditorPreviewToggle) {
         bindUiOnce(el.resourceEditorPreviewToggle, "resource-preview-toggle", "click", function () {

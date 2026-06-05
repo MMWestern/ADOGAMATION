@@ -1,3 +1,23 @@
+    var _imageGeneratorMode = "cover";
+
+    function setImageGeneratorMode(mode) {
+        _imageGeneratorMode = mode === "codex" ? "codex" : "cover";
+        if (el.imageGeneratorModeCover) el.imageGeneratorModeCover.classList.toggle("is-active", _imageGeneratorMode === "cover");
+        if (el.imageGeneratorModeCodex) el.imageGeneratorModeCodex.classList.toggle("is-active", _imageGeneratorMode === "codex");
+        if (el.imageGeneratorTitle) el.imageGeneratorTitle.textContent = _imageGeneratorMode === "codex" ? "AI Codex Asset Generator" : "AI Cover Generator";
+        if (el.imageGeneratorSubtitle) el.imageGeneratorSubtitle.textContent = _imageGeneratorMode === "codex"
+            ? "Generate character, location, or object images for your codex entries using local ComfyUI."
+            : "Local ComfyUI poster generation using the selected book summary and a few design controls.";
+        if (el.imageGeneratorCodexControls) el.imageGeneratorCodexControls.hidden = _imageGeneratorMode !== "codex";
+        if (el.imageGeneratorCoverControls) el.imageGeneratorCoverControls.hidden = _imageGeneratorMode !== "cover";
+        if (el.imageGeneratorSeriesTools) el.imageGeneratorSeriesTools.hidden = _imageGeneratorMode === "codex";
+        var sizeLabel = el.imageGeneratorSize && el.imageGeneratorSize.previousElementSibling;
+        if (sizeLabel) sizeLabel.textContent = _imageGeneratorMode === "codex" ? "Image Size" : "Poster Size";
+        updateImageGeneratorPromptPreview();
+    }
+
+    function getImageGeneratorMode() { return _imageGeneratorMode; }
+
     function populateImageGeneratorStyleSelect() {
         if (!el.imageGeneratorStyle) return;
         const current = String(el.imageGeneratorStyle.value || "cinematic").trim().toLowerCase();
@@ -84,6 +104,7 @@
 
     function captureImageGeneratorSettings() {
         return {
+            mode: _imageGeneratorMode,
             style: String(el.imageGeneratorStyle && el.imageGeneratorStyle.value || "cinematic").trim(),
             mood: String(el.imageGeneratorMood && el.imageGeneratorMood.value || "mysterious").trim(),
             palette: String(el.imageGeneratorPalette && el.imageGeneratorPalette.value || "rich-cinematic").trim(),
@@ -91,6 +112,9 @@
             typography: String(el.imageGeneratorTypography && el.imageGeneratorTypography.value || "title-only").trim(),
             textPlacement: String(el.imageGeneratorTextPlacement && el.imageGeneratorTextPlacement.value || "none").trim(),
             fontStyle: String(el.imageGeneratorFontStyle && el.imageGeneratorFontStyle.value || "none").trim(),
+            pose: String(el.imageGeneratorPose && el.imageGeneratorPose.value || "portrait").trim(),
+            setting: String(el.imageGeneratorSetting && el.imageGeneratorSetting.value || "neutral").trim(),
+            lighting: String(el.imageGeneratorLighting && el.imageGeneratorLighting.value || "natural").trim(),
             amount: String(el.imageGeneratorAmount && el.imageGeneratorAmount.value || "1").trim(),
             size: String(el.imageGeneratorSize && el.imageGeneratorSize.value || "768x1152").trim(),
             useSeriesSummaries: !!(el.imageGeneratorUseSeriesSummaries && el.imageGeneratorUseSeriesSummaries.checked)
@@ -99,6 +123,7 @@
 
     function applyImageGeneratorSettings(settings) {
         if (!settings || typeof settings !== "object") return false;
+        if (settings.mode) setImageGeneratorMode(settings.mode);
         if (el.imageGeneratorStyle && settings.style) el.imageGeneratorStyle.value = settings.style;
         if (el.imageGeneratorMood && settings.mood) el.imageGeneratorMood.value = settings.mood;
         if (el.imageGeneratorPalette && settings.palette) el.imageGeneratorPalette.value = settings.palette;
@@ -106,6 +131,9 @@
         if (el.imageGeneratorTypography && settings.typography) el.imageGeneratorTypography.value = settings.typography;
         if (el.imageGeneratorTextPlacement && settings.textPlacement) el.imageGeneratorTextPlacement.value = settings.textPlacement;
         if (el.imageGeneratorFontStyle && settings.fontStyle) el.imageGeneratorFontStyle.value = settings.fontStyle;
+        if (el.imageGeneratorPose && settings.pose) el.imageGeneratorPose.value = settings.pose;
+        if (el.imageGeneratorSetting && settings.setting) el.imageGeneratorSetting.value = settings.setting;
+        if (el.imageGeneratorLighting && settings.lighting) el.imageGeneratorLighting.value = settings.lighting;
         if (el.imageGeneratorAmount && settings.amount) el.imageGeneratorAmount.value = settings.amount;
         if (el.imageGeneratorSize && settings.size) el.imageGeneratorSize.value = settings.size;
         if (el.imageGeneratorUseSeriesSummaries) el.imageGeneratorUseSeriesSummaries.checked = !!settings.useSeriesSummaries;
@@ -223,6 +251,21 @@
     }
 
     function buildImageGeneratorNegativePrompt() {
+        if (_imageGeneratorMode === "codex") {
+            return [
+                "book cover",
+                "book mockup",
+                "text overlay",
+                "typography",
+                "watermark",
+                "logo",
+                "multiple people",
+                "group photo",
+                "collage",
+                "frame",
+                "border"
+            ].join(", ");
+        }
         return [
             "book mockup",
             "book cover mockup",
@@ -236,7 +279,105 @@
         ].join(", ");
     }
 
+    function buildCodexImageGeneratorPrompt() {
+        const entityName = String(el.imageGeneratorProjectTitle && el.imageGeneratorProjectTitle.value || "").trim();
+        const summary = String(el.imageGeneratorSummary && el.imageGeneratorSummary.value || "").trim();
+        const style = String(el.imageGeneratorStyle && el.imageGeneratorStyle.value || "cinematic").trim();
+        const mood = String(el.imageGeneratorMood && el.imageGeneratorMood.value || "mysterious").trim();
+        const palette = String(el.imageGeneratorPalette && el.imageGeneratorPalette.value || "rich-cinematic").trim();
+        const focus = String(el.imageGeneratorFocus && el.imageGeneratorFocus.value || "character").trim();
+        const pose = String(el.imageGeneratorPose && el.imageGeneratorPose.value || "portrait").trim();
+        const setting = String(el.imageGeneratorSetting && el.imageGeneratorSetting.value || "neutral").trim();
+        const lighting = String(el.imageGeneratorLighting && el.imageGeneratorLighting.value || "natural").trim();
+        const stylePreset = getImageGeneratorStylePreset(style);
+
+        const moodMap = {
+            mysterious: "mysterious, intriguing, slightly uncanny",
+            hopeful: "hopeful, uplifting, emotionally warm",
+            epic: "epic, sweeping, high stakes",
+            tense: "tense, suspenseful, dangerous",
+            dreamlike: "dreamlike, lyrical, surreal",
+            ominous: "ominous, foreboding, shadowed",
+            whimsical: "whimsical, playful, imaginative",
+            melancholic: "melancholic, reflective, wistful",
+            adventurous: "adventurous, propulsive, curious"
+        };
+        const paletteMap = {
+            "rich-cinematic": "rich cinematic palette, controlled contrast",
+            "warm-gold": "warm gold and ember palette, inviting highlights",
+            "cool-neon": "cool teal, violet, and neon accents",
+            "muted-literary": "muted literary palette, restrained saturation",
+            "high-contrast": "high contrast palette, bold shadow separation",
+            "forest-ember": "forest greens with ember orange accents",
+            "moonlit-silver": "moonlit blues, silver highlights",
+            "rose-cream": "soft rose, cream, and blush palette",
+            "autumn-harvest": "autumn amber, russet, and harvest tones",
+            "ocean-depths": "deep ocean blues, sea-green shadows",
+            "violet-gold": "royal violets with gilded highlights",
+            "crimson-ivory": "crimson, ivory, and dark charcoal",
+            "desert-sun": "sun-bleached ochre, terracotta, and desert gold",
+            "jade-obsidian": "jade green highlights against obsidian blacks",
+            "lavender-dusk": "lavender, dusk blue, and soft mauve",
+            "ice-fire": "glacial cyan and ember orange",
+            "sepia-smoke": "sepia browns, smoke gray, antique brass",
+            "midnight-rose": "midnight navy, wine red, and soft rose",
+            "copper-petrol": "oxidized petrol blue and burnished copper"
+        };
+        const focusMap = {
+            character: "single character focus, clear protagonist",
+            scene: "scene-led composition with environment detail",
+            symbolic: "symbolic imagery, iconic storytelling elements",
+            ensemble: "ensemble composition with multiple elements",
+            object: "single object focus, detailed item study",
+            architecture: "location-led composition, architectural detail"
+        };
+        const poseMap = {
+            portrait: "portrait composition, head and shoulders, direct gaze",
+            "full-body": "full body shot, standing pose, full figure visible",
+            "close-up": "extreme close-up, face detail, intimate framing",
+            "three-quarter": "three-quarter view, angled pose, dynamic framing",
+            "side-profile": "side profile view, elegant silhouette, contemplative",
+            action: "dynamic action pose, movement, energy",
+            detail: "detail shot, close-up of specific feature or item",
+            establishing: "establishing wide view, environmental context"
+        };
+        const settingMap = {
+            neutral: "clean neutral background, studio-style isolation",
+            environmental: "rich environmental background, contextual setting",
+            dramatic: "dramatic atmospheric background, moody depth",
+            studio: "professional studio lighting setup, seamless backdrop",
+            contextual: "in-story environment, narrative background elements"
+        };
+        const lightingMap = {
+            natural: "natural lighting, soft daylight, organic shadows",
+            dramatic: "dramatic directional lighting, strong shadows, high contrast",
+            soft: "soft diffused lighting, even illumination, gentle shadows",
+            rim: "rim light, edge lighting, halo effect, backlit outline",
+            backlit: "strong backlight, silhouette edges, atmospheric glow",
+            moody: "moody low-key lighting, deep shadows, selective highlights",
+            warm: "warm golden lighting, amber tones, inviting glow",
+            cool: "cool blue lighting, icy tones, clinical precision"
+        };
+
+        return [
+            stylePreset && stylePreset.prefix ? stylePreset.prefix : "",
+            moodMap[mood] || moodMap.mysterious,
+            paletteMap[palette] || paletteMap["rich-cinematic"],
+            focusMap[focus] || focusMap.character,
+            poseMap[pose] || poseMap.portrait,
+            settingMap[setting] || settingMap.neutral,
+            lightingMap[lighting] || lightingMap.natural,
+            "high detail",
+            "professional character art",
+            summary ? summary : "",
+            entityName ? "subject: " + entityName : "",
+            stylePreset && stylePreset.suffix ? stylePreset.suffix : "",
+            "professional digital art, publishable quality"
+        ].filter(Boolean).join(", ");
+    }
+
     function buildImageGeneratorPrompt() {
+        if (_imageGeneratorMode === "codex") return buildCodexImageGeneratorPrompt();
         const project = getSelectedProjectForImageGenerator() || {};
         const title = String(project.title || el.detailTitleInput && el.detailTitleInput.value || "").trim();
         const series = String(project.series || el.detailSeries && el.detailSeries.value || "").trim();
@@ -490,20 +631,69 @@
         setImageGeneratorPreviewFromEntry(history.length ? history[0] : null);
     }
 
-    function openImageGeneratorModal() {
+    function openImageGeneratorModal(mode) {
         const project = getSelectedProjectForImageGenerator();
         if (!project) {
-            setStatus("Select a project before generating a cover.", "error");
+            setStatus("Select a project before generating.", "error");
             return;
         }
+        var genMode = mode || "cover";
+        setImageGeneratorMode(genMode);
         const seriesMode = isSeriesImageGenerationMode();
-        if (el.imageGeneratorProjectTitle) {
-            el.imageGeneratorProjectTitle.value = seriesMode
-                ? "Series Image: " + String(project.series || "").trim()
-                : String(project.title || "").trim();
-        }
-        if (el.imageGeneratorSummary) {
-            el.imageGeneratorSummary.value = String(el.detailSummary && el.detailSummary.value || project.short_summary || "").trim();
+        if (genMode === "codex") {
+            var entityName = String(el.skCodexInspectorName && el.skCodexInspectorName.value || "").trim();
+            var entityDesc = String(el.skCodexInspectorDescription && el.skCodexInspectorDescription.value || "").trim();
+            var entitySecondary = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
+            var entityTertiary = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
+            var entityBadge = String(el.skCodexInspectorBadgeInput && el.skCodexInspectorBadgeInput.value || "").trim();
+            var entityType = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
+            if (!entityName && el.writingCodexModalTitle) {
+                entityName = String(el.writingCodexModalTitle.value || "").trim();
+            }
+            if (!entityDesc && el.writingCodexModalPrimary) {
+                entityDesc = String(el.writingCodexModalPrimary.value || "").trim();
+            }
+            if (!entitySecondary && el.writingCodexModalSecondary) {
+                entitySecondary = String(el.writingCodexModalSecondary.value || "").trim();
+            }
+            if (!entityTertiary && el.writingCodexModalTertiary) {
+                entityTertiary = String(el.writingCodexModalTertiary.value || "").trim();
+            }
+            if (!entityBadge && el.writingCodexModalBadgeInput) {
+                entityBadge = String(el.writingCodexModalBadgeInput.value || "").trim();
+            }
+            if (!entityType) {
+                entityType = appState.writingWorkspace.codexModalType || "";
+            }
+            if (el.imageGeneratorProjectTitle) el.imageGeneratorProjectTitle.value = entityName || String(project.title || "").trim();
+            var summaryParts = [];
+            if (entityDesc) summaryParts.push(entityDesc);
+            if (entitySecondary) summaryParts.push(entitySecondary);
+            if (entityTertiary) summaryParts.push(entityTertiary);
+            if (el.imageGeneratorSummary) el.imageGeneratorSummary.value = summaryParts.join("\n\n");
+            if (el.imageGeneratorFocus) {
+                if (entityType === "characters") el.imageGeneratorFocus.value = "character";
+                else if (entityType === "locations") el.imageGeneratorFocus.value = "architecture";
+                else if (entityType === "objects") el.imageGeneratorFocus.value = "object";
+            }
+            if (el.imageGeneratorPose) {
+                if (entityType === "characters") el.imageGeneratorPose.value = "portrait";
+                else if (entityType === "locations") el.imageGeneratorPose.value = "establishing";
+                else if (entityType === "objects") el.imageGeneratorPose.value = "detail";
+            }
+            if (entityBadge && el.imageGeneratorSummary) {
+                var existing = el.imageGeneratorSummary.value;
+                el.imageGeneratorSummary.value = existing ? entityBadge + ": " + existing : entityBadge;
+            }
+        } else {
+            if (el.imageGeneratorProjectTitle) {
+                el.imageGeneratorProjectTitle.value = seriesMode
+                    ? "Series Image: " + String(project.series || "").trim()
+                    : String(project.title || "").trim();
+            }
+            if (el.imageGeneratorSummary) {
+                el.imageGeneratorSummary.value = String(el.detailSummary && el.detailSummary.value || project.short_summary || "").trim();
+            }
         }
         if (el.imageGeneratorUseSeriesSummaries) {
             el.imageGeneratorUseSeriesSummaries.checked = seriesMode;
@@ -733,7 +923,8 @@
                     bundle.previewName,
                     bundle.previewMimeType,
                     bundle.previewDataUrl,
-                    ""
+                    "",
+                    _imageGeneratorMode === "codex" ? ((el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "characters" ? "character" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "locations" ? "location" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "objects" ? "object" : "general") : "cover"
                 );
         } catch (err) {
             console.error("GENERATED IMAGE FETCH ERROR", err);

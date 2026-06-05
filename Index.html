@@ -316,7 +316,7 @@
           <button id="mainTabWriting" class="main-tab is-active" type="button" data-main-tab="writing">PROJECTS</button>
           <button id="mainTabPlan" class="main-tab" type="button" data-main-tab="plan">PLAN</button>
           <button id="mainTabWorkspace" class="main-tab" type="button" data-main-tab="workspace">WRITING</button>
-          <button id="mainTabSeriesKnowledge" class="main-tab" type="button" data-main-tab="seriesknowledge">KNOWLEDGE</button>
+          <button id="mainTabCodex" class="main-tab" type="button" data-main-tab="codex">CODEX</button>
           <button id="mainTabPublishing" class="main-tab" type="button" data-main-tab="publishing">PUBLISHING</button>
           <button id="mainTabMarketing" class="main-tab" type="button" data-main-tab="marketing">MARKETING</button>
           <button id="mainTabResources" class="main-tab" type="button" data-main-tab="resources">RESOURCES</button>
@@ -562,7 +562,7 @@
         </div>
       </div>
 
-      <div id="mainTabContentSeriesknowledge" class="main-tab-content" hidden>
+      <div id="mainTabContentCodex" class="main-tab-content" hidden>
         <div id="skMainPanel" class="series-knowledge-panel">
           <div class="sk-main-header">
             <div>
@@ -577,15 +577,29 @@
             <button id="skSubTabLore" class="series-knowledge-sub-tab is-active" type="button" data-sk-tab="lore" aria-pressed="true">Lore</button>
             <button id="skSubTabCharacters" class="series-knowledge-sub-tab" type="button" data-sk-tab="characters" aria-pressed="false">Characters</button>
             <button id="skSubTabLocations" class="series-knowledge-sub-tab" type="button" data-sk-tab="locations" aria-pressed="false">Locations</button>
+            <button id="skSubTabObjects" class="series-knowledge-sub-tab" type="button" data-sk-tab="objects" aria-pressed="false">Objects</button>
             <button id="skSubTabContinuity" class="series-knowledge-sub-tab" type="button" data-sk-tab="continuity" aria-pressed="false">Continuity</button>
+            <button id="skSubTabConnections" class="series-knowledge-sub-tab" type="button" data-sk-tab="connections" aria-pressed="false">Connections</button>
+            <button id="skSubTabTimelines" class="series-knowledge-sub-tab" type="button" data-sk-tab="timelines" aria-pressed="false">Timelines</button>
+            <button id="skSubTabMentions" class="series-knowledge-sub-tab" type="button" data-sk-tab="mentions" aria-pressed="false">Mentions</button>
+            <button id="skSubTabAssets" class="series-knowledge-sub-tab" type="button" data-sk-tab="assets" aria-pressed="false">Assets</button>
+            <button id="skSubTabAi" class="series-knowledge-sub-tab" type="button" data-sk-tab="ai" aria-pressed="false">AI</button>
           </div>
 
           <div class="sk-tab-content-area">
             <div id="skTabLore" class="series-knowledge-tab-pane">
-              <label class="resource-series-knowledge-field" style="flex:1;min-height:0;">
-                <span>Lore And Rules</span>
-                <textarea id="resourceSeriesKnowledgeLore" placeholder="Magic systems, factions, history, tone rules, technology limits..." style="flex:1;min-height:80px;"></textarea>
-              </label>
+              <div id="skLoreLegacyWrap">
+                <label class="resource-series-knowledge-field" style="flex:1;min-height:0;">
+                  <span>Lore And Rules</span>
+                  <textarea id="resourceSeriesKnowledgeLore" placeholder="Magic systems, factions, history, tone rules, technology limits..." style="flex:1;min-height:80px;"></textarea>
+                </label>
+              </div>
+              <div id="skLoreNewWrap" hidden>
+                <div class="add-entity-bar">
+                  <button id="skLoreAddButton" type="button">+ Add Lore</button>
+                </div>
+                <div id="skLoreList" class="world-entity-list"></div>
+              </div>
             </div>
 
             <div id="skTabCharacters" class="series-knowledge-tab-pane" hidden>
@@ -602,11 +616,290 @@
               <div id="skLocationList" class="world-entity-list"></div>
             </div>
 
+            <div id="skTabObjects" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skObjectAddButton" type="button">+ Add Object</button>
+              </div>
+              <div id="skObjectList" class="world-entity-list"></div>
+            </div>
+
             <div id="skTabContinuity" class="series-knowledge-tab-pane" hidden>
               <div class="add-entity-bar">
                 <button id="skContinuityAddButton" type="button">+ Add Entry</button>
               </div>
               <div id="skContinuityList" class="world-entity-list"></div>
+              <div class="sk-section-divider"></div>
+              <div class="sk-continuity-findings-section">
+                <div class="add-entity-bar" style="align-items:center;gap:8px;">
+                  <span style="font-weight:600;font-size:12px;">AI Findings</span>
+                  <button id="skContinuityScanButton" type="button" style="flex:0 0 auto;font-size:11px;">Scan for Issues</button>
+                  <span id="skContinuityScanStatus" class="tiny" style="color:var(--muted);margin-left:auto;"></span>
+                </div>
+                <div id="skContinuityFindingsList" class="world-entity-list" style="margin-top:6px;"></div>
+              </div>
+            </div>
+
+            <div id="skTabConnections" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skConnectionAddButton" type="button">+ Add Connection</button>
+              </div>
+              <div id="skConnectionList" class="world-entity-list"></div>
+              <div id="skConnectionForm" class="sk-entity-form" hidden>
+                <input type="hidden" id="skConnectionId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skConnectionNameDisplay" class="sk-form-name">New Connection</div>
+                </div>
+                <label class="sk-form-field">
+                  <span>Source Entity</span>
+                  <select id="skConnectionSource"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Relationship Type</span>
+                  <select id="skConnectionRelType"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Target Entity</span>
+                  <select id="skConnectionTarget"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Description</span>
+                  <textarea id="skConnectionDescription" rows="2" placeholder="Optional description..."></textarea>
+                </label>
+                <label class="sk-form-field">
+                  <span>Custom Label (optional)</span>
+                  <input type="text" id="skConnectionLabel" placeholder="Override relationship label..." />
+                </label>
+                <div class="sk-form-actions">
+                  <button id="skConnectionFormSaveButton" type="button" class="primary">Save</button>
+                  <button id="skConnectionFormCancelButton" type="button">Cancel</button>
+                  <button id="skConnectionFormDeleteButton" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="skTabTimelines" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skCalendarAddButton" type="button">+ Add Calendar</button>
+                <button id="skEventAddButton" type="button">+ Add Event</button>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Calendars</div>
+                <div id="skCalendarList" class="world-entity-list"></div>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Events</div>
+                <div id="skEventList" class="world-entity-list"></div>
+              </div>
+              <div id="skCalendarForm" class="sk-entity-form" hidden>
+                <input type="hidden" id="skCalendarId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skCalendarNameDisplay" class="sk-form-name">New Calendar</div>
+                </div>
+                <label class="sk-form-field">
+                  <span>Name</span>
+                  <input type="text" id="skCalendarName" placeholder="Calendar name..." />
+                </label>
+                <label class="sk-form-field">
+                  <span>Description</span>
+                  <textarea id="skCalendarDescription" rows="2" placeholder="Calendar description..."></textarea>
+                </label>
+                <div class="sk-form-actions">
+                  <button id="skCalendarFormSaveButton" type="button" class="primary">Save</button>
+                  <button id="skCalendarFormCancelButton" type="button">Cancel</button>
+                  <button id="skCalendarFormDeleteButton" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+              <div id="skEventForm" class="sk-entity-form" hidden>
+                <input type="hidden" id="skEventId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skEventNameDisplay" class="sk-form-name">New Event</div>
+                </div>
+                <label class="sk-form-field">
+                  <span>Title</span>
+                  <input type="text" id="skEventTitle" placeholder="Event title..." />
+                </label>
+                <label class="sk-form-field">
+                  <span>Description</span>
+                  <textarea id="skEventDescription" rows="2" placeholder="Event description..."></textarea>
+                </label>
+                <label class="sk-form-field">
+                  <span>Display Date</span>
+                  <input type="text" id="skEventDisplayDate" placeholder="e.g. Year 3, Month 5, Day 12" />
+                </label>
+                <label class="sk-form-field">
+                  <span>Calendar</span>
+                  <select id="skEventCalendar"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Sort Key (numeric, for ordering)</span>
+                  <input type="number" id="skEventSortKey" placeholder="0" />
+                </label>
+                <div class="sk-form-actions">
+                  <button id="skEventFormSaveButton" type="button" class="primary">Save</button>
+                  <button id="skEventFormCancelButton" type="button">Cancel</button>
+                  <button id="skEventFormDeleteButton" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="skTabMentions" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skMentionAddButton" type="button">+ Add Mention</button>
+              </div>
+              <div id="skMentionList" class="world-entity-list"></div>
+              <div id="skMentionForm" class="sk-entity-form" hidden>
+                <input type="hidden" id="skMentionId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skMentionNameDisplay" class="sk-form-name">New Mention</div>
+                </div>
+                <label class="sk-form-field">
+                  <span>Entity</span>
+                  <select id="skMentionEntity"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Project</span>
+                  <select id="skMentionProject"></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Matched Text (optional)</span>
+                  <input type="text" id="skMentionText" placeholder="The text that references this entity..." />
+                </label>
+                <label class="sk-form-field">
+                  <span>Method</span>
+                  <select id="skMentionMethod">
+                    <option value="manual">Manual</option>
+                    <option value="alias_match">Alias Match</option>
+                  </select>
+                </label>
+                <div class="sk-form-actions">
+                  <button id="skMentionFormSaveButton" type="button" class="primary">Save</button>
+                  <button id="skMentionFormCancelButton" type="button">Cancel</button>
+                  <button id="skMentionFormDeleteButton" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="skTabAssets" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar">
+                <button id="skAssetAddButton" type="button">+ Add Asset</button>
+              </div>
+              <div id="skAssetList" class="world-entity-list"></div>
+              <div id="skAssetForm" class="sk-entity-form" hidden>
+                <input type="hidden" id="skAssetId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skAssetNameDisplay" class="sk-form-name">New Asset</div>
+                </div>
+                <label class="sk-form-field">
+                  <span>Title</span>
+                  <input type="text" id="skAssetTitle" placeholder="Tagline, blurb title, etc." />
+                </label>
+                <label class="sk-form-field">
+                  <span>Asset Type</span>
+                  <select id="skAssetType">
+                    <option value="tagline">Tagline</option>
+                    <option value="blurb">Blurb</option>
+                    <option value="synopsis">Synopsis</option>
+                    <option value="character_description">Character Description</option>
+                    <option value="location_description">Location Description</option>
+                    <option value="lore_snippet">Lore Snippet</option>
+                    <option value="social_media">Social Media Post</option>
+                    <option value="newsletter">Newsletter Copy</option>
+                    <option value="ad_copy">Ad Copy</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Content</span>
+                  <textarea id="skAssetContent" placeholder="The marketing text..." style="min-height:120px;"></textarea>
+                </label>
+                <label class="sk-form-field">
+                  <span>Audience (optional)</span>
+                  <input type="text" id="skAssetAudience" placeholder="e.g. YA fantasy fans, newsletter subscribers" />
+                </label>
+                <label class="sk-form-field">
+                  <span>Spoiler Level</span>
+                  <select id="skAssetSpoilerLevel">
+                    <option value="spoiler_free">Spoiler Free</option>
+                    <option value="minor_spoilers">Minor Spoilers</option>
+                    <option value="major_spoilers">Major Spoilers</option>
+                  </select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Linked Entity (optional)</span>
+                  <select id="skAssetEntity"><option value="">None</option></select>
+                </label>
+                <label class="sk-form-field">
+                  <span>Status</span>
+                  <select id="skAssetStatus">
+                    <option value="draft">Draft</option>
+                    <option value="review">In Review</option>
+                    <option value="approved">Approved</option>
+                    <option value="published">Published</option>
+                  </select>
+                </label>
+                <div class="sk-form-actions">
+                  <button id="skAssetFormSaveButton" type="button" class="primary">Save</button>
+                  <button id="skAssetFormCancelButton" type="button">Cancel</button>
+                  <button id="skAssetFormDeleteButton" type="button" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="skTabAi" class="series-knowledge-tab-pane" hidden>
+              <div class="add-entity-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <select id="skAiType" style="width:auto;">
+                  <option value="general_brainstorm">General Brainstorm</option>
+                  <option value="character_development">Character Development</option>
+                  <option value="plot_idea">Plot Idea</option>
+                  <option value="world_expansion">World Expansion</option>
+                  <option value="continuity_fix">Continuity Fix</option>
+                  <option value="marketing_copy">Marketing Copy</option>
+                </select>
+                <select id="skAiEntity" style="width:auto;">
+                  <option value="">All Entities</option>
+                </select>
+                <button id="skAiGenerateButton" type="button" class="primary" style="flex:0 0 auto;">Generate Suggestion</button>
+                <span id="skAiSpinner" class="sk-ai-spinner"></span>
+                <span id="skAiProviderBadge" class="ai-provider-badge" style="margin-left:auto;"></span>
+              </div>
+              <label class="sk-form-field">
+                <span>Custom Prompt (optional — describe what you want the AI to suggest)</span>
+                <textarea id="skAiPrompt" placeholder="e.g. Suggest a compelling flaw for my protagonist..." style="min-height:60px;"></textarea>
+              </label>
+              <div id="skAiStatus" class="status-bar" style="margin-bottom:8px;">Ready.</div>
+              <div id="skAiSuggestionDetail" class="sk-entity-form" hidden>
+                <input type="hidden" id="skAiDetailId" value="0" />
+                <div class="sk-form-header">
+                  <div id="skAiDetailNameDisplay" class="sk-form-name">Suggestion</div>
+                </div>
+                <div class="sk-form-field">
+                  <span>Content</span>
+                  <div id="skAiDetailContent" class="sk-ai-detail-content" style="white-space:pre-wrap;background:var(--panel);padding:8px;border-radius:4px;max-height:300px;overflow-y:auto;"></div>
+                </div>
+                <div class="sk-form-field">
+                  <span>Prompt</span>
+                  <div id="skAiDetailPrompt" class="tiny" style="white-space:pre-wrap;color:var(--muted);"></div>
+                </div>
+                <div class="sk-form-actions">
+                  <button id="skAiDetailAdoptButton" type="button" class="primary">Adopt</button>
+                  <button id="skAiDetailDismissButton" type="button">Dismiss</button>
+                  <button id="skAiDetailCloseButton" type="button">Close</button>
+                </div>
+              </div>
+              <div id="skAiSuggestionList" class="world-entity-list"></div>
+              <div class="sk-section-divider"></div>
+              <div class="semantic-search-section">
+                <div class="add-entity-bar" style="align-items:center;gap:8px;">
+                  <span style="font-weight:600;font-size:12px;">Semantic Search</span>
+                  <button id="skAiEmbedGenerateButton" type="button" style="flex:0 0 auto;font-size:11px;">Generate Embeddings</button>
+                  <span id="skAiEmbedStatus" class="tiny" style="color:var(--muted);margin-left:auto;"></span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                  <input type="text" id="skAiSemanticQuery" placeholder="Search entities by meaning..." style="flex:1;" />
+                  <button id="skAiSemanticSearchButton" type="button">Search</button>
+                </div>
+                <div id="skAiSemanticResults" class="world-entity-list" style="margin-top:6px;"></div>
+              </div>
             </div>
 
             <div id="resourceSeriesKnowledgeStatus" class="status-bar">Series knowledge ready.</div>
@@ -1099,6 +1392,87 @@
               <button id="skContinuityFormCancelButton" type="button">Cancel</button>
               <button id="skContinuityFormDeleteButton" type="button" style="color:#991b1b;">Delete</button>
               <button id="skContinuityFormSaveButton" type="button" class="primary">Save Entry</button>
+            </div>
+          </div>
+
+          <div id="skCodexInspector" class="world-entity-form" hidden>
+            <input id="skCodexInspectorId" type="hidden" value="0" />
+            <input id="skCodexInspectorType" type="hidden" value="" />
+            <div class="details-header">
+              <div class="details-media">
+                <div id="skCodexInspectorImageWrap" class="sk-entity-image-wrap clickable-image" title="Click to set image">
+                  <img id="skCodexInspectorImage" class="sk-entity-image" src="" alt="" style="display:none;" />
+                  <div id="skCodexInspectorImageFallback" class="sk-entity-image-placeholder">E</div>
+                </div>
+              </div>
+              <div class="details-header-form" style="gap:4px;">
+                <div class="muted" id="skCodexInspectorTypeLabel">Entity</div>
+                <div class="sk-entity-title" id="skCodexInspectorNameDisplay">New Entry</div>
+                <div class="sk-badges-row">
+                  <div id="skCodexInspectorBadge" class="sk-entity-role-badge" style="display:none;"></div>
+                </div>
+                <div class="sk-color-picker" id="skCodexInspectorColorPicker">
+                  <button type="button" id="skCodexInspectorColorTrigger" class="sk-color-dot-trigger" style="background:#3a3a42" title="Color tag"></button>
+                  <div id="skCodexInspectorColorDropdown" class="sk-color-dropdown" hidden>
+                    <button type="button" class="sk-color-option" data-color="" style="background:#3a3a42" title="None"></button>
+                    <button type="button" class="sk-color-option" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+                    <button type="button" class="sk-color-option" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+                    <button type="button" class="sk-color-option" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
+                    <button type="button" class="sk-color-option" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+                    <button type="button" class="sk-color-option" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+                    <button type="button" class="sk-color-option" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+                    <button type="button" class="sk-color-option" data-color="#6366f1" style="background:#6366f1" title="Indigo"></button>
+                    <button type="button" class="sk-color-option" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+                    <button type="button" class="sk-color-option" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+                    <button type="button" class="sk-color-option" data-color="#f43f5e" style="background:#f43f5e" title="Rose"></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skCodexInspectorName">Name</label>
+                <input id="skCodexInspectorName" type="text" placeholder="Entry name" />
+              </div>
+              <div style="flex:0 0 auto;">
+                <label class="label" for="skCodexInspectorBadgeInput">Badge</label>
+                <input id="skCodexInspectorBadgeInput" type="text" placeholder="Tag / role" style="width:100px;" />
+              </div>
+            </div>
+            <div id="skCodexInspectorRoleRow" class="compact-row" hidden>
+              <div style="flex:1;">
+                <label class="label" for="skCodexInspectorRole">Role</label>
+                <select id="skCodexInspectorRole">
+                  <option value="">Select role...</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label class="label" for="skCodexInspectorArchetype">Archetype</label>
+                <select id="skCodexInspectorArchetype">
+                  <option value="">Select archetype...</option>
+                </select>
+              </div>
+            </div>
+            <div class="compact-row">
+              <div style="flex:1;">
+                <label class="label" for="skCodexInspectorScope">Scope</label>
+                <select id="skCodexInspectorScope">
+                  <option value="series">Series-wide</option>
+                  <option value="book">Book only</option>
+                </select>
+              </div>
+            </div>
+            <label class="label" for="skCodexInspectorDescription">Description</label>
+            <textarea id="skCodexInspectorDescription" placeholder="Core details about this entry..." style="min-height:100px;"></textarea>
+            <label class="label" for="skCodexInspectorSecondary">Secondary Notes</label>
+            <textarea id="skCodexInspectorSecondary" placeholder="Supporting detail..." style="min-height:60px;"></textarea>
+            <label class="label" for="skCodexInspectorTertiary">Additional Notes</label>
+            <textarea id="skCodexInspectorTertiary" placeholder="Extra context or history..." style="min-height:60px;"></textarea>
+            <div class="world-entity-form-actions">
+              <button id="skCodexInspectorCancelButton" type="button">Cancel</button>
+              <button id="skCodexInspectorGenerateButton" type="button">Generate Image</button>
+              <button id="skCodexInspectorDeleteButton" type="button" style="color:#991b1b;">Delete</button>
+              <button id="skCodexInspectorSaveButton" type="button" class="primary">Save Entry</button>
             </div>
           </div>
         </div>
@@ -1899,14 +2273,7 @@
             <div class="tiny">Optional linked docs to include with the selected passage.</div>
           </div>
           <div id="markdownAIContextSources" class="markdown-ai-context-sources">
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="project_summary" />Project Summary</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_doc_url" />Outline</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="outline_template_doc_url" />Outline Template</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="brainstorm_doc_url" />Brainstorm</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="characters_doc_url" />Characters</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="world_build_doc_url" />World Build</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="concept_doc_url" />Concept</label>
-            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="notes_doc_url" />Notes</label>
+            <label data-ai-context-source-wrap><input type="checkbox" data-ai-context-source="project_summary" checked />Project Summary</label>
           </div>
         </div>
         <div class="markdown-ai-prompt-preview-panel">
@@ -2022,12 +2389,70 @@
             <button id="imagePickerLargeViewButton" type="button" data-image-view="large">Large Image</button>
           </div>
           <div id="imagePickerStatus" class="tiny image-picker-status">Images will load from the project image library.</div>
+          <div id="imagePickerFilters" class="image-picker-filters">
+            <button type="button" class="image-picker-filter-btn is-active" data-image-filter="all">All</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="character">Characters</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="location">Locations</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="object">Objects</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="cover">Covers</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="scene">Scenes</button>
+            <button type="button" class="image-picker-filter-btn" data-image-filter="general">General</button>
+          </div>
         </div>
         <div id="imagePickerGrid" class="image-picker-grid"></div>
+        <div id="imagePickerMetaPanel" class="image-picker-meta-panel" hidden>
+          <div class="image-picker-meta-preview">
+            <img id="imagePickerMetaThumb" alt="" />
+          </div>
+          <div class="image-picker-meta-fields">
+            <div id="imagePickerMetaName" class="image-picker-meta-name"></div>
+            <label class="label" for="imagePickerMetaCategory">Category</label>
+            <select id="imagePickerMetaCategory">
+              <option value="general">General</option>
+              <option value="character">Character</option>
+              <option value="location">Location</option>
+              <option value="object">Object</option>
+              <option value="cover">Cover</option>
+              <option value="scene">Scene</option>
+            </select>
+            <div id="imagePickerMetaInfo" class="tiny"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button id="cancelImagePickerButton" type="button">Cancel</button>
+        <button id="cropSelectedImageButton" type="button" hidden>Crop</button>
         <button id="applySelectedImageButton" class="primary" type="button">Use Selected Image</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageCropModal" class="modal" aria-hidden="true">
+    <div class="modal-card image-crop-card">
+      <div class="modal-header">
+        <h3>Crop Image</h3>
+        <div class="image-crop-aspect-buttons">
+          <button type="button" class="image-crop-aspect-btn" data-aspect="free">Free</button>
+          <button type="button" class="image-crop-aspect-btn is-active" data-aspect="1:1">1:1</button>
+          <button type="button" class="image-crop-aspect-btn" data-aspect="3:4">3:4</button>
+          <button type="button" class="image-crop-aspect-btn" data-aspect="16:9">16:9</button>
+        </div>
+      </div>
+      <div class="modal-body image-crop-body">
+        <div id="imageCropCanvas" class="image-crop-canvas">
+          <img id="imageCropSource" alt="" />
+          <div id="imageCropOverlay" class="image-crop-overlay"></div>
+          <div id="imageCropBox" class="image-crop-box">
+            <div class="image-crop-handle image-crop-handle-nw" data-handle="nw"></div>
+            <div class="image-crop-handle image-crop-handle-ne" data-handle="ne"></div>
+            <div class="image-crop-handle image-crop-handle-sw" data-handle="sw"></div>
+            <div class="image-crop-handle image-crop-handle-se" data-handle="se"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelCropButton" type="button">Cancel</button>
+        <button id="applyCropButton" class="primary" type="button">Apply Crop</button>
       </div>
     </div>
   </div>
@@ -2051,8 +2476,12 @@
   <div id="imageGeneratorModal" class="modal" aria-hidden="true">
     <div class="modal-card image-generator-card">
       <div class="modal-header">
-        <h3>AI Cover Generator</h3>
-        <div class="muted">Local ComfyUI poster generation using the selected book summary and a few design controls.</div>
+        <div class="image-generator-mode-switch">
+          <button type="button" id="imageGeneratorModeCover" class="image-generator-mode-btn is-active" data-gen-mode="cover">Book Cover</button>
+          <button type="button" id="imageGeneratorModeCodex" class="image-generator-mode-btn" data-gen-mode="codex">Codex Asset</button>
+        </div>
+        <h3 id="imageGeneratorTitle">AI Cover Generator</h3>
+        <div id="imageGeneratorSubtitle" class="muted">Local ComfyUI poster generation using the selected book summary and a few design controls.</div>
       </div>
       <div class="modal-body image-generator-body">
         <div class="image-generator-grid">
@@ -2143,6 +2572,45 @@
                   <option value="architecture">Location / Architecture</option>
                 </select>
               </div>
+              <div id="imageGeneratorCodexControls" hidden>
+                <div>
+                  <label class="label" for="imageGeneratorPose">Pose / View</label>
+                  <select id="imageGeneratorPose">
+                    <option value="portrait">Portrait</option>
+                    <option value="full-body">Full Body</option>
+                    <option value="close-up">Close-Up</option>
+                    <option value="three-quarter">Three-Quarter</option>
+                    <option value="side-profile">Side Profile</option>
+                    <option value="action">Action Pose</option>
+                    <option value="detail">Detail Shot</option>
+                    <option value="establishing">Establishing View</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for="imageGeneratorSetting">Setting</label>
+                  <select id="imageGeneratorSetting">
+                    <option value="neutral">Neutral Background</option>
+                    <option value="environmental">Environmental</option>
+                    <option value="dramatic">Dramatic</option>
+                    <option value="studio">Studio</option>
+                    <option value="contextual">In-Story Context</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for="imageGeneratorLighting">Lighting</label>
+                  <select id="imageGeneratorLighting">
+                    <option value="natural">Natural</option>
+                    <option value="dramatic">Dramatic</option>
+                    <option value="soft">Soft / Diffused</option>
+                    <option value="rim">Rim Light</option>
+                    <option value="backlit">Backlit</option>
+                    <option value="moody">Moody / Low Key</option>
+                    <option value="warm">Warm / Golden</option>
+                    <option value="cool">Cool / Blue</option>
+                  </select>
+                </div>
+              </div>
+              <div id="imageGeneratorCoverControls">
               <div>
                 <label class="label" for="imageGeneratorTypography">Typography</label>
                 <select id="imageGeneratorTypography">
@@ -2178,6 +2646,7 @@
                   <option value="minimal-modern">Minimal Modern</option>
                 </select>
               </div>
+              </div>
               <div>
                 <label class="label" for="imageGeneratorAmount">Generate Amount</label>
                 <select id="imageGeneratorAmount">
@@ -2197,7 +2666,7 @@
               </div>
             </div>
 
-            <div class="image-generator-series-tools">
+            <div id="imageGeneratorSeriesTools" class="image-generator-series-tools">
               <div class="image-generator-series-tools-row">
                 <label class="image-generator-series-option">
                   <input id="imageGeneratorUseSeriesSummaries" type="checkbox" />

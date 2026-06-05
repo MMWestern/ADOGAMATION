@@ -16,9 +16,10 @@
 | `supabase-crud.html` | 238 | CRUD helpers (`saveProjectJsonFromClient`, `getProjectsJsonForClient`, etc.) |
 | `utils.html` | 87 | `escapeHtml`, `titleCase`, `pillClass`, `stripHtmlTags`, etc. |
 | `data-operations.html` | 777 | Data layer helpers |
-| `constants.html` | 593 | All reference data / constants |
+| `supabase-codex.html` | 555 | `_sbDefine` methods for all codex tables (entities, connections, tags, calendars, events, mentions, assets, AI suggestions, continuity findings, embeddings) |
+| `constants.html` | 607 | All reference data / constants |
 | `app-state.html` | 130 | `appState` singleton initialisation |
-| `el-cache.html` | 581 | `el.*` DOM element cache (all `getElementById` calls) |
+| `el-cache.html` | 721 | `el.*` DOM element cache (all `getElementById` calls) |
 | `status-logging.html` | 119 | `setStatus`, `activeMainTab`, log functions |
 
 ### Features (loaded at specific points inline)
@@ -26,17 +27,18 @@
 |--------|-------|---------|
 | `series-meta.html` | 41 | `getSeriesMetaForProject`, `applySeriesMetaToProjects` |
 | `inspector-options.html` | 244 | Filter/option CRUD for inspector panel |
-| `series-knowledge.html` | 1,050 | Characters, locations, continuity CRUD + lore editor |
+| `series-knowledge.html` | 2,704 | Characters, locations, continuity CRUD + lore editor + connections, calendars, events, mentions, content assets, AI brainstorming, continuity scanning, semantic search |
+| `plan-outline.html` | 780 | Act/chapter/scene tree editing, drag/drop, codex tag linking |
 | `plan-outline.html` | 780 | Act/chapter/scene tree editing, drag/drop, codex tag linking |
 | `image-generator.html` | 694 | ComfyUI workflow, prompt builder, history |
-| `markdown-utils.html` | 792 | `renderMarkdownWithHeadingAnchors`, `getMarkdownHeadings`, word counting + **general UI utils** (`toggleSettingsMenu`, `toggleDarkMode`, `formatWordCount`) + **AI helpers** (`loadAISettings`, `collectAISettingsFormData`, `callEditorAI`, `fetchAIModels`) |
+| `markdown-utils.html` | 946 | `renderMarkdownWithHeadingAnchors`, `getMarkdownHeadings`, word counting + **general UI utils** (`toggleSettingsMenu`, `toggleDarkMode`, `formatWordCount`) + **AI helpers** (`loadAISettings`, `collectAISettingsFormData`, `callEditorAI`, `callEditorEmbedding`, `fetchAIModels`) |
 | `book-creator-helpers.html` | 762 | Book compilation helpers |
 | `book-creator.html` | 1,263 | Book creator UI/flow |
 | `schedule-templates.html` | 121 | Schedule template rendering |
 | `marketing-templates.html` | 121 | Marketing template rendering |
 | `campaigns.html` | 197 | Campaign list rendering |
 | `resources-editor.html` | 567 | Resource editor panel CRUD |
-| `bind-events.html` | 1,271 | `bindEvents()` — all DOM event bindings |
+| `bind-events.html` | 1,615 | `bindEvents()` — all DOM event bindings |
 
 ### Deleted (replaced by markdown-utils.html)
 | Former module | Lines | Replacement |

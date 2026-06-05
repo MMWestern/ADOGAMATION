@@ -1,0 +1,254 @@
+    // --- Codex View-Model Mappers ---
+    // Maps between the generic codex_entities format and the shapes expected by
+    // the existing writing sidebar, quick-edit modal, and plan outline.
+    // Used when USE_NEW_CODEX_ENGINE is true.
+
+    // Map a generic codex entity to the sidebar entry shape used by getWritingCodexEntries()
+    function mapCodexEntityToSidebarItem_(entity, projectLinks) {
+      var safe = entity || {};
+      var typeInfo = safe.codex_entity_types || {};
+      var typeKey = typeInfo.key || safe.entity_type_key || 'unknown';
+      // Map singular entity type keys to plural sidebar group keys
+      var pluralMap = {
+        character: 'characters',
+        location: 'locations',
+        organisation: 'objects',
+        family: 'other',
+        item: 'objects',
+        lore: 'lore',
+        quest: 'subplots',
+        journal: 'other',
+        continuity_note: 'continuity'
+      };
+      var groupKey = pluralMap[typeKey] || typeKey;
+      var linkedProjects = (projectLinks || []).map(function (link) {
+        return { project_id: Number(link.project_id || 0) };
+      });
+      return {
+        key: groupKey + '::' + String(safe.id || ''),
+        type: groupKey,
+        title: String(safe.name || 'Untitled').trim(),
+        body: String(safe.summary || safe.description || '').trim(),
+        badge: String(safe.custom_data && safe.custom_data.role_archetype || safe.custom_data && safe.custom_data.type || '').trim(),
+        color: String(safe.color || '').trim(),
+        role: String(safe.custom_data && safe.custom_data.role_archetype || '').trim(),
+        archetype: String(safe.custom_data && safe.custom_data.archetype || '').trim(),
+        scope: String(safe.scope || 'series').trim(),
+        bookLinks: linkedProjects
+      };
+    }
+
+    // Map a generic codex entity to the editor model used by the quick-edit modal
+    function mapCodexEntityToEditorModel_(entity, projectLinks) {
+      var safe = entity || {};
+      var typeInfo = safe.codex_entity_types || {};
+      var typeKey = typeInfo.key || safe.entity_type_key || 'unknown';
+      var custom = safe.custom_data || {};
+      return {
+        id: safe.id,
+        seriesId: safe.series_id,
+        entityType: typeKey,
+        name: String(safe.name || '').trim(),
+        summary: String(safe.summary || '').trim(),
+        description: String(safe.description || '').trim(),
+        image_url: String(safe.image_url || '').trim(),
+        color: String(safe.color || '').trim(),
+        scope: String(safe.scope || 'series').trim(),
+        projectLinks: projectLinks || [],
+        customData: custom,
+        // Legacy fields for backward compat with existing modal
+        role_archetype: String(custom.role_archetype || '').trim(),
+        archetype: String(custom.archetype || '').trim(),
+        motivation_arc: String(custom.motivation_arc || '').trim(),
+        backstory: String(custom.backstory || '').trim(),
+        type: String(custom.type || '').trim(),
+        significance: String(custom.significance || '').trim(),
+        notable_events: String(custom.notable_events || '').trim(),
+        severity: String(custom.severity || 'minor').trim(),
+        resolved: !!custom.resolved
+      };
+    }
+
+    // Map a legacy series_* record shape to the new codex entity payload
+    function mapLegacyRecordToCodexPayload_(typeKey, record, bookLinks) {
+      var safe = record || {};
+      var custom = {};
+      if (typeKey === 'character') {
+        custom = {
+          role_archetype: String(safe.role_archetype || '').trim(),
+          archetype: String(safe.archetype || '').trim(),
+          motivation_arc: String(safe.motivation_arc || '').trim(),
+          backstory: String(safe.backstory || '').trim()
+        };
+      } else if (typeKey === 'location' || typeKey === 'item' || typeKey === 'organisation') {
+        custom = {
+          type: String(safe.type || '').trim(),
+          significance: String(safe.significance || '').trim(),
+          notable_events: String(safe.notable_events || '').trim()
+        };
+      } else if (typeKey === 'continuity_note') {
+        custom = {
+          severity: String(safe.severity || 'minor').trim(),
+          resolved: !!safe.resolved,
+          linkedCharacterIds: Array.isArray(safe.linkedCharacterIds) ? safe.linkedCharacterIds : [],
+          linkedLocationIds: Array.isArray(safe.linkedLocationIds) ? safe.linkedLocationIds : [],
+          linkedProjectIds: Array.isArray(safe.linkedProjectIds) ? safe.linkedProjectIds : []
+        };
+      }
+      return {
+        name: String(safe.name || safe.title || '').trim(),
+        summary: String(safe.description || '').trim().substring(0, 200),
+        description: String(safe.description || '').trim(),
+        image_url: String(safe.image_url || '').trim(),
+        color: String(safe.color || '').trim(),
+        scope: String(safe.scope || 'book').trim(),
+        sort_order: Number(safe.sort_order || 0) || 0,
+        custom_data: custom,
+        projectLinks: Array.isArray(bookLinks) ? bookLinks : (safe.bookLinks || [])
+      };
+    }
+
+    // Map a codex entity back to the legacy save payload shape for the existing quick-edit modal
+    function mapCodexPayloadToLegacy_(typeKey, payload, entityId) {
+      var safe = payload || {};
+      var base = { id: entityId || 0 };
+      if (typeKey === 'character') {
+        base.name = safe.name || '';
+        base.role_archetype = safe.role_archetype || safe.custom_data && safe.custom_data.role_archetype || '';
+        base.archetype = safe.archetype || safe.custom_data && safe.custom_data.archetype || '';
+        base.description = safe.description || '';
+        base.motivation_arc = safe.motivation_arc || safe.custom_data && safe.custom_data.motivation_arc || '';
+        base.backstory = safe.backstory || safe.custom_data && safe.custom_data.backstory || '';
+        base.image_url = safe.image_url || '';
+        base.color = safe.color || '';
+        base.scope = safe.scope || 'book';
+        base.bookLinks = safe.projectLinks || safe.bookLinks || [];
+      } else if (typeKey === 'location' || typeKey === 'item') {
+        base.name = safe.name || '';
+        base.type = safe.type || safe.custom_data && safe.custom_data.type || '';
+        base.description = safe.description || '';
+        base.significance = safe.significance || safe.custom_data && safe.custom_data.significance || '';
+        base.notable_events = safe.notable_events || safe.custom_data && safe.custom_data.notable_events || '';
+        base.image_url = safe.image_url || '';
+        base.color = safe.color || '';
+        base.scope = safe.scope || 'book';
+        base.bookLinks = safe.projectLinks || safe.bookLinks || [];
+      } else if (typeKey === 'continuity_note') {
+        base.title = safe.name || '';
+        base.description = safe.description || '';
+        base.severity = safe.severity || safe.custom_data && safe.custom_data.severity || 'minor';
+        base.resolved = safe.resolved || safe.custom_data && safe.custom_data.resolved || false;
+        base.image_url = safe.image_url || '';
+        base.color = safe.color || '';
+        base.scope = safe.scope || 'book';
+        base.linkedCharacterIds = safe.custom_data && safe.custom_data.linkedCharacterIds || [];
+        base.linkedLocationIds = safe.custom_data && safe.custom_data.linkedLocationIds || [];
+        base.linkedProjectIds = safe.projectLinks && safe.projectLinks.map(function (l) { return Number(l.project_id || 0); }) || [];
+      } else {
+        base.name = safe.name || '';
+        base.description = safe.description || '';
+        base.image_url = safe.image_url || '';
+        base.color = safe.color || '';
+        base.scope = safe.scope || 'book';
+        base.bookLinks = safe.projectLinks || safe.bookLinks || [];
+      }
+      return base;
+    }
+
+    // Map a codex entity to the plan outline scene tag shape
+    function mapCodexEntityToSceneTag_(entity) {
+      var safe = entity || {};
+      var typeInfo = safe.codex_entity_types || {};
+      var typeKey = typeInfo.key || safe.entity_type_key || 'unknown';
+      return {
+        id: Number(safe.id || 0),
+        type: typeKey,
+        name: String(safe.name || 'Untitled').trim(),
+        color: String(safe.color || '').trim()
+      };
+    }
+
+    // Reverse map: sidebar group key (plural) → entity type key (singular)
+    var CODEX_GROUP_TO_TYPE_KEY = {
+      characters: 'character',
+      locations: 'location',
+      objects: 'item',
+      lore: 'lore',
+      subplots: 'quest',
+      continuity: 'continuity_note',
+      other: 'journal'
+    };
+
+    // Get entity list for a given sidebar type and series, switching between engines
+    function getCodexEntitiesForType_(seriesId, sidebarTypeKey) {
+      if (!seriesId) return [];
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        var singularKey = CODEX_GROUP_TO_TYPE_KEY[sidebarTypeKey] || sidebarTypeKey;
+        var entities = codexCache.entitiesBySeries[seriesId] || [];
+        return entities.filter(function (e) {
+          var typeInfo = e.codex_entity_types || {};
+          return typeInfo.key === singularKey;
+        });
+      }
+      var cache = skCache[sidebarTypeKey];
+      return cache && cache[seriesId] ? cache[seriesId] : [];
+    }
+
+    // Look up entity_type_id from a sidebar type key using cached entity types
+    function getCodexEntityTypeId_(seriesId, sidebarTypeKey) {
+      var singularKey = CODEX_GROUP_TO_TYPE_KEY[sidebarTypeKey] || sidebarTypeKey;
+      // First try: look up from cached entity types (populated by listCodexEntities)
+      if (codexCache.entityTypesByKey && codexCache.entityTypesByKey[singularKey]) {
+        return Number(codexCache.entityTypesByKey[singularKey].id || 0);
+      }
+      // Second try: look up from cached entities
+      var entities = codexCache.entitiesBySeries[seriesId] || [];
+      for (var i = 0; i < entities.length; i++) {
+        var typeInfo = entities[i].codex_entity_types || {};
+        if (typeInfo.key === singularKey && typeInfo.id) return Number(typeInfo.id);
+      }
+      return 0;
+    }
+
+    // Convert a legacy sidebar save payload to the new saveCodexEntity format
+    function mapLegacySavePayloadToCodex_(typeKey, payload, entityId) {
+      var safe = payload || {};
+      var base = {
+        id: entityId || 0,
+        name: String(safe.name || safe.title || '').trim(),
+        summary: String(safe.description || '').trim().substring(0, 200),
+        description: String(safe.description || '').trim(),
+        image_url: String(safe.image_url || '').trim(),
+        color: String(safe.color || '').trim(),
+        scope: String(safe.scope || 'book').trim(),
+        sort_order: Number(safe.sort_order || 0) || 0,
+        custom_data: {},
+        projectLinks: safe.bookLinks || []
+      };
+
+      if (typeKey === 'characters') {
+        base.custom_data = {
+          role_archetype: String(safe.role_archetype || '').trim(),
+          archetype: String(safe.archetype || '').trim(),
+          motivation_arc: String(safe.motivation_arc || '').trim(),
+          backstory: String(safe.backstory || '').trim()
+        };
+      } else if (typeKey === 'locations' || typeKey === 'objects') {
+        base.custom_data = {
+          type: String(safe.type || '').trim(),
+          significance: String(safe.significance || '').trim(),
+          notable_events: String(safe.notable_events || '').trim()
+        };
+      } else if (typeKey === 'continuity') {
+        base.name = String(safe.title || safe.name || '').trim();
+        base.custom_data = {
+          severity: String(safe.severity || 'minor').trim(),
+          resolved: !!safe.resolved,
+          linkedCharacterIds: Array.isArray(safe.linkedCharacterIds) ? safe.linkedCharacterIds : [],
+          linkedLocationIds: Array.isArray(safe.linkedLocationIds) ? safe.linkedLocationIds : [],
+          linkedProjectIds: Array.isArray(safe.linkedProjectIds) ? safe.linkedProjectIds : []
+        };
+      }
+
+      return base;
+    }

@@ -25,6 +25,8 @@
     <?!= include('scripts/utils'); ?>
 
     <?!= include('scripts/data-operations'); ?>
+    <?!= include('scripts/supabase-codex'); ?>
+    <?!= include('scripts/codex-view-models'); ?>
 
     <?!= include('scripts/constants'); ?>
 
@@ -1023,6 +1025,7 @@
       const opts = callbacks || {};
       if (!opts.onSuccess && !opts.onFailure) return;
       const cached = getCachedDoc(docUrl) || setCachedDoc(docUrl, {});
+      if (!cached) return;
       cached.pendingCallbacks = Array.isArray(cached.pendingCallbacks) ? cached.pendingCallbacks : [];
       cached.pendingCallbacks.push(opts);
     }
@@ -1505,14 +1508,16 @@
       });
     }
 
-    function openImagePickerModal() {
+    function openImagePickerModal(defaultFilter) {
       const activeInput = getDetailImageInputByMode(getDetailImageMode());
       appState.imagePicker.selectedUrl = activeInput ? String(activeInput.value || "").trim() : "";
       appState.imagePicker.viewMode = getSavedImagePickerViewMode();
+      appState.imagePicker.activeFilter = defaultFilter || appState.imagePicker.activeFilter || "all";
       if (!appState.imagePicker.files.length) {
         hydrateImagePickerLibraryFromCache();
       }
       updateImagePickerViewButtons();
+      updateImagePickerFilterButtons();
       if (el.imagePickerModal) {
         el.imagePickerModal.classList.add("is-open");
         el.imagePickerModal.setAttribute("aria-hidden", "false");
@@ -1535,6 +1540,65 @@
       el.imagePickerModal.classList.remove("is-open");
       el.imagePickerModal.setAttribute("aria-hidden", "true");
       updateModalScrollLock();
+    }
+
+    function setImagePickerFilter(category) {
+      appState.imagePicker.activeFilter = category || "all";
+      updateImagePickerFilterButtons();
+      renderImagePickerGrid();
+      hideImagePickerMetaPanel();
+    }
+
+    function updateImagePickerFilterButtons() {
+      if (!el.imagePickerFilters) return;
+      var active = appState.imagePicker.activeFilter || "all";
+      el.imagePickerFilters.querySelectorAll("[data-image-filter]").forEach(function (btn) {
+        btn.classList.toggle("is-active", btn.getAttribute("data-image-filter") === active);
+      });
+    }
+
+    function updateImagePickerMetaPanel(file) {
+      if (!el.imagePickerMetaPanel) return;
+      if (!file) { hideImagePickerMetaPanel(); return; }
+      el.imagePickerMetaPanel.hidden = false;
+      if (el.imagePickerMetaThumb) {
+        el.imagePickerMetaThumb.src = file.thumbnailUrl || file.url || "";
+      }
+      if (el.imagePickerMetaName) {
+        el.imagePickerMetaName.textContent = file.name || "Untitled";
+      }
+      if (el.imagePickerMetaCategory) {
+        el.imagePickerMetaCategory.value = file.category || "general";
+      }
+      if (el.imagePickerMetaInfo) {
+        var info = [];
+        if (file.mimeType) info.push(file.mimeType);
+        if (file.updated) info.push("Uploaded " + String(file.updated).slice(0, 10));
+        el.imagePickerMetaInfo.textContent = info.join(" · ");
+      }
+      if (el.cropSelectedImageButton) {
+        el.cropSelectedImageButton.hidden = false;
+      }
+    }
+
+    function hideImagePickerMetaPanel() {
+      if (el.imagePickerMetaPanel) el.imagePickerMetaPanel.hidden = true;
+      if (el.cropSelectedImageButton) el.cropSelectedImageButton.hidden = true;
+    }
+
+    function saveImagePickerMetaCategory() {
+      if (!el.imagePickerMetaCategory) return;
+      var url = appState.imagePicker.selectedUrl;
+      if (!url) return;
+      var file = findImagePickerFileByUrl(url);
+      if (!file) return;
+      var newCategory = el.imagePickerMetaCategory.value;
+      if (file.category === newCategory) return;
+      file.category = newCategory;
+      supabaseRunner
+        .withSuccessHandler(function () { setStatus("Image category updated.", "ok"); })
+        .withFailureHandler(function (e) { setStatus("Category update failed: " + (e.message || e), "error"); })
+        .updateImageCategoryJsonFromClient(file.id, newCategory);
     }
 
     function getDriveImageThumbnailUrl(file) {
@@ -1663,11 +1727,15 @@
       el.imagePickerGrid.querySelectorAll(".image-choice[data-image-url]").forEach(function (button) {
         button.classList.toggle("is-selected", String(button.getAttribute("data-image-url") || "").trim() === selectedUrl);
       });
+      var selectedFile = selectedUrl ? findImagePickerFileByUrl(appState.imagePicker.selectedUrl) : null;
+      updateImagePickerMetaPanel(selectedFile);
     }
 
     function renderImagePickerGrid() {
       if (!el.imagePickerGrid) return;
-      const files = appState.imagePicker.files || [];
+      const allFiles = appState.imagePicker.files || [];
+      const filter = appState.imagePicker.activeFilter || "all";
+      const files = filter === "all" ? allFiles : allFiles.filter(function (f) { return String(f.category || "general") === filter; });
       const mode = appState.imagePicker.viewMode || "large";
       const fileToken = files.map(function (f) { return String(f.url || f.id || ""); }).join(",");
       appState.imagePicker._lastFileToken = appState.imagePicker._lastFileToken || "";
@@ -1815,6 +1883,17 @@
         setImagePickerStatus("Select an image first.", "error");
         return;
       }
+      if (appState.imagePicker.targetMode === "codexInspector") {
+        if (typeof setSkCodexInspectorImage === "function") setSkCodexInspectorImage(imageUrl);
+        if (el.writingCodexModalImage && el.writingCodexModal.classList && el.writingCodexModal.classList.contains("is-open")) {
+          el.writingCodexModalImage.src = imageUrl;
+          el.writingCodexModalImage.style.display = "block";
+          if (el.writingCodexModalAvatarFallback) el.writingCodexModalAvatarFallback.style.display = "none";
+        }
+        closeImagePickerModal();
+        appState.imagePicker.targetMode = "project";
+        return;
+      }
       const mode = getDetailImageMode();
       const activeInput = getDetailImageInputByMode(mode);
       if (!activeInput) return;
@@ -1832,6 +1911,215 @@
         setStatus("Image link applied. Save Now or autosave will store it.", "ok");
       }
     }
+
+    var _cropState = { imageUrl: "", imageEl: null, box: { x: 0, y: 0, w: 0, h: 0 }, aspect: 1, dragging: false, resizing: false, handle: "", startX: 0, startY: 0, startBox: null };
+
+    function openImageCropModal(imageUrl) {
+      if (!el.imageCropModal || !el.imageCropSource) return;
+      var safe = String(imageUrl || "").trim();
+      if (!safe) return;
+      _cropState.imageUrl = safe;
+      _cropState.aspect = 1;
+      el.imageCropSource.src = safe;
+      el.imageCropModal.classList.add("is-open");
+      el.imageCropModal.setAttribute("aria-hidden", "false");
+      updateModalScrollLock();
+      el.imageCropSource.onload = function () { initCropBox(); };
+      updateCropAspectButtons();
+    }
+
+    function closeImageCropModal() {
+      if (!el.imageCropModal) return;
+      el.imageCropModal.classList.remove("is-open");
+      el.imageCropModal.setAttribute("aria-hidden", "true");
+      updateModalScrollLock();
+    }
+
+    function updateCropAspectButtons() {
+      if (!el.imageCropModal) return;
+      el.imageCropModal.querySelectorAll(".image-crop-aspect-btn").forEach(function (btn) {
+        btn.classList.toggle("is-active", btn.getAttribute("data-aspect") === (_cropState.aspect === 0 ? "free" : (_cropState.aspect === 1 ? "1:1" : _cropState.aspect === 0.75 ? "3:4" : "16:9")));
+      });
+    }
+
+    function setCropAspect(ratio) {
+      if (ratio === "free") _cropState.aspect = 0;
+      else if (ratio === "1:1") _cropState.aspect = 1;
+      else if (ratio === "3:4") _cropState.aspect = 0.75;
+      else if (ratio === "16:9") _cropState.aspect = 16 / 9;
+      updateCropAspectButtons();
+      if (_cropState.imageEl) constrainCropBox();
+      renderCropBox();
+    }
+
+    function initCropBox() {
+      var img = el.imageCropSource;
+      if (!img || !img.naturalWidth) return;
+      _cropState.imageEl = { w: img.naturalWidth, h: img.naturalHeight, displayW: img.clientWidth, displayH: img.clientHeight };
+      var minDim = Math.min(img.clientWidth, img.clientHeight);
+      var size = Math.round(minDim * 0.6);
+      _cropState.box = {
+        x: Math.round((img.clientWidth - size) / 2),
+        y: Math.round((img.clientHeight - size) / 2),
+        w: size,
+        h: _cropState.aspect ? Math.round(size / _cropState.aspect) : size
+      };
+      constrainCropBox();
+      renderCropBox();
+    }
+
+    function constrainCropBox() {
+      var img = el.imageCropSource;
+      if (!img) return;
+      var b = _cropState.box;
+      var maxW = img.clientWidth, maxH = img.clientHeight;
+      if (b.w < 40) b.w = 40;
+      if (b.h < 40) b.h = 40;
+      if (_cropState.aspect) { b.h = Math.round(b.w / _cropState.aspect); }
+      if (b.w > maxW) b.w = maxW;
+      if (b.h > maxH) b.h = maxH;
+      if (_cropState.aspect) { b.w = Math.round(b.h * _cropState.aspect); }
+      if (b.x < 0) b.x = 0;
+      if (b.y < 0) b.y = 0;
+      if (b.x + b.w > maxW) b.x = maxW - b.w;
+      if (b.y + b.h > maxH) b.y = maxH - b.h;
+    }
+
+    function renderCropBox() {
+      if (!el.imageCropBox || !el.imageCropSource) return;
+      var b = _cropState.box;
+      el.imageCropBox.style.left = b.x + "px";
+      el.imageCropBox.style.top = b.y + "px";
+      el.imageCropBox.style.width = b.w + "px";
+      el.imageCropBox.style.height = b.h + "px";
+      if (el.imageCropOverlay) {
+        var img = el.imageCropSource;
+        var iw = img.clientWidth, ih = img.clientHeight;
+        el.imageCropOverlay.style.clipPath = "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, " +
+          (b.x / iw * 100) + "% " + (b.y / ih * 100) + "%, " +
+          (b.x / iw * 100) + "% " + ((b.y + b.h) / ih * 100) + "%, " +
+          ((b.x + b.w) / iw * 100) + "% " + ((b.y + b.h) / ih * 100) + "%, " +
+          ((b.x + b.w) / iw * 100) + "% " + (b.y / ih * 100) + "%, " +
+          (b.x / iw * 100) + "% " + (b.y / ih * 100) + "%)";
+      }
+    }
+
+    function getCropData() {
+      var img = _cropState.imageEl;
+      if (!img) return null;
+      var b = _cropState.box;
+      var scaleX = img.w / img.displayW;
+      var scaleY = img.h / img.displayH;
+      return { x: Math.round(b.x * scaleX), y: Math.round(b.y * scaleY), width: Math.round(b.w * scaleX), height: Math.round(b.h * scaleY) };
+    }
+
+    function applyImageCrop() {
+      var cropData = getCropData();
+      if (!cropData || cropData.width < 10 || cropData.height < 10) { setStatus("Crop area too small.", "error"); return; }
+      setStatus("Cropping image...", "warn");
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        var canvas = document.createElement("canvas");
+        canvas.width = cropData.width;
+        canvas.height = cropData.height;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, cropData.width, cropData.height);
+        canvas.toBlob(function (blob) {
+          if (!blob) { setStatus("Crop failed.", "error"); return; }
+          uploadCroppedImage(blob, cropData);
+        }, "image/webp", 0.9);
+      };
+      img.onerror = function () { setStatus("Failed to load image for cropping.", "error"); };
+      img.src = _cropState.imageUrl;
+    }
+
+    function uploadCroppedImage(blob, cropData) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var dataUrl = reader.result;
+        var safeName = "crop-" + Date.now();
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = parseServerResult(json);
+              if (result.ok === false) throw new Error(result.error || "Upload failed.");
+              var croppedUrl = result.url;
+              var croppedPath = result.thumbnailFileId || "";
+              var selectedFile = findImagePickerFileByUrl(appState.imagePicker.selectedUrl);
+              if (selectedFile) {
+                supabaseRunner
+                  .withSuccessHandler(function () {
+                    selectedFile.cropData = cropData;
+                    selectedFile.cropData.cropped_path = croppedPath;
+                    appState.imagePicker.selectedUrl = croppedUrl;
+                    syncImagePickerSelectionState();
+                    closeImageCropModal();
+                    setStatus("Image cropped. Use Selected Image to apply.", "ok");
+                  })
+                  .withFailureHandler(function (e) { setStatus("Crop metadata save failed: " + (e.message || e), "error"); })
+                  .saveImageCropJsonFromClient(selectedFile.id, JSON.stringify(cropData), croppedPath);
+              } else {
+                appState.imagePicker.selectedUrl = croppedUrl;
+                closeImageCropModal();
+                setStatus("Image cropped. Use Selected Image to apply.", "ok");
+              }
+            } catch (e) { setStatus("Crop upload failed: " + e.message, "error"); }
+          })
+          .withFailureHandler(function (e) { setStatus("Crop upload failed: " + (e.message || e), "error"); })
+          .uploadProjectImageJsonFromClient("", safeName + ".webp", "image/webp", dataUrl, safeName + "-thumb.webp", "image/webp", dataUrl, "", "general");
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    (function initCropBoxInteraction() {
+      var canvasEl = null;
+      function getCanvas() { return canvasEl || (canvasEl = el.imageCropCanvas); }
+      function onPointerDown(e) {
+        var handle = e.target.getAttribute("data-handle");
+        var box = el.imageCropBox;
+        if (handle) {
+          _cropState.resizing = true;
+          _cropState.handle = handle;
+        } else if (box && (e.target === box || box.contains(e.target))) {
+          _cropState.dragging = true;
+        } else { return; }
+        _cropState.startX = e.clientX;
+        _cropState.startY = e.clientY;
+        _cropState.startBox = Object.assign({}, _cropState.box);
+        e.preventDefault();
+      }
+      function onPointerMove(e) {
+        if (!_cropState.dragging && !_cropState.resizing) return;
+        var dx = e.clientX - _cropState.startX;
+        var dy = e.clientY - _cropState.startY;
+        var b = _cropState.startBox;
+        var img = el.imageCropSource;
+        if (!img) return;
+        var maxW = img.clientWidth, maxH = img.clientHeight;
+        if (_cropState.dragging) {
+          _cropState.box.x = Math.max(0, Math.min(maxW - b.w, b.x + dx));
+          _cropState.box.y = Math.max(0, Math.min(maxH - b.h, b.y + dy));
+        } else if (_cropState.resizing) {
+          var h = _cropState.handle;
+          var newW = b.w, newH = b.h, newX = b.x, newY = b.y;
+          if (h === "se") { newW = Math.max(40, b.w + dx); newH = _cropState.aspect ? Math.round(newW / _cropState.aspect) : Math.max(40, b.h + dy); }
+          else if (h === "sw") { newW = Math.max(40, b.w - dx); newH = _cropState.aspect ? Math.round(newW / _cropState.aspect) : Math.max(40, b.h + dy); newX = b.x + b.w - newW; }
+          else if (h === "ne") { newW = Math.max(40, b.w + dx); newH = _cropState.aspect ? Math.round(newW / _cropState.aspect) : Math.max(40, b.h - dy); newY = b.y + b.h - newH; }
+          else if (h === "nw") { newW = Math.max(40, b.w - dx); newH = _cropState.aspect ? Math.round(newW / _cropState.aspect) : Math.max(40, b.h - dy); newX = b.x + b.w - newW; newY = b.y + b.h - newH; }
+          _cropState.box = { x: newX, y: newY, w: newW, h: newH };
+          constrainCropBox();
+        }
+        renderCropBox();
+        e.preventDefault();
+      }
+      function onPointerUp() { _cropState.dragging = false; _cropState.resizing = false; }
+      document.addEventListener("mousedown", function (e) {
+        if (el.imageCropModal && el.imageCropModal.classList.contains("is-open") && el.imageCropCanvas && el.imageCropCanvas.contains(e.target)) onPointerDown(e);
+      });
+      document.addEventListener("mousemove", function (e) { if (_cropState.dragging || _cropState.resizing) onPointerMove(e); });
+      document.addEventListener("mouseup", onPointerUp);
+    })();
 
     function triggerLocalImageUpload() {
       if (el.localImageFileInput) el.localImageFileInput.click();
@@ -2397,6 +2685,19 @@
       var seriesId = Number(selected && selected.series_id || 0);
       if (!seriesId) return entries;
 
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        try {
+          var entities = codexCache.entitiesBySeries[seriesId] || [];
+          entities.forEach(function (entity) {
+            var detail = codexCache.entityDetails[entity.id] || {};
+            entries.push(mapCodexEntityToSidebarItem_(entity, detail.projectLinks || []));
+          });
+          return entries;
+        } catch (e) {
+          console.error('[CODEX] New codex engine read failed, falling back to legacy:', e);
+        }
+      }
+
       var knowledge = appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId] ? appState.seriesKnowledgeById[seriesId] : null;
       if (knowledge && String(knowledge.lore || "").trim()) {
         entries.push({
@@ -2520,6 +2821,19 @@
       var safeSeriesId = Number(seriesId || 0);
       var safeId = Number(id || 0);
       if (!safeSeriesId || !safeId) return null;
+
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        try {
+          var entities = codexCache.entitiesBySeries[safeSeriesId] || [];
+          var entity = entities.find(function (e) { return Number(e.id || 0) === safeId; });
+          if (!entity) return null;
+          var detail = codexCache.entityDetails[safeId] || {};
+          return mapCodexEntityToEditorModel_(entity, detail.projectLinks || []);
+        } catch (e) {
+          console.error('New codex engine payload read failed, falling back to legacy:', e);
+        }
+      }
+
       if (type === "characters") {
         return (skCache.characters[safeSeriesId] || []).find(function (item) { return Number(item.id || 0) === safeId; }) || null;
       }
@@ -2547,6 +2861,24 @@
     function getWritingCodexCachedExtra(type, id) {
       var safeId = Number(id || 0);
       if (!safeId) return {};
+
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        try {
+          var detail = codexCache.entityDetails[safeId] || {};
+          return {
+            projectLinks: detail.projectLinks || [],
+            tags: detail.tags || [],
+            relationships: [],
+            linkedCharacterIds: (detail.entity && detail.entity.custom_data && detail.entity.custom_data.linkedCharacterIds) || [],
+            linkedLocationIds: (detail.entity && detail.entity.custom_data && detail.entity.custom_data.linkedLocationIds) || [],
+            linkedProjectIds: (detail.projectLinks || []).map(function (l) { return Number(l.project_id || 0); }),
+            linkedLoreIds: (detail.entity && detail.entity.custom_data && detail.entity.custom_data.linkedLoreIds) || []
+          };
+        } catch (e) {
+          console.error('New codex engine extra read failed, falling back to legacy:', e);
+        }
+      }
+
       if (type === "characters") {
         return skCache.characterDetails[safeId] || {};
       }
@@ -2997,6 +3329,11 @@
                   : "getSupabaseSeriesContinuityEntryJsonFromClient";
       var projectsReady = loadSkSeriesProjects(seriesId);
       var fetchSaveCount = appState.writingWorkspace.codexModalSaveCount || 0;
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        // New engine: data already loaded from getWritingCodexCachedPayload above
+        // No need to fetch from legacy tables
+        return;
+      }
       callAppsScriptJson(loaderName, [id])
         .then(function (result) {
           return projectsReady.then(function () { return result; });
@@ -3171,6 +3508,48 @@
       payload.researchNotes = String(el.writingCodexModalResearch && el.writingCodexModalResearch.value || "").trim();
       payload.mentions = String(el.writingCodexModalMentions && el.writingCodexModalMentions.value || "").trim();
       payload.trackingNotes = String(el.writingCodexModalTracking && el.writingCodexModalTracking.value || "").trim();
+
+      if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        var entityTypeId = getCodexEntityTypeId_(seriesId, type);
+        if (!entityTypeId) {
+          setWritingCodexModalLoading(false, "Could not find entity type for " + type);
+          return;
+        }
+        var codexPayload = mapLegacySavePayloadToCodex_(type, payload, id);
+        setWritingCodexModalLoading(true, "Saving...");
+        callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(codexPayload)])
+          .then(function (result) {
+            var savedEntity = result && result.entity ? result.entity : {};
+            var savedId = Number(savedEntity.id || id || 0);
+            // Reload entities from DB to get fresh data
+            return loadCodexEntities(seriesId).then(function () {
+              return { savedId: savedId, savedEntity: savedEntity };
+            });
+          })
+          .then(function (ctx) {
+            if (appState.writingWorkspace.codexModalKey !== key && !isNew) return;
+            var savedId = ctx.savedId;
+            var pluralMap = { character: 'characters', location: 'locations', item: 'objects', lore: 'lore', quest: 'subplots', continuity_note: 'continuity', journal: 'other' };
+            var singularKey = CODEX_GROUP_TO_TYPE_KEY[type] || type;
+            var groupKey = pluralMap[singularKey] || type;
+            if (isNew && savedId) {
+              var newKey = groupKey + '::' + savedId;
+              appState.writingWorkspace.codexModalKey = newKey;
+              appState.writingWorkspace.selectedCodexKey = newKey;
+            }
+            appState.writingWorkspace.codexModalSaveCount = (appState.writingWorkspace.codexModalSaveCount || 0) + 1;
+            setWritingCodexModalLoading(false, "");
+            renderWritingCodexList(project);
+            updateWritingInspectorCodex(project);
+            setStatus("Codex entry saved.", "ok");
+          })
+          .catch(function (error) {
+            setWritingCodexModalLoading(false, "Failed to save: " + (error && error.message ? error.message : error));
+            setStatus("Codex save failed: " + (error && error.message ? error.message : error), "error");
+          });
+        return;
+      }
+
       var saverName = type === "characters"
         ? "saveSupabaseSeriesCharacterJsonFromClient"
         : type === "locations"
@@ -3915,7 +4294,8 @@
         if (Number(project.series_id || 0)) {
           Promise.all([
             loadSeriesKnowledgeForSelectedProject(false),
-            loadSkEntities(Number(project.series_id || 0))
+            loadSkEntities(Number(project.series_id || 0)),
+            (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
           ]).finally(function () {
             if (appState.writingWorkspace.version !== version) return;
             renderWritingCodexList(project);
@@ -3950,7 +4330,8 @@
         if (Number(project.series_id || 0)) {
           Promise.all([
             loadSeriesKnowledgeForSelectedProject(false),
-            loadSkEntities(Number(project.series_id || 0))
+            loadSkEntities(Number(project.series_id || 0)),
+            (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
           ]).finally(function () {
             if (appState.writingWorkspace.version !== version) return;
             renderWritingCodexList(project);
@@ -3973,7 +4354,8 @@
       if (Number(project.series_id || 0)) {
         Promise.all([
           loadSeriesKnowledgeForSelectedProject(false),
-          loadSkEntities(Number(project.series_id || 0))
+          loadSkEntities(Number(project.series_id || 0)),
+          (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
         ]).finally(function () {
           if (appState.writingWorkspace.version !== version) return;
           renderWritingCodexList(project);
@@ -5053,24 +5435,24 @@
 
     function switchMainTab(tabName) {
       var safeTab = String(tabName || "writing").trim().toLowerCase();
-      if (["writing", "plan", "workspace", "publishing", "marketing", "resources", "seriesknowledge"].indexOf(safeTab) === -1) safeTab = "writing";
+      if (["writing", "plan", "workspace", "publishing", "marketing", "resources", "codex"].indexOf(safeTab) === -1) safeTab = "writing";
       activeMainTab = safeTab;
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabSeriesKnowledge].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex].forEach(function (btn) {
         if (!btn) return;
         btn.classList.toggle("is-active", btn.getAttribute("data-main-tab") === safeTab);
       });
-      [el.mainTabContentWriting, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentSeriesknowledge].forEach(function (content) {
+      [el.mainTabContentWriting, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex].forEach(function (content) {
         if (!content) return;
         content.hidden = content.id !== "mainTabContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
         if (!content.hidden) content.scrollTop = 0;
       });
       document.body.classList.toggle("resources-mode", safeTab === "resources");
       if (el.resourceInspectorPanel) el.resourceInspectorPanel.hidden = (safeTab !== "resources");
-      if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "seriesknowledge" || safeTab === "workspace" || safeTab === "plan");
+      if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan");
       if (el.writingInspectorPanel) el.writingInspectorPanel.hidden = (safeTab !== "workspace");
-      if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "seriesknowledge");
+      if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "codex");
 
-      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "seriesknowledge" || safeTab === "workspace" || safeTab === "plan");
+      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan");
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
       if (el.writingCodexPanel) el.writingCodexPanel.hidden = (safeTab !== "workspace");
       if (el.planInfoPanelSidebar) el.planInfoPanelSidebar.hidden = (safeTab !== "plan");
@@ -5130,9 +5512,14 @@
       if (safeTab === "resources") {
         renderResourcesDashboard();
       }
-      if (safeTab === "seriesknowledge") {
+      if (safeTab === "codex") {
         renderSeriesKnowledgePanel(getSelectedProject());
-        loadSeriesKnowledgeForSelectedProject(false).then(function () {
+        var codexProject = getSelectedProject();
+        var codexSeriesId = Number(codexProject && codexProject.series_id || 0);
+        Promise.all([
+          loadSeriesKnowledgeForSelectedProject(false),
+          (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE && codexSeriesId) ? loadCodexEntities(codexSeriesId) : Promise.resolve()
+        ]).then(function () {
           autoSelectSkEntity();
         });
       }
@@ -6518,6 +6905,16 @@
     if (el.markdownAITestConnectionButton) bindUiOnce(el.markdownAITestConnectionButton, "ai-test-connection", "click", runAIConnectionTest);
     if (el.markdownAITestPreviewButton) bindUiOnce(el.markdownAITestPreviewButton, "ai-test-preview", "click", previewMarkdownAITestPrompt);
     if (el.markdownAITestSendButton) bindUiOnce(el.markdownAITestSendButton, "ai-test-send", "click", runMarkdownAITest);
+    if (el.markdownAILocalContextSelect) {
+      el.markdownAILocalContextSelect.addEventListener("change", function () {
+        if (typeof updateMarkdownAIContextBadge === "function") updateMarkdownAIContextBadge();
+      });
+    }
+    if (el.markdownAIContextSources) {
+      el.markdownAIContextSources.addEventListener("change", function () {
+        if (typeof updateMarkdownAIContextBadge === "function") updateMarkdownAIContextBadge();
+      });
+    }
     if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", function () {
       saveAutoSaveSettings();
     });
@@ -6612,6 +7009,7 @@
       if (user) {
         setStatus("UI bound. Loading data...", "warn");
         loadProjects();
+        if (typeof loadAISettings === "function") loadAISettings();
       } else {
         setStatus("Please log in to continue.", "warn");
       }

@@ -455,6 +455,8 @@
     function openMarkdownAITestModal() {
       var modal = document.getElementById("markdownAITestModal");
       if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+      populateMarkdownAILocalContext();
+      updateMarkdownAIContextBadge();
     }
 
     function closeMarkdownAITestModal() {
@@ -472,13 +474,121 @@
       if (el) { el.textContent = message; el.className = "markdown-ai-test-output" + (mode ? " " + mode : ""); }
     }
 
+    function populateMarkdownAILocalContext() {
+      var sel = document.getElementById("markdownAILocalContextSelect");
+      if (!sel) return;
+      sel.innerHTML = "";
+      var options = [
+        { value: "", label: "No context (prompt only)" },
+        { value: "current_selection", label: "Current Selection" },
+        { value: "current_section", label: "Current H1/H2 Section" },
+        { value: "full_document", label: "Full Document" }
+      ];
+      // Add individual headings
+      var headings = getMarkdownHeadings();
+      headings.forEach(function (h) {
+        var label = h.level + ". " + (h.text || "").substring(0, 60);
+        options.push({ value: "heading::" + h.offset, label: "Section: " + label });
+      });
+      options.forEach(function (opt) {
+        var o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        if (opt.value === "full_document") o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    function updateMarkdownAIContextBadge() {
+      var badge = document.getElementById("markdownAITestContextBadge");
+      if (!badge) return;
+      var sel = document.getElementById("markdownAILocalContextSelect");
+      var ctxLabel = sel && sel.value ? sel.options[sel.selectedIndex].text : "No context";
+      var checked = document.querySelectorAll("#markdownAIContextSources input[type=checkbox]:checked");
+      var extra = checked.length ? " +" + checked.length + " project sources" : "";
+      badge.textContent = ctxLabel + extra;
+    }
+
+    function getSelectedMarkdownLocalContextText() {
+      var sel = document.getElementById("markdownAILocalContextSelect");
+      if (!sel || !sel.value) return "";
+      var editor = document.querySelector("[contenteditable]");
+      if (!editor) return "";
+      var fullText = editor.textContent || editor.innerText || "";
+      if (sel.value === "full_document") return fullText;
+      if (sel.value === "current_section") {
+        var headings = getMarkdownHeadings(fullText);
+        var cursorOffset = 0;
+        try {
+          var sel2 = window.getSelection();
+          if (sel2 && sel2.rangeCount) {
+            var range = sel2.getRangeAt(0);
+            var pre = range.cloneRange();
+            pre.selectNodeContents(editor);
+            pre.setEnd(range.startContainer, range.startOffset);
+            cursorOffset = pre.toString().length;
+          }
+        } catch (e) {}
+        var current = getCurrentMarkdownHeading(headings, cursorOffset);
+        if (current) {
+          return getMarkdownSectionText(fullText, current, headings);
+        }
+        return fullText.substring(0, 2000);
+      }
+      if (sel.value === "current_selection") {
+        var selText = window.getSelection ? window.getSelection().toString() : "";
+        return selText || "(no selection)";
+      }
+      if (sel.value.indexOf("heading::") === 0) {
+        var offset = Number(sel.value.split("::")[1] || 0);
+        var h2 = getMarkdownHeadings(fullText).find(function (h) { return Number(h.offset) === offset; });
+        if (h2) return getMarkdownSectionText(fullText, h2, getMarkdownHeadings(fullText));
+        return fullText.substring(0, 2000);
+      }
+      return "";
+    }
+
+    function buildMarkdownAIContext() {
+      var parts = [];
+      // Local context
+      var localText = getSelectedMarkdownLocalContextText();
+      if (localText) parts.push("=== Editor Content ===\n" + localText);
+      // Project context sources
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project) {
+        var checked = document.querySelectorAll("#markdownAIContextSources input[type=checkbox]:checked");
+        checked.forEach(function (cb) {
+          var key = cb.getAttribute("data-ai-context-source");
+          if (!key) return;
+          if (key === "project_summary" && project.short_summary) {
+            parts.push("=== Project Summary ===\n" + project.short_summary);
+          } else {
+            // Resolve doc URL fields
+            var field = getGoogleDocMarkdownFieldByKey(key);
+            if (field && field.urlKey) {
+              var url = project[field.urlKey];
+              if (url) {
+                var cached = typeof getCachedDoc === "function" ? getCachedDoc(url) : null;
+                if (cached && cached.content) {
+                  parts.push("=== " + (field.label || key) + " ===\n" + (cached.content.substring(0, 3000)));
+                }
+              }
+            }
+          }
+        });
+      }
+      return parts.join("\n\n");
+    }
+
     function previewMarkdownAITestPrompt() {
       var systemEl = document.getElementById("markdownAITestSystemPrompt");
       var userEl = document.getElementById("markdownAITestUserPrompt");
       var previewEl = document.getElementById("markdownAITestPromptPreview");
       var system = systemEl ? systemEl.value : "";
       var user = userEl ? userEl.value : "";
-      if (previewEl) previewEl.textContent = "System: " + system + "\n\nUser: " + user;
+      var context = buildMarkdownAIContext();
+      var fullUser = context ? context + "\n\n" + user : user;
+      if (previewEl) previewEl.textContent = "System: " + system + "\n\nUser: " + fullUser;
       setMarkdownAITestStatus("Prompt preview updated.", "ok");
     }
 
@@ -492,6 +602,8 @@
       var maxEl = document.getElementById("markdownAITestMaxTokens");
       var system = systemEl ? systemEl.value : "";
       var user = userEl ? userEl.value : "";
+      var context = buildMarkdownAIContext();
+      var fullUser = context ? context + "\n\n" + user : user;
       var temperature = tempEl ? Number(tempEl.value) || 0.7 : 0.7;
       var maxTokens = maxEl ? Number(maxEl.value) || 512 : 512;
       setMarkdownAITestStatus("Sending test prompt to " + providerLabel(payload.provider) + "...", "warn");
@@ -502,7 +614,7 @@
           model: model,
           messages: [
             { role: "system", content: system },
-            { role: "user", content: user }
+            { role: "user", content: fullUser }
           ],
           temperature: temperature,
           max_tokens: maxTokens
@@ -549,6 +661,42 @@
         text = data.choices && data.choices[0] ? data.choices[0].message.content : "";
       }
       return { text: text, usage: data.usage || null };
+    }
+
+    async function callEditorEmbedding(inputText) {
+      var aiConfig = collectAISettingsFormData();
+      var provider = aiConfig.provider || "openrouter";
+      var url = "";
+      var headers = { "Content-Type": "application/json" };
+      var body = {};
+      if (provider === "openrouter") {
+        var apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        var model = document.getElementById("aiOpenRouterModel") ? document.getElementById("aiOpenRouterModel").value.trim() : "";
+        // Use a default embedding model if none set
+        var embModel = model || "text-embedding-3-small";
+        url = "https://openrouter.ai/api/v1/embeddings";
+        if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+        body = { model: embModel, input: inputText };
+      } else if (provider === "lmstudio") {
+        var endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+        url = (endpoint || "http://localhost:1234/v1") + "/embeddings";
+        body = { model: "", input: inputText };
+      } else if (provider === "ollama") {
+        var endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+        var model = document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "";
+        url = (endpoint || "http://localhost:11434") + "/api/embeddings";
+        body = { model: model || "nomic-embed-text", prompt: inputText };
+      }
+      var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error("Embedding HTTP " + response.status + ": " + await response.text());
+      var data = await response.json();
+      var embedding = [];
+      if (provider === "ollama") {
+        embedding = data.embedding || [];
+      } else {
+        embedding = data.data && data.data[0] ? data.data[0].embedding : [];
+      }
+      return { embedding: embedding, model: data.model || "", usage: data.usage || null };
     }
 
     function fetchAIModels(provider) {
@@ -615,47 +763,62 @@
     function loadAISettings() {
       if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
         setAIStatus("AI settings need the deployed backend.", "error");
-        return;
+        return Promise.resolve();
       }
       setAIStatus("Loading AI settings...", "warn");
-      supabaseRunner
-        .withSuccessHandler(function (json) {
-          try {
-            var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
-            if (result.ok === false) throw new Error(result.error || "Load AI settings failed.");
-            applyAISettingsToForm(result.settings || {});
-            appState.aiSettings = appState.aiSettings || {};
-            appState.aiSettings.isLoaded = true;
-            setAIStatus("AI settings loaded.", "ok");
-          } catch (err) {
-            setAIStatus("AI settings load failed: " + err.message, "error");
-          }
-        })
-        .withFailureHandler(function (error) {
-          setAIStatus("AI settings load failed: " + (error && error.message ? error.message : error), "error");
-        })
-        .getAISettingsJsonFromClient();
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = typeof parseServerResult === "function" ? parseServerResult(json) : json;
+              if (result.ok === false) throw new Error(result.error || "Load AI settings failed.");
+              applyAISettingsToForm(result.settings || {});
+              appState.aiSettings = appState.aiSettings || {};
+              appState.aiSettings.isLoaded = true;
+              setAIStatus("AI settings loaded.", "ok");
+            } catch (err) {
+              setAIStatus("AI settings load failed: " + err.message, "error");
+            }
+            resolve();
+          })
+          .withFailureHandler(function (error) {
+            setAIStatus("AI settings load failed: " + (error && error.message ? error.message : error), "error");
+            resolve();
+          })
+          .getAISettingsJsonFromClient();
+      });
     }
 
     function applyAISettingsToForm(settings) {
       var safe = settings || {};
       if (el.aiDefaultProvider && safe.provider) el.aiDefaultProvider.value = safe.provider;
       setAIProviderPanel(safe.provider || "openrouter");
+      var orModel = document.getElementById("aiOpenRouterModel");
+      var orKey = document.getElementById("aiOpenRouterApiKey");
       if (safe.openrouter) {
-        var orModel = document.getElementById("aiOpenRouterModel");
+        if (orKey && safe.openrouter.apiKey) orKey.value = safe.openrouter.apiKey;
         if (orModel && safe.openrouter.model) orModel.value = safe.openrouter.model;
+      } else if (safe.provider === "openrouter") {
+        if (orKey && safe.apiKey) orKey.value = safe.apiKey;
+        if (orModel && safe.model) orModel.value = safe.model;
       }
+      var lsEndpoint = document.getElementById("aiLmStudioEndpoint");
+      var lsModel = document.getElementById("aiLmStudioModel");
       if (safe.lmstudio) {
-        var lsEndpoint = document.getElementById("aiLmStudioEndpoint");
-        var lsModel = document.getElementById("aiLmStudioModel");
         if (lsEndpoint && safe.lmstudio.endpoint) lsEndpoint.value = safe.lmstudio.endpoint;
         if (lsModel && safe.lmstudio.model) lsModel.value = safe.lmstudio.model;
+      } else if (safe.provider === "lmstudio") {
+        if (lsEndpoint && safe.endpoint) lsEndpoint.value = safe.endpoint;
+        if (lsModel && safe.model) lsModel.value = safe.model;
       }
+      var olEndpoint = document.getElementById("aiOllamaEndpoint");
+      var olModel = document.getElementById("aiOllamaModel");
       if (safe.ollama) {
-        var olEndpoint = document.getElementById("aiOllamaEndpoint");
-        var olModel = document.getElementById("aiOllamaModel");
         if (olEndpoint && safe.ollama.endpoint) olEndpoint.value = safe.ollama.endpoint;
         if (olModel && safe.ollama.model) olModel.value = safe.ollama.model;
+      } else if (safe.provider === "ollama") {
+        if (olEndpoint && safe.endpoint) olEndpoint.value = safe.endpoint;
+        if (olModel && safe.model) olModel.value = safe.model;
       }
       appState.aiSettings = appState.aiSettings || {};
       appState.aiSettings.isLoaded = true;

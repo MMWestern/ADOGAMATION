@@ -6,11 +6,19 @@
         lore: {},
         subplots: {},
         other: {},
+        connections: {},
         seriesProjects: {},
         characterDetails: {},
         locationDetails: {},
         continuityDetails: {},
         objectDetails: {}
+    };
+
+    // Generic engine cache — parallel to skCache but stores codex_entities rows
+    var codexCache = {
+        entitiesBySeries: {},  // seriesId → [entity rows with joined type info]
+        entityDetails: {},     // entityId → { projectLinks, tags }
+        entityTypesByKey: {}   // typeKey → { id, key, name_singular, name_plural }
     };
 
     var skActiveCharacterId = 0;
@@ -63,13 +71,30 @@
     function autoSelectSkEntity() {
         if (skHasAutoSelected) return;
         skHasAutoSelected = true;
+        var useNew = typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE;
         var subTab = skLastSelection.subTab || "characters";
         if (subTab === "characters") {
-            var chars = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
-            if (chars.length) editSkCharacter(skLastSelection.characterId || chars[0].id);
+            if (useNew) {
+                renderSkCharacterList();
+            } else {
+                var chars = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+                if (chars.length) editSkCharacter(skLastSelection.characterId || chars[0].id);
+            }
         } else if (subTab === "locations") {
-            var locs = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
-            if (locs.length) editSkLocation(skLastSelection.locationId || locs[0].id);
+            if (useNew) {
+                renderSkLocationList();
+            } else {
+                var locs = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+                if (locs.length) editSkLocation(skLastSelection.locationId || locs[0].id);
+            }
+        } else if (subTab === "objects") {
+            if (useNew) {
+                renderSkObjectList();
+            }
+        } else if (subTab === "lore") {
+            if (useNew) {
+                renderSkLoreList();
+            }
         } else if (subTab === "continuity") {
             var conts = skCurrentSeriesId ? (skCache.continuity[skCurrentSeriesId] || []) : [];
             if (conts.length) editSkContinuityEntry(skLastSelection.continuityId || conts[0].id);
@@ -92,7 +117,7 @@
     }
 
     function setSkSubTab(tabKey) {
-        var tabs = ["lore", "characters", "locations", "continuity"];
+        var tabs = ["lore", "characters", "locations", "objects", "continuity", "connections", "timelines", "mentions", "assets", "ai"];
         tabs.forEach(function (key) {
             var btn = el["skSubTab" + key.charAt(0).toUpperCase() + key.slice(1)];
             var pane = el["skTab" + key.charAt(0).toUpperCase() + key.slice(1)];
@@ -102,13 +127,102 @@
             }
             if (pane) pane.hidden = key !== tabKey;
         });
-        var formMap = { characters: "skCharacterForm", locations: "skLocationForm", continuity: "skContinuityForm" };
+        var formMap = { characters: "skCharacterForm", locations: "skLocationForm", continuity: "skContinuityForm", connections: "skConnectionForm" };
         var formId = formMap[tabKey] || null;
-        [el.skCharacterForm, el.skLocationForm, el.skContinuityForm].forEach(function (f) {
-            if (f) f.hidden = !formId || f.id !== formId;
-        });
+        var useNew = typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE;
+        if (useNew) {
+            [el.skCharacterForm, el.skLocationForm, el.skContinuityForm].forEach(function (f) {
+                if (f) f.hidden = true;
+            });
+            if (tabKey !== "characters" && tabKey !== "locations" && tabKey !== "objects" && tabKey !== "lore") {
+                closeSkCodexInspector();
+            }
+        } else {
+            [el.skCharacterForm, el.skLocationForm, el.skContinuityForm, el.skConnectionForm, el.skCalendarForm, el.skEventForm, el.skMentionForm, el.skAssetForm].forEach(function (f) {
+                if (f) f.hidden = !formId || f.id !== formId;
+            });
+        }
+        if (tabKey === "timelines") {
+            if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+            if (el.skEventForm) el.skEventForm.hidden = true;
+            if (skCurrentSeriesId) {
+                loadSkCalendars(skCurrentSeriesId).then(function () {
+                    loadSkEvents(skCurrentSeriesId).then(function () {
+                        renderSkCalendarList();
+                        renderSkEventList();
+                    });
+                });
+            }
+        }
+        if (tabKey === "continuity") {
+            if (skCurrentSeriesId) {
+                loadSkContinuityFindings(skCurrentSeriesId);
+            }
+        }
+        if (tabKey === "characters") {
+            renderSkCharacterList();
+        }
+        if (tabKey === "locations") {
+            renderSkLocationList();
+        }
+        if (tabKey === "objects") {
+            renderSkObjectList();
+        }
+        if (tabKey === "lore") {
+            renderSkLoreList();
+        }
+        if (tabKey === "mentions") {
+            if (el.skMentionForm) el.skMentionForm.hidden = true;
+            if (skCurrentSeriesId) {
+                loadSkMentions(skCurrentSeriesId).then(function () {
+                    renderSkMentionList();
+                    populateSkMentionSelectors();
+                });
+            }
+        }
+        if (tabKey === "assets") {
+            if (el.skAssetForm) el.skAssetForm.hidden = true;
+            if (skCurrentSeriesId) {
+                loadSkAssets(skCurrentSeriesId).then(function () {
+                    renderSkAssetList();
+                    populateSkAssetSelectors();
+                });
+            }
+        }
+        if (tabKey === "ai") {
+            if (skCurrentSeriesId) {
+                if (!el.skAiProviderBadge._badgeClickWired) {
+                    el.skAiProviderBadge.style.cursor = "pointer";
+                    el.skAiProviderBadge.title = "Click to open AI Settings";
+                    el.skAiProviderBadge.addEventListener("click", function () {
+                        if (typeof openAISettingsModal === "function") openAISettingsModal();
+                    });
+                    el.skAiProviderBadge._badgeClickWired = true;
+                }
+                updateSkAiProviderBadge();
+                startSkAiBadgePoll();
+                loadSkAiSuggestions(skCurrentSeriesId).then(function () {
+                    renderSkAiSuggestionList();
+                    populateSkAiSelectors();
+                });
+            }
+        } else {
+            stopSkAiBadgePoll();
+        }
         skLastSelection.subTab = tabKey;
-        if (tabKey !== "lore") autoSelectSkEntity();
+        if (tabKey === "connections") {
+            if (skCurrentSeriesId) {
+                loadSkConnections(skCurrentSeriesId).then(function () {
+                    renderSkConnectionList();
+                    populateSkConnectionSelectors();
+                });
+            } else {
+                renderSkConnectionList();
+                populateSkConnectionSelectors();
+            }
+        } else if (tabKey !== "lore") {
+            autoSelectSkEntity();
+        }
     }
 
     function renderSeriesKnowledgePanel(project) {
@@ -154,7 +268,10 @@
 
         if (!forceRefresh && appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId]) {
             renderSeriesKnowledgePanel(project);
-            return loadSkEntities(seriesId).then(function () {
+            return Promise.all([
+                loadSkEntities(seriesId),
+                (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(seriesId) : Promise.resolve()
+            ]).then(function () {
                 return appState.seriesKnowledgeById[seriesId];
             });
         }
@@ -166,7 +283,10 @@
                 knowledge.updatedAt = String(result && result.updatedAt || knowledge.updatedAt || "");
                 appState.seriesKnowledgeById[seriesId] = knowledge;
                 renderSeriesKnowledgePanel(project);
-                return loadSkEntities(seriesId).then(function () {
+                return Promise.all([
+                    loadSkEntities(seriesId),
+                    (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(seriesId) : Promise.resolve()
+                ]).then(function () {
                     return knowledge;
                 });
             })
@@ -221,16 +341,67 @@
 
     function loadSkEntities(seriesId) {
         if (!seriesId) return Promise.resolve();
-        return Promise.all([
-            loadSkCharacters(seriesId),
-            loadSkLocations(seriesId),
-            loadSkContinuityEntries(seriesId),
-            loadSkObjects(seriesId),
-            loadSkLore(seriesId),
-            loadSkSubplots(seriesId),
-            loadSkOther(seriesId),
-            loadSkSeriesProjects(seriesId)
-        ]);
+        var loads = [
+            loadSkSeriesProjects(seriesId),
+            loadSkConnections(seriesId),
+            loadSkCalendars(seriesId),
+            loadSkEvents(seriesId)
+        ];
+        if (!USE_NEW_CODEX_ENGINE) {
+            loads.push(
+                loadSkCharacters(seriesId),
+                loadSkLocations(seriesId),
+                loadSkContinuityEntries(seriesId),
+                loadSkObjects(seriesId),
+                loadSkLore(seriesId),
+                loadSkSubplots(seriesId),
+                loadSkOther(seriesId)
+            );
+        }
+        return Promise.all(loads);
+    }
+
+    // Load all generic codex entities for a series (used when USE_NEW_CODEX_ENGINE is true)
+    function loadCodexEntities(seriesId) {
+        if (!seriesId) return Promise.resolve();
+        try {
+            return callAppsScriptJson("listCodexEntities", [seriesId, null, null, null])
+                .then(function (result) {
+                    var entities = result && result.entities ? result.entities : [];
+                    codexCache.entitiesBySeries[seriesId] = entities;
+                    // Load book assignments for all entities in this series
+                    var entityIds = entities.map(function (e) { return Number(e.id || 0); }).filter(Boolean);
+                    if (!entityIds.length) return entities;
+                    return sbClient.from('codex_entity_projects').select('entity_id,project_id')
+                        .in('entity_id', entityIds).limit(10000)
+                        .then(function (linksRes) {
+                            var links = linksRes && linksRes.data ? linksRes.data : [];
+                            var linksByEntity = {};
+                            links.forEach(function (lk) {
+                                var eid = Number(lk.entity_id || 0);
+                                if (!eid) return;
+                                if (!linksByEntity[eid]) linksByEntity[eid] = [];
+                                linksByEntity[eid].push({ project_id: Number(lk.project_id || 0) });
+                            });
+                            entities.forEach(function (e) {
+                                var eid = Number(e.id || 0);
+                                if (linksByEntity[eid]) {
+                                    codexCache.entityDetails[eid] = { projectLinks: linksByEntity[eid] };
+                                }
+                            });
+                            return entities;
+                        });
+                })
+                .catch(function (err) {
+                    console.error('[CODEX] loadCodexEntities failed for series', seriesId, err);
+                    codexCache.entitiesBySeries[seriesId] = [];
+                    return [];
+                });
+        } catch (e) {
+            console.error('[CODEX] loadCodexEntities sync error for series', seriesId, e);
+            codexCache.entitiesBySeries[seriesId] = [];
+            return Promise.resolve([]);
+        }
     }
 
     function populateSkContinuityProjectSelector() {
@@ -297,7 +468,13 @@
 
     function renderSkCharacterList() {
         if (!el.skCharacterList) return;
-        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var list;
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+            var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+            list = entities.filter(function (e) { return e.codex_entity_types && e.codex_entity_types.key === "character"; });
+        } else {
+            list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        }
         if (!list.length) {
             el.skCharacterList.innerHTML = "<div class='world-entity-empty'>No characters yet. Click + Add Character to start.</div>";
             return;
@@ -308,7 +485,7 @@
             return "<div class='world-entity-card" + active + "' data-sk-char-id='" + ch.id + "'>" +
                 "<div class='world-entity-card-header'>" +
                     "<div class='world-entity-card-name'>" + escapeHtml(ch.name || "Unnamed") + "</div>" +
-                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(ch.role_archetype || "") + "</span></div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(ch.role_archetype || (ch.codex_entity_types ? ch.codex_entity_types.name_singular : "") || "") + "</span></div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
@@ -317,7 +494,11 @@
         el.skCharacterList.querySelectorAll("[data-sk-char-id]").forEach(function (card) {
             card.addEventListener("click", function () {
                 var id = Number(card.getAttribute("data-sk-char-id") || 0);
-                editSkCharacter(id);
+                if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+                    if (typeof openSkCodexInspector === "function") openSkCodexInspector("characters", id);
+                } else {
+                    editSkCharacter(id);
+                }
             });
         });
     }
@@ -632,7 +813,13 @@
 
     function renderSkLocationList() {
         if (!el.skLocationList) return;
-        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var list;
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+            var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+            list = entities.filter(function (e) { return e.codex_entity_types && e.codex_entity_types.key === "location"; });
+        } else {
+            list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        }
         if (!list.length) {
             el.skLocationList.innerHTML = "<div class='world-entity-empty'>No locations yet. Click + Add Location to start.</div>";
             return;
@@ -643,7 +830,7 @@
             return "<div class='world-entity-card" + active + "' data-sk-loc-id='" + loc.id + "'>" +
                 "<div class='world-entity-card-header'>" +
                     "<div class='world-entity-card-name'>" + escapeHtml(loc.name || "Unnamed") + "</div>" +
-                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(loc.type || "") + "</span></div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(loc.type || (loc.codex_entity_types ? loc.codex_entity_types.name_singular : "") || "") + "</span></div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
@@ -652,7 +839,328 @@
         el.skLocationList.querySelectorAll("[data-sk-loc-id]").forEach(function (card) {
             card.addEventListener("click", function () {
                 var id = Number(card.getAttribute("data-sk-loc-id") || 0);
-                editSkLocation(id);
+                if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+                    if (typeof openSkCodexInspector === "function") openSkCodexInspector("locations", id);
+                } else {
+                    editSkLocation(id);
+                }
+            });
+        });
+    }
+
+    function populateSkInspectorRoleArchetype() {
+        if (el.skCodexInspectorRole && el.skCharacterRole) {
+            el.skCodexInspectorRole.innerHTML = el.skCharacterRole.innerHTML;
+        }
+        if (el.skCodexInspectorArchetype && el.skCharacterArchetype) {
+            el.skCodexInspectorArchetype.innerHTML = el.skCharacterArchetype.innerHTML;
+        }
+    }
+
+    var _skCodexInspectorType = "";
+    var _skCodexInspectorId = 0;
+    var _skCodexInspectorIsNew = false;
+
+    function openSkCodexInspector(type, id) {
+        if (!el.skCodexInspector) return;
+        _skCodexInspectorType = type || "";
+        _skCodexInspectorId = Number(id || 0);
+        _skCodexInspectorIsNew = !_skCodexInspectorId;
+        el.skCodexInspector.hidden = false;
+        if (el.skCodexInspectorId) el.skCodexInspectorId.value = String(_skCodexInspectorId);
+        if (el.skCodexInspectorType) el.skCodexInspectorType.value = _skCodexInspectorType;
+        var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", continuity: "Continuity", other: "Other" };
+        if (el.skCodexInspectorTypeLabel) el.skCodexInspectorTypeLabel.textContent = typeLabels[type] || type || "Entity";
+        if (el.skCodexInspectorDeleteButton) el.skCodexInspectorDeleteButton.hidden = _skCodexInspectorIsNew;
+        if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.textContent = _skCodexInspectorIsNew ? "Create " + (typeLabels[type] || "Entry") : "Save Changes";
+        var isChar = type === "characters";
+        if (el.skCodexInspectorRoleRow) el.skCodexInspectorRoleRow.hidden = !isChar;
+        if (isChar) {
+            populateSkInspectorRoleArchetype();
+        }
+        if (_skCodexInspectorIsNew) {
+            populateSkCodexInspector(null);
+            return;
+        }
+        populateSkCodexInspector(null);
+        var project = getSelectedProject();
+        var seriesId = Number(project && project.series_id || 0);
+        var entities = codexCache.entitiesBySeries[seriesId] || [];
+        var entity = entities.find(function (e) { return Number(e.id) === _skCodexInspectorId; });
+        if (entity) {
+            populateSkCodexInspector(entity);
+        }
+        loadSkCodexInspectorDetails(seriesId, _skCodexInspectorId);
+    }
+
+    function populateSkCodexInspector(entity) {
+        var isNew = !entity;
+        if (el.skCodexInspectorNameDisplay) el.skCodexInspectorNameDisplay.textContent = isNew ? "New Entry" : (entity.name || "Unnamed");
+        if (el.skCodexInspectorName) el.skCodexInspectorName.value = isNew ? "" : (entity.name || "");
+        if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = isNew ? "" : (entity.badge || "");
+        if (el.skCodexInspectorRole) el.skCodexInspectorRole.value = isNew ? "" : (entity.role_archetype || "");
+        if (el.skCodexInspectorArchetype) el.skCodexInspectorArchetype.value = isNew ? "" : (entity.archetype || "");
+        if (el.skCodexInspectorDescription) el.skCodexInspectorDescription.value = isNew ? "" : (entity.description || "");
+        if (el.skCodexInspectorSecondary) el.skCodexInspectorSecondary.value = "";
+        if (el.skCodexInspectorTertiary) el.skCodexInspectorTertiary.value = "";
+        if (el.skCodexInspectorImageUrl) el.skCodexInspectorImageUrl.value = isNew ? "" : (entity.image_url || "");
+        if (el.skCodexInspectorScope) el.skCodexInspectorScope.value = isNew ? "series" : (entity.scope || "series");
+        if (el.skCodexInspectorBadge) {
+            var badge = isNew ? "" : (entity.badge || "");
+            if (badge) {
+                el.skCodexInspectorBadge.textContent = badge;
+                el.skCodexInspectorBadge.style.display = "";
+            } else {
+                el.skCodexInspectorBadge.style.display = "none";
+            }
+        }
+        setSkCodexInspectorColor(isNew ? "" : (entity.color || ""));
+        setSkCodexInspectorImage(isNew ? "" : (entity.image_url || ""));
+        updateSkCodexInspectorFallback(isNew ? "" : (entity.name || ""));
+    }
+
+    function loadSkCodexInspectorDetails(seriesId, entityId) {
+        if (!seriesId || !entityId) return;
+        var singularKey = CODEX_GROUP_TO_TYPE_KEY[_skCodexInspectorType] || _skCodexInspectorType;
+        callAppsScriptJson("getCodexEntity", [entityId])
+            .then(function (result) {
+                if (!result || !result.ok) return;
+                if (Number(el.skCodexInspectorId && el.skCodexInspectorId.value) !== entityId) return;
+                var entity = result.entity || {};
+                if (el.skCodexInspectorName) el.skCodexInspectorName.value = entity.name || "";
+                if (el.skCodexInspectorNameDisplay) el.skCodexInspectorNameDisplay.textContent = entity.name || "Unnamed";
+                if (el.skCodexInspectorDescription) el.skCodexInspectorDescription.value = entity.description || "";
+                if (el.skCodexInspectorScope) el.skCodexInspectorScope.value = entity.scope || "series";
+                if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = entity.badge || "";
+                if (el.skCodexInspectorBadge) {
+                    if (entity.badge) {
+                        el.skCodexInspectorBadge.textContent = entity.badge;
+                        el.skCodexInspectorBadge.style.display = "";
+                    } else {
+                        el.skCodexInspectorBadge.style.display = "none";
+                    }
+                }
+                setSkCodexInspectorColor(entity.color || "");
+                setSkCodexInspectorImage(entity.image_url || "");
+                updateSkCodexInspectorFallback(entity.name || "");
+                if (entity.custom_data) {
+                    var cd = entity.custom_data;
+                    var badgeVal = cd.role_archetype || cd.type || "";
+                    if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = badgeVal;
+                    if (el.skCodexInspectorRole) el.skCodexInspectorRole.value = cd.role_archetype || "";
+                    if (el.skCodexInspectorArchetype) el.skCodexInspectorArchetype.value = cd.archetype || "";
+                    if (el.skCodexInspectorBadge) {
+                        if (badgeVal) {
+                            el.skCodexInspectorBadge.textContent = badgeVal;
+                            el.skCodexInspectorBadge.style.display = "";
+                        } else {
+                            el.skCodexInspectorBadge.style.display = "none";
+                        }
+                    }
+                    if (el.skCodexInspectorSecondary) {
+                        el.skCodexInspectorSecondary.value = cd.motivation_arc || cd.significance || cd.notable_events || "";
+                    }
+                    if (el.skCodexInspectorTertiary) {
+                        el.skCodexInspectorTertiary.value = cd.backstory || "";
+                    }
+                }
+            })
+            .catch(function () {});
+    }
+
+    function saveSkCodexInspector() {
+        var project = getSelectedProject();
+        var seriesId = Number(project && project.series_id || 0);
+        if (!seriesId) { setStatus("Select a series first.", "error"); return; }
+        var name = String(el.skCodexInspectorName && el.skCodexInspectorName.value || "").trim();
+        if (!name) { setStatus("Name is required.", "error"); if (el.skCodexInspectorName) el.skCodexInspectorName.focus(); return; }
+        var type = _skCodexInspectorType;
+        var entityTypeId = getCodexEntityTypeId_(seriesId, type);
+        if (!entityTypeId) { setStatus("Unknown entity type.", "error"); return; }
+        var projectId = Number(project && (project.project_id || project.id) || 0);
+        var scopeVal = el.skCodexInspectorScope ? el.skCodexInspectorScope.value : "series";
+        var payload = {
+            id: _skCodexInspectorId,
+            name: name,
+            title: name,
+            description: String(el.skCodexInspectorDescription && el.skCodexInspectorDescription.value || "").trim(),
+            image_url: el.skCodexInspectorImage ? String(el.skCodexInspectorImage.src || "").trim() : "",
+            color: getSkCodexInspectorColor(),
+            scope: scopeVal,
+            badge: String(el.skCodexInspectorBadgeInput && el.skCodexInspectorBadgeInput.value || "").trim(),
+            bookLinks: scopeVal === "book" && projectId ? [{ project_id: projectId }] : []
+        };
+        if (type === "characters") {
+            payload.role_archetype = String(el.skCodexInspectorRole && el.skCodexInspectorRole.value || "").trim();
+            payload.archetype = String(el.skCodexInspectorArchetype && el.skCodexInspectorArchetype.value || "").trim();
+            payload.motivation_arc = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
+            payload.backstory = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
+        } else if (type === "locations" || type === "objects") {
+            payload.type = payload.badge;
+            payload.significance = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
+            payload.notable_events = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
+        }
+        var codexPayload = mapLegacySavePayloadToCodex_(type, payload, _skCodexInspectorId);
+        if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.disabled = true;
+        setStatus("Saving...", "warn");
+        callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(codexPayload)])
+            .then(function (result) {
+                var savedEntity = result && result.entity ? result.entity : {};
+                var savedId = Number(savedEntity.id || _skCodexInspectorId || 0);
+                return loadCodexEntities(seriesId).then(function () {
+                    return savedId;
+                });
+            })
+            .then(function (savedId) {
+                _skCodexInspectorId = savedId || _skCodexInspectorId;
+                _skCodexInspectorIsNew = false;
+                if (el.skCodexInspectorId) el.skCodexInspectorId.value = String(_skCodexInspectorId);
+                if (el.skCodexInspectorDeleteButton) el.skCodexInspectorDeleteButton.hidden = false;
+                if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.textContent = "Save Changes";
+                setStatus("Entry saved.", "ok");
+                refreshCodexSubTabLists();
+            })
+            .catch(function (error) {
+                setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
+            })
+            .then(function () {
+                if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.disabled = false;
+            });
+    }
+
+    function deleteSkCodexInspector() {
+        if (!_skCodexInspectorId) return;
+        if (!confirm("Delete this entry? This cannot be undone.")) return;
+        var project = getSelectedProject();
+        var seriesId = Number(project && project.series_id || 0);
+        if (!seriesId) return;
+        setStatus("Deleting...", "warn");
+        callAppsScriptJson("deleteCodexEntity", [_skCodexInspectorId])
+            .then(function () {
+                return loadCodexEntities(seriesId);
+            })
+            .then(function () {
+                closeSkCodexInspector();
+                setStatus("Entry deleted.", "ok");
+                refreshCodexSubTabLists();
+            })
+            .catch(function (error) {
+                setStatus("Delete failed: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function closeSkCodexInspector() {
+        _skCodexInspectorType = "";
+        _skCodexInspectorId = 0;
+        _skCodexInspectorIsNew = false;
+        if (el.skCodexInspector) el.skCodexInspector.hidden = true;
+    }
+
+    function getSkCodexInspectorColor() {
+        if (!el.skCodexInspectorColorTrigger) return "";
+        return el.skCodexInspectorColorTrigger.getAttribute("data-color") || "";
+    }
+
+    function setSkCodexInspectorColor(color) {
+        if (!el.skCodexInspectorColorTrigger) return;
+        var safe = String(color || "").trim();
+        el.skCodexInspectorColorTrigger.setAttribute("data-color", safe);
+        el.skCodexInspectorColorTrigger.style.background = safe || "#3a3a42";
+        var name = document.getElementById("skCodexInspectorNameDisplay");
+        if (name) name.style.color = safe || "";
+    }
+
+    function updateSkCodexInspectorFallback(name) {
+        if (!el.skCodexInspectorImageFallback) return;
+        var title = String(name || "").trim();
+        var initials = title.split(/\s+/).filter(Boolean).slice(0, 2).map(function (part) {
+            return part.charAt(0).toUpperCase();
+        }).join("") || "E";
+        el.skCodexInspectorImageFallback.textContent = initials;
+    }
+
+    function setSkCodexInspectorImage(url) {
+        var safe = String(url || "").trim();
+        if (el.skCodexInspectorImage) {
+            el.skCodexInspectorImage.src = safe;
+            el.skCodexInspectorImage.style.display = safe ? "block" : "none";
+        }
+        if (el.skCodexInspectorImageFallback) {
+            el.skCodexInspectorImageFallback.style.display = safe ? "none" : "flex";
+        }
+    }
+
+    function updateSkCodexInspectorImage(url) {
+        setSkCodexInspectorImage(url);
+    }
+
+    function refreshCodexSubTabLists() {
+        renderSkCharacterList();
+        renderSkLocationList();
+        renderSkObjectList();
+        renderSkLoreList();
+    }
+
+    function renderSkLoreList() {
+        if (!el.skLoreList) return;
+        var useNew = typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE;
+        if (el.skLoreLegacyWrap) el.skLoreLegacyWrap.hidden = useNew;
+        if (el.skLoreNewWrap) el.skLoreNewWrap.hidden = !useNew;
+        if (!useNew) return;
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var list = entities.filter(function (e) { return e.codex_entity_types && e.codex_entity_types.key === "lore"; });
+        if (!list.length) {
+            el.skLoreList.innerHTML = "<div class='world-entity-empty'>No lore entries yet. Click + Add Lore to start.</div>";
+            return;
+        }
+        el.skLoreList.innerHTML = list.map(function (entry) {
+            var snippet = (entry.description || "").substring(0, 80);
+            return "<div class='world-entity-card' data-sk-lore-id='" + entry.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(entry.name || "Unnamed") + "</div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skLoreList.querySelectorAll("[data-sk-lore-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-lore-id") || 0);
+                if (typeof openSkCodexInspector === "function") openSkCodexInspector("lore", id);
+            });
+        });
+    }
+
+    function renderSkObjectList() {
+        if (!el.skObjectList) return;
+        var list;
+        if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+            var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+            list = entities.filter(function (e) { return e.codex_entity_types && e.codex_entity_types.key === "item"; });
+        } else {
+            list = skCurrentSeriesId ? (skCache.objects[skCurrentSeriesId] || []) : [];
+        }
+        if (!list.length) {
+            el.skObjectList.innerHTML = "<div class='world-entity-empty'>No objects yet. Click + Add Object to start.</div>";
+            return;
+        }
+        el.skObjectList.innerHTML = list.map(function (obj) {
+            var snippet = (obj.description || obj.significance || "").substring(0, 80);
+            return "<div class='world-entity-card' data-sk-obj-id='" + obj.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(obj.name || "Unnamed") + "</div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(obj.type || (obj.codex_entity_types ? obj.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skObjectList.querySelectorAll("[data-sk-obj-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-obj-id") || 0);
+                if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+                    if (typeof openSkCodexInspector === "function") openSkCodexInspector("objects", id);
+                }
             });
         });
     }
@@ -969,8 +1477,14 @@
     function renderSkContinuityDetail(entry, data) {
         if (!el.skContinuityDetail) return;
         if (!entry) { el.skContinuityDetail.innerHTML = '<div class="sk-detail-placeholder">Select an entry to view details</div>'; return; }
-        var charList = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
-        var locList = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var charList, locList;
+        if (USE_NEW_CODEX_ENGINE) {
+            charList = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) { return e.entity_type_key === "character"; }) : [];
+            locList = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) { return e.entity_type_key === "location"; }) : [];
+        } else {
+            charList = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+            locList = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        }
         var projList = getSkProjectsForSeries();
         var charNames = (data.linkedCharacterIds || []).map(function (cid) {
             var c = charList.find(function (ch) { return Number(ch.id) === cid; });
@@ -1030,7 +1544,12 @@
 
     function renderSkContinuityCharPicks(characterIds) {
         if (!el.skContinuityCharPicks) return;
-        var list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        var list;
+        if (USE_NEW_CODEX_ENGINE) {
+            list = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) { return e.entity_type_key === "character"; }) : [];
+        } else {
+            list = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
+        }
         var ids = characterIds || [];
         if (!ids.length) {
             el.skContinuityCharPicks.innerHTML = "<div class='tiny' style='color:var(--muted);'>No characters linked.</div>";
@@ -1055,7 +1574,12 @@
 
     function renderSkContinuityLocPicks(locationIds) {
         if (!el.skContinuityLocPicks) return;
-        var list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        var list;
+        if (USE_NEW_CODEX_ENGINE) {
+            list = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) { return e.entity_type_key === "location"; }) : [];
+        } else {
+            list = skCurrentSeriesId ? (skCache.locations[skCurrentSeriesId] || []) : [];
+        }
         var ids = locationIds || [];
         if (!ids.length) {
             el.skContinuityLocPicks.innerHTML = "<div class='tiny' style='color:var(--muted);'>No locations linked.</div>";
@@ -1262,4 +1786,1295 @@
             skCache.other[seriesId] = list;
             return list;
         }).catch(function () {});
+    }
+
+    /* ---- Connections ---- */
+
+    var skEditingConnectionId = 0;
+
+    function loadSkConnections(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexConnections", [seriesId, null])
+            .then(function (result) {
+                var list = result && result.connections ? result.connections : [];
+                skCache.connections[seriesId] = list;
+                return list;
+            })
+            .catch(function (err) {
+                console.error('loadSkConnections failed for series', seriesId, err);
+                return [];
+            });
+    }
+
+    function renderSkConnectionList() {
+        if (!el.skConnectionList) return;
+        var list = skCurrentSeriesId ? (skCache.connections[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skConnectionList.innerHTML = "<div class='world-entity-empty'>No connections yet. Click + Add Connection to link entities together.</div>";
+            return;
+        }
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entitiesById = {};
+        entities.forEach(function (e) { entitiesById[e.id] = e; });
+        el.skConnectionList.innerHTML = list.map(function (conn) {
+            var active = skEditingConnectionId === Number(conn.id) ? " is-active" : "";
+            var source = entitiesById[conn.source_entity_id] || {};
+            var target = entitiesById[conn.target_entity_id] || {};
+            var relType = conn.codex_relationship_types || {};
+            var sourceName = String(source.name || "Unknown").trim();
+            var targetName = String(target.name || "Unknown").trim();
+            var relLabel = String(conn.label || relType.forward_label || "related to").trim();
+            var desc = String(conn.description || "").substring(0, 60);
+            return "<div class='world-entity-card" + active + "' data-sk-conn-id='" + conn.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(sourceName) + " → " + escapeHtml(relLabel) + " → " + escapeHtml(targetName) + "</div>" +
+                "</div>" +
+                (desc ? "<div class='world-entity-card-snippet'>" + escapeHtml(desc) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skConnectionList.querySelectorAll("[data-sk-conn-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                var id = Number(card.getAttribute("data-sk-conn-id") || 0);
+                editSkConnection(id);
+            });
+        });
+    }
+
+    function populateSkConnectionSelectors() {
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var opts = entities.map(function (e) {
+            var typeInfo = e.codex_entity_types || {};
+            return "<option value='" + e.id + "'>" + escapeHtml(e.name || "Untitled") + " (" + escapeHtml(typeInfo.key || "?") + ")</option>";
+        }).join("");
+        var emptyOpt = "<option value=''>Select entity...</option>";
+        if (el.skConnectionSource) el.skConnectionSource.innerHTML = emptyOpt + opts;
+        if (el.skConnectionTarget) el.skConnectionTarget.innerHTML = emptyOpt + opts;
+
+        // Load relationship types
+        callAppsScriptJson("listCodexRelationshipTypes", [])
+            .then(function (result) {
+                var types = result && result.types ? result.types : [];
+                var relOpts = types.map(function (t) {
+                    return "<option value='" + t.id + "'>" + escapeHtml(t.forward_label || t.key) + "</option>";
+                }).join("");
+                if (el.skConnectionRelType) el.skConnectionRelType.innerHTML = "<option value=''>Select type...</option>" + relOpts;
+            })
+            .catch(function () {});
+    }
+
+    function editSkConnection(id) {
+        skEditingConnectionId = id;
+        if (!el.skConnectionForm) return;
+        el.skConnectionForm.hidden = false;
+
+        if (!id) {
+            el.skConnectionId.value = "0";
+            el.skConnectionSource.value = "";
+            el.skConnectionRelType.value = "";
+            el.skConnectionTarget.value = "";
+            el.skConnectionDescription.value = "";
+            el.skConnectionLabel.value = "";
+            if (el.skConnectionNameDisplay) el.skConnectionNameDisplay.textContent = "New Connection";
+            if (el.skConnectionList) renderSkConnectionList();
+            return;
+        }
+
+        var list = skCurrentSeriesId ? (skCache.connections[skCurrentSeriesId] || []) : [];
+        var conn = list.find(function (c) { return Number(c.id) === id; });
+        if (!conn) return;
+
+        el.skConnectionId.value = String(conn.id || 0);
+        el.skConnectionSource.value = String(conn.source_entity_id || "");
+        el.skConnectionTarget.value = String(conn.target_entity_id || "");
+        el.skConnectionDescription.value = String(conn.description || "");
+        el.skConnectionLabel.value = String(conn.label || "");
+        var relType = conn.codex_relationship_types || {};
+        if (el.skConnectionRelType) el.skConnectionRelType.value = String(conn.relationship_type_id || "");
+        if (el.skConnectionNameDisplay) el.skConnectionNameDisplay.textContent = "Edit Connection";
+        if (el.skConnectionList) renderSkConnectionList();
+    }
+
+    function saveSkConnection() {
+        if (!skCurrentSeriesId || !el.skConnectionForm) return;
+        var id = Number(el.skConnectionId.value || 0);
+        var sourceId = Number(el.skConnectionSource ? el.skConnectionSource.value : 0);
+        var targetId = Number(el.skConnectionTarget ? el.skConnectionTarget.value : 0);
+        var relTypeId = Number(el.skConnectionRelType ? el.skConnectionRelType.value : 0);
+        var description = String(el.skConnectionDescription ? el.skConnectionDescription.value : "").trim();
+        var label = String(el.skConnectionLabel ? el.skConnectionLabel.value : "").trim();
+
+        if (!sourceId || !targetId) {
+            setResourceSeriesKnowledgeStatus("Source and target entities are required.", "error");
+            return;
+        }
+        if (sourceId === targetId) {
+            setResourceSeriesKnowledgeStatus("Source and target must be different entities.", "error");
+            return;
+        }
+
+        var payload = {
+            id: id,
+            source_entity_id: sourceId,
+            target_entity_id: targetId,
+            relationship_type_id: relTypeId || null,
+            description: description,
+            label: label
+        };
+
+        setResourceSeriesKnowledgeStatus("Saving connection...", "warn");
+        callAppsScriptJson("saveCodexConnection", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Connection saved.", "ok");
+                return loadSkConnections(skCurrentSeriesId).then(function () {
+                    renderSkConnectionList();
+                    skEditingConnectionId = 0;
+                    if (el.skConnectionForm) el.skConnectionForm.hidden = true;
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save connection: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkConnection() {
+        var id = Number(el.skConnectionId ? el.skConnectionId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this connection? This cannot be undone.")) return;
+        callAppsScriptJson("deleteCodexConnection", [id])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Connection deleted.", "ok");
+                if (skCurrentSeriesId) loadSkConnections(skCurrentSeriesId).then(function () {
+                    renderSkConnectionList();
+                });
+                if (el.skConnectionForm) el.skConnectionForm.hidden = true;
+                skEditingConnectionId = 0;
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to delete connection: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    /* ---- Calendars ---- */
+
+    var skEditingCalendarId = 0;
+    var skEditingEventId = 0;
+    var skCachedCalendars = {};
+
+    function loadSkCalendars(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexCalendars", [seriesId])
+            .then(function (result) {
+                var list = result && result.calendars ? result.calendars : [];
+                skCachedCalendars[seriesId] = list;
+                return list;
+            })
+            .catch(function () { return []; });
+    }
+
+    function renderSkCalendarList() {
+        if (!el.skCalendarList) return;
+        var list = skCurrentSeriesId ? (skCachedCalendars[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skCalendarList.innerHTML = "<div class='world-entity-empty'>No calendars yet. Click + Add Calendar to create one.</div>";
+            return;
+        }
+        el.skCalendarList.innerHTML = list.map(function (cal) {
+            var active = skEditingCalendarId === Number(cal.id) ? " is-active" : "";
+            return "<div class='world-entity-card" + active + "' data-sk-cal-id='" + cal.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(cal.name || "Untitled") + "</div>" +
+                    (cal.is_default ? "<span class='tiny' style='color:#3b82f6;'>Default</span>" : "") +
+                "</div>" +
+                (cal.description ? "<div class='world-entity-card-snippet'>" + escapeHtml(String(cal.description).substring(0, 60)) + "</div>" : "") +
+            "</div>";
+        }).join("");
+        el.skCalendarList.querySelectorAll("[data-sk-cal-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                editSkCalendar(Number(card.getAttribute("data-sk-cal-id") || 0));
+            });
+        });
+    }
+
+    function editSkCalendar(id) {
+        skEditingCalendarId = id;
+        if (!el.skCalendarForm) return;
+        el.skCalendarForm.hidden = false;
+        if (el.skEventForm) el.skEventForm.hidden = true;
+
+        if (!id) {
+            el.skCalendarId.value = "0";
+            el.skCalendarName.value = "";
+            el.skCalendarDescription.value = "";
+            if (el.skCalendarNameDisplay) el.skCalendarNameDisplay.textContent = "New Calendar";
+            return;
+        }
+        var list = skCurrentSeriesId ? (skCachedCalendars[skCurrentSeriesId] || []) : [];
+        var cal = list.find(function (c) { return Number(c.id) === id; });
+        if (!cal) return;
+        el.skCalendarId.value = String(cal.id || 0);
+        el.skCalendarName.value = String(cal.name || "");
+        el.skCalendarDescription.value = String(cal.description || "");
+        if (el.skCalendarNameDisplay) el.skCalendarNameDisplay.textContent = cal.name || "Untitled";
+    }
+
+    function saveSkCalendar() {
+        if (!skCurrentSeriesId) return;
+        var id = Number(el.skCalendarId ? el.skCalendarId.value : 0);
+        var name = String(el.skCalendarName ? el.skCalendarName.value : "").trim();
+        if (!name) { setResourceSeriesKnowledgeStatus("Calendar name is required.", "error"); return; }
+        var payload = { id: id, name: name, description: String(el.skCalendarDescription ? el.skCalendarDescription.value : "").trim() };
+        setResourceSeriesKnowledgeStatus("Saving calendar...", "warn");
+        callAppsScriptJson("saveCodexCalendar", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Calendar saved.", "ok");
+                return loadSkCalendars(skCurrentSeriesId).then(function () {
+                    renderSkCalendarList();
+                    skEditingCalendarId = 0;
+                    if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save calendar: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkCalendar() {
+        var id = Number(el.skCalendarId ? el.skCalendarId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this calendar? Events linked to it will keep their date but lose the calendar reference.")) return;
+        // No direct delete method — just clear the form
+        setResourceSeriesKnowledgeStatus("Calendar deletion not yet implemented.", "warn");
+        if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+        skEditingCalendarId = 0;
+    }
+
+    /* ---- Events ---- */
+
+    var skCachedEvents = {};
+
+    function loadSkEvents(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexEvents", [seriesId, null])
+            .then(function (result) {
+                var list = result && result.events ? result.events : [];
+                skCachedEvents[seriesId] = list;
+                return list;
+            })
+            .catch(function () { return []; });
+    }
+
+    function renderSkEventList() {
+        if (!el.skEventList) return;
+        var list = skCurrentSeriesId ? (skCachedEvents[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skEventList.innerHTML = "<div class='world-entity-empty'>No events yet. Click + Add Event to create one.</div>";
+            return;
+        }
+        var calendars = skCurrentSeriesId ? (skCachedCalendars[skCurrentSeriesId] || []) : [];
+        el.skEventList.innerHTML = list.map(function (evt) {
+            var active = skEditingEventId === Number(evt.id) ? " is-active" : "";
+            var cal = calendars.find(function (c) { return Number(c.id) === Number(evt.calendar_id || 0); });
+            var dateStr = String(evt.display_date || "").trim();
+            var calName = cal ? cal.name : "";
+            return "<div class='world-entity-card" + active + "' data-sk-evt-id='" + evt.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(evt.title || "Untitled") + "</div>" +
+                    "<div class='world-entity-card-meta'>" +
+                        (dateStr ? "<span class='tiny'>" + escapeHtml(dateStr) + "</span>" : "") +
+                        (calName ? " <span class='tiny' style='color:#3b82f6;'>" + escapeHtml(calName) + "</span>" : "") +
+                    "</div>" +
+                "</div>" +
+                (evt.description ? "<div class='world-entity-card-snippet'>" + escapeHtml(String(evt.description).substring(0, 60)) + "</div>" : "") +
+            "</div>";
+        }).join("");
+        el.skEventList.querySelectorAll("[data-sk-evt-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                editSkEvent(Number(card.getAttribute("data-sk-evt-id") || 0));
+            });
+        });
+    }
+
+    function editSkEvent(id) {
+        skEditingEventId = id;
+        if (!el.skEventForm) return;
+        el.skEventForm.hidden = false;
+        if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+
+        // Populate calendar dropdown
+        var calendars = skCurrentSeriesId ? (skCachedCalendars[skCurrentSeriesId] || []) : [];
+        var calOpts = calendars.map(function (c) { return "<option value='" + c.id + "'>" + escapeHtml(c.name || "Untitled") + "</option>"; }).join("");
+        if (el.skEventCalendar) el.skEventCalendar.innerHTML = "<option value=''>No calendar</option>" + calOpts;
+
+        if (!id) {
+            el.skEventId.value = "0";
+            el.skEventTitle.value = "";
+            el.skEventDescription.value = "";
+            el.skEventDisplayDate.value = "";
+            el.skEventCalendar.value = "";
+            el.skEventSortKey.value = "";
+            if (el.skEventNameDisplay) el.skEventNameDisplay.textContent = "New Event";
+            return;
+        }
+        var list = skCurrentSeriesId ? (skCachedEvents[skCurrentSeriesId] || []) : [];
+        var evt = list.find(function (e) { return Number(e.id) === id; });
+        if (!evt) return;
+        el.skEventId.value = String(evt.id || 0);
+        el.skEventTitle.value = String(evt.title || "");
+        el.skEventDescription.value = String(evt.description || "");
+        el.skEventDisplayDate.value = String(evt.display_date || "");
+        el.skEventCalendar.value = String(evt.calendar_id || "");
+        el.skEventSortKey.value = String(evt.start_sort_key || "");
+        if (el.skEventNameDisplay) el.skEventNameDisplay.textContent = evt.title || "Untitled";
+    }
+
+    function saveSkEvent() {
+        if (!skCurrentSeriesId) return;
+        var id = Number(el.skEventId ? el.skEventId.value : 0);
+        var title = String(el.skEventTitle ? el.skEventTitle.value : "").trim();
+        if (!title) { setResourceSeriesKnowledgeStatus("Event title is required.", "error"); return; }
+        var payload = {
+            id: id,
+            title: title,
+            description: String(el.skEventDescription ? el.skEventDescription.value : "").trim(),
+            display_date: String(el.skEventDisplayDate ? el.skEventDisplayDate.value : "").trim(),
+            calendar_id: Number(el.skEventCalendar ? el.skEventCalendar.value : 0) || null,
+            start_sort_key: Number(el.skEventSortKey ? el.skEventSortKey.value : 0) || null
+        };
+        setResourceSeriesKnowledgeStatus("Saving event...", "warn");
+        callAppsScriptJson("saveCodexEvent", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Event saved.", "ok");
+                return loadSkEvents(skCurrentSeriesId).then(function () {
+                    renderSkEventList();
+                    skEditingEventId = 0;
+                    if (el.skEventForm) el.skEventForm.hidden = true;
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save event: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkEvent() {
+        var id = Number(el.skEventId ? el.skEventId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this event? This cannot be undone.")) return;
+        setResourceSeriesKnowledgeStatus("Event deletion not yet implemented.", "warn");
+        if (el.skEventForm) el.skEventForm.hidden = true;
+        skEditingEventId = 0;
+    }
+
+    /* ---- Mentions ---- */
+
+    var skEditingMentionId = 0;
+    var skCachedMentions = {};
+
+    function loadSkMentions(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexMentionsBySeries", [seriesId])
+            .then(function (result) {
+                var list = result && result.mentions ? result.mentions : [];
+                // Filter to this series
+                skCachedMentions[seriesId] = list.filter(function (m) { return Number(m.series_id) === seriesId; });
+                return skCachedMentions[seriesId];
+            })
+            .catch(function () { return []; });
+    }
+
+    function renderSkMentionList() {
+        if (!el.skMentionList) return;
+        var list = skCurrentSeriesId ? (skCachedMentions[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skMentionList.innerHTML = "<div class='world-entity-empty'>No mentions yet. Click + Add Mention to link an entity to a project.</div>";
+            return;
+        }
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entitiesById = {};
+        entities.forEach(function (e) { entitiesById[e.id] = e; });
+        var projects = getSkProjectsForSeries();
+        var projectsById = {};
+        projects.forEach(function (p) { projectsById[p.id] = p; });
+
+        el.skMentionList.innerHTML = list.map(function (mention) {
+            var active = skEditingMentionId === Number(mention.id) ? " is-active" : "";
+            var entity = entitiesById[mention.entity_id] || {};
+            var project = projectsById[mention.project_id] || {};
+            var entityName = String(entity.name || "Unknown").trim();
+            var projectName = String(project.title || "Unknown").trim();
+            var method = String(mention.mention_method || "manual").trim();
+            var matchedText = String(mention.matched_text || "").substring(0, 40);
+            return "<div class='world-entity-card" + active + "' data-sk-mention-id='" + mention.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(entityName) + " in " + escapeHtml(projectName) + "</div>" +
+                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(method) + "</span></div>" +
+                "</div>" +
+                (matchedText ? "<div class='world-entity-card-snippet'>" + escapeHtml(matchedText) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skMentionList.querySelectorAll("[data-sk-mention-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                editSkMention(Number(card.getAttribute("data-sk-mention-id") || 0));
+            });
+        });
+    }
+
+    function populateSkMentionSelectors() {
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entityOpts = entities.map(function (e) {
+            var typeInfo = e.codex_entity_types || {};
+            return "<option value='" + e.id + "'>" + escapeHtml(e.name || "Untitled") + " (" + escapeHtml(typeInfo.key || "?") + ")</option>";
+        }).join("");
+        if (el.skMentionEntity) el.skMentionEntity.innerHTML = "<option value=''>Select entity...</option>" + entityOpts;
+
+        var projects = getSkProjectsForSeries();
+        var projectOpts = projects.map(function (p) {
+            return "<option value='" + p.id + "'>" + escapeHtml(p.title || "Untitled") + "</option>";
+        }).join("");
+        if (el.skMentionProject) el.skMentionProject.innerHTML = "<option value=''>Select project...</option>" + projectOpts;
+    }
+
+    function editSkMention(id) {
+        skEditingMentionId = id;
+        if (!el.skMentionForm) return;
+        el.skMentionForm.hidden = false;
+
+        if (!id) {
+            el.skMentionId.value = "0";
+            el.skMentionEntity.value = "";
+            el.skMentionProject.value = "";
+            el.skMentionText.value = "";
+            el.skMentionMethod.value = "manual";
+            if (el.skMentionNameDisplay) el.skMentionNameDisplay.textContent = "New Mention";
+            return;
+        }
+        var list = skCurrentSeriesId ? (skCachedMentions[skCurrentSeriesId] || []) : [];
+        var mention = list.find(function (m) { return Number(m.id) === id; });
+        if (!mention) return;
+        el.skMentionId.value = String(mention.id || 0);
+        el.skMentionEntity.value = String(mention.entity_id || "");
+        el.skMentionProject.value = String(mention.project_id || "");
+        el.skMentionText.value = String(mention.matched_text || "");
+        el.skMentionMethod.value = String(mention.mention_method || "manual");
+        if (el.skMentionNameDisplay) el.skMentionNameDisplay.textContent = "Edit Mention";
+    }
+
+    function saveSkMention() {
+        if (!skCurrentSeriesId) return;
+        var id = Number(el.skMentionId ? el.skMentionId.value : 0);
+        var entityId = Number(el.skMentionEntity ? el.skMentionEntity.value : 0);
+        var projectId = Number(el.skMentionProject ? el.skMentionProject.value : 0);
+        var matchedText = String(el.skMentionText ? el.skMentionText.value : "").trim();
+        var method = String(el.skMentionMethod ? el.skMentionMethod.value : "manual").trim();
+
+        if (!entityId) { setResourceSeriesKnowledgeStatus("Entity is required.", "error"); return; }
+        if (!projectId) { setResourceSeriesKnowledgeStatus("Project is required.", "error"); return; }
+
+        var payload = {
+            id: id,
+            entity_id: entityId,
+            project_id: projectId,
+            matched_text: matchedText,
+            mention_method: method,
+            source_type: 'project'
+        };
+
+        setResourceSeriesKnowledgeStatus("Saving mention...", "warn");
+        callAppsScriptJson("saveCodexMention", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Mention saved.", "ok");
+                return loadSkMentions(skCurrentSeriesId).then(function () {
+                    renderSkMentionList();
+                    skEditingMentionId = 0;
+                    if (el.skMentionForm) el.skMentionForm.hidden = true;
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save mention: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkMention() {
+        var id = Number(el.skMentionId ? el.skMentionId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this mention? This cannot be undone.")) return;
+        setResourceSeriesKnowledgeStatus("Mention deletion not yet implemented.", "warn");
+        if (el.skMentionForm) el.skMentionForm.hidden = true;
+        skEditingMentionId = 0;
+    }
+
+    /* ---- Content Assets ---- */
+
+    var skEditingAssetId = 0;
+    var skCachedAssets = {};
+
+    function loadSkAssets(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexContentAssets", [seriesId])
+            .then(function (result) {
+                var list = result && result.assets ? result.assets : [];
+                skCachedAssets[seriesId] = list;
+                return list;
+            })
+            .catch(function () { return []; });
+    }
+
+    function renderSkAssetList() {
+        if (!el.skAssetList) return;
+        var list = skCurrentSeriesId ? (skCachedAssets[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skAssetList.innerHTML = "<div class='world-entity-empty'>No marketing assets yet. Click + Add Asset to create blurbs, taglines, synopses, etc.</div>";
+            return;
+        }
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entitiesById = {};
+        entities.forEach(function (e) { entitiesById[e.id] = e; });
+
+        el.skAssetList.innerHTML = list.map(function (asset) {
+            var active = skEditingAssetId === Number(asset.id) ? " is-active" : "";
+            var entity = entitiesById[asset.entity_id] || {};
+            var entityName = entity.name ? " — " + entity.name : "";
+            var spoilerLabel = String(asset.spoiler_level || "spoiler_free").replace("_", " ");
+            return "<div class='world-entity-card" + active + "' data-sk-asset-id='" + asset.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(asset.title || asset.asset_type || "Untitled") + entityName + "</div>" +
+                    "<div class='world-entity-card-meta'>" +
+                        "<span class='tiny'>" + escapeHtml(asset.asset_type || "?") + "</span>" +
+                        " <span class='badge badge-" + escapeHtml(asset.status || "draft") + "'>" + escapeHtml(asset.status || "draft") + "</span>" +
+                        " <span class='tiny'>" + escapeHtml(spoilerLabel) + "</span>" +
+                    "</div>" +
+                "</div>" +
+                (asset.content ? "<div class='world-entity-card-snippet'>" + escapeHtml(asset.content.substring(0, 80)) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skAssetList.querySelectorAll("[data-sk-asset-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                editSkAsset(Number(card.getAttribute("data-sk-asset-id") || 0));
+            });
+        });
+    }
+
+    function populateSkAssetSelectors() {
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var opts = entities.map(function (e) {
+            var typeInfo = e.codex_entity_types || {};
+            return "<option value='" + e.id + "'>" + escapeHtml(e.name || "Untitled") + " (" + escapeHtml(typeInfo.key || "?") + ")</option>";
+        }).join("");
+        if (el.skAssetEntity) el.skAssetEntity.innerHTML = "<option value=''>None</option>" + opts;
+    }
+
+    function editSkAsset(id) {
+        skEditingAssetId = id;
+        if (!el.skAssetForm) return;
+        el.skAssetForm.hidden = false;
+
+        if (!id) {
+            el.skAssetId.value = "0";
+            el.skAssetTitle.value = "";
+            el.skAssetType.value = "tagline";
+            el.skAssetContent.value = "";
+            el.skAssetAudience.value = "";
+            el.skAssetSpoilerLevel.value = "spoiler_free";
+            el.skAssetEntity.value = "";
+            el.skAssetStatus.value = "draft";
+            if (el.skAssetNameDisplay) el.skAssetNameDisplay.textContent = "New Asset";
+            return;
+        }
+        var list = skCurrentSeriesId ? (skCachedAssets[skCurrentSeriesId] || []) : [];
+        var asset = list.find(function (a) { return Number(a.id) === id; });
+        if (!asset) return;
+        el.skAssetId.value = String(asset.id || 0);
+        el.skAssetTitle.value = String(asset.title || "");
+        el.skAssetType.value = String(asset.asset_type || "tagline");
+        el.skAssetContent.value = String(asset.content || "");
+        el.skAssetAudience.value = String(asset.audience || "");
+        el.skAssetSpoilerLevel.value = String(asset.spoiler_level || "spoiler_free");
+        el.skAssetEntity.value = String(asset.entity_id || "");
+        el.skAssetStatus.value = String(asset.status || "draft");
+        if (el.skAssetNameDisplay) el.skAssetNameDisplay.textContent = String(asset.title || asset.asset_type || "Edit Asset");
+    }
+
+    function saveSkAsset() {
+        if (!skCurrentSeriesId) return;
+        var id = Number(el.skAssetId ? el.skAssetId.value : 0);
+        var title = String(el.skAssetTitle ? el.skAssetTitle.value : "").trim();
+        var assetType = String(el.skAssetType ? el.skAssetType.value : "").trim();
+        var content = String(el.skAssetContent ? el.skAssetContent.value : "").trim();
+        var audience = String(el.skAssetAudience ? el.skAssetAudience.value : "").trim();
+        var spoilerLevel = String(el.skAssetSpoilerLevel ? el.skAssetSpoilerLevel.value : "spoiler_free").trim();
+        var entityId = Number(el.skAssetEntity ? el.skAssetEntity.value : 0);
+        var status = String(el.skAssetStatus ? el.skAssetStatus.value : "draft").trim();
+
+        if (!assetType) { setResourceSeriesKnowledgeStatus("Asset type is required.", "error"); return; }
+
+        var payload = {
+            id: id,
+            title: title,
+            asset_type: assetType,
+            content: content,
+            audience: audience,
+            spoiler_level: spoilerLevel,
+            entity_id: entityId || null,
+            status: status
+        };
+
+        setResourceSeriesKnowledgeStatus("Saving asset...", "warn");
+        callAppsScriptJson("saveCodexContentAsset", [skCurrentSeriesId, JSON.stringify(payload)])
+            .then(function () {
+                setResourceSeriesKnowledgeStatus("Asset saved.", "ok");
+                return loadSkAssets(skCurrentSeriesId).then(function () {
+                    renderSkAssetList();
+                    skEditingAssetId = 0;
+                    if (el.skAssetForm) el.skAssetForm.hidden = true;
+                });
+            })
+            .catch(function (error) {
+                setResourceSeriesKnowledgeStatus("Failed to save asset: " + (error && error.message ? error.message : error), "error");
+            });
+    }
+
+    function deleteSkAsset() {
+        var id = Number(el.skAssetId ? el.skAssetId.value : 0);
+        if (!id) return;
+        if (!confirm("Delete this asset? This cannot be undone.")) return;
+        setResourceSeriesKnowledgeStatus("Asset deletion not yet implemented.", "warn");
+        if (el.skAssetForm) el.skAssetForm.hidden = true;
+        skEditingAssetId = 0;
+    }
+
+    /* ---- AI Suggestions ---- */
+
+    var skCachedAiSuggestions = {};
+
+    function loadSkAiSuggestions(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexAiSuggestions", [seriesId])
+            .then(function (result) {
+                var list = result && result.suggestions ? result.suggestions : [];
+                skCachedAiSuggestions[seriesId] = list;
+                return list;
+            })
+            .catch(function () { return []; });
+    }
+
+    function renderSkAiSuggestionList() {
+        if (!el.skAiSuggestionList) return;
+        var list = skCurrentSeriesId ? (skCachedAiSuggestions[skCurrentSeriesId] || []) : [];
+        if (!list.length) {
+            el.skAiSuggestionList.innerHTML = "<div class='world-entity-empty'>No AI suggestions yet. Select a type and click Generate Suggestion.</div>";
+            return;
+        }
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entitiesById = {};
+        entities.forEach(function (e) { entitiesById[e.id] = e; });
+
+        el.skAiSuggestionList.innerHTML = list.map(function (s) {
+            var statusClass = "badge-" + (s.status === "adopted" ? "approved" : s.status === "dismissed" ? "archived" : s.status === "pending" ? "draft" : "info");
+            var entityName = s.target_entity_id && entitiesById[s.target_entity_id] ? entitiesById[s.target_entity_id].name : null;
+            var preview = "";
+            if (s.suggested_payload) {
+                var sp = s.suggested_payload;
+                preview = sp.description || sp.content || sp.name || sp.title || sp.summary || "";
+                if (typeof preview === "object") preview = JSON.stringify(preview).substring(0, 100);
+            }
+            preview = String(preview).substring(0, 140);
+            return "<div class='world-entity-card' data-sk-ai-id='" + s.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(s.suggestion_type || "brainstorm") + (entityName ? " for " + escapeHtml(entityName) : "") + "</div>" +
+                    "<div class='world-entity-card-meta'>" +
+                        "<span class='tiny'>" + (s.created_at ? new Date(s.created_at).toLocaleDateString() : "") + "</span>" +
+                        " <span class='badge " + statusClass + "'>" + escapeHtml(s.status || "pending") + "</span>" +
+                    "</div>" +
+                "</div>" +
+                (preview ? "<div class='world-entity-card-snippet'>" + escapeHtml(preview) + "</div>" : "") +
+            "</div>";
+        }).join("");
+
+        el.skAiSuggestionList.querySelectorAll("[data-sk-ai-id]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                showSkAiDetail(Number(card.getAttribute("data-sk-ai-id") || 0));
+            });
+        });
+    }
+
+    function showSkAiDetail(id) {
+        if (!el.skAiSuggestionDetail) return;
+        var list = skCurrentSeriesId ? (skCachedAiSuggestions[skCurrentSeriesId] || []) : [];
+        var s = list.find(function (x) { return Number(x.id) === id; });
+        if (!s) return;
+
+        el.skAiDetailId.value = String(s.id || 0);
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var entitiesById = {};
+        entities.forEach(function (e) { entitiesById[e.id] = e; });
+        var entityName = s.target_entity_id && entitiesById[s.target_entity_id] ? entitiesById[s.target_entity_id].name : null;
+        if (el.skAiDetailNameDisplay) el.skAiDetailNameDisplay.textContent = (s.suggestion_type || "brainstorm") + (entityName ? " for " + entityName : "");
+
+        var content = "";
+        if (s.suggested_payload) {
+            var sp = s.suggested_payload;
+            content = sp.description || sp.content || sp.name || sp.title || sp.summary || JSON.stringify(sp, null, 2);
+        }
+        if (el.skAiDetailContent) el.skAiDetailContent.textContent = content || "(no content)";
+        if (el.skAiDetailPrompt) el.skAiDetailPrompt.textContent = s.prompt || "(no prompt)";
+
+        el.skAiSuggestionDetail.hidden = false;
+    }
+
+    function populateSkAiSelectors() {
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var opts = entities.map(function (e) {
+            return "<option value='" + e.id + "'>" + escapeHtml(e.name || "Untitled") + "</option>";
+        }).join("");
+        if (el.skAiEntity) el.skAiEntity.innerHTML = "<option value=''>All Entities</option>" + opts;
+    }
+
+    function reviewSkAiSuggestion(suggestionId, status) {
+        if (!suggestionId) return;
+        if (!confirm((status === "adopted" ? "Adopt" : "Dismiss") + " this suggestion? " + (status === "adopted" ? "It will be applied to the entity." : "It will be hidden."))) return;
+        if (el.skAiStatus) el.skAiStatus.textContent = (status === "adopted" ? "Adopting" : "Dismissing") + " suggestion...";
+        callAppsScriptJson("reviewCodexAiSuggestion", [suggestionId, status])
+            .then(function () {
+                return loadSkAiSuggestions(skCurrentSeriesId).then(function () {
+                    renderSkAiSuggestionList();
+                    if (el.skAiSuggestionDetail) el.skAiSuggestionDetail.hidden = true;
+                    if (el.skAiStatus) el.skAiStatus.textContent = "Suggestion " + (status === "adopted" ? "adopted." : "dismissed.");
+                });
+            })
+            .catch(function (error) {
+                if (el.skAiStatus) el.skAiStatus.textContent = "Failed: " + (error && error.message ? error.message : error);
+            });
+    }
+
+    function generateSkAiSuggestion() {
+        if (!skCurrentSeriesId) return;
+        if (skAiGenerating) return;
+
+        var type = String(el.skAiType ? el.skAiType.value : "general_brainstorm").trim();
+        var entityId = Number(el.skAiEntity ? el.skAiEntity.value : 0);
+        var customPrompt = String(el.skAiPrompt ? el.skAiPrompt.value : "").trim();
+
+        skAiGenerating = true;
+        if (el.skAiGenerateButton) el.skAiGenerateButton.disabled = true;
+        if (el.skAiSpinner) el.skAiSpinner.classList.add("is-visible");
+        if (el.skAiStatus) el.skAiStatus.textContent = "Building context and generating suggestion...";
+
+        var done = function () {
+            skAiGenerating = false;
+            if (el.skAiSpinner) el.skAiSpinner.classList.remove("is-visible");
+            if (el.skAiGenerateButton) el.skAiGenerateButton.disabled = false;
+        };
+
+        // Build context from series knowledge and entities
+        buildSkAiContext(skCurrentSeriesId, type, entityId)
+            .then(function (context) {
+                var prompt = buildSkAiPrompt(type, entityId, context, customPrompt);
+                return callEditorAI(prompt);
+            })
+            .then(function (result) {
+                var text = result && result.text ? result.text.trim() : "";
+                if (!text) throw new Error("AI returned empty response.");
+                var suggestedPayload = { description: text, type: type };
+                var aiConfig = collectAISettingsFormData();
+                var provider = aiConfig.provider || "openrouter";
+                var model = getSelectedAIModel(aiConfig);
+                var savePayload = {
+                    id: 0,
+                    suggestion_type: type,
+                    target_entity_id: entityId || null,
+                    prompt: customPrompt || "Generated from " + type + " suggestion",
+                    context_snapshot: {},
+                    suggested_payload: suggestedPayload,
+                    status: "pending",
+                    provider: provider,
+                    model: model
+                };
+                return callAppsScriptJson("saveCodexAiSuggestion", [skCurrentSeriesId, JSON.stringify(savePayload)]);
+            })
+            .then(function () {
+                if (el.skAiStatus) el.skAiStatus.textContent = "Suggestion generated and saved.";
+                return loadSkAiSuggestions(skCurrentSeriesId).then(function () {
+                    renderSkAiSuggestionList();
+                });
+            })
+            .then(done, function (error) {
+                if (el.skAiStatus) el.skAiStatus.textContent = "Generation failed: " + (error && error.message ? error.message : error);
+                done();
+            });
+    }
+
+    var skAiGenerating = false;
+
+    function updateSkAiProviderBadge() {
+        if (!el.skAiProviderBadge) return;
+        var aiConfig = collectAISettingsFormData();
+        var provider = aiConfig.provider || "openrouter";
+        var model = getSelectedAIModel(aiConfig);
+        var label = providerLabel(provider) + (model ? " · " + model : " · no model");
+
+        // Quick connectivity check
+        var testUrl = "";
+        var headers = {};
+        if (provider === "openrouter") {
+            testUrl = "https://openrouter.ai/api/v1/models";
+            if (aiConfig.openrouter && aiConfig.openrouter.apiKey) headers["Authorization"] = "Bearer " + aiConfig.openrouter.apiKey;
+        } else if (provider === "lmstudio") {
+            testUrl = (aiConfig.lmstudio && aiConfig.lmstudio.endpoint || "http://localhost:1234/v1") + "/models";
+        } else if (provider === "ollama") {
+            testUrl = (aiConfig.ollama && aiConfig.ollama.endpoint || "http://localhost:11434") + "/api/tags";
+        }
+
+        if (testUrl && navigator.onLine !== false) {
+            fetch(testUrl, { method: "HEAD", headers: headers, signal: AbortSignal.timeout(3000) })
+                .then(function (r) {
+                    el.skAiProviderBadge.className = "ai-provider-badge is-connected";
+                    el.skAiProviderBadge.textContent = "● " + label;
+                })
+                .catch(function () {
+                    el.skAiProviderBadge.className = "ai-provider-badge is-disconnected";
+                    el.skAiProviderBadge.textContent = "○ " + label + " (unreachable)";
+                });
+        } else if (!model) {
+            el.skAiProviderBadge.className = "ai-provider-badge is-disconnected";
+            el.skAiProviderBadge.textContent = "○ " + label + " (no model)";
+        } else {
+            el.skAiProviderBadge.className = "ai-provider-badge";
+            el.skAiProviderBadge.textContent = label;
+        }
+    }
+
+    var skAiBadgePollTimer = null;
+
+    function startSkAiBadgePoll() {
+        stopSkAiBadgePoll();
+        skAiBadgePollTimer = setInterval(function () {
+            updateSkAiProviderBadge();
+        }, 5000);
+    }
+
+    function stopSkAiBadgePoll() {
+        if (skAiBadgePollTimer) {
+            clearInterval(skAiBadgePollTimer);
+            skAiBadgePollTimer = null;
+        }
+    }
+
+    function buildSkAiContext(seriesId, type, entityId) {
+        var contextParts = [];
+        // Gather lore
+        if (el.resourceSeriesKnowledgeLore) {
+            var lore = String(el.resourceSeriesKnowledgeLore.value || "").trim();
+            if (lore) contextParts.push("World Lore: " + lore);
+        }
+        // Gather entities
+        var entities = codexCache.entitiesBySeries[seriesId] || [];
+        if (entityId) entities = entities.filter(function (e) { return Number(e.id) === entityId; });
+        entities.forEach(function (e) {
+            var info = "Entity: " + (e.name || "?") + " (type: " + (e.codex_entity_types ? e.codex_entity_types.key : "?") + ")";
+            if (e.description) info += " - " + String(e.description).substring(0, 200);
+            contextParts.push(info);
+        });
+        return Promise.resolve({ context: contextParts.join("\n") });
+    }
+
+    function buildSkAiPrompt(type, entityId, context, customPrompt) {
+        var aiConfig = collectAISettingsFormData();
+        var provider = aiConfig.provider || "openrouter";
+        var model = getSelectedAIModel(aiConfig);
+        if (!model) {
+            throw new Error("No AI model selected. Open Settings → AI Providers, choose a model, then try again.");
+        }
+        var systemPrompt = "You are a creative writing assistant for a fiction author. Generate a thoughtful, specific suggestion. Be concise but detailed.";
+        var userPrompt = "";
+        if (customPrompt) {
+            userPrompt = customPrompt;
+        } else {
+            var typePrompts = {
+                character_development: "Suggest a personality flaw, a secret, or a relationship dynamic for the character that would create compelling conflict.",
+                plot_idea: "Suggest a plot twist, a subplot, or a story beat that would create dramatic tension and advance character arcs.",
+                world_expansion: "Suggest a unique cultural tradition, a historical event, a geographical feature, or a magical system detail that enriches the world.",
+                continuity_fix: "Identify a potential continuity concern and suggest a fix or retcon that strengthens consistency.",
+                marketing_copy: "Write a compelling one-paragraph blurb or tagline for this story that would hook readers.",
+                general_brainstorm: "Suggest something creative and unexpected about this story world — a hidden conflict, an unexplored theme, or a character dynamic."
+            };
+            userPrompt = typePrompts[type] || typePrompts.general_brainstorm;
+        }
+        var fullPrompt = "CONTEXT:\n" + (context.context || "No specific context provided.") + "\n\nREQUEST:\n" + userPrompt;
+        return {
+            provider: provider,
+            model: model,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: fullPrompt }
+            ],
+            temperature: 0.8,
+            max_tokens: 1024
+        };
+    }
+
+    /* ---- Continuity Findings ---- */
+
+    var skContinuityFindings = [];
+    var skContinuityScanning = false;
+
+    function loadSkContinuityFindings(seriesId) {
+        if (!seriesId) return Promise.resolve([]);
+        if (!el.skContinuityFindingsList) return Promise.resolve([]);
+        return callAppsScriptJson("listCodexContinuityFindings", [seriesId])
+            .then(function (result) {
+                skContinuityFindings = result && result.findings ? result.findings : [];
+                renderSkContinuityFindings();
+                return skContinuityFindings;
+            })
+            .catch(function (err) {
+                console.error("loadSkContinuityFindings failed", err);
+                skContinuityFindings = [];
+                renderSkContinuityFindings();
+            });
+    }
+
+    function renderSkContinuityFindings() {
+        if (!el.skContinuityFindingsList) return;
+        var list = skContinuityFindings || [];
+        if (!list.length) {
+            el.skContinuityFindingsList.innerHTML = "<div class='world-entity-empty'>No findings yet. Run a scan to detect issues.</div>";
+            return;
+        }
+        el.skContinuityFindingsList.innerHTML = list.map(function (f) {
+            var sev = f.severity || "info";
+            var status = f.status || "open";
+            var snippet = (f.description || "").substring(0, 100);
+            return "<div class='world-entity-card' data-sk-cont-finding-id='" + f.id + "'>" +
+                "<div class='world-entity-card-header'>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(f.title || "Untitled Finding") + "</div>" +
+                    "<div class='world-entity-card-meta'>" +
+                        "<span class='severity-badge " + sev + "'>" + sev + "</span>" +
+                        "<span class='resolved-badge " + (status === "resolved" ? "is-resolved" : status === "dismissed" ? "is-resolved" : "is-unresolved") + "'>" + status + "</span>" +
+                    "</div>" +
+                "</div>" +
+                (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
+                "<div style='display:flex;gap:4px;margin-top:4px;'>" +
+                    (status === "open" ? "<button type='button' class='tiny-btn resolve-btn' data-sk-finding-resolve='" + f.id + "'>Resolve</button><button type='button' class='tiny-btn dismiss-btn' data-sk-finding-dismiss='" + f.id + "'>Dismiss</button>" : "") +
+                    (status === "open" ? "<button type='button' class='tiny-btn auto-fix-btn' data-sk-finding-autofix='" + f.id + "'>Auto-Fix</button>" : "") +
+                "</div>" +
+            "</div>";
+        }).join("");
+
+        el.skContinuityFindingsList.querySelectorAll("[data-sk-finding-resolve]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                resolveSkContinuityFinding(Number(btn.getAttribute("data-sk-finding-resolve")), "resolved");
+            });
+        });
+        el.skContinuityFindingsList.querySelectorAll("[data-sk-finding-dismiss]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                resolveSkContinuityFinding(Number(btn.getAttribute("data-sk-finding-dismiss")), "dismissed");
+            });
+        });
+        el.skContinuityFindingsList.querySelectorAll("[data-sk-finding-autofix]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                autoFixSkContinuityFinding(Number(btn.getAttribute("data-sk-finding-autofix")));
+            });
+        });
+    }
+
+    function resolveSkContinuityFinding(findingId, status) {
+        if (!findingId || !status) return;
+        callAppsScriptJson("reviewCodexContinuityFinding", [findingId, status])
+            .then(function () {
+                var f = skContinuityFindings.find(function (x) { return Number(x.id) === findingId; });
+                if (f) { f.status = status; f.resolved_at = new Date().toISOString(); }
+                renderSkContinuityFindings();
+            })
+            .catch(function (err) {
+                console.error("Failed to resolve finding", err);
+            });
+    }
+
+    function autoFixSkContinuityFinding(findingId) {
+        if (!findingId) return;
+        var finding = skContinuityFindings.find(function (f) { return Number(f.id) === findingId; });
+        if (!finding) return;
+        setResourceSeriesKnowledgeStatus("Generating fix suggestion...", "warn");
+
+        var entities = codexCache.entitiesBySeries[skCurrentSeriesId] || [];
+        var entityContext = entities.map(function (e) {
+            return "  - " + (e.name || "Entity #" + e.id) + " (" + (e.entity_type_key || "unknown") + "): " + (e.description || "no description").substring(0, 300);
+        }).join("\n");
+
+        var promptMap = {
+            contradiction: "This finding describes a contradiction in the worldbuilding. Suggest a corrected description that resolves the issue while preserving the original intent.",
+            timeline: "This finding describes a timeline or date inconsistency. Suggest corrected dates or chronological ordering.",
+            relationship: "This finding describes a relationship inconsistency between entities. Suggest how the relationship should be corrected.",
+            lore_drift: "This finding describes lore that has drifted from established canon. Suggest how to reconcile the description with existing lore.",
+            general_brainstorm: "Review this continuity finding and suggest a resolution."
+        };
+        var fixInstruction = promptMap[finding.finding_type] || promptMap.general_brainstorm;
+
+        var fullPrompt = "CONTINUITY FINDING:\n" +
+            "Title: " + finding.title + "\n" +
+            "Description: " + (finding.description || "") + "\n" +
+            "Evidence: " + JSON.stringify(finding.evidence || {}) + "\n\n" +
+            "WORLD ENTITIES:\n" + entityContext + "\n\n" +
+            fixInstruction + "\n\n" +
+            "Respond with a JSON object: { \"explanation\": \"...\", \"suggested_changes\": { \"<entity_name>\": \"<corrected description>\" } }";
+
+        var aiPayload = {
+            messages: [
+                { role: "system", content: "You are a continuity expert for fiction writing. Identify the best resolution for continuity issues." },
+                { role: "user", content: fullPrompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 2048
+        };
+
+        callEditorAI(aiPayload)
+            .then(function (result) {
+                var text = result && result.text ? result.text.trim() : "";
+                var aiConfig = collectAISettingsFormData();
+                var provider = aiConfig.provider || "openrouter";
+                var model = getSelectedAIModel(aiConfig);
+                return callAppsScriptJson("saveCodexAiSuggestion", [skCurrentSeriesId, JSON.stringify({
+                    suggestion_type: "continuity_fix",
+                    target_entity_id: null,
+                    prompt: fullPrompt,
+                    context_snapshot: { findingId: findingId, finding_title: finding.title },
+                    suggested_payload: { text: text, finding_type: finding.finding_type },
+                    status: "pending",
+                    provider: provider,
+                    model: model,
+                    prompt_version: "p13-auto-fix-v1"
+                })]);
+            })
+            .then(function (result) {
+                setResourceSeriesKnowledgeStatus("Fix suggestion saved to AI tab.", "ok");
+                if (result && result.suggestion) {
+                    setStatus("Auto-fix suggestion created for: " + finding.title, "ok");
+                }
+                return loadSkAiSuggestions(skCurrentSeriesId).then(function () {
+                    renderSkAiSuggestionList();
+                });
+            })
+            .catch(function (err) {
+                setResourceSeriesKnowledgeStatus("Auto-fix failed: " + (err && err.message ? err.message : err), "error");
+            });
+    }
+
+    function scanSkContinuity() {
+        if (!skCurrentSeriesId) return;
+        if (skContinuityScanning) return;
+
+        var entities = codexCache.entitiesBySeries[skCurrentSeriesId] || [];
+        var newEngineEntities = entities.filter(function (e) { return e.description && e.description.trim().length > 20; });
+        if (!newEngineEntities.length) {
+            if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "No entities with descriptions to scan.";
+            return;
+        }
+
+        skContinuityScanning = true;
+        if (el.skContinuityScanButton) el.skContinuityScanButton.disabled = true;
+        if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "Scanning " + newEngineEntities.length + " entities...";
+
+        // Load existing open findings for deduplication
+        var existingFinds = [];
+        callAppsScriptJson("listCodexContinuityFindings", [skCurrentSeriesId])
+            .then(function (result) {
+                existingFinds = result && result.findings ? result.findings : [];
+                var entityBlock = newEngineEntities.map(function (e) {
+                    var typeKey = e.entity_type_key || "entity";
+                    return "[" + typeKey + "] " + (e.name || "Unnamed") + ": " + e.description;
+                }).join("\n\n");
+
+                var existingBlock = existingFinds.length
+                    ? "\n\nAlready flagged (skip similar):\n" + existingFinds.map(function (f) { return "  - " + f.title + " (" + f.status + "): " + (f.description || "").substring(0, 80); }).join("\n")
+                    : "";
+
+                var fullPrompt = "Analyze the following worldbuilding entities for continuity issues. Look for:\n" +
+                    "- Contradictory facts (e.g. a character described as an only child who also has siblings)\n" +
+                    "- Timeline inconsistencies (e.g. events that can't both be true given ages/dates)\n" +
+                    "- Relationship inconsistencies (e.g. allies described as enemies elsewhere)\n" +
+                    "- Lore drift (e.g. a location described with conflicting details)\n\n" +
+                    "ENTITIES:\n" + entityBlock +
+                    existingBlock + "\n\n" +
+                    "Return a JSON array of findings. Each finding: { \"finding_type\": \"contradiction|timeline|relationship|lore_drift\", \"severity\": \"info|minor|major|critical\", \"title\": \"...\", \"description\": \"...\", \"evidence\": { \"entities\": [...], \"excerpts\": [...] } } " +
+                    "Return ONLY the JSON array, no markdown or other text.";
+
+                var aiConfig = collectAISettingsFormData();
+                var aiPayload = {
+                    provider: aiConfig.provider || "openrouter",
+                    model: getSelectedAIModel(aiConfig) || "",
+                    messages: [
+                        { role: "system", content: "You are a continuity analyst for fiction writing. Find genuine contradictions only. Be concise and specific." },
+                        { role: "user", content: fullPrompt }
+                    ],
+                    temperature: 0.2,
+                    max_tokens: 4096
+                };
+
+                return callEditorAI(aiPayload);
+            })
+            .then(function (aiResult) {
+                var text = aiResult && aiResult.text ? aiResult.text.trim() : "";
+                // Strip markdown formatting if AI wraps it
+                text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+                var findings;
+                try {
+                    findings = JSON.parse(text);
+                    if (!Array.isArray(findings)) throw new Error("Not an array");
+                } catch (e) {
+                    // Maybe it's an object with a findings key
+                    try {
+                        var wrapped = JSON.parse(text);
+                        findings = wrapped.findings || wrapped.results || [wrapped];
+                        if (!Array.isArray(findings)) findings = [findings];
+                    } catch (e2) {
+                        throw new Error("AI response was not valid JSON: " + text.substring(0, 200));
+                    }
+                }
+
+                if (!findings.length) {
+                    if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "No new issues found.";
+                    return;
+                }
+
+                // Deduplicate against existing findings by title similarity
+                var existingTitles = {};
+                existingFinds.forEach(function (f) { existingTitles[f.title.toLowerCase()] = true; });
+                var newFindings = findings.filter(function (f) {
+                    return f.title && !existingTitles[f.title.toLowerCase().substring(0, 40)];
+                });
+
+                if (!newFindings.length) {
+                    if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "No new unique issues found.";
+                    return;
+                }
+
+                if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "Saving " + newFindings.length + " findings...";
+
+                var savePromises = newFindings.map(function (f) {
+                    return callAppsScriptJson("saveCodexContinuityFinding", [skCurrentSeriesId, JSON.stringify({
+                        finding_type: f.finding_type || "contradiction",
+                        severity: f.severity || "info",
+                        status: "open",
+                        title: f.title || "Untitled Finding",
+                        description: f.description || "",
+                        evidence: f.evidence || {},
+                        metadata: { scan_version: "p13-v1", scanned_at: new Date().toISOString() }
+                    })]);
+                });
+                return Promise.all(savePromises);
+            })
+            .then(function () {
+                skContinuityScanning = false;
+                if (el.skContinuityScanButton) el.skContinuityScanButton.disabled = false;
+                if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "Scan complete.";
+                return loadSkContinuityFindings(skCurrentSeriesId);
+            })
+            .catch(function (err) {
+                skContinuityScanning = false;
+                if (el.skContinuityScanButton) el.skContinuityScanButton.disabled = false;
+                if (el.skContinuityScanStatus) el.skContinuityScanStatus.textContent = "Scan failed: " + (err && err.message ? err.message : String(err));
+            });
+    }
+
+    /* ---- Semantic Search ---- */
+
+    var skEmbeddingGenerating = false;
+
+    function generateSkEmbeddings() {
+        if (!skCurrentSeriesId) return;
+        if (skEmbeddingGenerating) return;
+        var entities = codexCache.entitiesBySeries[skCurrentSeriesId] || [];
+        if (!entities.length) {
+            if (el.skAiEmbedStatus) el.skAiEmbedStatus.textContent = "No entities to embed.";
+            return;
+        }
+
+        skEmbeddingGenerating = true;
+        if (el.skAiEmbedGenerateButton) el.skAiEmbedGenerateButton.disabled = true;
+        if (el.skAiEmbedStatus) el.skAiEmbedStatus.textContent = "Generating embeddings for " + entities.length + " entities...";
+
+        var results = { success: 0, fail: 0 };
+        var queue = entities.slice();
+
+        function processNext() {
+            if (!queue.length) {
+                skEmbeddingGenerating = false;
+                if (el.skAiEmbedGenerateButton) el.skAiEmbedGenerateButton.disabled = false;
+                if (el.skAiEmbedStatus) el.skAiEmbedStatus.textContent = "Done. " + results.success + " embedded, " + results.fail + " failed.";
+                return;
+            }
+            var entity = queue.shift();
+            var text = (entity.name || "") + ". " + (entity.description || "");
+            if (!text.trim() || text.length < 10) {
+                results.fail++;
+                processNext();
+                return;
+            }
+            callEditorEmbedding(text)
+                .then(function (embResult) {
+                    var payload = {
+                        entity_id: entity.id,
+                        source_type: "entity_description",
+                        content_text: text,
+                        embedding: embResult.embedding,
+                        model: embResult.model || ""
+                    };
+                    return callAppsScriptJson("saveCodexEmbedding", [skCurrentSeriesId, JSON.stringify(payload)]);
+                })
+                .then(function () {
+                    results.success++;
+                    if (el.skAiEmbedStatus) el.skAiEmbedStatus.textContent = "Processing " + results.success + "/" + entities.length + "...";
+                    processNext();
+                })
+                .catch(function () {
+                    results.fail++;
+                    processNext();
+                });
+        }
+
+        processNext();
+    }
+
+    function searchSkSemantic() {
+        if (!skCurrentSeriesId) return;
+        var query = String(el.skAiSemanticQuery ? el.skAiSemanticQuery.value : "").trim();
+        if (!query) {
+            if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = "<div class='world-entity-empty'>Enter a search query.</div>";
+            return;
+        }
+
+        if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = "<div class='world-entity-empty'>Generating query embedding and searching...</div>";
+
+        callEditorEmbedding(query)
+            .then(function (embResult) {
+                if (!embResult.embedding || !embResult.embedding.length) throw new Error("Empty embedding returned.");
+                return callAppsScriptJson("searchCodexEmbeddings", [skCurrentSeriesId, JSON.stringify(embResult.embedding)]);
+            })
+            .then(function (result) {
+                var list = result && result.results ? result.results : [];
+                if (!list.length) {
+                    if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = "<div class='world-entity-empty'>No related content found. Try generating embeddings first.</div>";
+                    return;
+                }
+                var entities = codexCache.entitiesBySeries[skCurrentSeriesId] || [];
+                var entitiesById = {};
+                entities.forEach(function (e) { entitiesById[e.id] = e; });
+
+                if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = list.map(function (r) {
+                    var entity = entitiesById[r.entity_id] || {};
+                    var simPct = Math.round((r._similarity || 0) * 100);
+                    return "<div class='world-entity-card'>" +
+                        "<div class='world-entity-card-header'>" +
+                            "<div class='world-entity-card-name'>" + escapeHtml(entity.name || "Entity #" + r.entity_id) + "</div>" +
+                            "<div class='world-entity-card-meta'><span class='tiny'>" + simPct + "% match</span></div>" +
+                        "</div>" +
+                        "<div class='world-entity-card-snippet'>" + escapeHtml(String(r.content_text || "").substring(0, 100)) + "</div>" +
+                    "</div>";
+                }).join("");
+            })
+            .catch(function (error) {
+                if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = "<div class='world-entity-empty'>Search failed: " + escapeHtml(error && error.message ? error.message : String(error)) + "</div>";
+            });
     }

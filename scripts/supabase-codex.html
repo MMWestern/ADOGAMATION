@@ -1,0 +1,556 @@
+    // --- Codex Engine Service Layer ---
+    // Generic CRUD for the new codex_entities system.
+    // Registered through _sbDefine() to follow the existing supabaseRunner pattern.
+
+    // ---- Entity Types ----
+
+    _sbDefine('listCodexEntityTypes', function () {
+      return sbClient.from('codex_entity_types').select('*')
+        .eq('is_enabled', true).order('sort_order', { ascending: true }).limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, types: res.data || [] }); });
+    });
+
+    // ---- Entities ----
+
+    _sbDefine('listCodexEntities', function (seriesId, entityTypeId, query, scope) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return Promise.all([
+        sbClient.from('codex_entity_types').select('id,key,name_singular,name_plural').eq('is_enabled', true).limit(500),
+        (function () {
+          var q = sbClient.from('codex_entities').select('*')
+            .eq('series_id', safeSeriesId)
+            .is('deleted_at', null)
+            .limit(5000);
+          if (entityTypeId) q = q.eq('entity_type_id', Number(entityTypeId));
+          if (scope === 'series') q = q.eq('scope', 'series');
+          else if (scope === 'book') q = q.neq('scope', 'series');
+          if (query) q = q.or('name.ilike.%' + query + '%,summary.ilike.%' + query + '%');
+          q = q.order('sort_order', { ascending: true }).order('name', { ascending: true });
+          return q;
+        })()
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        if (results[1].error) throw results[1].error;
+        var typesById = {};
+        var typesByKey = {};
+        (results[0].data || []).forEach(function (t) {
+          typesById[t.id] = t;
+          typesByKey[t.key] = t;
+        });
+        // Cache entity types globally for getCodexEntityTypeId_()
+        if (typeof codexCache !== 'undefined') {
+          codexCache.entityTypesByKey = typesByKey;
+        }
+        var entities = (results[1].data || []).map(function (e) {
+          e.codex_entity_types = typesById[e.entity_type_id] || null;
+          return e;
+        });
+        return JSON.stringify({ ok: true, entities: entities });
+      });
+    });
+
+    _sbDefine('getCodexEntity', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return Promise.all([
+        sbClient.from('codex_entities').select('*,codex_entity_types(key,name_singular,name_plural)').eq('id', safeId).single(),
+        sbClient.from('codex_entity_projects').select('id,project_id,notes').eq('entity_id', safeId).limit(5000),
+        sbClient.from('codex_entity_tags').select('tag_id,codex_tags(name,slug)').eq('entity_id', safeId).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        var entity = results[0].data;
+        var projectLinks = results[1].data || [];
+        var tags = results[2].data || [];
+        return JSON.stringify({
+          ok: true,
+          entity: entity,
+          projectLinks: projectLinks,
+          tags: tags
+        });
+      });
+    });
+
+    _sbDefine('saveCodexEntity', function (seriesId, entityTypeId, payloadJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      var safeTypeId = Number(entityTypeId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      if (!safeTypeId) throw new Error('Entity type id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var entityId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        entity_type_id: safeTypeId,
+        name: String(parsed.name || '').trim(),
+        slug: String(parsed.slug || '').trim() || null,
+        aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
+        summary: String(parsed.summary || '').trim(),
+        description: String(parsed.description || '').trim(),
+        image_url: String(parsed.image_url || '').trim(),
+        color: String(parsed.color || '').trim(),
+        scope: String(parsed.scope || 'series').trim() || 'series',
+        status: String(parsed.status || 'active').trim() || 'active',
+        visibility: String(parsed.visibility || 'private').trim() || 'private',
+        canon_status: String(parsed.canon_status || 'draft').trim() || 'draft',
+        public_summary: String(parsed.public_summary || '').trim(),
+        marketing_summary: String(parsed.marketing_summary || '').trim(),
+        spoiler_level: String(parsed.spoiler_level || 'author_only').trim() || 'author_only',
+        featured: !!parsed.featured,
+        sort_order: Number(parsed.sort_order || 0) || 0,
+        custom_data: parsed.custom_data || {}
+      };
+      var projectLinks = Array.isArray(parsed.projectLinks) ? parsed.projectLinks : [];
+      var tagIds = Array.isArray(parsed.tagIds) ? parsed.tagIds : [];
+      var saveOp = entityId
+        ? sbClient.from('codex_entities').update(payload).eq('id', entityId).select().single()
+        : sbClient.from('codex_entities').insert([payload]).select().single();
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        var delProjects = sbClient.from('codex_entity_projects').delete().eq('entity_id', savedId).then(function () { return null; });
+        var insProjects = projectLinks.length
+          ? Promise.all(projectLinks.map(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (!pid) return Promise.resolve(null);
+              return sbClient.from('codex_entity_projects').insert([{ entity_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        var delTags = sbClient.from('codex_entity_tags').delete().eq('entity_id', savedId).then(function () { return null; });
+        var insTags = tagIds.length
+          ? Promise.all(tagIds.map(function (tid) {
+              return sbClient.from('codex_entity_tags').insert([{ entity_id: savedId, tag_id: Number(tid) }]).then(function () { return null; });
+            }))
+          : Promise.resolve(null);
+        return Promise.all([delProjects, insProjects, delTags, insTags]).then(function () {
+          return JSON.stringify({ ok: true, entity: saved });
+        });
+      });
+    });
+
+    _sbDefine('deleteCodexEntity', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_entities').update({ deleted_at: new Date().toISOString() }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entityId: safeId }); });
+    });
+
+    _sbDefine('restoreCodexEntity', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_entities').update({ deleted_at: null }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entityId: safeId }); });
+    });
+
+    // ---- Book Assignments ----
+
+    _sbDefine('listCodexEntityProjects', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_entity_projects').select('id,project_id,notes').eq('entity_id', safeId).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, links: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEntityProjects', function (entityId, projectIds) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      var ids = Array.isArray(projectIds) ? projectIds.map(Number).filter(Boolean) : [];
+      return sbClient.from('codex_entity_projects').delete().eq('entity_id', safeId).then(function () {
+        if (!ids.length) return JSON.stringify({ ok: true, entityId: safeId, links: [] });
+        return sbClient.from('codex_entity_projects').insert(ids.map(function (pid) { return { entity_id: safeId, project_id: pid }; }))
+          .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entityId: safeId, links: res.data || [] }); });
+      });
+    });
+
+    // ---- Relationship Types ----
+
+    _sbDefine('listCodexRelationshipTypes', function () {
+      return sbClient.from('codex_relationship_types').select('*').order('key', { ascending: true }).limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, types: res.data || [] }); });
+    });
+
+    // ---- Connections ----
+
+    _sbDefine('listCodexConnections', function (seriesId, entityId) {
+      var safeSeriesId = Number(seriesId || 0);
+      var safeEntityId = Number(entityId || 0);
+      if (!safeSeriesId && !safeEntityId) throw new Error('Series id or entity id is required.');
+      var q = sbClient.from('codex_connections').select('*,codex_relationship_types(key,forward_label,inverse_label),source:codex_entities!source_entity_id(id,name,color),target:codex_entities!target_entity_id(id,name,color)')
+        .is('deleted_at', null)
+        .limit(5000);
+      if (safeEntityId) {
+        q = q.or('source_entity_id.eq.' + safeEntityId + ',target_entity_id.eq.' + safeEntityId);
+      } else {
+        q = q.eq('series_id', safeSeriesId);
+      }
+      return q.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connections: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexConnection', function (seriesId, payloadJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var connId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        source_entity_id: Number(parsed.source_entity_id || 0),
+        target_entity_id: Number(parsed.target_entity_id || 0),
+        relationship_type_id: Number(parsed.relationship_type_id || 0) || null,
+        label: String(parsed.label || '').trim(),
+        inverse_label: String(parsed.inverse_label || '').trim(),
+        description: String(parsed.description || '').trim(),
+        is_secret: !!parsed.is_secret,
+        visibility: String(parsed.visibility || 'private').trim() || 'private',
+        metadata: parsed.metadata || {}
+      };
+      if (!payload.source_entity_id || !payload.target_entity_id) throw new Error('Source and target entity ids are required.');
+      if (payload.source_entity_id === payload.target_entity_id) throw new Error('Source and target must be different.');
+      var op = connId
+        ? sbClient.from('codex_connections').update(payload).eq('id', connId).select().single()
+        : sbClient.from('codex_connections').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connection: res.data }); });
+    });
+
+    _sbDefine('deleteCodexConnection', function (connectionId) {
+      var safeId = Number(connectionId || 0);
+      if (!safeId) throw new Error('Connection id is required.');
+      return sbClient.from('codex_connections').update({ deleted_at: new Date().toISOString() }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connectionId: safeId }); });
+    });
+
+    // ---- Tags ----
+
+    _sbDefine('listCodexTags', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('codex_tags').select('*').eq('series_id', safeId).order('name', { ascending: true }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, tags: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexTag', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var tagId = Number(parsed.id || 0);
+      var name = String(parsed.name || '').trim();
+      if (!name) throw new Error('Tag name is required.');
+      var slug = String(parsed.slug || '').trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      var payload = { series_id: safeId, name: name, slug: slug, description: String(parsed.description || '').trim() };
+      var op = tagId
+        ? sbClient.from('codex_tags').update(payload).eq('id', tagId).select().single()
+        : sbClient.from('codex_tags').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, tag: res.data }); });
+    });
+
+    _sbDefine('deleteCodexTag', function (tagId) {
+      var safeId = Number(tagId || 0);
+      if (!safeId) throw new Error('Tag id is required.');
+      return sbClient.from('codex_tags').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, tagId: safeId }); });
+    });
+
+    _sbDefine('saveCodexEntityTags', function (entityId, tagIds) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      var ids = Array.isArray(tagIds) ? tagIds.map(Number).filter(Boolean) : [];
+      return sbClient.from('codex_entity_tags').delete().eq('entity_id', safeId).then(function () {
+        if (!ids.length) return JSON.stringify({ ok: true, entityId: safeId, tags: [] });
+        return sbClient.from('codex_entity_tags').insert(ids.map(function (tid) { return { entity_id: safeId, tag_id: tid }; }))
+          .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entityId: safeId, tags: res.data || [] }); });
+      });
+    });
+
+    // ---- Calendars ----
+
+    _sbDefine('listCodexCalendars', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('codex_calendars').select('*').eq('series_id', safeId).order('name', { ascending: true }).limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, calendars: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexCalendar', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var calId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        name: String(parsed.name || '').trim(),
+        description: String(parsed.description || '').trim(),
+        is_default: !!parsed.is_default,
+        calendar_config: parsed.calendar_config || {}
+      };
+      var op = calId
+        ? sbClient.from('codex_calendars').update(payload).eq('id', calId).select().single()
+        : sbClient.from('codex_calendars').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, calendar: res.data }); });
+    });
+
+    // ---- Events ----
+
+    _sbDefine('listCodexEvents', function (seriesId, calendarId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_events').select('*').eq('series_id', safeId).is('deleted_at', null).limit(5000);
+      if (calendarId) q = q.eq('calendar_id', Number(calendarId));
+      q = q.order('start_sort_key', { ascending: true, nullsFirst: false });
+      return q.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, events: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEvent', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var eventId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        calendar_id: Number(parsed.calendar_id || 0) || null,
+        title: String(parsed.title || '').trim(),
+        description: String(parsed.description || '').trim(),
+        start_sort_key: Number(parsed.start_sort_key || 0) || null,
+        end_sort_key: Number(parsed.end_sort_key || 0) || null,
+        display_date: String(parsed.display_date || '').trim(),
+        is_date_approximate: !!parsed.is_date_approximate,
+        metadata: parsed.metadata || {}
+      };
+      var op = eventId
+        ? sbClient.from('codex_events').update(payload).eq('id', eventId).select().single()
+        : sbClient.from('codex_events').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, event: res.data }); });
+    });
+
+    // ---- Timelines ----
+
+    _sbDefine('listCodexTimelines', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('codex_timelines').select('*').eq('series_id', safeId).order('name', { ascending: true }).limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, timelines: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexTimeline', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var timelineId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        name: String(parsed.name || '').trim(),
+        description: String(parsed.description || '').trim(),
+        visibility: String(parsed.visibility || 'private').trim() || 'private'
+      };
+      var op = timelineId
+        ? sbClient.from('codex_timelines').update(payload).eq('id', timelineId).select().single()
+        : sbClient.from('codex_timelines').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, timeline: res.data }); });
+    });
+
+    // ---- Mentions ----
+
+    _sbDefine('listCodexMentions', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_mentions').select('*').eq('entity_id', safeId).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, mentions: res.data || [] }); });
+    });
+
+    _sbDefine('listCodexMentionsBySeries', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('codex_mentions').select('*').eq('series_id', safeId).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, mentions: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexMention', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var mentionId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        entity_id: Number(parsed.entity_id || 0),
+        project_id: Number(parsed.project_id || 0) || null,
+        document_id: Number(parsed.document_id || 0) || null,
+        section_id: Number(parsed.section_id || 0) || null,
+        source_type: String(parsed.source_type || 'manual').trim() || 'manual',
+        source_anchor: parsed.source_anchor || {},
+        matched_text: String(parsed.matched_text || '').trim(),
+        mention_method: String(parsed.mention_method || 'manual').trim() || 'manual',
+        confidence: Number(parsed.confidence || 0) || null
+      };
+      var op = mentionId
+        ? sbClient.from('codex_mentions').update(payload).eq('id', mentionId).select().single()
+        : sbClient.from('codex_mentions').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, mention: res.data }); });
+    });
+
+    // ---- Content Assets ----
+
+    _sbDefine('listCodexContentAssets', function (seriesId, entityId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_content_assets').select('*').eq('series_id', safeId).limit(5000);
+      if (entityId) q = q.eq('entity_id', Number(entityId));
+      q = q.order('created_at', { ascending: false });
+      return q.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, assets: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexContentAsset', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var assetId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        entity_id: Number(parsed.entity_id || 0) || null,
+        asset_type: String(parsed.asset_type || '').trim(),
+        title: String(parsed.title || '').trim(),
+        content: String(parsed.content || '').trim(),
+        status: String(parsed.status || 'draft').trim() || 'draft',
+        audience: String(parsed.audience || '').trim(),
+        spoiler_level: String(parsed.spoiler_level || 'spoiler_free').trim() || 'spoiler_free',
+        metadata: parsed.metadata || {}
+      };
+      var op = assetId
+        ? sbClient.from('codex_content_assets').update(payload).eq('id', assetId).select().single()
+        : sbClient.from('codex_content_assets').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, asset: res.data }); });
+    });
+
+    // ---- Continuity Findings ----
+
+    _sbDefine('listCodexContinuityFindings', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('codex_continuity_findings').select('*').eq('series_id', safeId).order('created_at', { ascending: false }).limit(5000)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, findings: res.data || [] }); });
+    });
+
+    _sbDefine('reviewCodexContinuityFinding', function (findingId, status) {
+      var safeId = Number(findingId || 0);
+      if (!safeId) throw new Error('Finding id is required.');
+      var safeStatus = String(status || '').trim();
+      var update = { status: safeStatus };
+      if (safeStatus === 'resolved' || safeStatus === 'dismissed') update.resolved_at = new Date().toISOString();
+      return sbClient.from('codex_continuity_findings').update(update).eq('id', safeId).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, finding: res.data }); });
+    });
+
+    _sbDefine('saveCodexContinuityFinding', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var findingId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        finding_type: String(parsed.finding_type || 'contradiction').trim(),
+        severity: String(parsed.severity || 'info').trim(),
+        status: String(parsed.status || 'open').trim(),
+        title: String(parsed.title || '').trim(),
+        description: String(parsed.description || '').trim(),
+        evidence: parsed.evidence || {},
+        metadata: parsed.metadata || {}
+      };
+      var op = findingId
+        ? sbClient.from('codex_continuity_findings').update(payload).eq('id', findingId).select().single()
+        : sbClient.from('codex_continuity_findings').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, finding: res.data }); });
+    });
+
+    // ---- AI Suggestions ----
+
+    _sbDefine('listCodexAiSuggestions', function (seriesId, status) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_ai_suggestions').select('*').eq('series_id', safeId).limit(5000);
+      if (status) q = q.eq('status', status);
+      q = q.order('created_at', { ascending: false });
+      return q.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, suggestions: res.data || [] }); });
+    });
+
+    _sbDefine('reviewCodexAiSuggestion', function (suggestionId, status) {
+      var safeId = Number(suggestionId || 0);
+      if (!safeId) throw new Error('Suggestion id is required.');
+      var safeStatus = String(status || '').trim();
+      return sbClient.from('codex_ai_suggestions').update({ status: safeStatus, reviewed_at: new Date().toISOString() }).eq('id', safeId).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, suggestion: res.data }); });
+    });
+
+    _sbDefine('saveCodexAiSuggestion', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var suggestionId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeId,
+        suggestion_type: String(parsed.suggestion_type || 'general_brainstorm').trim(),
+        target_entity_id: Number(parsed.target_entity_id || 0) || null,
+        prompt: String(parsed.prompt || '').trim(),
+        context_snapshot: parsed.context_snapshot || {},
+        suggested_payload: parsed.suggested_payload || {},
+        status: String(parsed.status || 'pending').trim(),
+        provider: String(parsed.provider || '').trim(),
+        model: String(parsed.model || '').trim(),
+        prompt_version: String(parsed.prompt_version || '').trim()
+      };
+      var op = suggestionId
+        ? sbClient.from('codex_ai_suggestions').update(payload).eq('id', suggestionId).select().single()
+        : sbClient.from('codex_ai_suggestions').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, suggestion: res.data }); });
+    });
+
+    // ---- Embeddings ----
+
+    function cosineSimilarity(a, b) {
+      if (!a || !b || a.length !== b.length) return 0;
+      var dot = 0, na = 0, nb = 0;
+      for (var i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        na += a[i] * a[i];
+        nb += b[i] * b[i];
+      }
+      var denom = Math.sqrt(na) * Math.sqrt(nb);
+      return denom === 0 ? 0 : dot / denom;
+    }
+
+    _sbDefine('saveCodexEmbedding', function (seriesId, payloadJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
+      var payload = {
+        series_id: safeId,
+        entity_id: Number(parsed.entity_id || 0) || null,
+        source_type: String(parsed.source_type || 'entity_description').trim(),
+        source_id: Number(parsed.source_id || 0) || null,
+        content_text: String(parsed.content_text || '').trim(),
+        embedding: parsed.embedding || [],
+        model: String(parsed.model || '').trim()
+      };
+      return sbClient.from('codex_embeddings').insert([payload]).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, embedding: res.data }); });
+    });
+
+    _sbDefine('searchCodexEmbeddings', function (seriesId, embeddingJson) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      var queryEmbedding = typeof embeddingJson === 'string' ? JSON.parse(embeddingJson) : (embeddingJson || []);
+      return sbClient.from('codex_embeddings').select('*').eq('series_id', safeId).limit(5000)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          // Client-side cosine similarity
+          rows.forEach(function (r) {
+            r._similarity = cosineSimilarity(queryEmbedding, r.embedding || []);
+          });
+          rows.sort(function (a, b) { return b._similarity - a._similarity; });
+          return JSON.stringify({ ok: true, results: rows.slice(0, 20) });
+        });
+    });
+
+    _sbDefine('deleteCodexEmbedding', function (embeddingId) {
+      var safeId = Number(embeddingId || 0);
+      if (!safeId) throw new Error('Embedding id is required.');
+      return sbClient.from('codex_embeddings').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });

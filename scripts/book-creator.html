@@ -311,7 +311,7 @@
       const cacheKey = getBookCreatorContextSourceCacheKey(project, source);
       const docUrl = getBookCreatorContextSourceUrl(project, source);
       if (!cacheKey && !docUrl) return null;
-      if (docUrl && appState.markdownEditor.docUrl && appState.markdownEditor.docUrl === docUrl) {
+      if (docUrl && appState.markdownEditor && appState.markdownEditor.docUrl && appState.markdownEditor.docUrl === docUrl) {
         return { label: source.label, text: el.markdownEditorTextarea ? el.markdownEditorTextarea.value || "" : "" };
       }
       const cached = getCachedDoc(cacheKey || docUrl);
@@ -328,10 +328,15 @@
         const docUrl = getBookCreatorContextSourceUrl(project, source);
         if (!field) return Promise.resolve(null);
         if (!isSupabaseBookCreatorContextSource(source) && !docUrl) return Promise.resolve(null);
-        if (appState.markdownEditor.docUrl && appState.markdownEditor.docUrl === docUrl) return Promise.resolve(null);
-        return isSupabaseBookCreatorContextSource(source)
-          ? loadDocIntoCachePromiseForField(project, field)
-          : loadGoogleDocIntoCachePromise(docUrl, source.label);
+        if (appState.markdownEditor && appState.markdownEditor.docUrl && appState.markdownEditor.docUrl === docUrl) return Promise.resolve(null);
+        return new Promise(function (resolve) {
+          if (!appState.markdownEditor) { resolve(null); return; }
+          if (isSupabaseBookCreatorContextSource(source)) {
+            loadSupabaseProjectDocIntoCache(project, field, { onSuccess: resolve, onError: resolve });
+          } else {
+            loadGoogleDocIntoCache(docUrl, source.label, { onSuccess: resolve, onError: resolve });
+          }
+        });
       });
       return Promise.all(loads);
     }
@@ -822,10 +827,16 @@
     function buildBookCreatorAIRequest(stepKey, form, outputs) {
       const promptParts = buildBookCreatorPrompt(stepKey, form, outputs);
       const payload = collectAISettingsFormData();
-      payload.provider = appState.aiSettings.activeProvider || payload.provider || "openrouter";
       const generationSettings = getBookCreatorGenerationSettings(stepKey);
+      payload.model = getSelectedAIModel(payload);
+      payload.messages = [
+        { role: "system", content: promptParts.system || "" },
+        { role: "user", content: promptParts.prompt || "" }
+      ];
+      payload.temperature = generationSettings.temperature;
+      payload.max_tokens = generationSettings.maxTokens;
       payload.request = {
-        model: getSelectedAIModel(payload),
+        model: payload.model,
         system: promptParts.system,
         prompt: promptParts.prompt,
         temperature: generationSettings.temperature,
@@ -990,6 +1001,30 @@
       return "<div class=\"book-creator-preview-note\">Secret keys are hidden. White text is fixed prompt structure; yellow highlighting is internal app data, and green highlighting is data pulled from the Book Creator pocket library.</div>";
     }
 
+    function buildProviderAIRequestPreview(payload) {
+      var provider = payload.provider || "openrouter";
+      var request = payload.request || {};
+      var messages = [
+        { role: "system", content: request.system || "" },
+        { role: "user", content: request.prompt || "" }
+      ];
+      var transport = "";
+      var body = {};
+      if (provider === "openrouter") {
+        transport = "Direct browser fetch → openrouter.ai";
+        body = { model: request.model, messages: messages, temperature: request.temperature, max_tokens: request.maxTokens };
+      } else if (provider === "lmstudio") {
+        var lsEndpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+        transport = "Direct browser fetch → " + (lsEndpoint || "http://localhost:1234/v1");
+        body = { model: request.model, messages: messages, temperature: request.temperature, max_tokens: request.maxTokens };
+      } else if (provider === "ollama") {
+        var olEndpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+        transport = "Direct browser fetch → " + (olEndpoint || "http://localhost:11434");
+        body = { model: request.model, messages: messages, stream: false, options: { temperature: request.temperature, num_predict: request.maxTokens } };
+      }
+      return { transport: transport, body: body };
+    }
+
     function formatBookCreatorPromptPreviewStep(payload, stepKey, form, outputs, index, total) {
       const request = payload.request || {};
       const providerRequest = buildProviderAIRequestPreview(payload);
@@ -1109,6 +1144,7 @@
       setBookCreatorStatus("Loading selected context for Book Creator preview...", "warn");
       setBookCreatorPromptPreview("Building book creator prompt preview...", "warn");
       Promise.resolve()
+        .then(function () { if (!appState.aiSettings.isLoaded) return loadAISettings(); })
         .then(loadBookCreatorPocketLibrary)
         .then(loadSelectedBookCreatorContextDocs)
         .then(function () {
@@ -1232,6 +1268,7 @@
       let form;
 
       Promise.resolve()
+        .then(function () { if (!appState.aiSettings.isLoaded) return loadAISettings(); })
         .then(loadBookCreatorPocketLibrary)
         .then(loadSelectedBookCreatorContextDocs)
         .then(function () {

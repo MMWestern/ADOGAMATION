@@ -43,15 +43,22 @@ function readFile(filePath) {
 }
 
 function processIncludes(content) {
-  return content.replace(/<\?!= include\(['"]([^'"]+)['"]\); \?>/g, (_, filename) => {
-    const filePath = path.join(ROOT, filename + ".html");
-    const included = readFile(filePath);
-    if (included === null) {
-      console.warn(`[404] Include not found: ${filename}.html`);
-      return `<!-- MISSING INCLUDE: ${filename} -->`;
-    }
-    return included;
-  });
+  const re = /<\?!= include\(['"]([^'"]+)['"]\); \?>/g;
+  let result = content;
+  let prev;
+  do {
+    prev = result;
+    result = result.replace(re, (_, filename) => {
+      const filePath = path.join(ROOT, filename + ".html");
+      const included = readFile(filePath);
+      if (included === null) {
+        console.warn(`[404] Include not found: ${filename}.html`);
+        return `<!-- MISSING INCLUDE: ${filename} -->`;
+      }
+      return included;
+    });
+  } while (result !== prev);
+  return result;
 }
 
 var ENV_JS_CONTENT = 'window.__SUPABASE_URL__=' + JSON.stringify(envConfig.SUPABASE_URL || '') + ';\n' +

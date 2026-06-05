@@ -2,6 +2,7 @@
     var _dragOverTarget = null;
     var _dragOverBefore = false;
     var _dragConfirmChapter = null, _dragConfirmCount = 0;
+    var _dragDropFired = false;
 
     function setPlanSubTab(tabKey) {
       var tabs = ["outline", "character-arcs", "brainstorm", "world-build"];
@@ -270,13 +271,13 @@
             if (!scenes.length) return "";
             var project = getSelectedProject();
             var seriesId = project && Number(project.series_id || 0) ? Number(project.series_id) : 0;
-            var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
-            var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
-            var objects = seriesId ? (skCache.objects && skCache.objects[seriesId] || []) : [];
-            var lore = seriesId ? (skCache.lore && skCache.lore[seriesId] || []) : [];
-            var subplots = seriesId ? (skCache.subplots && skCache.subplots[seriesId] || []) : [];
-            var other = seriesId ? (skCache.other && skCache.other[seriesId] || []) : [];
-            var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+            var characters = getCodexEntitiesForType_(seriesId, "characters");
+            var locations = getCodexEntitiesForType_(seriesId, "locations");
+            var objects = getCodexEntitiesForType_(seriesId, "objects");
+            var lore = getCodexEntitiesForType_(seriesId, "lore");
+            var subplots = getCodexEntitiesForType_(seriesId, "subplots");
+            var other = getCodexEntitiesForType_(seriesId, "other");
+            var continuity = getCodexEntitiesForType_(seriesId, "continuity");
             var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
               var parts = [];
               var headerParts = [];
@@ -404,13 +405,13 @@
       empty.hidden = true;
       content.hidden = false;
       var seriesId = Number(project && project.series_id || 0);
-      var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
-      var locations = seriesId ? (skCache.locations && skCache.locations[seriesId] || []) : [];
-      var objects = seriesId ? (skCache.objects && skCache.objects[seriesId] || []) : [];
-      var lore = seriesId ? (skCache.lore && skCache.lore[seriesId] || []) : [];
-      var subplots = seriesId ? (skCache.subplots && skCache.subplots[seriesId] || []) : [];
-      var other = seriesId ? (skCache.other && skCache.other[seriesId] || []) : [];
-      var continuity = seriesId ? (skCache.continuity && skCache.continuity[seriesId] || []) : [];
+      var characters = getCodexEntitiesForType_(seriesId, "characters");
+      var locations = getCodexEntitiesForType_(seriesId, "locations");
+      var objects = getCodexEntitiesForType_(seriesId, "objects");
+      var lore = getCodexEntitiesForType_(seriesId, "lore");
+      var subplots = getCodexEntitiesForType_(seriesId, "subplots");
+      var other = getCodexEntitiesForType_(seriesId, "other");
+      var continuity = getCodexEntitiesForType_(seriesId, "continuity");
       var _planRenderedWithData = !seriesId || characters.length || locations.length || objects.length || lore.length || subplots.length || other.length || continuity.length;
       if (!_planRenderedWithData) {
         loadSeriesKnowledgeForSelectedProject(false).finally(function () {
@@ -631,6 +632,7 @@
           _draggedChapterId = this.getAttribute("data-chapter-id");
           _dragOverTarget = null;
           _dragConfirmChapter = null; _dragConfirmCount = 0;
+          _dragDropFired = false;
           var clone = this.cloneNode(true);
           var r = this.getBoundingClientRect();
           clone.style.cssText = "position:fixed;left:-9999px;opacity:0.8;pointer-events:none;z-index:9999";
@@ -642,8 +644,10 @@
           this.classList.add("dragging");
         });
         ch.addEventListener("dragend", function () {
+          var needsRevert = !_dragDropFired && _draggedChapterId;
           _draggedChapterId = null; _dragOverTarget = null; _dragConfirmChapter = null; _dragConfirmCount = 0;
           document.querySelectorAll(".plan-chapter.dragging").forEach(function (c) { c.classList.remove("dragging"); c.style.transition = ""; c.style.transform = ""; });
+          if (needsRevert) renderPlanOutline();
         });
         ch.addEventListener("dragover", function (e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
       });
@@ -693,12 +697,13 @@
         });
         g.addEventListener("drop", function (e) {
           e.preventDefault();
+          _dragDropFired = true;
           var dragged = document.querySelector(".plan-chapter.dragging");
           if (dragged) { dragged.classList.remove("dragging"); dragged.style.transition = ""; dragged.style.transform = ""; }
           if (!_draggedChapterId) return;
           var actEl = this.closest(".plan-act");
           var targetActId = actEl ? actEl.getAttribute("data-act-id") : null;
-          if (!targetActId) return;
+          if (!targetActId) { renderPlanOutline(); return; }
           var domIds = [];
           this.querySelectorAll(".plan-chapter").forEach(function (c) { var id = c.getAttribute("data-chapter-id"); if (id) domIds.push(id); });
           var outline = getPlanOutline();
@@ -707,11 +712,12 @@
             var si = (act.children || []).findIndex(function (c) { return c.id === _draggedChapterId; });
             if (si !== -1) { sourceAct = act; srcIdx = si; }
           });
-          if (!sourceAct || srcIdx === -1) return;
+          if (!sourceAct || srcIdx === -1) { renderPlanOutline(); return; }
           var targetAct = outline.acts.find(function (a) { return a.id === targetActId; });
-          if (!targetAct) return;
+          if (!targetAct) { renderPlanOutline(); return; }
           var allCh = {};
           outline.acts.forEach(function (act) { (act.children || []).forEach(function (c) { allCh[c.id] = c; }); });
+          if (!allCh[_draggedChapterId]) { renderPlanOutline(); return; }
           sourceAct.children.splice(srcIdx, 1);
           var newChildren = [];
           domIds.forEach(function (id) { if (allCh[id]) newChildren.push(allCh[id]); });
@@ -809,7 +815,7 @@
       if (!scene) return;
       var project = getSelectedProject();
       var seriesId = Number(project && project.series_id || 0);
-      var characters = seriesId ? (skCache.characters && skCache.characters[seriesId] || []) : [];
+      var characters = getCodexEntitiesForType_(seriesId, "characters");
       var rect = triggerEl.getBoundingClientRect();
       var popup = document.createElement("div");
       popup.className = "plan-scene-pov-popup";
@@ -908,18 +914,18 @@
       }
       var q = String(query || "").trim().toLowerCase();
       var typeGroups = [
-        { key: "characters", label: "Characters", cache: skCache.characters, nameField: "name" },
-        { key: "locations", label: "Locations", cache: skCache.locations, nameField: "name" },
-        { key: "objects", label: "Objects", cache: skCache.objects, nameField: "name" },
-        { key: "lore", label: "Lore", cache: skCache.lore, nameField: "name" },
-        { key: "subplots", label: "Subplots", cache: skCache.subplots, nameField: "name" },
-        { key: "other", label: "Other", cache: skCache.other, nameField: "name" },
-        { key: "continuity", label: "Continuity", cache: skCache.continuity, nameField: "title" }
+        { key: "characters", label: "Characters", nameField: "name" },
+        { key: "locations", label: "Locations", nameField: "name" },
+        { key: "objects", label: "Objects", nameField: "name" },
+        { key: "lore", label: "Lore", nameField: "name" },
+        { key: "subplots", label: "Subplots", nameField: "name" },
+        { key: "other", label: "Other", nameField: "name" },
+        { key: "continuity", label: "Continuity", nameField: "title" }
       ];
       var html = "";
       var totalVisible = 0;
       typeGroups.forEach(function (group) {
-        var items = (group.cache && group.cache[seriesId] || []).map(function (c) {
+        var items = getCodexEntitiesForType_(seriesId, group.key).map(function (c) {
           return { id: c.id, name: String(c[group.nameField] || "").trim(), type: group.key, color: String(c.color || "").trim() };
         });
         items.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
