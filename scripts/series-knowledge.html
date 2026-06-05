@@ -1082,6 +1082,11 @@
         el.skCodexInspectorColorTrigger.style.background = safe || "#3a3a42";
         var name = document.getElementById("skCodexInspectorNameDisplay");
         if (name) name.style.color = safe || "";
+        var inspectorId = el.skCodexInspectorId ? Number(el.skCodexInspectorId.value || 0) : 0;
+        if (inspectorId && skCurrentSeriesId && codexCache.entitiesBySeries[skCurrentSeriesId]) {
+            var entity = codexCache.entitiesBySeries[skCurrentSeriesId].find(function (e) { return Number(e.id) === inspectorId; });
+            if (entity) entity.color = safe;
+        }
     }
 
     function updateSkCodexInspectorFallback(name) {
