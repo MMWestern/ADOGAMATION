@@ -482,10 +482,17 @@
         el.skCharacterList.innerHTML = list.map(function (ch) {
             var active = skActiveCharacterId === Number(ch.id) ? " is-active" : "";
             var snippet = (ch.description || ch.role_archetype || "").substring(0, 80);
+            var imgUrl = String(ch.image_url || "").trim();
+            var color = String(ch.color || "").trim();
+            var thumbStyle = color ? " style='border-color:" + color + "'" : "";
+            var thumb = imgUrl ? "<div class='world-entity-card-thumb'" + thumbStyle + "><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>" : "";
             return "<div class='world-entity-card" + active + "' data-sk-char-id='" + ch.id + "'>" +
                 "<div class='world-entity-card-header'>" +
-                    "<div class='world-entity-card-name'>" + escapeHtml(ch.name || "Unnamed") + "</div>" +
-                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(ch.role_archetype || (ch.codex_entity_types ? ch.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    thumb +
+                    "<div class='world-entity-card-info'>" +
+                        "<div class='world-entity-card-name'>" + escapeHtml(ch.name || "Unnamed") + "</div>" +
+                        "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(ch.role_archetype || (ch.codex_entity_types ? ch.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    "</div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
@@ -827,10 +834,17 @@
         el.skLocationList.innerHTML = list.map(function (loc) {
             var active = skActiveLocationId === Number(loc.id) ? " is-active" : "";
             var snippet = (loc.description || loc.significance || "").substring(0, 80);
+            var imgUrl = String(loc.image_url || "").trim();
+            var color = String(loc.color || "").trim();
+            var thumbStyle = color ? " style='border-color:" + color + "'" : "";
+            var thumb = imgUrl ? "<div class='world-entity-card-thumb'" + thumbStyle + "><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>" : "";
             return "<div class='world-entity-card" + active + "' data-sk-loc-id='" + loc.id + "'>" +
                 "<div class='world-entity-card-header'>" +
-                    "<div class='world-entity-card-name'>" + escapeHtml(loc.name || "Unnamed") + "</div>" +
-                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(loc.type || (loc.codex_entity_types ? loc.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    thumb +
+                    "<div class='world-entity-card-info'>" +
+                        "<div class='world-entity-card-name'>" + escapeHtml(loc.name || "Unnamed") + "</div>" +
+                        "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(loc.type || (loc.codex_entity_types ? loc.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    "</div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
@@ -1126,9 +1140,16 @@
         }
         el.skLoreList.innerHTML = list.map(function (entry) {
             var snippet = (entry.description || "").substring(0, 80);
+            var imgUrl = String(entry.image_url || "").trim();
+            var color = String(entry.color || "").trim();
+            var thumbStyle = color ? " style='border-color:" + color + "'" : "";
+            var thumb = imgUrl ? "<div class='world-entity-card-thumb'" + thumbStyle + "><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>" : "";
             return "<div class='world-entity-card' data-sk-lore-id='" + entry.id + "'>" +
                 "<div class='world-entity-card-header'>" +
-                    "<div class='world-entity-card-name'>" + escapeHtml(entry.name || "Unnamed") + "</div>" +
+                    thumb +
+                    "<div class='world-entity-card-info'>" +
+                        "<div class='world-entity-card-name'>" + escapeHtml(entry.name || "Unnamed") + "</div>" +
+                    "</div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
@@ -1157,10 +1178,17 @@
         }
         el.skObjectList.innerHTML = list.map(function (obj) {
             var snippet = (obj.description || obj.significance || "").substring(0, 80);
+            var imgUrl = String(obj.image_url || "").trim();
+            var color = String(obj.color || "").trim();
+            var thumbStyle = color ? " style='border-color:" + color + "'" : "";
+            var thumb = imgUrl ? "<div class='world-entity-card-thumb'" + thumbStyle + "><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>" : "";
             return "<div class='world-entity-card' data-sk-obj-id='" + obj.id + "'>" +
                 "<div class='world-entity-card-header'>" +
-                    "<div class='world-entity-card-name'>" + escapeHtml(obj.name || "Unnamed") + "</div>" +
-                    "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(obj.type || (obj.codex_entity_types ? obj.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    thumb +
+                    "<div class='world-entity-card-info'>" +
+                        "<div class='world-entity-card-name'>" + escapeHtml(obj.name || "Unnamed") + "</div>" +
+                        "<div class='world-entity-card-meta'><span class='tiny'>" + escapeHtml(obj.type || (obj.codex_entity_types ? obj.codex_entity_types.name_singular : "") || "") + "</span></div>" +
+                    "</div>" +
                 "</div>" +
                 (snippet ? "<div class='world-entity-card-snippet'>" + escapeHtml(snippet) + "</div>" : "") +
             "</div>";
