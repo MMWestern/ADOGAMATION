@@ -704,6 +704,18 @@
         applyImageGeneratorSettings(getRememberedImageGeneratorScopeSettings(project));
         updateImageGeneratorPromptPreview();
         resetImageGeneratorPreview();
+        if (genMode === "codex") {
+            var codexImgSrc = el.skCodexInspectorImage && el.skCodexInspectorImage.src ? String(el.skCodexInspectorImage.src).trim() : "";
+            if (codexImgSrc && codexImgSrc.indexOf("data:") !== 0) {
+                setImageGeneratorPreviewFromEntry({ url: codexImgSrc });
+            }
+        } else {
+            var coverImgUrl = "";
+            try { coverImgUrl = String(getDetailImageInputByMode(getDetailImageMode()).value || "").trim(); } catch (e) { /* ignore */ }
+            if (coverImgUrl) {
+                setImageGeneratorPreviewFromEntry({ url: coverImgUrl });
+            }
+        }
         setImageGeneratorStatus("Ready to generate with local ComfyUI.", "ok");
         checkImageGeneratorComfyConnection();
         if (el.imageGeneratorModal) {
