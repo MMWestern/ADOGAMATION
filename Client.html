@@ -1524,6 +1524,7 @@
         updateModalScrollLock();
       }
       renderImagePickerGrid();
+      syncImagePickerSelectionState();
       if (!appState.imagePicker.files.length) {
         loadDriveImages(false);
       } else {
@@ -1596,7 +1597,10 @@
       if (file.category === newCategory) return;
       file.category = newCategory;
       supabaseRunner
-        .withSuccessHandler(function () { setStatus("Image category updated.", "ok"); })
+        .withSuccessHandler(function () {
+          setStatus("Image category updated.", "ok");
+          persistImagePickerLibraryCache(appState.imagePicker.files, appState.imagePicker.lastLoadedAt);
+        })
         .withFailureHandler(function (e) { setStatus("Category update failed: " + (e.message || e), "error"); })
         .updateImageCategoryJsonFromClient(file.id, newCategory);
     }
@@ -2144,12 +2148,20 @@
             try {
               const result = parseServerResult(json);
               if (result.ok === false) throw new Error(result.error || "Upload failed.");
+              var uploadCategory = result.category || "general";
+              if (uploadCategory === "general" && appState.imagePicker.targetMode === "codexInspector") {
+                var etype = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
+                if (etype === "characters") uploadCategory = "character";
+                else if (etype === "locations") uploadCategory = "location";
+                else if (etype === "objects") uploadCategory = "object";
+              }
               const fileRecord = {
                 id: result.fileId,
                 name: result.name,
                 url: result.url,
                 thumbnailUrl: result.thumbnailUrl,
-                thumbnailFileId: result.thumbnailFileId || ""
+                thumbnailFileId: result.thumbnailFileId || "",
+                category: uploadCategory
               };
               appState.imagePicker.files.unshift(fileRecord);
               appState.imagePicker.selectedUrl = result.url;
@@ -2177,7 +2189,12 @@
             bundle.previewName,
             bundle.previewMimeType,
             bundle.previewDataUrl,
-            JSON.stringify(captureImageGeneratorSettings())
+            JSON.stringify(captureImageGeneratorSettings()),
+            appState.imagePicker.targetMode === "codexInspector"
+              ? ((el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "characters" ? "character"
+                : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "locations" ? "location"
+                : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "objects" ? "object" : "general")
+              : (appState.imagePicker.activeFilter && appState.imagePicker.activeFilter !== "all" ? appState.imagePicker.activeFilter : "general")
           );
         })
         .catch(function (error) {

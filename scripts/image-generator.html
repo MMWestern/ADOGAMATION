@@ -901,12 +901,20 @@
                     try {
                         const result = parseServerResult(json);
                         if (result.ok === false) throw new Error(result.error || "Upload failed.");
+                        var genCategory = result.category || "general";
+                        if (genCategory === "general" && _imageGeneratorMode === "codex") {
+                            var genEntityType = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
+                            if (genEntityType === "characters") genCategory = "character";
+                            else if (genEntityType === "locations") genCategory = "location";
+                            else if (genEntityType === "objects") genCategory = "object";
+                        }
                         const fileRecord = {
                             id: result.fileId,
                             name: result.name,
                             url: result.url,
                             thumbnailUrl: result.thumbnailUrl,
-                            thumbnailFileId: result.thumbnailFileId || ""
+                            thumbnailFileId: result.thumbnailFileId || "",
+                            category: genCategory
                         };
                         appState.imagePicker.files.unshift(fileRecord);
                         appState.imagePicker.selectedUrl = result.url;
