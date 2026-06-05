@@ -1607,8 +1607,15 @@
         el.skCodexInspectorColorDropdown.addEventListener("click", function (e) {
           var btn = e.target.closest("[data-color]");
           if (!btn) return;
-          setSkCodexInspectorColor(btn.getAttribute("data-color") || "");
+          var color = btn.getAttribute("data-color") || "";
+          setSkCodexInspectorColor(color);
           el.skCodexInspectorColorDropdown.hidden = true;
+          var inspectorId = el.skCodexInspectorId ? el.skCodexInspectorId.value : "";
+          if (inspectorId) {
+            document.querySelectorAll("[data-sk-char-id='" + inspectorId + "'] .world-entity-card-thumb, [data-sk-loc-id='" + inspectorId + "'] .world-entity-card-thumb, [data-sk-obj-id='" + inspectorId + "'] .world-entity-card-thumb, [data-sk-lore-id='" + inspectorId + "'] .world-entity-card-thumb").forEach(function (thumb) {
+              thumb.style.borderColor = color || "";
+            });
+          }
         });
       }
 
