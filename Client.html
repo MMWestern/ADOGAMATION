@@ -1668,6 +1668,19 @@
           if (safe) used[safe] = true;
         });
       });
+      if (typeof codexCache !== "undefined" && codexCache && codexCache.entitiesBySeries) {
+        try {
+          Object.keys(codexCache.entitiesBySeries).forEach(function (seriesId) {
+            var entities = codexCache.entitiesBySeries[seriesId] || [];
+            entities.forEach(function (entity) {
+              if (entity && entity.image_url) {
+                var safe = normalizeImageUrl(entity.image_url);
+                if (safe) used[safe] = true;
+              }
+            });
+          });
+        } catch (e) { /* ignore */ }
+      }
       return used;
     }
 
@@ -1783,6 +1796,17 @@
         button.className = "image-choice" + (identityKeys.indexOf(normalizeImageUrl(appState.imagePicker.selectedUrl || "") || String(appState.imagePicker.selectedUrl || "").trim()) !== -1 ? " is-selected" : "");
         button.setAttribute("data-image-url", normalizedUrl);
         if (identityKeys.some(function (key) { return !!usedImageUrls[key]; })) button.classList.add("is-in-use");
+
+        const deleteBtn = document.createElement("span");
+        deleteBtn.className = "image-choice-delete";
+        deleteBtn.textContent = "\u00D7";
+        deleteBtn.title = "Delete this image";
+        deleteBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          showImageDeleteConfirm(deleteBtn, file);
+        });
+        button.appendChild(deleteBtn);
+
         const thumbWrap = document.createElement("div");
         thumbWrap.className = "image-choice-thumb";
         const img = document.createElement("img");
@@ -2354,6 +2378,97 @@
         setImagePickerStatus(message, "error");
         setStatus(message, "error");
       }
+    }
+
+    function getImageDeleteConfirmPopup() {
+      var popup = document.getElementById("imageDeleteConfirmPopup");
+      if (!popup) {
+        popup = document.createElement("div");
+        popup.id = "imageDeleteConfirmPopup";
+        popup.className = "image-delete-popup";
+        popup.innerHTML = '<div class="image-delete-popup-text">Delete this image?</div>'
+          + '<div class="image-delete-popup-actions">'
+          + '<button class="image-delete-popup-cancel">Cancel</button>'
+          + '<button class="image-delete-popup-delete">Delete</button>'
+          + '</div>';
+        popup.addEventListener("click", function (e) { e.stopPropagation(); });
+        document.body.appendChild(popup);
+        popup.querySelector(".image-delete-popup-cancel").addEventListener("click", function () {
+          hideImageDeleteConfirm();
+        });
+        popup.querySelector(".image-delete-popup-delete").addEventListener("click", function () {
+          var file = popup._deleteFile;
+          if (file) deleteImageFile(file);
+        });
+      }
+      return popup;
+    }
+
+    function showImageDeleteConfirm(anchorEl, file) {
+      var existing = document.getElementById("imageDeleteConfirmPopup");
+      if (existing && existing.style.display !== "none") return;
+      var popup = getImageDeleteConfirmPopup();
+      popup._deleteFile = file;
+      var rect = anchorEl.getBoundingClientRect();
+      var left = rect.left;
+      var top = rect.bottom + 4;
+      var w = popup.offsetWidth || 160;
+      if (left + w > window.innerWidth - 8) {
+        left = window.innerWidth - w - 8;
+      }
+      if (left < 4) left = 4;
+      popup.style.left = left + "px";
+      popup.style.top = top + "px";
+      popup.style.display = "block";
+      var hideHandler = function (e) {
+        if (!popup.contains(e.target)) {
+          popup.style.display = "none";
+          document.removeEventListener("click", hideHandler);
+        }
+      };
+      setTimeout(function () { document.addEventListener("click", hideHandler); }, 0);
+    }
+
+    function hideImageDeleteConfirm() {
+      var popup = document.getElementById("imageDeleteConfirmPopup");
+      if (popup) popup.style.display = "none";
+    }
+
+    function deleteImageFile(file) {
+      if (!file || !file.id) {
+        setImagePickerStatus("Cannot delete: image ID not found.", "error");
+        return;
+      }
+      hideImageDeleteConfirm();
+      var selectedUrl = normalizeImageUrl(file.url || "");
+      if (!selectedUrl) return;
+      appState.imagePicker.isUploading = true;
+      setStatus("Deleting image...", "warn");
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          appState.imagePicker.isUploading = false;
+          try {
+            var result = parseServerResult(json);
+            appState.imagePicker.files = (appState.imagePicker.files || []).filter(function (f) {
+              return normalizeImageUrl(f && f.url || "") !== selectedUrl;
+            });
+            if (normalizeImageUrl(appState.imagePicker.selectedUrl) === selectedUrl) {
+              appState.imagePicker.selectedUrl = "";
+            }
+            renderImagePickerGrid();
+            loadProjects();
+            setImagePickerStatus("Deleted.", "ok");
+            setStatus("Image deleted and linked fields cleared.", "ok");
+          } catch (err) {
+            setImagePickerStatus("Delete parse error: " + err.message, "error");
+          }
+        })
+        .withFailureHandler(function (error) {
+          appState.imagePicker.isUploading = false;
+          console.error("IMAGE DELETE ERROR", error);
+          setImagePickerStatus("Delete failed: " + (error && error.message ? error.message : String(error)), "error");
+        })
+        .deleteProjectImageJsonFromClient(PROJECT_IMAGE_FOLDER_ID, file.id, file.thumbnailFileId || "", file.url);
     }
 
     function focusLinkInput(inputId) {
