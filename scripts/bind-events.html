@@ -203,6 +203,7 @@
       bindUiOnce(document, "writing-codex-modal-outside-close", "click", function (event) {
         if (!el.writingCodexModal || !el.writingCodexModal.classList.contains("is-open")) return;
         if (Date.now() - Number(appState.writingWorkspace.codexModalOpenedAt || 0) < 120) return;
+        if (appState._codexModalProtectUntil && Date.now() < appState._codexModalProtectUntil) return;
         var target = event.target instanceof Element ? event.target : null;
         if (!target) return;
         if (target.closest("#writingCodexModal .modal-card")) return;
@@ -966,6 +967,7 @@
           return;
         }
         if (event.key === "Escape" && el.writingCodexModal && el.writingCodexModal.classList.contains("is-open")) {
+          if (el.imagePickerModal && el.imagePickerModal.classList.contains("is-open")) return;
           closeWritingCodexModal();
           return;
         }
@@ -1023,7 +1025,7 @@
       el.openImageButton.addEventListener("click", function () {
         const activeInput = getDetailImageInputByMode(getDetailImageMode());
         const url = getDetailImageMode() === "series"
-          ? (normalizeImageUrl(activeInput && activeInput.value) || DEFAULT_IMAGE_URL)
+          ? (normalizeImageUrl(activeInput && activeInput.value) || getDefaultImageUrl())
           : getProjectDisplayImageUrl(activeInput && activeInput.value, el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : "");
         window.open(url, "_blank", "noopener,noreferrer");
       });
@@ -1065,8 +1067,9 @@
         });
       });
       document.addEventListener("wheel", handleModalOverlayWheel, { passive: false });
-      el.cancelImagePickerButton.addEventListener("click", closeImagePickerModal);
-      el.applySelectedImageButton.addEventListener("click", function () { applySelectedImageUrl(); });
+      if (el.imagePickerModal) el.imagePickerModal.addEventListener("click", function (e) { e.stopPropagation(); });
+      el.cancelImagePickerButton.addEventListener("click", function (e) { e.stopPropagation(); closeImagePickerModal(); });
+      el.applySelectedImageButton.addEventListener("click", function (e) { e.stopPropagation(); applySelectedImageUrl(); });
       if (el.cropSelectedImageButton) {
         el.cropSelectedImageButton.addEventListener("click", function () {
           if (appState.imagePicker.selectedUrl) openImageCropModal(appState.imagePicker.selectedUrl);
@@ -1080,6 +1083,12 @@
       }
       if (el.imagePickerMetaCategory) {
         el.imagePickerMetaCategory.addEventListener("change", saveImagePickerMetaCategory);
+      }
+      if (el.imagePickerMetaSaveButton) {
+        el.imagePickerMetaSaveButton.addEventListener("click", saveImagePickerMeta);
+      }
+      if (el.imagePickerMetaSeries) {
+        el.imagePickerMetaSeries.addEventListener("input", filterProjectDatalistBySeries);
       }
       if (el.cancelCropButton) el.cancelCropButton.addEventListener("click", closeImageCropModal);
       if (el.applyCropButton) el.applyCropButton.addEventListener("click", applyImageCrop);
@@ -1134,6 +1143,18 @@
       }
       if (el.imageGeneratorUseButton) {
         el.imageGeneratorUseButton.addEventListener("click", useGeneratedImageFromComfy);
+      }
+      if (el.imageGeneratorSaveButton) {
+        el.imageGeneratorSaveButton.addEventListener("click", saveGeneratedImageToLibrary);
+      }
+      if (el.imageGeneratorCropButton) {
+        el.imageGeneratorCropButton.addEventListener("click", toggleGeneratorCrop);
+      }
+      if (el.imageGeneratorCropAspect) {
+        el.imageGeneratorCropAspect.addEventListener("click", function (e) {
+          var btn = e.target.closest(".image-generator-crop-aspect-btn");
+          if (btn) setGeneratorCropAspect(btn.getAttribute("data-aspect"));
+        });
       }
       if (el.imageGeneratorCloseButton) {
         el.imageGeneratorCloseButton.addEventListener("click", closeImageGeneratorModal);
@@ -1201,7 +1222,7 @@
           openSeriesBooksModal(el.detailSeries.value);
         });
       }
-      [el.planSeriesButton, el.writingCodexSeriesButton].forEach(function (btn) {
+      [el.planSeriesButton, el.writingCodexSeriesButton, el.codexSeriesButton].forEach(function (btn) {
         if (btn) {
           btn.addEventListener("click", function () {
             var project = getSelectedProject();
@@ -1479,7 +1500,8 @@
 
       bindUiOnce(el.skLoreAddButton, "sk-lore-add", "click", function () {
         if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
-          if (typeof openSkCodexInspector === "function") openSkCodexInspector("lore", 0);
+          var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: "lore", codex_entity_types: {}, custom_data: {} };
+          if (typeof showCodexEntityDetail === "function") showCodexEntityDetail(newEntity, "lore");
         }
       });
 
@@ -1534,7 +1556,8 @@
 
       bindUiOnce(el.skCharacterAddButton, "sk-char-add", "click", function () {
         if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
-          if (typeof openSkCodexInspector === "function") openSkCodexInspector("characters", 0);
+          var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: "character", codex_entity_types: {}, custom_data: {} };
+          if (typeof showCodexEntityDetail === "function") showCodexEntityDetail(newEntity, "character");
         } else {
           editSkCharacter(0);
         }
@@ -1549,7 +1572,8 @@
 
       bindUiOnce(el.skLocationAddButton, "sk-loc-add", "click", function () {
         if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
-          if (typeof openSkCodexInspector === "function") openSkCodexInspector("locations", 0);
+          var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: "location", codex_entity_types: {}, custom_data: {} };
+          if (typeof showCodexEntityDetail === "function") showCodexEntityDetail(newEntity, "location");
         } else {
           editSkLocation(0);
         }
@@ -1563,7 +1587,8 @@
 
       bindUiOnce(el.skObjectAddButton, "sk-obj-add", "click", function () {
         if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
-          if (typeof openSkCodexInspector === "function") openSkCodexInspector("objects", 0);
+          var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: "item", codex_entity_types: {}, custom_data: {} };
+          if (typeof showCodexEntityDetail === "function") showCodexEntityDetail(newEntity, "item");
         }
       });
 

@@ -1,5 +1,15 @@
 ﻿<script>
-    const DEFAULT_IMAGE_URL = "https://drive.google.com/thumbnail?id=1QPXDKb5SNrKi5ZbGJwvXtotBJ6-3d9jS&sz=w1000";
+    const DEFAULT_IMAGE_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e2e8f0'/%3E%3Cstop offset='100%25' stop-color='%23cbd5e1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='600' fill='url(%23g)' rx='8'/%3E%3C/svg%3E";
+    const CUSTOM_DEFAULT_IMAGE_KEY = "writing_dashboard_custom_default_image_v1";
+    function getDefaultImageUrl() {
+      var custom = localStorage.getItem(CUSTOM_DEFAULT_IMAGE_KEY);
+      return custom || DEFAULT_IMAGE_URL;
+    }
+    function setDefaultImageUrl(url) {
+      var safe = normalizeImageUrl(String(url || "").trim()) || "";
+      if (safe) { localStorage.setItem(CUSTOM_DEFAULT_IMAGE_KEY, safe); }
+      else { localStorage.removeItem(CUSTOM_DEFAULT_IMAGE_KEY); }
+    }
     const STATUS_LOG_LIMIT = 500;
     const LOCAL_CACHE_KEY = "writing_dashboard_projects_cache_supabase_v2";
     const DARK_MODE_CACHE_KEY = "writing_dashboard_dark_mode_v1";
@@ -181,6 +191,13 @@
       if (String(appState.resourceActiveHeadingKey || "") === String(nextKey || "")) return;
       appState.resourceActiveHeadingKey = nextKey;
       renderResourceHeadingPanels();
+    }
+
+    function getHeadingAbsoluteTop(textarea, markdown, heading) {
+      var style = window.getComputedStyle(textarea);
+      var lineHeight = parseFloat(style.lineHeight) || 20;
+      var lineNum = (heading && heading.line) || 1;
+      return Math.max(0, (lineNum - 1) * lineHeight);
     }
 
     function jumpToResourceSourceHeading(offset, headingText, options) {
@@ -665,9 +682,9 @@
     function getProjectDisplayImageUrl(projectOrImage, seriesImage) {
       if (projectOrImage && typeof projectOrImage === "object") {
         const project = projectOrImage;
-        return normalizeImageUrl(project.image || project.series_image || "") || DEFAULT_IMAGE_URL;
+        return normalizeImageUrl(project.image || project.series_image || "") || getDefaultImageUrl();
       }
-      return normalizeImageUrl(projectOrImage || seriesImage || "") || DEFAULT_IMAGE_URL;
+      return normalizeImageUrl(projectOrImage || seriesImage || "") || getDefaultImageUrl();
     }
 
     <?!= include('scripts/image-generator'); ?>
@@ -1141,6 +1158,9 @@
         })
         .withFailureHandler(function (error) {
           markDocLoading(cacheKey, false);
+          if (error && (error.code === 'PGRST116' || (error.message && error.message.indexOf('406') !== -1))) {
+            setCachedDoc(cacheKey, { notFound: true, loading: false });
+          }
           flushPendingDocLoadCallbacks(cacheKey, false, error);
         });
 
@@ -1565,26 +1585,163 @@
       if (el.imagePickerMetaThumb) {
         el.imagePickerMetaThumb.src = file.thumbnailUrl || file.url || "";
       }
-      if (el.imagePickerMetaName) {
-        el.imagePickerMetaName.textContent = file.name || "Untitled";
+      if (el.imagePickerMetaNameInput) {
+        el.imagePickerMetaNameInput.value = file.name || "";
+      }
+      if (el.imagePickerMetaFileDisplay) {
+        var rawName = file.storagePath || file.url || "";
+        var parts = rawName.replace(/\\/g, "/").split("/").filter(Boolean);
+        el.imagePickerMetaFileDisplay.textContent = parts.length ? parts[parts.length - 1] : (file.name || "");
       }
       if (el.imagePickerMetaCategory) {
         el.imagePickerMetaCategory.value = file.category || "general";
       }
-      if (el.imagePickerMetaInfo) {
-        var info = [];
-        if (file.mimeType) info.push(file.mimeType);
-        if (file.updated) info.push("Uploaded " + String(file.updated).slice(0, 10));
-        el.imagePickerMetaInfo.textContent = info.join(" · ");
+      var gs = file.generatorSettings || {};
+      if (el.imagePickerMetaProject) {
+        el.imagePickerMetaProject.value = gs.projectTitle || "";
+      }
+      if (el.imagePickerMetaSeries) {
+        el.imagePickerMetaSeries.value = gs.series || "";
+      }
+      if (el.imagePickerMetaSummary) {
+        el.imagePickerMetaSummary.value = gs.summary || "";
+      }
+      if (el.imagePickerMetaPrompt) {
+        el.imagePickerMetaPrompt.value = gs.prompt || "";
+      }
+      filterProjectDatalistBySeries();
+      if (el.imagePickerMetaGeneratedAt) {
+        var dateStr = gs.generatedAt || file.updated || "";
+        el.imagePickerMetaGeneratedAt.textContent = dateStr ? "Generated " + String(dateStr).slice(0, 10) : "";
       }
       if (el.cropSelectedImageButton) {
         el.cropSelectedImageButton.hidden = false;
       }
     }
 
+    function filterProjectDatalistBySeries() {
+      var projectList = document.getElementById("imagePickerProjectList");
+      if (!projectList) return;
+      var selectedSeries = el.imagePickerMetaSeries ? String(el.imagePickerMetaSeries.value).trim() : "";
+      projectList.innerHTML = "";
+      var seen = {};
+      (appState.projects || []).forEach(function (p) {
+        if (!selectedSeries || String(p.series || "").trim() === selectedSeries) {
+          var t = String(p.title || "").trim();
+          if (t && !seen[t]) { seen[t] = true; var opt = document.createElement("option"); opt.value = t; projectList.appendChild(opt); }
+        }
+      });
+    }
+
+    function populateImagePickerMetaDatalists() {
+      var projectValues = {}, seriesValues = {};
+      (appState.projects || []).forEach(function (p) {
+        if (p.title) projectValues[p.title] = true;
+        if (p.series) seriesValues[p.series] = true;
+      });
+      var projectList = document.getElementById("imagePickerProjectList");
+      var seriesList = document.getElementById("imagePickerSeriesList");
+      if (projectList) {
+        projectList.innerHTML = "";
+        Object.keys(projectValues).sort(function (a, b) { return a.localeCompare(b); }).forEach(function (v) {
+          var opt = document.createElement("option");
+          opt.value = v;
+          projectList.appendChild(opt);
+        });
+      }
+      if (seriesList) {
+        seriesList.innerHTML = "";
+        Object.keys(seriesValues).sort(function (a, b) { return a.localeCompare(b); }).forEach(function (v) {
+          var opt = document.createElement("option");
+          opt.value = v;
+          seriesList.appendChild(opt);
+        });
+      }
+    }
+
     function hideImagePickerMetaPanel() {
       if (el.imagePickerMetaPanel) el.imagePickerMetaPanel.hidden = true;
       if (el.cropSelectedImageButton) el.cropSelectedImageButton.hidden = true;
+    }
+
+    function saveImagePickerMeta() {
+      if (!el.imagePickerMetaSaveButton) return;
+      var url = appState.imagePicker.selectedUrl;
+      if (!url) return;
+      var file = findImagePickerFileByUrl(url);
+      if (!file) return;
+      el.imagePickerMetaSaveButton.disabled = true;
+      el.imagePickerMetaSaveButton.textContent = "Saving...";
+      var updates = {};
+      if (el.imagePickerMetaNameInput && el.imagePickerMetaNameInput.value !== (file.name || "")) {
+        updates.file_name = el.imagePickerMetaNameInput.value;
+      }
+      if (el.imagePickerMetaCategory && el.imagePickerMetaCategory.value !== (file.category || "general")) {
+        updates.category = el.imagePickerMetaCategory.value;
+      }
+      var gs = Object.assign({}, file.generatorSettings || {});
+      var gsChanged = false;
+      if (el.imagePickerMetaSummary) { gs.summary = el.imagePickerMetaSummary.value; gsChanged = true; }
+      if (el.imagePickerMetaPrompt) { gs.prompt = el.imagePickerMetaPrompt.value; gsChanged = true; }
+      if (el.imagePickerMetaSeries) { gs.series = el.imagePickerMetaSeries.value; gsChanged = true; }
+      if (el.imagePickerMetaProject) { gs.projectTitle = el.imagePickerMetaProject.value; gsChanged = true; }
+      if (gsChanged) {
+        updates.generator_settings = gs;
+      }
+      var hasUpdates = false;
+      for (var k in updates) { hasUpdates = true; break; }
+      if (!hasUpdates) {
+        el.imagePickerMetaSaveButton.disabled = false;
+        el.imagePickerMetaSaveButton.textContent = "Save Metadata";
+        return;
+      }
+      if (gsChanged && file.generatorSettings) {
+        file.generatorSettings = gs;
+      } else if (gsChanged) {
+        file.generatorSettings = gs;
+      }
+      if (updates.file_name) file.name = updates.file_name;
+      if (updates.category) file.category = updates.category;
+      supabaseRunner
+        .withSuccessHandler(function () {
+          el.imagePickerMetaSaveButton.disabled = false;
+          el.imagePickerMetaSaveButton.textContent = "Save Metadata";
+          setStatus("Image metadata saved.", "ok");
+          persistImagePickerLibraryCache(appState.imagePicker.files, appState.imagePicker.lastLoadedAt);
+          if (updates.file_name && el.imagePickerGrid) {
+            var selectedUrl = normalizeImageUrl(appState.imagePicker.selectedUrl || "") || "";
+            el.imagePickerGrid.querySelectorAll(".image-choice[data-image-url]").forEach(function (btn) {
+              if (String(btn.getAttribute("data-image-url") || "").trim() === selectedUrl) {
+                var nameEl = btn.querySelector(".image-choice-name");
+                if (nameEl) nameEl.textContent = updates.file_name;
+              }
+            });
+          }
+          if (gsChanged && el.imagePickerGrid) {
+            var pt = String(gs.projectTitle || "").trim();
+            var sr = String(gs.series || "").trim();
+            var parts = [];
+            if (pt) parts.push(pt);
+            if (sr) parts.push(sr);
+            var projectLine = parts.length ? parts.join(" · ") : "";
+            var selectedUrl = normalizeImageUrl(appState.imagePicker.selectedUrl || "") || "";
+            el.imagePickerGrid.querySelectorAll(".image-choice[data-image-url]").forEach(function (btn) {
+              if (String(btn.getAttribute("data-image-url") || "").trim() === selectedUrl) {
+                var projectEl = btn.querySelector(".image-choice-project");
+                if (projectEl) {
+                  projectEl.textContent = projectLine;
+                  projectEl.style.display = projectLine ? "" : "none";
+                }
+              }
+            });
+          }
+        })
+        .withFailureHandler(function (e) {
+          el.imagePickerMetaSaveButton.disabled = false;
+          el.imagePickerMetaSaveButton.textContent = "Save Metadata";
+          setStatus("Save failed: " + (e.message || e), "error");
+        })
+        .saveImagePickerMetaFromClient(file.id, JSON.stringify(updates));
     }
 
     function saveImagePickerMetaCategory() {
@@ -1814,6 +1971,15 @@
         primeImagePickerThumb(img, thumb);
         thumbWrap.appendChild(img);
 
+        var projectLine = "";
+        if (file.generatorSettings) {
+          var pt = String(file.generatorSettings.projectTitle || "").trim();
+          var sr = String(file.generatorSettings.series || "").trim();
+          var parts = [];
+          if (pt) parts.push(pt);
+          if (sr) parts.push(sr);
+          if (parts.length) projectLine = parts.join(" · ");
+        }
         if (mode === "list") {
           const copy = document.createElement("div");
           copy.className = "image-choice-copy";
@@ -1822,17 +1988,26 @@
           title.textContent = name;
           const urlLine = document.createElement("div");
           urlLine.className = "image-choice-url tiny";
-          urlLine.textContent = url || "No URL";
+          urlLine.textContent = projectLine || url || "No URL";
           copy.appendChild(title);
           copy.appendChild(urlLine);
           button.appendChild(thumbWrap);
           button.appendChild(copy);
         } else {
+          const textWrap = document.createElement("div");
+          textWrap.className = "image-choice-text";
           const title = document.createElement("div");
           title.className = "image-choice-name";
           title.textContent = name;
+          textWrap.appendChild(title);
+          if (projectLine) {
+            const projectEl = document.createElement("div");
+            projectEl.className = "image-choice-project";
+            projectEl.textContent = projectLine;
+            textWrap.appendChild(projectEl);
+          }
           button.appendChild(thumbWrap);
-          button.appendChild(title);
+          button.appendChild(textWrap);
         }
 
         button.addEventListener("click", function () {
@@ -1912,14 +2087,42 @@
         return;
       }
       if (appState.imagePicker.targetMode === "codexInspector") {
+        appState._codexModalProtectUntil = Date.now() + 300;
         if (typeof setSkCodexInspectorImage === "function") setSkCodexInspectorImage(imageUrl);
         if (el.writingCodexModalImage && el.writingCodexModal.classList && el.writingCodexModal.classList.contains("is-open")) {
           el.writingCodexModalImage.src = imageUrl;
           el.writingCodexModalImage.style.display = "block";
           if (el.writingCodexModalAvatarFallback) el.writingCodexModalAvatarFallback.style.display = "none";
+          scheduleCodexAutoSave();
         }
         closeImagePickerModal();
         appState.imagePicker.targetMode = "project";
+        return;
+      }
+      if (appState.imagePicker.targetMode === "codexDetail") {
+        appState._codexModalProtectUntil = Date.now() + 300;
+        var detailEntity = appState.imagePicker._codexDetailEntity;
+        if (detailEntity) detailEntity.image_url = imageUrl;
+        var detailWrap = document.getElementById("codexDetailImageWrap");
+        if (detailWrap) {
+          detailWrap.classList.remove("codex-entity-detail-image-placeholder");
+          detailWrap.innerHTML = '<img src="' + escapeHtml(imageUrl) + '" alt="" class="codex-entity-detail-image" />';
+        }
+        if (detailEntity && Number(detailEntity.id)) {
+          var detailSaveBtn = document.getElementById("codexDetailSaveBtn");
+          if (detailSaveBtn) detailSaveBtn.click();
+        }
+        closeImagePickerModal();
+        appState.imagePicker.targetMode = "project";
+        return;
+      }
+      if (appState.imagePicker.targetMode === "defaultImage") {
+        setDefaultImageUrl(imageUrl);
+        var preview = document.getElementById("autoSaveDefaultImage");
+        if (preview) preview.src = getDefaultImageUrl();
+        closeImagePickerModal();
+        appState.imagePicker.targetMode = "project";
+        setStatus("Default project image updated.", "ok");
         return;
       }
       const mode = getDetailImageMode();
@@ -2090,7 +2293,13 @@
               } else {
                 appState.imagePicker.selectedUrl = croppedUrl;
                 closeImageCropModal();
-                setStatus("Image cropped. Use Selected Image to apply.", "ok");
+                if (el.imageGeneratorModal && el.imageGeneratorModal.classList.contains("is-open")) {
+                  closeImageGeneratorModal();
+                  applySelectedImageUrl(croppedUrl);
+                  setStatus("Cropped image applied.", "ok");
+                } else {
+                  setStatus("Image cropped. Use Selected Image to apply.", "ok");
+                }
               }
             } catch (e) { setStatus("Crop upload failed: " + e.message, "error"); }
           })
@@ -2237,7 +2446,7 @@
       }
       return callAppsScriptJson("getSupabaseSeriesMetaJsonFromClient", [])
         .then(function (result) {
-          var rows = Array.isArray(result && result.series) ? result.series : [];
+          var rows = Array.isArray(result && result.rows) ? result.rows : [];
           var byId = {};
           rows.forEach(function (row) {
             var id = Number(row && row.id || 0);
@@ -2246,8 +2455,8 @@
               id: id,
               name: String(row && row.name || "").trim(),
               summary: String(row && row.summary || "").trim(),
-              seriesImageUrl: String(row && row.seriesImageUrl || "").trim(),
-              updatedAt: String(row && row.updatedAt || "").trim(),
+              seriesImageUrl: String(row && row.series_image_url || row && row.seriesImageUrl || "").trim(),
+              updatedAt: String(row && row.updated_at || row && row.updatedAt || "").trim(),
               docs: row && row.docs && typeof row.docs === "object" ? row.docs : {}
             };
           });
@@ -2489,8 +2698,8 @@
       };
 
       el.detailImage.onerror = function () {
-        if (el.detailImage.src !== DEFAULT_IMAGE_URL) {
-          el.detailImage.src = DEFAULT_IMAGE_URL;
+        if (el.detailImage.src !== getDefaultImageUrl()) {
+          el.detailImage.src = getDefaultImageUrl();
           return;
         }
         updateDetailImageModeUi();
@@ -2757,6 +2966,19 @@
         renderSeriesKnowledgePanel(project);
         loadSeriesKnowledgeForSelectedProject(false);
       }
+      if (activeMainTab === "codex" && typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) {
+        populateCodexInfoPanel(project);
+        [el.skCharacterList, el.skLocationList, el.skObjectList, el.skLoreList, el.skContinuityList].forEach(function (e) {
+          if (e) e.innerHTML = "";
+        });
+        closeSkCodexInspector();
+        loadSeriesKnowledgeForSelectedProject(false).then(function () {
+          var seriesId = Number(project && project.series_id || 0);
+          renderCodexTree(seriesId);
+          renderCodexDashboard(seriesId);
+          restoreCodexLastSelection(seriesId);
+        });
+      }
       if (activeMainTab === "workspace" && !isSameProject) {
         openWritingWorkspace();
       }
@@ -2771,13 +2993,41 @@
         if (el.planOutlineGrid) el.planOutlineGrid.innerHTML = "";
         if (el.planOutlineEmpty) el.planOutlineEmpty.hidden = false;
         if (el.planOutlineContent) el.planOutlineContent.hidden = true;
-        setTimeout(function () {
-          loadWritingWorkspaceDraft();
-        }, 50);
+        if (activeMainTab === "workspace") {
+          setTimeout(function () {
+            loadWritingWorkspaceDraft();
+          }, 50);
+        }
+        if (activeMainTab === "plan" && project && project.project_id) {
+          loadPlanData().then(function () { setPlanSubTab("outline"); });
+        }
       }
       renderProjectsTable();
     }
 
+    function loadPlanData() {
+      var project = getSelectedProject();
+      if (!project || !project.project_id || !sbClient) return Promise.resolve();
+      if (appState.writingWorkspace.outline && appState.writingWorkspace.outline.acts && appState.writingWorkspace.outline.acts.length) {
+        return Promise.resolve();
+      }
+      return Promise.all([
+        callAppsScriptJson("getSupabaseProjectOutlineJsonFromClient", [project.project_id]),
+        callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "draft"])
+      ]).then(function (results) {
+        var outlineResult = results[0];
+        var sectionsResult = results[1];
+        if (outlineResult && outlineResult.ok && outlineResult.outline) {
+          appState.writingWorkspace.outline = outlineResult.outline;
+          sortOutlineBySortOrder_(appState.writingWorkspace.outline);
+        }
+        var sections = Array.isArray(sectionsResult && sectionsResult.sections) ? sectionsResult.sections : [];
+        appState.writingWorkspace.segments = sections.length
+          ? buildWritingWorkspaceSegmentsFromSections(sections, project)
+          : parseWritingWorkspaceSegments(project.short_summary || "", project);
+        appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
+      });
+    }
 
     function renderFormatPill(value) {
       const safe = String(value || "").trim();
@@ -3126,17 +3376,7 @@
         ? appState.storySeed.options.characterArc.filter(Boolean)
         : [];
       if (configured.length) return configured.slice();
-      return [
-        "Flat / Steadfast",
-        "Positive Change",
-        "Negative Change",
-        "Disillusionment",
-        "Maturity",
-        "Redemption",
-        "Corruption",
-        "Fall",
-        "Healing"
-      ];
+      return getInspectorOptionValues("motivation_arc", DEFAULT_MOTIVATION_ARC_OPTIONS);
     }
 
     function setWritingCodexModalTab(tabKey) {
@@ -3403,15 +3643,19 @@
     function positionWritingCodexModal(anchorNode) {
       if (!el.writingCodexModal || !el.writingCodexPanel) return;
       var sidebarRect = el.writingCodexPanel.getBoundingClientRect();
+      var modalWidth = Math.min(500, Math.max(360, window.innerWidth - sidebarRect.right - 28));
+      var left = Math.min(window.innerWidth - modalWidth - 24, sidebarRect.right + 12);
       var listRect = el.writingCodexList && typeof el.writingCodexList.getBoundingClientRect === "function"
         ? el.writingCodexList.getBoundingClientRect()
         : sidebarRect;
-      var modalWidth = Math.min(500, Math.max(360, window.innerWidth - sidebarRect.right - 28));
-      var top = Math.max(24, Math.min(listRect.top - 2, window.innerHeight - 640));
-      var left = Math.min(window.innerWidth - modalWidth - 24, sidebarRect.right + 12);
-      var modalHeight = Math.max(360, Math.min(800, Math.floor((sidebarRect.bottom - top - 2) * 1.2)));
+      var firstHeader = el.writingCodexList && el.writingCodexList.querySelector(".writing-codex-group-header");
+      var top = firstHeader
+        ? Math.max(24, firstHeader.getBoundingClientRect().top)
+        : Math.max(24, Math.min(listRect.top - 2, window.innerHeight - 640));
+      var layoutEl = document.querySelector(".layout");
+      var bottom = layoutEl ? layoutEl.getBoundingClientRect().bottom - 16 : window.innerHeight - 16;
       el.writingCodexModal.style.width = modalWidth + "px";
-      el.writingCodexModal.style.height = modalHeight + "px";
+      el.writingCodexModal.style.height = Math.max(360, bottom - top) + "px";
       el.writingCodexModal.style.left = Math.max(24, left) + "px";
       el.writingCodexModal.style.top = Math.max(24, top) + "px";
     }
@@ -3665,7 +3909,7 @@
           .then(function (ctx) {
             if (appState.writingWorkspace.codexModalKey !== key && !isNew) return;
             var savedId = ctx.savedId;
-            var pluralMap = { character: 'characters', location: 'locations', item: 'objects', lore: 'lore', quest: 'subplots', continuity_note: 'continuity', journal: 'other' };
+            var pluralMap = { character: 'characters', location: 'locations', item: 'objects', lore: 'lore', quest: 'subplots', continuity_note: 'continuity', journal: 'other', map: 'maps', magic_system: 'magic_systems' };
             var singularKey = CODEX_GROUP_TO_TYPE_KEY[type] || type;
             var groupKey = pluralMap[singularKey] || type;
             if (isNew && savedId) {
@@ -3875,7 +4119,7 @@
         var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
         var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
         var imgUrl = String(entry.image_url || "").trim();
-        var thumbStyle = color ? ' style="border-color:' + escapeHtml(color) + '"' : '';
+        var thumbStyle = '';
         var avatarHtml = imgUrl
           ? '<div class="writing-codex-entry-thumb"' + thumbStyle + '><img src="' + escapeHtml(imgUrl) + '" alt="" /></div>'
           : '<div class="writing-codex-entry-avatar">' + dotHtml + escapeHtml(initials) + '</div>';
@@ -3907,18 +4151,18 @@
       var collapsed = appState.writingWorkspace.collapsedGroups || {};
       groupOrder.forEach(function (key) {
         var items = grouped[key] || [];
-        if (!items.length) return;
+        var count = items.length;
         var isCollapsed = !!collapsed[key];
         sections.push(
-          "<section class='writing-codex-group" + (isCollapsed ? " is-collapsed" : "") + "' data-group-key='" + escapeHtml(key) + "'>" +
+          "<section class='writing-codex-group" + (count ? "" : " is-empty") + (isCollapsed ? " is-collapsed" : "") + "' data-group-key='" + escapeHtml(key) + "'>" +
             "<div class='writing-codex-group-header'>" +
               "<div class='writing-codex-group-header-left'>" +
                 "<span class='writing-codex-group-title'>" + escapeHtml(groupLabels[key] || key) + "</span>" +
-                "<span class='writing-codex-group-count'>" + items.length + " entr" + (items.length === 1 ? "y" : "ies") + "</span>" +
+                "<span class='writing-codex-group-count'>" + count + " entr" + (count === 1 ? "y" : "ies") + "</span>" +
               "</div>" +
               "<span class='writing-codex-group-chevron'>" + (isCollapsed ? "\u25B6" : "\u25BC") + "</span>" +
             "</div>" +
-            "<div class='writing-codex-group-list'" + (isCollapsed ? " hidden" : "") + ">" + items.map(buildEntry).join("") + "</div>" +
+            "<div class='writing-codex-group-list'" + (count ? isCollapsed ? " hidden" : "" : " hidden") + ">" + items.map(buildEntry).join("") + "</div>" +
           "</section>"
         );
       });
@@ -3973,6 +4217,20 @@
       }
       var savedTexts = appState.writingWorkspace.savedSegmentTexts || {};
       var actMap = getChapterActMap();
+      var outline = getPlanOutline();
+      var orderedChapterIds = [];
+      (outline.acts || []).slice().sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); }).forEach(function (act) {
+        (act.children || []).slice().sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); }).forEach(function (ch) {
+          orderedChapterIds.push(ch.id);
+        });
+      });
+      var orderIndex = {};
+      orderedChapterIds.forEach(function (id, i) { orderIndex[id] = i; });
+      visible.sort(function (a, b) {
+        var ai = orderIndex[a.key] != null ? orderIndex[a.key] : 999999;
+        var bi = orderIndex[b.key] != null ? orderIndex[b.key] : 999999;
+        return ai - bi;
+      });
       var lastAct = "";
       el.writingChapterList.innerHTML =
         "<section class='writing-codex-group'>" +
@@ -4106,9 +4364,10 @@
           label: title,
           parentKey: "",
           parentTitle: fallbackTitle,
-          childTitles: []
+          childTitles: [],
+          sortOrder: section && section.sortOrder != null ? Number(section.sortOrder) : (index + 1)
         };
-      }).filter(Boolean);
+      }).filter(Boolean).sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
     }
 
     function buildWritingWorkspaceSectionPayloadsFromText(text, project) {
@@ -4362,6 +4621,7 @@
           });
           if (outlineResult && outlineResult.ok && outlineResult.outline) {
             appState.writingWorkspace.outline = outlineResult.outline;
+            sortOutlineBySortOrder_(appState.writingWorkspace.outline);
           }
           getPlanOutline();
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
@@ -4427,21 +4687,19 @@
         renderWritingCodexList(project);
         renderWritingWorkspaceInspector(project);
         initOutlineFromSegments();
-        renderPlanOutline();
         renderPlanBrainstorm();
         renderPlanCharacterArcs();
         renderPlanWorldBuild();
         refreshWritingWorkspaceSaveState();
         if (Number(project.series_id || 0)) {
-          Promise.all([
-            loadSeriesKnowledgeForSelectedProject(false),
-            loadSkEntities(Number(project.series_id || 0)),
-            (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
-          ]).finally(function () {
+          loadSeriesKnowledgeForSelectedProject(false).finally(function () {
             if (appState.writingWorkspace.version !== version) return;
             renderWritingCodexList(project);
             updateWritingInspectorCodex(project);
+            renderPlanOutline();
           });
+        } else {
+          renderPlanOutline();
         }
         return;
       }
@@ -4453,6 +4711,7 @@
         appState.writingWorkspace.lastSavedAt = String(cached.lastSavedAt || "");
         appState.writingWorkspace.savedSegmentTexts = Object.assign({}, cached.savedSegmentTexts || {});
         appState.writingWorkspace.outline = cached.outline && cached.outline.acts ? cached.outline : null;
+        if (appState.writingWorkspace.outline) sortOutlineBySortOrder_(appState.writingWorkspace.outline);
         appState.writingWorkspace.outlineSnapshot = String(cached.outlineSnapshot || "");
         appState.writingWorkspace.projectRow = projectRow;
         setWritingWorkspaceFilter(appState.writingWorkspace.filter);
@@ -4463,21 +4722,19 @@
         renderWritingCodexList(project);
         renderWritingWorkspaceInspector(project);
         initOutlineFromSegments();
-        renderPlanOutline();
         renderPlanBrainstorm();
         renderPlanCharacterArcs();
         renderPlanWorldBuild();
         refreshWritingWorkspaceSaveState();
         if (Number(project.series_id || 0)) {
-          Promise.all([
-            loadSeriesKnowledgeForSelectedProject(false),
-            loadSkEntities(Number(project.series_id || 0)),
-            (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
-          ]).finally(function () {
+          loadSeriesKnowledgeForSelectedProject(false).finally(function () {
             if (appState.writingWorkspace.version !== version) return;
             renderWritingCodexList(project);
             updateWritingInspectorCodex(project);
+            renderPlanOutline();
           });
+        } else {
+          renderPlanOutline();
         }
         return;
       }
@@ -4492,18 +4749,16 @@
       renderWritingCodexList(project);
       renderWritingWorkspaceInspector(project);
       refreshWritingWorkspaceSaveState();
-      if (Number(project.series_id || 0)) {
-        Promise.all([
-          loadSeriesKnowledgeForSelectedProject(false),
-          loadSkEntities(Number(project.series_id || 0)),
-          (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(Number(project.series_id || 0)) : Promise.resolve()
-        ]).finally(function () {
-          if (appState.writingWorkspace.version !== version) return;
-          renderWritingCodexList(project);
-          updateWritingInspectorCodex(project);
-        });
-      }
-      loadWritingWorkspaceDraft(true, version);
+        if (Number(project.series_id || 0)) {
+          loadSeriesKnowledgeForSelectedProject(false).finally(function () {
+            if (appState.writingWorkspace.version !== version) return;
+            renderWritingCodexList(project);
+            updateWritingInspectorCodex(project);
+            loadWritingWorkspaceDraft(true, version);
+          });
+        } else {
+          loadWritingWorkspaceDraft(true, version);
+        }
     }
 
     function getWritingWorkspaceEditorHtml() {
@@ -5152,7 +5407,7 @@
       const activeSeries = String(el.seriesFilter && el.seriesFilter.value || "All");
       const availableInitials = {};
       el.landingSeriesDeck.innerHTML = cards.map(function (card) {
-        const coverUrl = normalizeImageUrl(card.seriesImage || (card.cover && card.cover.image) || "") || DEFAULT_IMAGE_URL;
+        const coverUrl = normalizeImageUrl(card.seriesImage || (card.cover && card.cover.image) || "") || getDefaultImageUrl();
         const initial = String(card.series || "").trim().charAt(0).toUpperCase();
         const safeInitial = /^[A-Z]$/.test(initial) ? initial : "#";
         availableInitials[safeInitial] = true;
@@ -5498,7 +5753,7 @@
       var seriesSummary = String(project.series_summary || "").trim();
       var seriesSummaryDisplay = seriesSummary || "No series summary has been written yet.";
       var seriesBooks = getProjectsForSeries(seriesName);
-      var seriesImageUrl = normalizeImageUrl(project.series_image || "") || DEFAULT_IMAGE_URL;
+      var seriesImageUrl = normalizeImageUrl(project.series_image || "") || getDefaultImageUrl();
 
       var panelHtml = "<div class='landing-series-info-panel'>";
       panelHtml += "<div class='landing-series-info-header'>";
@@ -5597,8 +5852,9 @@
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
       if (el.writingCodexPanel) el.writingCodexPanel.hidden = (safeTab !== "workspace");
       if (el.planInfoPanelSidebar) el.planInfoPanelSidebar.hidden = (safeTab !== "plan");
+      if (el.codexTreePanel) el.codexTreePanel.hidden = (safeTab !== "codex");
       if (safeTab === "plan") {
-        setPlanSubTab("outline");
+        loadPlanData().then(function () { setPlanSubTab("outline"); });
       }
       if (safeTab === "workspace") {
         applyWritingWorkspaceSpellcheck();
@@ -5654,14 +5910,18 @@
         renderResourcesDashboard();
       }
       if (safeTab === "codex") {
-        renderSeriesKnowledgePanel(getSelectedProject());
         var codexProject = getSelectedProject();
         var codexSeriesId = Number(codexProject && codexProject.series_id || 0);
-        Promise.all([
-          loadSeriesKnowledgeForSelectedProject(false),
-          (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE && codexSeriesId) ? loadCodexEntities(codexSeriesId) : Promise.resolve()
-        ]).then(function () {
-          autoSelectSkEntity();
+        populateCodexInfoPanel(codexProject);
+        [el.skCharacterList, el.skLocationList, el.skObjectList, el.skLoreList, el.skContinuityList].forEach(function (e) {
+          if (e) e.innerHTML = "";
+        });
+        closeSkCodexInspector();
+        loadSeriesKnowledgeForSelectedProject(false).then(function () {
+          skHasAutoSelected = false;
+          renderCodexTree(codexSeriesId);
+          renderCodexDashboard(codexSeriesId);
+          restoreCodexLastSelection(codexSeriesId);
         });
       }
     }
@@ -6395,6 +6655,7 @@
           .filter(function (v) { return !!v; });
 
         populateFilters();
+        populateImagePickerMetaDatalists();
         loadInspectorOptions();
         applyFilters();
 
@@ -6452,6 +6713,7 @@
             loadSeriesMeta().then(function () {
               persistProjectsToCache();
               populateFilters();
+              populateImagePickerMetaDatalists();
               loadInspectorOptions();
               applyFilters();
 
@@ -7040,6 +7302,8 @@
       closeSettingsMenu();
       applyAutoSaveSettings(loadAutoSaveFromStorage());
       openMarkdownAutoSaveModal();
+      var preview = document.getElementById("autoSaveDefaultImage");
+      if (preview) preview.src = getDefaultImageUrl();
     });
     if (el.markdownHelpCloseButton) bindUiOnce(el.markdownHelpCloseButton, "help-modal-close", "click", closeMarkdownHelpModal);
     if (el.markdownAITestCloseButton) bindUiOnce(el.markdownAITestCloseButton, "ai-test-modal-close", "click", closeMarkdownAITestModal);
@@ -7059,6 +7323,22 @@
     if (el.markdownAutoSaveCloseButton) bindUiOnce(el.markdownAutoSaveCloseButton, "auto-save-modal-close", "click", function () {
       saveAutoSaveSettings();
     });
+    var autoSaveProjectImageBtn = document.getElementById("autoSaveSetProjectImageButton");
+    if (autoSaveProjectImageBtn) {
+      autoSaveProjectImageBtn.addEventListener("click", function () {
+        appState.imagePicker.targetMode = "defaultImage";
+        if (typeof openImagePickerModal === "function") openImagePickerModal();
+      });
+    }
+    var autoSaveClearDefaultBtn = document.getElementById("autoSaveClearDefaultImageButton");
+    if (autoSaveClearDefaultBtn) {
+      autoSaveClearDefaultBtn.addEventListener("click", function () {
+        setDefaultImageUrl("");
+        var preview = document.getElementById("autoSaveDefaultImage");
+        if (preview) preview.src = getDefaultImageUrl();
+        setStatus("Default image reset to built-in placeholder.", "ok");
+      });
+    }
     startAutoSaveTimer();
 
     bindUiOnce(el.detailsErrorLogFullButton, "open-error-log-details", "click", openErrorLogModal);

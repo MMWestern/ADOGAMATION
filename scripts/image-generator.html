@@ -1,4 +1,15 @@
     var _imageGeneratorMode = "cover";
+    var _genCropState = {
+        active: false,
+        aspect: 0,
+        box: { x: 0, y: 0, w: 0, h: 0 },
+        dragging: false,
+        resizing: false,
+        handle: "",
+        startX: 0,
+        startY: 0,
+        startBox: null
+    };
 
     function setImageGeneratorMode(mode) {
         _imageGeneratorMode = mode === "codex" ? "codex" : "cover";
@@ -103,7 +114,7 @@
     }
 
     function captureImageGeneratorSettings() {
-        return {
+        var settings = {
             mode: _imageGeneratorMode,
             style: String(el.imageGeneratorStyle && el.imageGeneratorStyle.value || "cinematic").trim(),
             mood: String(el.imageGeneratorMood && el.imageGeneratorMood.value || "mysterious").trim(),
@@ -119,6 +130,18 @@
             size: String(el.imageGeneratorSize && el.imageGeneratorSize.value || "768x1152").trim(),
             useSeriesSummaries: !!(el.imageGeneratorUseSeriesSummaries && el.imageGeneratorUseSeriesSummaries.checked)
         };
+        if (el.imageGeneratorProjectTitle) settings.projectTitle = String(el.imageGeneratorProjectTitle.value || "").trim();
+        if (el.imageGeneratorSummary) settings.summary = String(el.imageGeneratorSummary.value || "").trim();
+        if (el.imageGeneratorPromptPreview) settings.prompt = String(el.imageGeneratorPromptPreview.value || "").trim();
+        if (_imageGeneratorMode === "codex" && el.skCodexInspectorType) settings.entityType = el.skCodexInspectorType.value;
+        var project = getSelectedProjectForImageGenerator();
+        if (project) {
+            if (project.series) settings.series = String(project.series).trim();
+            if (project.genre) settings.genre = String(project.genre).trim();
+            if (project.pen_name) settings.author = String(project.pen_name).trim();
+        }
+        settings.generatedAt = new Date().toISOString();
+        return settings;
     }
 
     function applyImageGeneratorSettings(settings) {
@@ -551,9 +574,15 @@
                 el.imageGeneratorPreviewEmpty.textContent = "No image generated yet.";
             }
         }
+        var hasImage = !!safeEntry;
         if (el.imageGeneratorUseButton) {
-            el.imageGeneratorUseButton.disabled = !safeEntry || appState.imageGenerator.isGenerating;
+            el.imageGeneratorUseButton.disabled = !hasImage || appState.imageGenerator.isGenerating;
         }
+        if (el.imageGeneratorSaveButton) {
+            el.imageGeneratorSaveButton.disabled = !hasImage || appState.imageGenerator.isGenerating;
+        }
+        hideGeneratorCrop();
+        if (el.imageGeneratorCropButton) el.imageGeneratorCropButton.classList.remove("is-active");
         renderImageGeneratorHistory();
     }
 
@@ -645,7 +674,6 @@
             var entityDesc = String(el.skCodexInspectorDescription && el.skCodexInspectorDescription.value || "").trim();
             var entitySecondary = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
             var entityTertiary = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
-            var entityBadge = String(el.skCodexInspectorBadgeInput && el.skCodexInspectorBadgeInput.value || "").trim();
             var entityType = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
             if (!entityName && el.writingCodexModalTitle) {
                 entityName = String(el.writingCodexModalTitle.value || "").trim();
@@ -658,9 +686,6 @@
             }
             if (!entityTertiary && el.writingCodexModalTertiary) {
                 entityTertiary = String(el.writingCodexModalTertiary.value || "").trim();
-            }
-            if (!entityBadge && el.writingCodexModalBadgeInput) {
-                entityBadge = String(el.writingCodexModalBadgeInput.value || "").trim();
             }
             if (!entityType) {
                 entityType = appState.writingWorkspace.codexModalType || "";
@@ -680,10 +705,6 @@
                 if (entityType === "characters") el.imageGeneratorPose.value = "portrait";
                 else if (entityType === "locations") el.imageGeneratorPose.value = "establishing";
                 else if (entityType === "objects") el.imageGeneratorPose.value = "detail";
-            }
-            if (entityBadge && el.imageGeneratorSummary) {
-                var existing = el.imageGeneratorSummary.value;
-                el.imageGeneratorSummary.value = existing ? entityBadge + ": " + existing : entityBadge;
             }
         } else {
             if (el.imageGeneratorProjectTitle) {
@@ -893,7 +914,12 @@
         try {
             const response = await fetch(appState.imageGenerator.lastImageUrl);
             if (!response.ok) throw new Error("Could not fetch the generated image.");
-            const blob = await response.blob();
+            let blob = await response.blob();
+            if (_genCropState.active) {
+                setImageGeneratorStatus("Cropping image...", "warn");
+                var cropped = await cropGeneratorBlob(blob);
+                if (cropped) blob = cropped;
+            }
             const bundle = await buildOptimizedImageUploadBundle(blob, getNextImageGeneratorFileName("webp"));
             setImageGeneratorStatus("Uploading generated image to Drive...", "warn");
             supabaseRunner
@@ -908,6 +934,8 @@
                             else if (genEntityType === "locations") genCategory = "location";
                             else if (genEntityType === "objects") genCategory = "object";
                         }
+                        var selectedCat = el.imageGeneratorCategorySelect ? el.imageGeneratorCategorySelect.value : "";
+                        if (selectedCat) genCategory = selectedCat;
                         const fileRecord = {
                             id: result.fileId,
                             name: result.name,
@@ -943,8 +971,8 @@
                     bundle.previewName,
                     bundle.previewMimeType,
                     bundle.previewDataUrl,
-                    "",
-                    _imageGeneratorMode === "codex" ? ((el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "characters" ? "character" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "locations" ? "location" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "objects" ? "object" : "general") : "cover"
+                    JSON.stringify(captureImageGeneratorSettings()),
+                    (el.imageGeneratorCategorySelect && el.imageGeneratorCategorySelect.value) || (_imageGeneratorMode === "codex" ? ((el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "characters" ? "character" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "locations" ? "location" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "objects" ? "object" : "general") : "cover")
                 );
         } catch (err) {
             console.error("GENERATED IMAGE FETCH ERROR", err);
@@ -952,3 +980,308 @@
             if (el.imageGeneratorUseButton) el.imageGeneratorUseButton.disabled = false;
         }
     }
+
+    async function saveGeneratedImageToLibrary() {
+        if (!appState.imageGenerator.lastImageUrl) {
+            setImageGeneratorStatus("Generate an image first.", "error");
+            return;
+        }
+        if (el.imageGeneratorSaveButton) el.imageGeneratorSaveButton.disabled = true;
+        setImageGeneratorStatus("Fetching generated image from ComfyUI...", "warn");
+        try {
+            const response = await fetch(appState.imageGenerator.lastImageUrl);
+            if (!response.ok) throw new Error("Could not fetch the generated image.");
+            let blob = await response.blob();
+            if (_genCropState.active) {
+                setImageGeneratorStatus("Cropping image...", "warn");
+                var cropped = await cropGeneratorBlob(blob);
+                if (cropped) blob = cropped;
+            }
+            const bundle = await buildOptimizedImageUploadBundle(blob, getNextImageGeneratorFileName("webp"));
+            setImageGeneratorStatus("Uploading generated image to Drive...", "warn");
+            supabaseRunner
+                .withSuccessHandler(function (json) {
+                    try {
+                        const result = parseServerResult(json);
+                        if (result.ok === false) throw new Error(result.error || "Upload failed.");
+                        var genCategory = result.category || "general";
+                        if (genCategory === "general" && _imageGeneratorMode === "codex") {
+                            var genEntityType = el.skCodexInspectorType ? el.skCodexInspectorType.value : "";
+                            if (genEntityType === "characters") genCategory = "character";
+                            else if (genEntityType === "locations") genCategory = "location";
+                            else if (genEntityType === "objects") genCategory = "object";
+                        }
+                        var selectedCat = el.imageGeneratorCategorySelect ? el.imageGeneratorCategorySelect.value : "";
+                        if (selectedCat) genCategory = selectedCat;
+                        const fileRecord = {
+                            id: result.fileId,
+                            name: result.name,
+                            url: result.url,
+                            thumbnailUrl: result.thumbnailUrl,
+                            thumbnailFileId: result.thumbnailFileId || "",
+                            category: genCategory
+                        };
+                        fileRecord.generatorSettings = Object.assign({}, captureImageGeneratorSettings());
+                        appState.imagePicker.files.unshift(fileRecord);
+                        rememberImageGeneratorSettingsForImage(result.url);
+                        renderImagePickerGrid();
+                        setImageGeneratorStatus("Generated image saved to library.", "ok");
+                    } catch (err) {
+                        console.error("GENERATED IMAGE SAVE PARSE ERROR", err, json);
+                        setImageGeneratorStatus("Save failed: " + err.message, "error");
+                        if (el.imageGeneratorSaveButton) el.imageGeneratorSaveButton.disabled = false;
+                    }
+                })
+                .withFailureHandler(function (error) {
+                    const message = error && error.message ? error.message : String(error || "Unknown error");
+                    setImageGeneratorStatus("Save failed: " + message, "error");
+                    if (el.imageGeneratorSaveButton) el.imageGeneratorSaveButton.disabled = false;
+                })
+                .uploadProjectImageJsonFromClient(
+                    PROJECT_IMAGE_FOLDER_ID,
+                    bundle.originalName,
+                    bundle.originalMimeType,
+                    bundle.originalDataUrl,
+                    bundle.previewName,
+                    bundle.previewMimeType,
+                    bundle.previewDataUrl,
+                    JSON.stringify(captureImageGeneratorSettings()),
+                    (el.imageGeneratorCategorySelect && el.imageGeneratorCategorySelect.value) || (_imageGeneratorMode === "codex" ? ((el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "characters" ? "character" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "locations" ? "location" : (el.skCodexInspectorType ? el.skCodexInspectorType.value : "") === "objects" ? "object" : "general") : "cover")
+                );
+        } catch (err) {
+            console.error("GENERATED IMAGE SAVE FETCH ERROR", err);
+            setImageGeneratorStatus("Could not save generated image: " + err.message, "error");
+            if (el.imageGeneratorSaveButton) el.imageGeneratorSaveButton.disabled = false;
+        }
+    }
+
+    function getGeneratorImageDisplayRect() {
+        var img = el.imageGeneratorPreviewImage;
+        if (!img || img.hidden) return null;
+        var imgW = img.clientWidth;
+        var imgH = img.clientHeight;
+        var natW = img.naturalWidth;
+        var natH = img.naturalHeight;
+        if (!natW || !natH) return { x: 0, y: 0, w: imgW, h: imgH, natW: 1, natH: 1 };
+        var containerAspect = imgW / imgH;
+        var imageAspect = natW / natH;
+        var displayW, displayH, displayX, displayY;
+        if (imageAspect > containerAspect) {
+            displayW = imgW;
+            displayH = imgW / imageAspect;
+            displayX = 0;
+            displayY = (imgH - displayH) / 2;
+        } else {
+            displayH = imgH;
+            displayW = imgH * imageAspect;
+            displayX = (imgW - displayW) / 2;
+            displayY = 0;
+        }
+        return { x: displayX, y: displayY, w: displayW, h: displayH, natW: natW, natH: natH };
+    }
+
+    function initGeneratorCropBox() {
+        var img = el.imageGeneratorPreviewImage;
+        if (!img || img.hidden || !img.naturalWidth) return;
+        var display = getGeneratorImageDisplayRect();
+        if (!display) return;
+        var minDim = Math.min(display.w, display.h);
+        var size = Math.round(minDim * 0.6);
+        _genCropState.box = {
+            x: Math.round(display.x + (display.w - size) / 2),
+            y: Math.round(display.y + (display.h - size) / 2),
+            w: size,
+            h: _genCropState.aspect ? Math.round(size / _genCropState.aspect) : size
+        };
+        constrainGeneratorCropBox();
+        renderGeneratorCropBox();
+    }
+
+    function constrainGeneratorCropBox() {
+        var display = getGeneratorImageDisplayRect();
+        if (!display) return;
+        var b = _genCropState.box;
+        if (b.w < 40) b.w = 40;
+        if (b.h < 40) b.h = 40;
+        if (b.x < display.x) b.x = display.x;
+        if (b.y < display.y) b.y = display.y;
+        if (b.x + b.w > display.x + display.w) b.w = display.x + display.w - b.x;
+        if (b.y + b.h > display.y + display.h) b.h = display.y + display.h - b.y;
+        if (_genCropState.aspect) {
+            b.h = Math.round(b.w / _genCropState.aspect);
+            if (b.h > display.h) { b.h = display.h; b.w = Math.round(b.h * _genCropState.aspect); }
+            if (b.y + b.h > display.y + display.h) b.y = display.y + display.h - b.h;
+        }
+    }
+
+    function renderGeneratorCropBox() {
+        if (!el.imageGeneratorCropBox || !el.imageGeneratorCropOverlay) return;
+        var b = _genCropState.box;
+        el.imageGeneratorCropBox.style.left = b.x + "px";
+        el.imageGeneratorCropBox.style.top = b.y + "px";
+        el.imageGeneratorCropBox.style.width = b.w + "px";
+        el.imageGeneratorCropBox.style.height = b.h + "px";
+        var wrap = el.imageGeneratorPreviewImage ? el.imageGeneratorPreviewImage.parentElement : null;
+        if (wrap && el.imageGeneratorCropOverlay) {
+            var iw = wrap.clientWidth, ih = wrap.clientHeight;
+            if (iw > 0 && ih > 0) {
+                el.imageGeneratorCropOverlay.style.clipPath = "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, " +
+                    (b.x / iw * 100) + "% " + (b.y / ih * 100) + "%, " +
+                    (b.x / iw * 100) + "% " + ((b.y + b.h) / ih * 100) + "%, " +
+                    ((b.x + b.w) / iw * 100) + "% " + ((b.y + b.h) / ih * 100) + "%, " +
+                    ((b.x + b.w) / iw * 100) + "% " + (b.y / ih * 100) + "%, " +
+                    (b.x / iw * 100) + "% " + (b.y / ih * 100) + "%)";
+            }
+        }
+    }
+
+    function getGeneratorCropData() {
+        var display = getGeneratorImageDisplayRect();
+        if (!display) return null;
+        var b = _genCropState.box;
+        var relX = b.x - display.x;
+        var relY = b.y - display.y;
+        var scaleX = display.natW / display.w;
+        var scaleY = display.natH / display.h;
+        return {
+            x: Math.round(Math.max(0, relX * scaleX)),
+            y: Math.round(Math.max(0, relY * scaleY)),
+            width: Math.round(Math.min(display.natW, b.w * scaleX)),
+            height: Math.round(Math.min(display.natH, b.h * scaleY))
+        };
+    }
+
+    async function cropGeneratorBlob(blob) {
+        var cropData = getGeneratorCropData();
+        if (!cropData || cropData.width < 10 || cropData.height < 10) return null;
+        var img = await loadImageElementFromBlob(blob);
+        var canvas = document.createElement("canvas");
+        canvas.width = cropData.width;
+        canvas.height = cropData.height;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, cropData.width, cropData.height);
+        return new Promise(function (resolve) {
+            canvas.toBlob(function (cb) { resolve(cb); }, "image/webp", 0.9);
+        });
+    }
+
+    function showGeneratorCrop() {
+        var img = el.imageGeneratorPreviewImage;
+        if (!img || img.hidden) {
+            if (el.imageGeneratorCropButton) el.imageGeneratorCropButton.classList.remove("is-active");
+            return;
+        }
+        if (!img.naturalWidth) {
+            img.addEventListener("load", function onGenImgLoad() {
+                img.removeEventListener("load", onGenImgLoad);
+                showGeneratorCrop();
+            }, { once: true });
+            return;
+        }
+        _genCropState.active = true;
+        if (el.imageGeneratorCropButton) el.imageGeneratorCropButton.classList.add("is-active");
+        if (el.imageGeneratorCropOverlay) el.imageGeneratorCropOverlay.hidden = false;
+        if (el.imageGeneratorCropBox) el.imageGeneratorCropBox.hidden = false;
+        if (el.imageGeneratorCropAspect) el.imageGeneratorCropAspect.hidden = false;
+        updateGeneratorCropAspectButtons();
+        initGeneratorCropBox();
+    }
+
+    function hideGeneratorCrop() {
+        _genCropState.active = false;
+        _genCropState.dragging = false;
+        _genCropState.resizing = false;
+        if (el.imageGeneratorCropButton) el.imageGeneratorCropButton.classList.remove("is-active");
+        if (el.imageGeneratorCropOverlay) el.imageGeneratorCropOverlay.hidden = true;
+        if (el.imageGeneratorCropBox) el.imageGeneratorCropBox.hidden = true;
+        if (el.imageGeneratorCropAspect) el.imageGeneratorCropAspect.hidden = true;
+    }
+
+    function toggleGeneratorCrop() {
+        if (_genCropState.active) {
+            hideGeneratorCrop();
+        } else {
+            showGeneratorCrop();
+        }
+    }
+
+    function setGeneratorCropAspect(ratio) {
+        if (ratio === "free") _genCropState.aspect = 0;
+        else if (ratio === "1:1") _genCropState.aspect = 1;
+        else if (ratio === "3:4") _genCropState.aspect = 0.75;
+        else if (ratio === "16:9") _genCropState.aspect = 16 / 9;
+        updateGeneratorCropAspectButtons();
+        if (_genCropState.active) {
+            initGeneratorCropBox();
+        }
+    }
+
+    function updateGeneratorCropAspectButtons() {
+        if (!el.imageGeneratorCropAspect) return;
+        var activeLabel = _genCropState.aspect === 0 ? "free" : _genCropState.aspect === 1 ? "1:1" : _genCropState.aspect === 0.75 ? "3:4" : "16:9";
+        el.imageGeneratorCropAspect.querySelectorAll(".image-generator-crop-aspect-btn").forEach(function (btn) {
+            btn.classList.toggle("is-active", btn.getAttribute("data-aspect") === activeLabel);
+        });
+    }
+
+    (function initGeneratorCropInteraction() {
+        function onPointerDown(e) {
+            if (!_genCropState.active) return;
+            var overlay = el.imageGeneratorCropOverlay;
+            var box = el.imageGeneratorCropBox;
+            if (!overlay || !box) return;
+            var handle = e.target.getAttribute && e.target.getAttribute("data-handle");
+            if (handle) {
+                _genCropState.resizing = true;
+                _genCropState.handle = handle;
+            } else if (box.contains(e.target)) {
+                _genCropState.dragging = true;
+            } else {
+                return;
+            }
+            _genCropState.startX = e.clientX;
+            _genCropState.startY = e.clientY;
+            _genCropState.startBox = Object.assign({}, _genCropState.box);
+            e.preventDefault();
+        }
+        function onPointerMove(e) {
+            if (!_genCropState.dragging && !_genCropState.resizing) return;
+            if (!_genCropState.active) { _genCropState.dragging = false; _genCropState.resizing = false; return; }
+            var dx = e.clientX - _genCropState.startX;
+            var dy = e.clientY - _genCropState.startY;
+            var b = _genCropState.startBox;
+            var display = getGeneratorImageDisplayRect();
+            if (!display) return;
+            if (_genCropState.dragging) {
+                _genCropState.box.x = Math.max(display.x, Math.min(display.x + display.w - b.w, b.x + dx));
+                _genCropState.box.y = Math.max(display.y, Math.min(display.y + display.h - b.h, b.y + dy));
+            } else if (_genCropState.resizing) {
+                var h = _genCropState.handle;
+                var newW = b.w, newH = b.h, newX = b.x, newY = b.y;
+                if (h === "se") { newW = Math.max(40, b.w + dx); newH = _genCropState.aspect ? Math.round(newW / _genCropState.aspect) : Math.max(40, b.h + dy); }
+                else if (h === "sw") { newW = Math.max(40, b.w - dx); newH = _genCropState.aspect ? Math.round(newW / _genCropState.aspect) : Math.max(40, b.h + dy); newX = b.x + b.w - newW; }
+                else if (h === "ne") { newW = Math.max(40, b.w + dx); newH = _genCropState.aspect ? Math.round(newW / _genCropState.aspect) : Math.max(40, b.h - dy); newY = b.y + b.h - newH; }
+                else if (h === "nw") { newW = Math.max(40, b.w - dx); newH = _genCropState.aspect ? Math.round(newW / _genCropState.aspect) : Math.max(40, b.h - dy); newX = b.x + b.w - newW; newY = b.y + b.h - newH; }
+                _genCropState.box = { x: newX, y: newY, w: newW, h: newH };
+                constrainGeneratorCropBox();
+            }
+            renderGeneratorCropBox();
+            e.preventDefault();
+        }
+        function onPointerUp() { _genCropState.dragging = false; _genCropState.resizing = false; }
+        document.addEventListener("mousedown", function (e) {
+            if (el.imageGeneratorModal && el.imageGeneratorModal.classList.contains("is-open") && _genCropState.active) {
+                var wrap = el.imageGeneratorPreviewImage ? el.imageGeneratorPreviewImage.parentElement : null;
+                if (wrap && wrap.contains(e.target)) onPointerDown(e);
+            }
+        });
+        document.addEventListener("mousemove", onPointerMove);
+        document.addEventListener("mouseup", onPointerUp);
+    })();
+
+    window.addEventListener("resize", function () {
+        if (_genCropState.active) {
+            constrainGeneratorCropBox();
+            renderGeneratorCropBox();
+        }
+    });

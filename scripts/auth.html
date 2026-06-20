@@ -48,7 +48,7 @@
           _authUser = session ? session.user : null;
           if (_authUser) {
             _hideLoginScreen();
-            if (typeof loadProjects === 'function') loadProjects();
+            if (event !== 'TOKEN_REFRESHED' && typeof loadProjects === 'function' && (!appState || !appState.projects || !appState.projects.length)) loadProjects();
           } else {
             _showLoginScreen();
           }

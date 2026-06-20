@@ -23,7 +23,7 @@
         });
     });
 
-    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "legacy_doc_urls"];
+    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url"];
 
     _sbDefine('getSupabaseSeriesMetaJsonFromClient', function () {
       return sbClient.from('series').select(SUPABASE_SERIES_META_SELECT.join(',')).limit(500)
@@ -138,9 +138,9 @@
     });
 
     _sbDefine('getSupabaseProjectDocumentJsonFromClient', function (projectId, docType) {
-      return sbClient.from('documents').select('*').eq('project_id', projectId).eq('doc_type', docType).single()
+      return sbClient.from('documents').select('*').eq('project_id', projectId).eq('doc_type', docType).maybeSingle()
         .then(function (res) {
-          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          if (res.error) throw res.error;
           return JSON.stringify({ ok: true, row: res.data || null });
         });
     });
@@ -154,9 +154,9 @@
     });
 
     _sbDefine('getSupabaseProjectSectionBodyJsonFromClient', function (projectId, docType, sectionKey) {
-      return sbClient.from('document_sections').select('markdown_content').eq('project_id', projectId).eq('doc_type', docType).eq('section_key', sectionKey).single()
+      return sbClient.from('document_sections').select('markdown_content').eq('project_id', projectId).eq('doc_type', docType).eq('section_key', sectionKey).maybeSingle()
         .then(function (res) {
-          if (res.error && res.error.code !== 'PGRST116') throw res.error;
+          if (res.error) throw res.error;
           return JSON.stringify({ ok: true, text: res.data ? res.data.markdown_content : '' });
         });
     });
@@ -181,12 +181,12 @@
     // --- Series-level documents ---
     _sbDefine('getSupabaseSeriesDocumentJsonFromClient', function (seriesId, docType) {
       return sbClient.from('documents').select('id,series_id,doc_type,title,markdown_content,word_count,updated_at,created_at')
-        .eq('series_id', seriesId).eq('doc_type', docType).limit(1).single()
+        .eq('series_id', seriesId).eq('doc_type', docType).limit(1).maybeSingle()
         .then(function (res) {
-          if (res.error && res.error.code === 'PGRST116') {
+          if (res.error) throw res.error;
+          if (!res.data) {
             return JSON.stringify({ ok: true, exists: false, seriesId: seriesId, docType: docType, title: '', text: '', wordCount: 0, updatedAt: '' });
           }
-          if (res.error) throw res.error;
           var row = res.data;
           return JSON.stringify({
             ok: true, exists: true, seriesId: seriesId, docType: docType,

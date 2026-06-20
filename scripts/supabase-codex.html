@@ -108,21 +108,21 @@
         if (res.error) throw res.error;
         var saved = res.data;
         var savedId = Number(saved.id);
-        var delProjects = sbClient.from('codex_entity_projects').delete().eq('entity_id', savedId).then(function () { return null; });
-        var insProjects = projectLinks.length
-          ? Promise.all(projectLinks.map(function (link) {
-              var pid = Number(link.project_id || link.projectId || 0);
-              if (!pid) return Promise.resolve(null);
-              return sbClient.from('codex_entity_projects').insert([{ entity_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
-            }))
-          : Promise.resolve(null);
-        var delTags = sbClient.from('codex_entity_tags').delete().eq('entity_id', savedId).then(function () { return null; });
-        var insTags = tagIds.length
-          ? Promise.all(tagIds.map(function (tid) {
-              return sbClient.from('codex_entity_tags').insert([{ entity_id: savedId, tag_id: Number(tid) }]).then(function () { return null; });
-            }))
-          : Promise.resolve(null);
-        return Promise.all([delProjects, insProjects, delTags, insTags]).then(function () {
+        var projectOp = sbClient.from('codex_entity_projects').delete().eq('entity_id', savedId).then(function () { return null; }).then(function () {
+          if (!projectLinks.length) return null;
+          return Promise.all(projectLinks.map(function (link) {
+            var pid = Number(link.project_id || link.projectId || 0);
+            if (!pid) return Promise.resolve(null);
+            return sbClient.from('codex_entity_projects').insert([{ entity_id: savedId, project_id: pid, notes: String(link.notes || '').trim() }]).then(function () { return null; });
+          }));
+        });
+        var tagOp = sbClient.from('codex_entity_tags').delete().eq('entity_id', savedId).then(function () { return null; }).then(function () {
+          if (!tagIds.length) return null;
+          return Promise.all(tagIds.map(function (tid) {
+            return sbClient.from('codex_entity_tags').insert([{ entity_id: savedId, tag_id: Number(tid) }]).then(function () { return null; });
+          }));
+        });
+        return Promise.all([projectOp, tagOp]).then(function () {
           return JSON.stringify({ ok: true, entity: saved });
         });
       });

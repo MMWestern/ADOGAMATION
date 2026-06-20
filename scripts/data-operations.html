@@ -172,6 +172,25 @@
         });
     });
 
+    _sbDefine('saveImagePickerMetaFromClient', function (imageId, updatesJson) {
+      var safeId = String(imageId || '').trim();
+      if (!safeId) throw new Error('Image id is required.');
+      var updates = {};
+      if (updatesJson != null && String(updatesJson).trim()) {
+        try { updates = JSON.parse(String(updatesJson)); } catch (e) { updates = {}; }
+      }
+      if (!Object.keys(updates).length) return Promise.resolve(JSON.stringify({ ok: true }));
+      var dbUpdate = {};
+      if (updates.file_name != null) dbUpdate.file_name = String(updates.file_name).trim();
+      if (updates.category != null) dbUpdate.category = String(updates.category).trim() || 'general';
+      if (updates.generator_settings != null) dbUpdate.generator_settings = updates.generator_settings;
+      return sbClient.from('image_assets').update(dbUpdate).eq('id', safeId).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
     _sbDefine('saveImageCropJsonFromClient', function (imageId, cropDataJson, croppedStoragePath) {
       var safeId = String(imageId || '').trim();
       if (!safeId) throw new Error('Image id is required.');

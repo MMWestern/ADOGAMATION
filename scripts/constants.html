@@ -99,6 +99,17 @@ const DEFAULT_STATUS_OPTIONS = [
       { value: "The Lover", description: "A character driven by passion, connection, and emotional bonds." },
       { value: "The Jester", description: "A playful trickster who uses humor to reveal truths or lighten tension." }
     ];
+    const DEFAULT_MOTIVATION_ARC_OPTIONS = [
+      { value: "Flat / Steadfast", description: "Character remains unchanged; their resolve anchors the story." },
+      { value: "Positive Change", description: "Character overcomes a flaw or grows into a better version of themselves." },
+      { value: "Negative Change", description: "Character deteriorates morally or emotionally under pressure." },
+      { value: "Disillusionment", description: "Character loses faith in a belief, ideal, or person." },
+      { value: "Maturity", description: "Character transitions from innocence to experience through hardship." },
+      { value: "Redemption", description: "Character atones for past sins and earns a second chance." },
+      { value: "Corruption", description: "Character is gradually seduced by power, greed, or darkness." },
+      { value: "Fall", description: "Character suffers a catastrophic loss or failure that reshapes them." },
+      { value: "Healing", description: "Character recovers from trauma or grief and reclaims their life." }
+    ];
     const DASHBOARD_WRITING_STATUSES = ["Draft", "Writing", "Editing"];
     const DASHBOARD_DEVELOPMENT_STATUSES = ["Idea", "Concept", "Planning"];
     const INSPECTOR_OPTION_FIELDS = [
@@ -109,7 +120,8 @@ const DEFAULT_STATUS_OPTIONS = [
       { key: "priority", label: "Priority" },
       { key: "next_step", label: "Next Step" },
       { key: "character_role", label: "Character Role" },
-      { key: "character_archetype", label: "Character Archetype" }
+      { key: "character_archetype", label: "Character Archetype" },
+      { key: "motivation_arc", label: "Motivation / Arc" }
     ];
 
     const SCHEDULE_TEMPLATES = {

@@ -28,7 +28,7 @@
     var skEditingLocationId = 0;
     var skEditingContinuityId = 0;
     var skCurrentSeriesId = 0;
-    var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, continuityId: 0 };
+    var skLastSelection = { subTab: "characters", characterId: 0, locationId: 0, objectId: 0, loreId: 0, continuityId: 0 };
     var skHasAutoSelected = false;
 
     function normalizeSeriesKnowledgeRecord(record) {
@@ -72,14 +72,11 @@
         if (skHasAutoSelected) return;
         skHasAutoSelected = true;
         var useNew = typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE;
+        if (useNew) return; // new worldbuilding tree handles navigation
         var subTab = skLastSelection.subTab || "characters";
         if (subTab === "characters") {
-            if (useNew) {
-                renderSkCharacterList();
-            } else {
                 var chars = skCurrentSeriesId ? (skCache.characters[skCurrentSeriesId] || []) : [];
                 if (chars.length) editSkCharacter(skLastSelection.characterId || chars[0].id);
-            }
         } else if (subTab === "locations") {
             if (useNew) {
                 renderSkLocationList();
@@ -117,6 +114,8 @@
     }
 
     function setSkSubTab(tabKey) {
+        var useNew = typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE;
+        if (useNew) return; // worldbuilding tree handles navigation
         var tabs = ["lore", "characters", "locations", "objects", "continuity", "connections", "timelines", "mentions", "assets", "ai"];
         tabs.forEach(function (key) {
             var btn = el["skSubTab" + key.charAt(0).toUpperCase() + key.slice(1)];
@@ -220,8 +219,22 @@
                 renderSkConnectionList();
                 populateSkConnectionSelectors();
             }
-        } else if (tabKey !== "lore") {
-            autoSelectSkEntity();
+        } else {
+            if (useNew && skCurrentSeriesId && tabKey !== "lore" && tabKey !== "timelines" && tabKey !== "mentions" && tabKey !== "assets" && tabKey !== "ai" && tabKey !== "connections") {
+                var entities = codexCache.entitiesBySeries[skCurrentSeriesId] || [];
+                var typeKey = tabKey === "characters" ? "character" : tabKey === "locations" ? "location" : tabKey === "objects" ? "object" : "";
+                var filtered = typeKey ? entities.filter(function (e) { return e.codex_entity_types && e.codex_entity_types.key === typeKey; }) : [];
+                var savedId = tabKey === "characters" ? skLastSelection.characterId : tabKey === "locations" ? skLastSelection.locationId : tabKey === "objects" ? skLastSelection.objectId : 0;
+                var target = savedId ? filtered.find(function (e) { return Number(e.id) === savedId; }) : null;
+                if (!target && filtered.length) target = filtered[0];
+                if (target) {
+                    openSkCodexInspector(tabKey, Number(target.id));
+                } else {
+                    closeSkCodexInspector();
+                }
+            } else if (tabKey !== "lore") {
+                autoSelectSkEntity();
+            }
         }
     }
 
@@ -390,7 +403,8 @@
                                 }
                             });
                             return entities;
-                        });
+                        })
+                        .catch(function () { return entities; });
                 })
                 .catch(function (err) {
                     console.error('[CODEX] loadCodexEntities failed for series', seriesId, err);
@@ -869,6 +883,11 @@
         if (el.skCodexInspectorArchetype && el.skCharacterArchetype) {
             el.skCodexInspectorArchetype.innerHTML = el.skCharacterArchetype.innerHTML;
         }
+        if (el.skCodexInspectorSecondary) {
+            var motVals = getInspectorOptionValues("motivation_arc", DEFAULT_MOTIVATION_ARC_OPTIONS);
+            var motDescs = getInspectorOptionDescriptions("motivation_arc", DEFAULT_MOTIVATION_ARC_OPTIONS);
+            populateSelectWithBlank(el.skCodexInspectorSecondary, motVals, "Select motivation / arc...", motDescs);
+        }
     }
 
     var _skCodexInspectorType = "";
@@ -880,10 +899,9 @@
         _skCodexInspectorType = type || "";
         _skCodexInspectorId = Number(id || 0);
         _skCodexInspectorIsNew = !_skCodexInspectorId;
-        el.skCodexInspector.hidden = false;
         if (el.skCodexInspectorId) el.skCodexInspectorId.value = String(_skCodexInspectorId);
         if (el.skCodexInspectorType) el.skCodexInspectorType.value = _skCodexInspectorType;
-        var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", continuity: "Continuity", other: "Other" };
+        var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", continuity: "Continuity", other: "Other", maps: "Map", magic_systems: "Magic System" };
         if (el.skCodexInspectorTypeLabel) el.skCodexInspectorTypeLabel.textContent = typeLabels[type] || type || "Entity";
         if (el.skCodexInspectorDeleteButton) el.skCodexInspectorDeleteButton.hidden = _skCodexInspectorIsNew;
         if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.textContent = _skCodexInspectorIsNew ? "Create " + (typeLabels[type] || "Entry") : "Save Changes";
@@ -892,11 +910,19 @@
         if (isChar) {
             populateSkInspectorRoleArchetype();
         }
+        skLastSelection.subTab = type;
+        if (type === "characters") skLastSelection.characterId = _skCodexInspectorId;
+        else if (type === "locations") skLastSelection.locationId = _skCodexInspectorId;
+        else if (type === "objects") skLastSelection.objectId = _skCodexInspectorId;
+        else if (type === "lore") skLastSelection.loreId = _skCodexInspectorId;
+        else if (type === "maps") skLastSelection.mapId = _skCodexInspectorId;
+        else if (type === "magic_systems") skLastSelection.magicSystemId = _skCodexInspectorId;
         if (_skCodexInspectorIsNew) {
+            el.skCodexInspector.hidden = false;
             populateSkCodexInspector(null);
             return;
         }
-        populateSkCodexInspector(null);
+        el.skCodexInspector.hidden = false;
         var project = getSelectedProject();
         var seriesId = Number(project && project.series_id || 0);
         var entities = codexCache.entitiesBySeries[seriesId] || [];
@@ -911,7 +937,6 @@
         var isNew = !entity;
         if (el.skCodexInspectorNameDisplay) el.skCodexInspectorNameDisplay.textContent = isNew ? "New Entry" : (entity.name || "Unnamed");
         if (el.skCodexInspectorName) el.skCodexInspectorName.value = isNew ? "" : (entity.name || "");
-        if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = isNew ? "" : (entity.badge || "");
         if (el.skCodexInspectorRole) el.skCodexInspectorRole.value = isNew ? "" : (entity.role_archetype || "");
         if (el.skCodexInspectorArchetype) el.skCodexInspectorArchetype.value = isNew ? "" : (entity.archetype || "");
         if (el.skCodexInspectorDescription) el.skCodexInspectorDescription.value = isNew ? "" : (entity.description || "");
@@ -919,13 +944,24 @@
         if (el.skCodexInspectorTertiary) el.skCodexInspectorTertiary.value = "";
         if (el.skCodexInspectorImageUrl) el.skCodexInspectorImageUrl.value = isNew ? "" : (entity.image_url || "");
         if (el.skCodexInspectorScope) el.skCodexInspectorScope.value = isNew ? "series" : (entity.scope || "series");
-        if (el.skCodexInspectorBadge) {
-            var badge = isNew ? "" : (entity.badge || "");
-            if (badge) {
-                el.skCodexInspectorBadge.textContent = badge;
-                el.skCodexInspectorBadge.style.display = "";
+        var roleVal = isNew ? "" : (entity.role_archetype || "");
+        var archVal = isNew ? "" : (entity.archetype || "");
+        if (el.skCodexInspectorRoleBadge) {
+            if (roleVal) {
+                el.skCodexInspectorRoleBadge.textContent = roleVal;
+                el.skCodexInspectorRoleBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(roleVal);
+                el.skCodexInspectorRoleBadge.style.display = "";
             } else {
-                el.skCodexInspectorBadge.style.display = "none";
+                el.skCodexInspectorRoleBadge.style.display = "none";
+            }
+        }
+        if (el.skCodexInspectorArchetypeBadge) {
+            if (archVal) {
+                el.skCodexInspectorArchetypeBadge.textContent = archVal;
+                el.skCodexInspectorArchetypeBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(archVal);
+                el.skCodexInspectorArchetypeBadge.style.display = "";
+            } else {
+                el.skCodexInspectorArchetypeBadge.style.display = "none";
             }
         }
         setSkCodexInspectorColor(isNew ? "" : (entity.color || ""));
@@ -941,41 +977,41 @@
                 if (!result || !result.ok) return;
                 if (Number(el.skCodexInspectorId && el.skCodexInspectorId.value) !== entityId) return;
                 var entity = result.entity || {};
-                if (el.skCodexInspectorName) el.skCodexInspectorName.value = entity.name || "";
-                if (el.skCodexInspectorNameDisplay) el.skCodexInspectorNameDisplay.textContent = entity.name || "Unnamed";
-                if (el.skCodexInspectorDescription) el.skCodexInspectorDescription.value = entity.description || "";
-                if (el.skCodexInspectorScope) el.skCodexInspectorScope.value = entity.scope || "series";
-                if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = entity.badge || "";
-                if (el.skCodexInspectorBadge) {
-                    if (entity.badge) {
-                        el.skCodexInspectorBadge.textContent = entity.badge;
-                        el.skCodexInspectorBadge.style.display = "";
-                    } else {
-                        el.skCodexInspectorBadge.style.display = "none";
-                    }
-                }
-                setSkCodexInspectorColor(entity.color || "");
-                setSkCodexInspectorImage(entity.image_url || "");
-                updateSkCodexInspectorFallback(entity.name || "");
+                var roleVal = entity.role_archetype || "";
+                var archVal = entity.archetype || "";
                 if (entity.custom_data) {
                     var cd = entity.custom_data;
-                    var badgeVal = cd.role_archetype || cd.type || "";
-                    if (el.skCodexInspectorBadgeInput) el.skCodexInspectorBadgeInput.value = badgeVal;
-                    if (el.skCodexInspectorRole) el.skCodexInspectorRole.value = cd.role_archetype || "";
-                    if (el.skCodexInspectorArchetype) el.skCodexInspectorArchetype.value = cd.archetype || "";
-                    if (el.skCodexInspectorBadge) {
-                        if (badgeVal) {
-                            el.skCodexInspectorBadge.textContent = badgeVal;
-                            el.skCodexInspectorBadge.style.display = "";
-                        } else {
-                            el.skCodexInspectorBadge.style.display = "none";
-                        }
-                    }
+                    if (cd.role_archetype) roleVal = cd.role_archetype;
+                    if (cd.archetype) archVal = cd.archetype;
                     if (el.skCodexInspectorSecondary) {
                         el.skCodexInspectorSecondary.value = cd.motivation_arc || cd.significance || cd.notable_events || "";
                     }
                     if (el.skCodexInspectorTertiary) {
                         el.skCodexInspectorTertiary.value = cd.backstory || "";
+                    }
+                }
+                if (el.skCodexInspectorRole && roleVal && !el.skCodexInspectorRole.value) {
+                    el.skCodexInspectorRole.value = roleVal;
+                }
+                if (el.skCodexInspectorArchetype && archVal && !el.skCodexInspectorArchetype.value) {
+                    el.skCodexInspectorArchetype.value = archVal;
+                }
+                if (el.skCodexInspectorRoleBadge) {
+                    if (roleVal) {
+                        el.skCodexInspectorRoleBadge.textContent = roleVal;
+                        el.skCodexInspectorRoleBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(roleVal);
+                        el.skCodexInspectorRoleBadge.style.display = "";
+                    } else {
+                        el.skCodexInspectorRoleBadge.style.display = "none";
+                    }
+                }
+                if (el.skCodexInspectorArchetypeBadge) {
+                    if (archVal) {
+                        el.skCodexInspectorArchetypeBadge.textContent = archVal;
+                        el.skCodexInspectorArchetypeBadge.className = "sk-entity-role-badge badge-color-" + badgeColorIndex(archVal);
+                        el.skCodexInspectorArchetypeBadge.style.display = "";
+                    } else {
+                        el.skCodexInspectorArchetypeBadge.style.display = "none";
                     }
                 }
             })
@@ -1001,7 +1037,6 @@
             image_url: el.skCodexInspectorImage ? String(el.skCodexInspectorImage.src || "").trim() : "",
             color: getSkCodexInspectorColor(),
             scope: scopeVal,
-            badge: String(el.skCodexInspectorBadgeInput && el.skCodexInspectorBadgeInput.value || "").trim(),
             bookLinks: scopeVal === "book" && projectId ? [{ project_id: projectId }] : []
         };
         if (type === "characters") {
@@ -1010,11 +1045,21 @@
             payload.motivation_arc = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
             payload.backstory = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
         } else if (type === "locations" || type === "objects") {
-            payload.type = payload.badge;
             payload.significance = String(el.skCodexInspectorSecondary && el.skCodexInspectorSecondary.value || "").trim();
             payload.notable_events = String(el.skCodexInspectorTertiary && el.skCodexInspectorTertiary.value || "").trim();
         }
         var codexPayload = mapLegacySavePayloadToCodex_(type, payload, _skCodexInspectorId);
+        var existingEntities = codexCache.entitiesBySeries[seriesId] || [];
+        var existingEntity = existingEntities.find(function (e) { return Number(e.id) === Number(_skCodexInspectorId); });
+        var existingCustom = existingEntity && existingEntity.custom_data ? existingEntity.custom_data : {};
+        if (existingCustom.sections) {
+            if (!codexPayload.custom_data) codexPayload.custom_data = {};
+            codexPayload.custom_data.sections = existingCustom.sections;
+        }
+        if (existingCustom.relations_notes) {
+            if (!codexPayload.custom_data) codexPayload.custom_data = {};
+            codexPayload.custom_data.relations_notes = existingCustom.relations_notes;
+        }
         if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.disabled = true;
         setStatus("Saving...", "warn");
         callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(codexPayload)])
@@ -1033,6 +1078,7 @@
                 if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.textContent = "Save Changes";
                 setStatus("Entry saved.", "ok");
                 refreshCodexSubTabLists();
+                if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) refreshCurrentCodexView();
             })
             .catch(function (error) {
                 setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
@@ -1057,6 +1103,7 @@
                 closeSkCodexInspector();
                 setStatus("Entry deleted.", "ok");
                 refreshCodexSubTabLists();
+                if (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) refreshCurrentCodexView();
             })
             .catch(function (error) {
                 setStatus("Delete failed: " + (error && error.message ? error.message : error), "error");
@@ -1846,6 +1893,7 @@
             })
             .catch(function (err) {
                 console.error('loadSkConnections failed for series', seriesId, err);
+                skCache.connections[seriesId] = [];
                 return [];
             });
     }
@@ -2013,7 +2061,7 @@
                 skCachedCalendars[seriesId] = list;
                 return list;
             })
-            .catch(function () { return []; });
+            .catch(function () { skCachedCalendars[seriesId] = []; return []; });
     }
 
     function renderSkCalendarList() {
@@ -2105,7 +2153,7 @@
                 skCachedEvents[seriesId] = list;
                 return list;
             })
-            .catch(function () { return []; });
+            .catch(function () { skCachedEvents[seriesId] = []; return []; });
     }
 
     function renderSkEventList() {
@@ -2695,7 +2743,7 @@
         stopSkAiBadgePoll();
         skAiBadgePollTimer = setInterval(function () {
             updateSkAiProviderBadge();
-        }, 5000);
+        }, 30000);
     }
 
     function stopSkAiBadgePoll() {
@@ -3121,4 +3169,1314 @@
             .catch(function (error) {
                 if (el.skAiSemanticResults) el.skAiSemanticResults.innerHTML = "<div class='world-entity-empty'>Search failed: " + escapeHtml(error && error.message ? error.message : String(error)) + "</div>";
             });
+    }
+
+    // ── Codex World Building Tree ──────────────────────────────────────────
+
+    var CODEX_TREE_DEF = [
+      {
+        category: "Narrative",
+        items: [
+          { key: "characters", label: "Characters", icon: "\u{1F464}", entityTypeKey: "character" },
+          { key: "locations", label: "Locations", icon: "\u{1F4CD}", entityTypeKey: "location" },
+          { key: "objects", label: "Objects", icon: "\u{1F4E6}", entityTypeKey: "item" },
+          { key: "subplots", label: "Subplots", icon: "\u{1F3AD}", entityTypeKey: "quest" },
+          { key: "lore", label: "Lore", icon: "\u{1F4D6}", entityTypeKey: "lore" }
+        ]
+      },
+      {
+        category: "Systems",
+        items: [
+          { key: "magic_systems", label: "Magic Systems", icon: "\u26A1", entityTypeKey: "magic_system" },
+          { key: "maps", label: "Maps", icon: "\u{1F5FA}", entityTypeKey: "map" },
+          { key: "timelines", label: "Timelines", icon: "\u{1F4C5}", isFeature: true }
+        ]
+      },
+      {
+        category: "Meta",
+        items: [
+          { key: "continuity", label: "Continuity", icon: "\u{1F517}", entityTypeKey: "continuity_note" },
+          { key: "other", label: "Other", icon: "\u{1F4CB}", entityTypeKey: "journal" },
+          { key: "connections", label: "Connections", icon: "\u{1F500}", isFeature: true },
+          { key: "mentions", label: "Mentions", icon: "\u{1F4AC}", isFeature: true },
+          { key: "assets", label: "Assets", icon: "\u{1F4CE}", isFeature: true },
+          { key: "ai", label: "AI Tools", icon: "\u{1F916}", isFeature: true, isPlaceholder: true }
+        ]
+      }
+    ];
+
+    var _codexActiveTreeItem = "";
+    var _codexActiveEntityId = 0;
+    var _codexScopeFilter = "all";
+
+    function populateCodexInfoPanel(project) {
+      var selected = project || getSelectedProject();
+      if (el.codexInfoTitle) {
+        el.codexInfoTitle.textContent = selected && selected.title ? String(selected.title).trim() : "Select a Project";
+      }
+      if (el.codexInfoSeries) {
+        el.codexInfoSeries.textContent = selected && selected.series ? String(selected.series).trim() : "No series";
+      }
+      if (el.codexSeriesButton) el.codexSeriesButton.hidden = !selected || !selected.series;
+      if (el.codexInfoGenre) {
+        el.codexInfoGenre.textContent = selected && selected.genre ? String(selected.genre).trim() : "\u2014";
+      }
+      if (el.codexInfoAuthor) {
+        el.codexInfoAuthor.textContent = selected && selected.pen_name ? String(selected.pen_name).trim() : "\u2014";
+      }
+      if (el.codexInfoWords) {
+        var totalWords = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
+        el.codexInfoWords.textContent = selected && totalWords ? formatWordCount(totalWords) : "0w";
+      }
+      if (el.codexInfoImage) {
+        el.codexInfoImage.src = getProjectDisplayImageUrl(selected);
+        el.codexInfoImage.alt = selected && selected.title ? String(selected.title).trim() + " cover" : "Project cover";
+      }
+    }
+
+    function getEntityCountForType_(seriesId, entityTypeKey) {
+      if (!seriesId || !codexCache.entitiesBySeries[seriesId]) return 0;
+      return codexCache.entitiesBySeries[seriesId].filter(function (e) {
+        var ti = e.codex_entity_types || {};
+        return ti.key === entityTypeKey;
+      }).length;
+    }
+
+    function renderCodexTree(seriesId) {
+      if (!el.codexTreeContainer) return;
+      var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+      var currentProject = getSelectedProject();
+      var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
+      var html = "";
+      CODEX_TREE_DEF.forEach(function (cat) {
+        html += "<div class='writing-codex-group codex-tree-category'>";
+        html += "<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + cat.category + "'>";
+        html += "<span class='writing-codex-group-title'>" + cat.category + "</span>";
+        html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+        html += "</div>";
+        html += "<div class='writing-codex-group-list codex-tree-category-children'>";
+        cat.items.forEach(function (item) {
+          if (item.isFeature) {
+            var isActive = _codexActiveTreeItem === item.key;
+            html += "<div class='writing-codex-group codex-type-group' data-feature-key='" + item.key + "'>";
+            html += "<div class='writing-codex-group-header codex-type-header codex-feature-header'>";
+            html += "<div class='writing-codex-group-header-left'>";
+            html += "<span class='codex-type-header-icon'>" + item.icon + "</span>";
+            html += "<span class='writing-codex-group-title'>" + item.label + "</span>";
+            html += "</div>";
+            html += "<div class='writing-codex-group-header-right'>";
+            html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+            html += "</div>";
+            html += "</div>";
+            html += "<div class='writing-codex-group-list'>";
+            html += "<button type='button' class='writing-codex-entry codex-feature-entry" + (isActive ? " is-active" : "") + "' data-tree-key='" + item.key + "' data-tree-feature='1'>";
+            html += "<div class='writing-codex-entry-content'>";
+            html += "<div class='writing-codex-entry-title'>" + item.label + "</div>";
+            html += "</div>";
+            html += "</button>";
+            html += "</div>";
+            html += "</div>";
+          } else if (item.entityTypeKey) {
+            var entities = allEntities.filter(function (e) {
+              if ((e.codex_entity_types || {}).key !== item.entityTypeKey) return false;
+              if (_codexScopeFilter === "all") return true;
+              if (_codexScopeFilter === "series") return (e.scope || "series") === "series";
+              if (_codexScopeFilter === "book") {
+                if ((e.scope || "series") !== "book") return false;
+                var eid = Number(e.id || 0);
+                var links = eid && codexCache.entityDetails && codexCache.entityDetails[eid]
+                  ? (codexCache.entityDetails[eid].projectLinks || []) : [];
+                return links.some(function (lk) { return Number(lk.project_id || 0) === currentBookId; });
+              }
+              return true;
+            });
+            var count = entities.length;
+            html += "<div class='writing-codex-group codex-type-group" + (count ? "" : " is-empty") + "' data-type-key='" + item.entityTypeKey + "'>";
+            html += "<div class='writing-codex-group-header codex-type-header'>";
+            html += "<div class='writing-codex-group-header-left'>";
+            html += "<span class='codex-type-header-icon'>" + item.icon + "</span>";
+            html += "<span class='writing-codex-group-title'>" + item.label + "</span>";
+            html += "</div>";
+            html += "<div class='writing-codex-group-header-right'>";
+            html += "<span class='writing-codex-group-count" + (count ? "" : " is-zero") + "'>" + count + "</span>";
+            html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+            html += "</div>";
+            html += "</div>";
+            html += "<div class='writing-codex-group-list'" + (count ? "" : " hidden") + ">";
+            entities.forEach(function (entity) {
+              var name = entity.name || "Unnamed";
+              var desc = entity.summary || entity.description || "";
+              var imgUrl = entity.image_url || "";
+              var color = entity.color || "";
+              var custom = entity.custom_data || {};
+              var roleArchetype = String(custom.role_archetype || "").trim();
+              var archetype = String(custom.archetype || "").trim();
+              var thumbHtml = imgUrl
+                ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
+                : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+              var scope = entity.scope || "series";
+              var pillHtml = "";
+              if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+              if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+              html += "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
+              html += thumbHtml;
+              html += "<div class='writing-codex-entry-content'>";
+              html += "<div class='writing-codex-entry-top'>";
+              html += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
+              html += "<div class='writing-codex-entry-badges'>" + pillHtml + "</div>";
+              html += "</div>";
+              html += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
+              html += "</div>";
+              html += "</button>";
+            });
+            html += "</div>"; // group-list
+            html += "</div>"; // type-group
+          }
+        });
+        html += "</div>"; // category-children
+        html += "</div>"; // category
+      });
+      el.codexTreeContainer.innerHTML = html;
+
+      el.codexTreeContainer.querySelectorAll(".codex-feature-entry").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var key = btn.getAttribute("data-tree-key") || "";
+          selectCodexTreeItem(key);
+          showCodexFeaturePage(key);
+        });
+      });
+
+      el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = Number(btn.getAttribute("data-entity-id") || 0);
+          var entityType = btn.getAttribute("data-entity-type") || "";
+          var entities = allEntities.filter(function (e) { return (e.codex_entity_types || {}).key === entityType; });
+          var entity = entities.find(function (e) { return Number(e.id) === id; });
+          if (entity) showCodexEntityDetail(entity, entityType);
+        });
+      });
+
+      el.codexTreeContainer.querySelectorAll(".codex-tree-category-header").forEach(function (hdr) {
+        hdr.addEventListener("click", function () {
+          var children = hdr.nextElementSibling;
+          if (!children) return;
+          var isHidden = children.hidden;
+          children.hidden = !isHidden;
+          var chevron = hdr.querySelector(".writing-codex-group-chevron");
+          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+        });
+      });
+
+      el.codexTreeContainer.querySelectorAll(".codex-type-header").forEach(function (hdr) {
+        hdr.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var groupList = hdr.nextElementSibling;
+          if (!groupList) return;
+          var isHidden = groupList.hidden;
+          groupList.hidden = !isHidden;
+          var chevron = hdr.querySelector(".writing-codex-group-chevron");
+          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+        });
+      });
+
+      if (!window._codexSidebarWired) {
+        wireCodexTreeSearch_();
+        wireCodexSidebarControls_();
+        window._codexSidebarWired = true;
+      }
+    }
+
+    function wireCodexSidebarControls_() {
+      var filterBtns = [el.codexFilterAll, el.codexFilterSeries, el.codexFilterBook].filter(Boolean);
+      function applyScopeFilter_() {
+        refreshCurrentCodexView();
+      }
+      filterBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          filterBtns.forEach(function (b) { b.classList.remove("is-active"); });
+          btn.classList.add("is-active");
+          _codexScopeFilter = btn.getAttribute("data-codex-filter") || "all";
+          applyScopeFilter_();
+        });
+      });
+
+      var newEntryBtn = el.codexNewEntry;
+      var newEntryDropdown = el.codexNewEntryDropdown;
+      if (newEntryBtn && newEntryDropdown) {
+        newEntryBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var open = newEntryDropdown.hidden;
+          newEntryDropdown.hidden = !open;
+          newEntryBtn.setAttribute("aria-expanded", String(open));
+        });
+        newEntryDropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (opt) {
+          opt.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var type = opt.getAttribute("data-new-type") || "";
+            newEntryDropdown.hidden = true;
+            newEntryBtn.setAttribute("aria-expanded", "false");
+            if (type) {
+              var singularKey = (typeof CODEX_GROUP_TO_TYPE_KEY !== "undefined" && CODEX_GROUP_TO_TYPE_KEY[type]) || type;
+              var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: {} };
+              showCodexEntityDetail(newEntity, singularKey);
+            }
+          });
+        });
+        document.addEventListener("click", function () {
+          if (!newEntryDropdown.hidden) {
+            newEntryDropdown.hidden = true;
+            newEntryBtn.setAttribute("aria-expanded", "false");
+          }
+        });
+      }
+    }
+
+    function wireCodexTreeSearch_() {
+      var input = el.codexTreeSearchInput;
+      var clearBtn = el.codexTreeSearchClear;
+      if (!input) return;
+      input.addEventListener("input", function () {
+        var q = input.value.trim().toLowerCase();
+        if (clearBtn) clearBtn.hidden = !q;
+        el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
+          var title = entry.querySelector(".writing-codex-entry-title");
+          var body = entry.querySelector(".writing-codex-entry-body");
+          var match = !q || (title && title.textContent.toLowerCase().indexOf(q) !== -1) || (body && body.textContent.toLowerCase().indexOf(q) !== -1);
+          entry.style.display = match ? "" : "none";
+        });
+      });
+      if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+          input.value = "";
+          clearBtn.hidden = true;
+          el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
+            entry.style.display = "";
+          });
+        });
+      }
+    }
+
+    function selectCodexTreeItem(key) {
+      _codexActiveTreeItem = key;
+      _codexActiveEntityId = 0;
+      el.codexTreeContainer.querySelectorAll(".codex-feature-entry").forEach(function (item) {
+        item.classList.toggle("is-active", item.getAttribute("data-tree-key") === key);
+      });
+      el.codexTreeContainer.querySelectorAll(".codex-entity-entry.is-active").forEach(function (item) {
+        item.classList.remove("is-active");
+      });
+    }
+
+    function renderCodexDashboard(seriesId) {
+      if (!el.codexDashboardStats) return;
+      var html = "";
+      var countTotal = 0;
+      CODEX_TREE_DEF.forEach(function (cat) {
+        cat.items.forEach(function (item) {
+          if (!item.entityTypeKey) return;
+          var count = getEntityCountForType_(seriesId, item.entityTypeKey);
+          if (count > 0) countTotal += count;
+          html += "<div class='codex-dashboard-card' data-tree-key='" + item.key + "'>";
+          html += "<div class='codex-dashboard-card-header'>";
+          html += "<span class='codex-dashboard-card-icon'>" + item.icon + "</span>";
+          html += "<span class='codex-dashboard-card-count'>" + count + "</span>";
+          html += "</div>";
+          html += "<div class='codex-dashboard-card-label'>" + item.label + "</div>";
+          html += "</div>";
+        });
+      });
+      el.codexDashboardStats.innerHTML = html;
+
+      el.codexDashboardStats.querySelectorAll(".codex-dashboard-card").forEach(function (card) {
+        card.addEventListener("click", function () {
+          var key = card.getAttribute("data-tree-key") || "";
+          var entityTypeKey = "";
+          CODEX_TREE_DEF.forEach(function (cat) {
+            cat.items.forEach(function (item) {
+              if (item.key === key && item.entityTypeKey) entityTypeKey = item.entityTypeKey;
+            });
+          });
+          if (!entityTypeKey) return;
+          var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+          var filtered = entities.filter(function (e) { return (e.codex_entity_types || {}).key === entityTypeKey; });
+          if (filtered.length) {
+            var savedId = 0;
+            var selMap = { character: "characterId", location: "locationId", item: "objectId", lore: "loreId", map: "mapId", magic_system: "magicSystemId" };
+            var selField = selMap[entityTypeKey] || "";
+            if (selField && skLastSelection[selField]) savedId = Number(skLastSelection[selField]);
+            var target = savedId ? filtered.find(function (e) { return Number(e.id) === savedId; }) : null;
+            if (!target) target = filtered[0];
+            if (target) {
+              var treeEntry = el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + target.id + "']");
+              if (treeEntry) treeEntry.click();
+            }
+          }
+        });
+      });
+
+      if (el.resourceSeriesKnowledgeSeriesName) {
+        var project = getSelectedProject();
+        var seriesName = project && project.series ? String(project.series).trim() : "No series selected";
+        var projectName = project && project.title ? String(project.title).trim() : "Choose a project to edit its shared series knowledge.";
+        el.resourceSeriesKnowledgeSeriesName.textContent = seriesName;
+        el.resourceSeriesKnowledgeProjectName.textContent = projectName;
+      }
+    }
+
+    var CODEX_DETAIL_SECTIONS = [
+      { key: "physical_description", label: "Physical Description" },
+      { key: "personality_summary", label: "Personality Summary" },
+      { key: "traits", label: "Traits" },
+      { key: "core_motivation", label: "Core Motivation" },
+      { key: "background", label: "Background" },
+      { key: "strengths", label: "Strengths" },
+      { key: "flaws", label: "Flaws" },
+      { key: "fears", label: "Fears" },
+      { key: "internal_conflict", label: "Internal Conflict" },
+      { key: "external_conflict", label: "External Conflict" },
+      { key: "quirks", label: "Quirks" },
+      { key: "dialogue_style", label: "Dialogue Style" },
+      { key: "arc_notes", label: "Arc Notes" },
+      { key: "secrets", label: "Secrets" },
+      { key: "notes", label: "Notes" }
+    ];
+    var _codexDetailActiveSections = [];
+
+    function getCodexSectionLabel_(key, entityTypeKey) {
+      var def = CODEX_DETAIL_SECTIONS.find(function (s) { return s.key === key; });
+      return def ? def.label : key;
+    }
+
+    function showCodexEntityDetail(entity, entityTypeKey) {
+      if (!entity) return;
+      if (el.codexDashboard) el.codexDashboard.hidden = true;
+      if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+      if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+      var isNew = !Number(entity.id);
+      var typeLabels = { character: "Character", location: "Location", item: "Object", lore: "Lore", quest: "Subplot", continuity_note: "Continuity", journal: "Entry", map: "Map", magic_system: "Magic System" };
+
+      var treeItem = null;
+      var pluralKey = "other";
+      CODEX_TREE_DEF.forEach(function (cat) {
+        cat.items.forEach(function (item) {
+          if (item.entityTypeKey === entityTypeKey) { treeItem = item; pluralKey = item.key; }
+        });
+      });
+      var typeName = treeItem ? treeItem.label : entityTypeKey;
+      var icon = treeItem ? treeItem.icon : "";
+      var name = entity.name || "Unnamed";
+      var imgUrl = entity.image_url || "";
+      var summary = entity.summary || "";
+      var description = entity.description || "";
+      var color = entity.color || "";
+      var scope = entity.scope || "series";
+      var typeInfo = entity.codex_entity_types || {};
+      var customData = entity.custom_data || {};
+      var roleArchetype = customData.role_archetype || "";
+      var archetype = customData.archetype || "";
+
+      var savedSections = customData.sections || {};
+      _codexDetailActiveSections = [];
+      CODEX_DETAIL_SECTIONS.forEach(function (s) {
+        if (savedSections[s.key]) _codexDetailActiveSections.push(s.key);
+      });
+
+      var COLORS = ["", "#ef4444", "#f97316", "#f59e0b", "#22c55e", "#14b8a6", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#f43f5e"];
+      var words = name.split(/\s+/).filter(Boolean);
+      var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
+      var html = "<div class='codex-entity-detail'>";
+
+      html += "<div class='codex-entity-detail-header'>";
+      if (imgUrl) {
+        html += "<div class='codex-entity-detail-image-wrap' id='codexDetailImageWrap'><img src='" + escapeHtml(imgUrl) + "' alt='' class='codex-entity-detail-image' /></div>";
+      } else {
+        html += "<div class='codex-entity-detail-image-wrap codex-entity-detail-image-placeholder' id='codexDetailImageWrap'><span class='codex-entity-detail-initials'>" + escapeHtml(initials) + "</span></div>";
+      }
+      html += "<div class='codex-entity-detail-header-meta'>";
+      html += "<div class='codex-detail-header-top'>";
+      html += "<span class='codex-entity-detail-type-badge'>" + escapeHtml(typeInfo.name_singular || typeName) + "</span>";
+      html += "<div class='codex-detail-color-wrap'>";
+      html += "<button type='button' class='codex-detail-color-dot' id='codexDetailColorTrigger' data-color='" + escapeHtml(color) + "' style='background:" + (color || "#3a3a42") + ";' title='Color tag'></button>";
+      html += "<div class='codex-detail-color-dropdown' id='codexDetailColorDropdown' hidden>";
+      COLORS.forEach(function (c) {
+        html += "<button type='button' class='codex-detail-color-option' data-color='" + c + "' style='background:" + (c || "#3a3a42") + ";'" + (c === color ? " data-selected='1'" : "") + "></button>";
+      });
+      html += "</div></div>";
+      html += "</div>";
+      html += "<div class='sk-badges-row' id='codexDetailBadges'>";
+      if (roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+      if (archetype && archetype !== roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      html += "</div>";
+      html += "<div class='codex-detail-field-group'>";
+      html += "<div class='codex-detail-field-wrap' style='grid-column:1/-1;'>";
+      html += "<label class='codex-detail-field-label'>Name</label>";
+      html += "<textarea id='codexDetailName' class='codex-detail-text name-field' rows='1'>" + escapeHtml(name) + "</textarea>";
+      html += "</div>";
+      if (entityTypeKey === "character") {
+        var roleSelect = document.getElementById("skCharacterRole");
+        var archSelect = document.getElementById("skCharacterArchetype");
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Role</label>";
+        html += "<select id='codexDetailRole' class='codex-detail-field-select'><option value=''>Select role...</option>";
+        if (roleSelect) {
+          Array.prototype.forEach.call(roleSelect.options, function (opt) {
+            if (opt.value) html += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === roleArchetype ? " selected" : "") + ">" + escapeHtml(opt.textContent) + "</option>";
+          });
+        }
+        html += "</select></div>";
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Archetype</label>";
+        html += "<select id='codexDetailArchetype' class='codex-detail-field-select'><option value=''>Select archetype...</option>";
+        if (archSelect) {
+          Array.prototype.forEach.call(archSelect.options, function (opt) {
+            if (opt.value) html += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === archetype ? " selected" : "") + ">" + escapeHtml(opt.textContent) + "</option>";
+          });
+        }
+        html += "</select></div>";
+      }
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Scope</label>";
+      html += "<select id='codexDetailScope' class='codex-detail-field-select'>";
+      html += "<option value='series'" + (scope === "series" ? " selected" : "") + ">All books in series</option>";
+      var entityId = Number(entity.id || 0);
+      var linkedBookId = 0;
+      if (entityId && codexCache.entityDetails && codexCache.entityDetails[entityId]) {
+        var links = codexCache.entityDetails[entityId].projectLinks || [];
+        if (links.length) {
+          scope = "book";
+          linkedBookId = Number(links[0].project_id || 0);
+        }
+      }
+      if (scope === "book" && !linkedBookId) {
+        html += "<option value='book:0' selected>Unassigned</option>";
+      }
+      var allProjects = getSkProjectsForSeries();
+      allProjects.forEach(function (p) {
+        var pid = Number(p.project_id || p.id || 0);
+        var ptitle = String(p.title || "Untitled").trim();
+        if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
+      });
+      html += "</select></div>";
+      if (entityTypeKey === "character") {
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Motivation / Arc</label>";
+        html += "<select id='codexDetailMotivation' class='codex-detail-field-select'>";
+        html += "<option value=''>Select motivation / arc...</option>";
+        var motivationValues = getInspectorOptionValues("motivation_arc", DEFAULT_MOTIVATION_ARC_OPTIONS);
+        var motivationDescs = getInspectorOptionDescriptions("motivation_arc", DEFAULT_MOTIVATION_ARC_OPTIONS);
+        var currentMotivation = customData.motivation_arc || "";
+        motivationValues.forEach(function (opt) {
+          var titleAttr = motivationDescs[opt] ? " title='" + escapeHtml(motivationDescs[opt]) + "'" : "";
+          html += "<option value='" + escapeHtml(opt) + "'" + titleAttr + (opt === currentMotivation ? " selected" : "") + ">" + escapeHtml(opt) + "</option>";
+        });
+        html += "</select></div>";
+      }
+      html += "</div>"; // field-group
+      html += "</div>"; // header-meta
+      html += "</div>"; // header
+
+      html += "<div class='codex-entity-detail-body'>";
+      html += "<div class='codex-entity-sub-tabs'>";
+      html += "<div class='codex-new-section-wrap'>";
+      html += "<button type='button' class='codex-new-section-btn' aria-expanded='false'>+ New Section</button>";
+      html += "<div class='codex-new-section-dropdown' hidden>";
+      CODEX_DETAIL_SECTIONS.forEach(function (s) {
+        html += "<button type='button' class='codex-new-section-option' data-section='" + s.key + "'>" + getCodexSectionLabel_(s.key, entityTypeKey) + "</button>";
+      });
+      html += "</div></div>";
+      html += "<button type='button' class='codex-sub-tab is-active' data-section='description'>Description</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='relations'>Relations</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='backstory'>Backstory</button>";
+      _codexDetailActiveSections.forEach(function (key) {
+        var label = getCodexSectionLabel_(key, entityTypeKey);
+        html += "<button type='button' class='codex-sub-tab codex-dynamic-tab' data-section='" + key + "'>" + label + "<span class='codex-sub-tab-remove' data-remove='" + key + "'>&times;</span></button>";
+      });
+      html += "</div>"; // sub-tabs
+      html += "<div class='codex-sub-tab-content'>";
+      html += "<div class='codex-detail-save-bar'>";
+      html += "<button id='codexDetailCancelBtn' type='button'" + (isNew ? "" : " hidden") + ">Cancel</button>";
+      html += "<button id='codexDetailDeleteBtn' type='button' style='color:#991b1b;margin-right:auto;'" + (isNew ? " hidden" : "") + ">Delete</button>";
+      html += "<button id='codexDetailSaveBtn' type='button' class='primary' data-saving='0'>" + (isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save") + "</button>";
+      html += "</div>";
+
+      html += "<div class='codex-sub-section' id='codexSectionDescription'>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Description</span>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<textarea id='codexDetailDescription' class='codex-detail-text description-field' rows='10' placeholder='Core details about this entry...'>" + escapeHtml(description) + "</textarea>";
+      html += "</div>";
+      html += "</div>";
+
+      html += "<div class='codex-sub-section' id='codexSectionRelations' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Relations</span>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<textarea id='codexDetailRelations' class='codex-detail-text description-field' rows='10' placeholder='Relationships, connections, and links to other entities...'>" + escapeHtml(customData.relations_notes || "") + "</textarea>";
+      html += "</div>";
+      html += "</div>";
+
+      html += "<div class='codex-sub-section' id='codexSectionBackstory' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Backstory</span>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<textarea id='codexDetailBackstory' class='codex-detail-text description-field' rows='10' placeholder='Pre-story context, history, and formative events...'>" + escapeHtml(customData.backstory || "") + "</textarea>";
+      html += "</div>";
+      html += "</div>";
+
+      _codexDetailActiveSections.forEach(function (key) {
+        var label = getCodexSectionLabel_(key, entityTypeKey);
+        var placeholder = label;
+        if (key === "description") placeholder = "Core details about this entry...";
+        else if (key === "secondary_notes") placeholder = entityTypeKey === "character" ? "Character arc, goals, internal conflict..." : "Importance and relevance...";
+        else if (key === "tertiary_notes") placeholder = entityTypeKey === "character" ? "Pre-story context and timeline notes..." : "Key events and history...";
+        html += "<div class='codex-sub-section codex-dynamic-section' data-section-key='" + key + "' hidden>";
+        html += "<div class='codex-sub-section-header'>";
+        html += "<span class='codex-sub-section-title'>" + label + "</span>";
+        html += "</div>";
+        html += "<div class='codex-sub-section-body'>";
+        html += "<textarea class='codex-detail-text description-field codex-section-textarea' data-section-key='" + key + "' rows='6' placeholder='" + escapeHtml(placeholder) + "'>" + escapeHtml(savedSections[key] || "") + "</textarea>";
+        html += "</div>";
+        html += "</div>";
+      });
+
+      html += "</div>"; // sub-tab-content
+      html += "</div>"; // entity-detail-body
+      html += "</div>"; // entity-detail
+
+      if (!el.codexEntityPageContent) return;
+      el.codexEntityPageContent.innerHTML = html;
+      el.codexEntityPage.hidden = false;
+
+      el.codexTreeContainer.querySelectorAll(".codex-entity-entry.is-active").forEach(function (c) { c.classList.remove("is-active"); });
+      var treeEntry = el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + entity.id + "']");
+      if (treeEntry) treeEntry.classList.add("is-active");
+
+      _codexActiveTreeItem = pluralKey;
+      _codexActiveEntityId = Number(entity.id);
+      var selMap = { character: "characterId", location: "locationId", item: "objectId", lore: "loreId", map: "mapId", magic_system: "magicSystemId" };
+      var selField = selMap[entityTypeKey] || "";
+      if (selField) skLastSelection[selField] = entity.id;
+
+      wireCodexSubTabs_();
+      wireCodexDetailSave_(entity, entityTypeKey, pluralKey);
+      wireCodexDetailAutoResize_();
+      wireCodexNewSection_(entity, entityTypeKey, pluralKey);
+      wireCodexDetailColorPicker_();
+      wireCodexDetailImage_(entity, entityTypeKey);
+      refreshCodexNewSectionDropdown_();
+    }
+
+    function wireCodexDetailImage_(entity, entityTypeKey) {
+      var imageWrap = document.getElementById("codexDetailImageWrap");
+      if (!imageWrap) return;
+      imageWrap.style.cursor = "pointer";
+      imageWrap.title = "Click to change image";
+      imageWrap.addEventListener("click", function () {
+        appState.imagePicker.targetMode = "codexDetail";
+        appState.imagePicker._codexDetailEntity = entity;
+        appState.imagePicker._codexDetailEntityTypeKey = entityTypeKey;
+        var typeFilterMap = { characters: "character", locations: "location", objects: "object" };
+        var defaultFilter = typeFilterMap[entityTypeKey] || "all";
+        if (typeof openImagePickerModal === "function") openImagePickerModal(defaultFilter);
+      });
+      var roleSelect = document.getElementById("codexDetailRole");
+      var archSelect = document.getElementById("codexDetailArchetype");
+      var badgesEl = document.getElementById("codexDetailBadges");
+      function updateBadges() {
+        if (!badgesEl) return;
+        var role = roleSelect ? roleSelect.value : "";
+        var arch = archSelect ? archSelect.value : "";
+        var pills = "";
+        if (role) pills += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(role) + "'>" + escapeHtml(role) + "</span>";
+        if (arch && arch !== role) pills += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(arch) + "'>" + escapeHtml(arch) + "</span>";
+        badgesEl.innerHTML = pills;
+        var eid = Number(entity.id || 0);
+        if (eid && el.codexTreeContainer) {
+          var treeEntry = el.codexTreeContainer.querySelector('[data-entity-id="' + eid + '"]');
+          if (treeEntry) {
+            var treeBadges = treeEntry.querySelector(".writing-codex-entry-badges");
+            if (treeBadges) treeBadges.innerHTML = pills;
+            else {
+              var badgesWrap = document.createElement("div");
+              badgesWrap.className = "writing-codex-entry-badges";
+              badgesWrap.innerHTML = pills;
+              treeEntry.appendChild(badgesWrap);
+            }
+          }
+        }
+      }
+      if (roleSelect) roleSelect.addEventListener("change", updateBadges);
+      if (archSelect) archSelect.addEventListener("change", updateBadges);
+    }
+
+    function wireCodexDetailAutoResize_() {
+      var nameField = document.getElementById("codexDetailName");
+      if (nameField) {
+        nameField.addEventListener("input", function () { nameField.style.height = "auto"; nameField.style.height = nameField.scrollHeight + "px"; });
+      }
+    }
+
+    function wireCodexSubTabs_() {
+      var container = el.codexEntityPageContent;
+      if (!container) return;
+      var tabs = container.querySelector(".codex-entity-sub-tabs");
+      if (!tabs) return;
+      tabs.addEventListener("click", function (e) {
+        var remove = e.target.closest(".codex-sub-tab-remove");
+        if (remove) {
+          var removeKey = remove.getAttribute("data-remove") || "";
+          removeCodexDetailSection(removeKey);
+          return;
+        }
+        var tab = e.target.closest(".codex-sub-tab");
+        if (!tab || !tabs.contains(tab)) return;
+        container.querySelectorAll(".codex-sub-tab.is-active").forEach(function (t) { t.classList.remove("is-active"); });
+        tab.classList.add("is-active");
+        var section = tab.getAttribute("data-section") || "";
+        container.querySelectorAll(".codex-sub-section").forEach(function (s) {
+          if (s.classList.contains("codex-dynamic-section")) {
+            s.hidden = s.getAttribute("data-section-key") !== section;
+          } else {
+            s.hidden = s.id !== "codexSection" + section.charAt(0).toUpperCase() + section.slice(1);
+          }
+        });
+      });
+    }
+
+    function wireCodexNewSection_(entity, entityTypeKey, pluralKey) {
+      var wrap = el.codexEntityPageContent && el.codexEntityPageContent.querySelector(".codex-new-section-wrap");
+      if (!wrap) return;
+      var btn = wrap.querySelector(".codex-new-section-btn");
+      var dropdown = wrap.querySelector(".codex-new-section-dropdown");
+      if (!btn || !dropdown) return;
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = dropdown.hidden;
+        dropdown.hidden = !open;
+        btn.setAttribute("aria-expanded", String(open));
+      });
+      dropdown.querySelectorAll(".codex-new-section-option").forEach(function (opt) {
+        opt.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var key = opt.getAttribute("data-section") || "";
+          addCodexDetailSection(key);
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+        });
+      });
+      document.addEventListener("click", function () {
+        if (!dropdown.hidden) {
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+
+    function wireCodexDetailColorPicker_() {
+      var trigger = document.getElementById("codexDetailColorTrigger");
+      var dropdown = document.getElementById("codexDetailColorDropdown");
+      var nameField = document.getElementById("codexDetailName");
+      if (!trigger || !dropdown) return;
+      function applyColor_(c) {
+        trigger.setAttribute("data-color", c);
+        trigger.style.background = c || "#888";
+        if (nameField) nameField.style.color = c || "#f2f2f4";
+      }
+      applyColor_(trigger.getAttribute("data-color") || "");
+      trigger.addEventListener("click", function (e) {
+        e.stopPropagation();
+        dropdown.hidden = !dropdown.hidden;
+      });
+      dropdown.querySelectorAll(".codex-detail-color-option").forEach(function (opt) {
+        opt.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var c = opt.getAttribute("data-color") || "";
+          applyColor_(c);
+          dropdown.hidden = true;
+          var entityId = _codexActiveEntityId;
+          if (entityId) {
+            var card = el.codexTreeContainer && el.codexTreeContainer.querySelector('[data-entity-id="' + entityId + '"]');
+            if (card) {
+              var dot = card.querySelector(".codex-tree-item-dot");
+              if (dot) dot.style.background = c || "#3a3a42";
+              var thumb = card.querySelector(".codex-tree-item-thumb");
+              if (thumb) thumb.style.borderColor = c || "";
+              var titleEl = card.querySelector(".writing-codex-entry-title");
+              if (titleEl) titleEl.style.color = c || "";
+            }
+          }
+        });
+      });
+      document.addEventListener("click", function () {
+        if (!dropdown.hidden) dropdown.hidden = true;
+      });
+    }
+
+    function refreshCodexNewSectionDropdown_() {
+      var container = el.codexEntityPageContent;
+      if (!container) return;
+      container.querySelectorAll(".codex-new-section-option").forEach(function (opt) {
+        var key = opt.getAttribute("data-section") || "";
+        opt.style.display = _codexDetailActiveSections.indexOf(key) !== -1 ? "none" : "";
+      });
+    }
+
+    function addCodexDetailSection(key) {
+      if (_codexDetailActiveSections.indexOf(key) !== -1) return;
+      _codexDetailActiveSections.push(key);
+      var container = el.codexEntityPageContent;
+      if (!container) return;
+      var entityTypeKey = "";
+      CODEX_TREE_DEF.forEach(function (cat) {
+        cat.items.forEach(function (item) {
+          if (item.key === _codexActiveTreeItem && item.entityTypeKey) entityTypeKey = item.entityTypeKey;
+        });
+      });
+      var label = getCodexSectionLabel_(key, entityTypeKey);
+      var tabs = container.querySelector(".codex-entity-sub-tabs");
+      if (tabs) {
+        var tabBtn = document.createElement("button");
+        tabBtn.type = "button";
+        tabBtn.className = "codex-sub-tab codex-dynamic-tab";
+        tabBtn.setAttribute("data-section", key);
+        tabBtn.textContent = label || key;
+        var removeSpan = document.createElement("span");
+        removeSpan.className = "codex-sub-tab-remove";
+        removeSpan.setAttribute("data-remove", key);
+        removeSpan.innerHTML = "&times;";
+        tabBtn.appendChild(removeSpan);
+        tabs.appendChild(tabBtn);
+      }
+      var content = container.querySelector(".codex-sub-tab-content");
+      if (content) {
+        var sectionDiv = document.createElement("div");
+        sectionDiv.className = "codex-sub-section codex-dynamic-section";
+        sectionDiv.setAttribute("data-section-key", key);
+        sectionDiv.hidden = false;
+        sectionDiv.innerHTML = "<div class='codex-sub-section-header'><span class='codex-sub-section-title'>" + (label || key) + "</span></div><div class='codex-sub-section-body'><textarea class='codex-detail-text description-field codex-section-textarea' data-section-key='" + key + "' rows='6' placeholder='" + (label || key) + "...'></textarea></div>";
+        content.appendChild(sectionDiv);
+      }
+      container.querySelectorAll(".codex-sub-tab.is-active").forEach(function (t) { t.classList.remove("is-active"); });
+      var newTab = container.querySelector(".codex-sub-tab[data-section='" + key + "']");
+      if (newTab) newTab.classList.add("is-active");
+      container.querySelectorAll(".codex-sub-section").forEach(function (s) {
+        if (s.classList.contains("codex-dynamic-section")) s.hidden = s.getAttribute("data-section-key") !== key;
+        else s.hidden = true;
+      });
+      refreshCodexNewSectionDropdown_();
+    }
+
+    function removeCodexDetailSection(key) {
+      var idx = _codexDetailActiveSections.indexOf(key);
+      if (idx !== -1) _codexDetailActiveSections.splice(idx, 1);
+      var container = el.codexEntityPageContent;
+      if (!container) return;
+      var tab = container.querySelector(".codex-sub-tab[data-section='" + key + "']");
+      var isActive = tab && tab.classList.contains("is-active");
+      if (tab) tab.parentNode.removeChild(tab);
+      var section = container.querySelector(".codex-dynamic-section[data-section-key='" + key + "']");
+      if (section) section.parentNode.removeChild(section);
+      if (isActive) {
+        var overviewTab = container.querySelector(".codex-sub-tab[data-section='description']");
+        if (overviewTab) overviewTab.click();
+      }
+      refreshCodexNewSectionDropdown_();
+    }
+
+    function wireCodexDetailSave_(entity, entityTypeKey, pluralKey) {
+      var saveBtn = document.getElementById("codexDetailSaveBtn");
+      if (!saveBtn) return;
+      var isNew = !Number(entity.id);
+      var currentEntityId = Number(entity.id) || 0;
+      var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", other: "Entry", continuity: "Continuity" };
+      saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
+      saveBtn.addEventListener("click", function () {
+        if (saveBtn.getAttribute("data-saving") === "1") return;
+        saveBtn.setAttribute("data-saving", "1");
+        saveBtn.textContent = "Saving...";
+        var project = getSelectedProject();
+        var seriesId = Number(project && project.series_id || 0);
+        if (!seriesId) { setStatus("Select a series first.", "error"); saveBtn.textContent = "Save"; saveBtn.setAttribute("data-saving", "0"); return; }
+        var name = String(document.getElementById("codexDetailName") && document.getElementById("codexDetailName").value || "").trim();
+        if (!name) { setStatus("Name is required.", "error"); saveBtn.textContent = "Save"; saveBtn.setAttribute("data-saving", "0"); return; }
+        var description = String(document.getElementById("codexDetailDescription") && document.getElementById("codexDetailDescription").value || "").trim();
+        var colorTrigger = document.getElementById("codexDetailColorTrigger");
+        var color = colorTrigger ? String(colorTrigger.getAttribute("data-color") || "").trim() : "";
+        var scopeSelect = document.getElementById("codexDetailScope");
+        var scopeRaw = scopeSelect ? scopeSelect.value : "series";
+        var scope = "series";
+        var scopeBookId = 0;
+        if (scopeRaw.indexOf("book:") === 0) {
+          scope = "book";
+          scopeBookId = Number(scopeRaw.split(":")[1] || 0);
+        }
+        var entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
+        if (!entityTypeId) {
+          callAppsScriptJson("listCodexEntityTypes", []).then(function (result) {
+            var types = result && result.types ? result.types : [];
+            var typesByKey = {};
+            types.forEach(function (t) { typesByKey[t.key] = t; });
+            if (typeof codexCache !== "undefined") codexCache.entityTypesByKey = typesByKey;
+            entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
+            if (!entityTypeId) { setStatus("Unknown entity type.", "error"); saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save"; saveBtn.setAttribute("data-saving", "0"); return; }
+            performSave(entityTypeId);
+          }).catch(function (err) {
+            setStatus("Failed to load entity types: " + (err && err.message ? err.message : err), "error");
+            saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
+            saveBtn.setAttribute("data-saving", "0");
+          });
+          return;
+        }
+        performSave(entityTypeId);
+        function performSave(eTypeId) {
+          var sections = {};
+          document.querySelectorAll(".codex-section-textarea").forEach(function (ta) {
+            var k = ta.getAttribute("data-section-key") || "";
+            if (k) sections[k] = String(ta.value || "").trim();
+          });
+          var relationsNotes = String(document.getElementById("codexDetailRelations") && document.getElementById("codexDetailRelations").value || "").trim();
+          var backstoryNotes = String(document.getElementById("codexDetailBackstory") && document.getElementById("codexDetailBackstory").value || "").trim();
+          var existingCustom = entity.custom_data || {};
+          var mergedCustom = {};
+          for (var ck in existingCustom) { if (existingCustom.hasOwnProperty(ck)) mergedCustom[ck] = existingCustom[ck]; }
+          mergedCustom.sections = sections;
+          if (relationsNotes) mergedCustom.relations_notes = relationsNotes;
+          else delete mergedCustom.relations_notes;
+          if (backstoryNotes) mergedCustom.backstory = backstoryNotes;
+          else delete mergedCustom.backstory;
+          var roleSelect = document.getElementById("codexDetailRole");
+          var archSelect = document.getElementById("codexDetailArchetype");
+          var motivationSelect = document.getElementById("codexDetailMotivation");
+          if (roleSelect) mergedCustom.role_archetype = roleSelect.value;
+          if (archSelect) mergedCustom.archetype = archSelect.value;
+          if (motivationSelect) mergedCustom.motivation_arc = motivationSelect.value;
+          var projectId = Number(project && (project.project_id || project.id) || 0);
+          var codexPayload = {
+            id: currentEntityId,
+            name: name,
+            title: name,
+            description: description,
+            image_url: String(entity.image_url || "").trim(),
+            color: color,
+            scope: scope,
+            projectLinks: scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [],
+            custom_data: mergedCustom
+          };
+          callAppsScriptJson("saveCodexEntity", [seriesId, eTypeId, JSON.stringify(codexPayload)])
+            .then(function (result) {
+              var saved = result && result.entity ? result.entity : {};
+              var savedId = Number(saved.id || 0);
+              if (savedId) {
+                currentEntityId = savedId;
+                _codexActiveEntityId = savedId;
+                entity.id = savedId;
+                if (!codexCache.entityDetails) codexCache.entityDetails = {};
+                if (scope === "book" && scopeBookId) {
+                  codexCache.entityDetails[savedId] = { projectLinks: [{ project_id: scopeBookId }] };
+                }
+              }
+              return loadCodexEntities(seriesId);
+            })
+            .then(function () {
+              setStatus("Saved.", "ok");
+              saveBtn.textContent = "Saved";
+              isNew = false;
+              setTimeout(function () { saveBtn.textContent = "Save"; }, 1500);
+              saveBtn.setAttribute("data-saving", "0");
+              refreshCurrentCodexView();
+            })
+            .catch(function (error) {
+              setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
+              saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
+              saveBtn.setAttribute("data-saving", "0");
+            });
+        }
+      });
+
+      var cancelBtn = document.getElementById("codexDetailCancelBtn");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function () {
+          if (isNew && _codexActiveEntityId) {
+            var project = getSelectedProject();
+            var seriesId = Number(project && project.series_id || 0);
+            var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+            var prevEntity = entities.find(function (e) { return Number(e.id) === _codexActiveEntityId; });
+            if (prevEntity) {
+              showCodexEntityDetail(prevEntity, prevEntity.entity_type_key || "");
+              return;
+            }
+          }
+          if (typeof closeSkCodexInspector === "function") closeSkCodexInspector();
+          if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+          if (el.codexDashboard) el.codexDashboard.hidden = false;
+        });
+      }
+
+      var deleteBtn = document.getElementById("codexDetailDeleteBtn");
+      if (deleteBtn) {
+        deleteBtn.hidden = isNew;
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this entry?")) return;
+          var project = getSelectedProject();
+          var seriesId = Number(project && project.series_id || 0);
+          if (!seriesId) return;
+          var entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
+          if (!entityTypeId) return;
+          callAppsScriptJson("deleteCodexEntity", [Number(entity.id)])
+            .then(function () {
+              return loadCodexEntities(seriesId);
+            })
+            .then(function () {
+              setStatus("Deleted.", "ok");
+              _codexActiveEntityId = 0;
+              renderCodexTree(seriesId);
+              renderCodexDashboard(seriesId);
+            })
+            .catch(function (error) {
+              setStatus("Delete failed: " + (error && error.message ? error.message : error), "error");
+            });
+        });
+      }
+    }
+
+    function showCodexFeaturePage(featureKey) {
+      if (el.codexDashboard) el.codexDashboard.hidden = true;
+      if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+      if (el.codexFeaturePage) el.codexFeaturePage.hidden = false;
+      if (!el.codexFeaturePageContent) return;
+
+      var seriesId = skCurrentSeriesId;
+      var html = "";
+
+      if (featureKey === "timelines") {
+        html += "<div class='add-entity-bar'><button id='skCalendarAddButton' type='button'>+ Add Calendar</button><button id='skEventAddButton' type='button'>+ Add Event</button></div>";
+        if (seriesId) {
+          loadSkCalendars(seriesId).then(function () {
+            loadSkEvents(seriesId).then(function () {
+              renderSkCalendarList();
+              renderSkEventList();
+            });
+          });
+        }
+        html += "<div style='margin-bottom:8px;'>" +
+          "<div style='font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;'>Calendars</div>" +
+          "<div id='skCalendarList' class='world-entity-list'></div>" +
+        "</div>" +
+        "<div style='margin-bottom:8px;'>" +
+          "<div style='font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;'>Events</div>" +
+          "<div id='skEventList' class='world-entity-list'></div>" +
+        "</div>" +
+        "<div id='skCalendarForm' class='sk-entity-form' hidden>" +
+          "<input type='hidden' id='skCalendarId' value='0' />" +
+          "<div class='sk-form-header'><div id='skCalendarNameDisplay' class='sk-form-name'>New Calendar</div></div>" +
+          "<label class='sk-form-field'><span>Name</span><input type='text' id='skCalendarName' placeholder='Calendar name...' /></label>" +
+          "<label class='sk-form-field'><span>Description</span><textarea id='skCalendarDescription' rows='2' placeholder='Calendar description...'></textarea></label>" +
+          "<div class='sk-form-actions'><button id='skCalendarFormSaveButton' type='button' class='primary'>Save</button><button id='skCalendarFormCancelButton' type='button'>Cancel</button><button id='skCalendarFormDeleteButton' type='button' class='danger'>Delete</button></div>" +
+        "</div>" +
+        "<div id='skEventForm' class='sk-entity-form' hidden>" +
+          "<input type='hidden' id='skEventId' value='0' />" +
+          "<div class='sk-form-header'><div id='skEventNameDisplay' class='sk-form-name'>New Event</div></div>" +
+          "<label class='sk-form-field'><span>Title</span><input type='text' id='skEventTitle' placeholder='Event title...' /></label>" +
+          "<label class='sk-form-field'><span>Description</span><textarea id='skEventDescription' rows='2' placeholder='Event description...'></textarea></label>" +
+          "<label class='sk-form-field'><span>Display Date</span><input type='text' id='skEventDisplayDate' placeholder='e.g. Year 3, Month 5, Day 12' /></label>" +
+          "<label class='sk-form-field'><span>Calendar</span><select id='skEventCalendar'></select></label>" +
+          "<label class='sk-form-field'><span>Sort Key</span><input type='number' id='skEventSortKey' placeholder='0' /></label>" +
+          "<div class='sk-form-actions'><button id='skEventFormSaveButton' type='button' class='primary'>Save</button><button id='skEventFormCancelButton' type='button'>Cancel</button><button id='skEventFormDeleteButton' type='button' class='danger'>Delete</button></div>" +
+        "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("Timelines", "\u{1F4C5}"));
+      } else if (featureKey === "connections") {
+        if (seriesId) {
+          loadSkConnections(seriesId).then(function () {
+            renderSkConnectionList();
+            populateSkConnectionSelectors();
+          });
+        }
+        html = "<div class='add-entity-bar'><button id='skConnectionAddButton' type='button'>+ Add Connection</button></div><div id='skConnectionList' class='world-entity-list'></div>" +
+          "<div id='skConnectionForm' class='sk-entity-form' hidden>" +
+            "<input type='hidden' id='skConnectionId' value='0' />" +
+            "<div class='sk-form-header'><div id='skConnectionNameDisplay' class='sk-form-name'>New Connection</div></div>" +
+            "<label class='sk-form-field'><span>Source Entity</span><select id='skConnectionSource'></select></label>" +
+            "<label class='sk-form-field'><span>Relationship Type</span><select id='skConnectionRelType'></select></label>" +
+            "<label class='sk-form-field'><span>Target Entity</span><select id='skConnectionTarget'></select></label>" +
+            "<label class='sk-form-field'><span>Description</span><textarea id='skConnectionDescription' rows='2'></textarea></label>" +
+            "<label class='sk-form-field'><span>Custom Label</span><input type='text' id='skConnectionLabel' /></label>" +
+            "<div class='sk-form-actions'><button id='skConnectionFormSaveButton' type='button' class='primary'>Save</button><button id='skConnectionFormCancelButton' type='button'>Cancel</button><button id='skConnectionFormDeleteButton' type='button' class='danger'>Delete</button></div>" +
+          "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("Connections", "\u{1F500}"));
+      } else if (featureKey === "mentions") {
+        if (seriesId) {
+          loadSkMentions(seriesId).then(function () {
+            renderSkMentionList();
+            populateSkMentionSelectors();
+          });
+        }
+        html = "<div class='add-entity-bar'><button id='skMentionAddButton' type='button'>+ Add Mention</button></div><div id='skMentionList' class='world-entity-list'></div>" +
+          "<div id='skMentionForm' class='sk-entity-form' hidden>" +
+            "<input type='hidden' id='skMentionId' value='0' />" +
+            "<div class='sk-form-header'><div id='skMentionNameDisplay' class='sk-form-name'>New Mention</div></div>" +
+            "<label class='sk-form-field'><span>Entity</span><select id='skMentionEntity'></select></label>" +
+            "<label class='sk-form-field'><span>Project</span><select id='skMentionProject'></select></label>" +
+            "<label class='sk-form-field'><span>Matched Text</span><input type='text' id='skMentionText' /></label>" +
+            "<label class='sk-form-field'><span>Method</span><select id='skMentionMethod'><option value='manual'>Manual</option><option value='alias_match'>Alias Match</option></select></label>" +
+            "<div class='sk-form-actions'><button id='skMentionFormSaveButton' type='button' class='primary'>Save</button><button id='skMentionFormCancelButton' type='button'>Cancel</button><button id='skMentionFormDeleteButton' type='button' class='danger'>Delete</button></div>" +
+          "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("Mentions", "\u{1F4AC}"));
+      } else if (featureKey === "assets") {
+        if (seriesId) loadSkAssets(seriesId).then(function () { renderSkAssetList(); populateSkAssetSelectors(); });
+        html = "<div class='add-entity-bar'><button id='skAssetAddButton' type='button'>+ Add Asset</button></div><div id='skAssetList' class='world-entity-list'></div>" +
+          "<div id='skAssetForm' class='sk-entity-form' hidden>" +
+            "<input type='hidden' id='skAssetId' value='0' />" +
+            "<div class='sk-form-header'><div id='skAssetNameDisplay' class='sk-form-name'>New Asset</div></div>" +
+            "<label class='sk-form-field'><span>Title</span><input type='text' id='skAssetTitle' /></label>" +
+            "<label class='sk-form-field'><span>Asset Type</span><select id='skAssetType'><option value='tagline'>Tagline</option><option value='blurb'>Blurb</option><option value='synopsis'>Synopsis</option><option value='other'>Other</option></select></label>" +
+            "<label class='sk-form-field'><span>Content</span><textarea id='skAssetContent' style='min-height:120px;'></textarea></label>" +
+            "<label class='sk-form-field'><span>Audience</span><input type='text' id='skAssetAudience' /></label>" +
+            "<label class='sk-form-field'><span>Status</span><select id='skAssetStatus'><option value='draft'>Draft</option><option value='review'>In Review</option><option value='approved'>Approved</option></select></label>" +
+            "<div class='sk-form-actions'><button id='skAssetFormSaveButton' type='button' class='primary'>Save</button><button id='skAssetFormCancelButton' type='button'>Cancel</button><button id='skAssetFormDeleteButton' type='button' class='danger'>Delete</button></div>" +
+          "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("Assets", "\u{1F4CE}"));
+      } else if (featureKey === "continuity") {
+        if (seriesId) {
+          loadSkContinuityFindings(seriesId);
+        }
+        html = "<div class='add-entity-bar'><button id='skContinuityAddButton' type='button'>+ Add Entry</button></div><div id='skContinuityList' class='world-entity-list'></div>" +
+          "<div class='sk-section-divider'></div>" +
+          "<div class='sk-continuity-findings-section'>" +
+            "<div class='add-entity-bar' style='align-items:center;gap:8px;'>" +
+              "<span style='font-weight:600;font-size:12px;'>AI Findings</span>" +
+              "<button id='skContinuityScanButton' type='button' style='flex:0 0 auto;font-size:11px;'>Scan for Issues</button>" +
+              "<span id='skContinuityScanStatus' class='tiny' style='color:var(--muted);margin-left:auto;'></span>" +
+            "</div>" +
+            "<div id='skContinuityFindingsList' class='world-entity-list' style='margin-top:6px;'></div>" +
+          "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("Continuity", "\u{1F517}"));
+        var scanBtn = document.getElementById("skContinuityScanButton");
+        if (scanBtn) {
+          scanBtn.addEventListener("click", function () {
+            if (typeof scanSkContinuity === "function") scanSkContinuity();
+          });
+        }
+      } else if (featureKey === "ai") {
+        html = "<div class='landing-empty' style='flex:1;'>AI Worldbuilding Tools coming soon.</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+        el.codexFeaturePageContent.insertAdjacentHTML("afterbegin", createFeatureHeader("AI Tools", "\u{1F916}"));
+      } else {
+        html = "<div class='landing-empty' style='flex:1;'>Unknown feature: " + escapeHtml(featureKey) + "</div>";
+        el.codexFeaturePageContent.innerHTML = html;
+      }
+
+      refreshFeatureElementCache();
+      rewireFeatureEventsForCodex();
+    }
+
+    function refreshFeatureElementCache() {
+      el.skCalendarList = document.getElementById("skCalendarList");
+      el.skCalendarForm = document.getElementById("skCalendarForm");
+      el.skCalendarId = document.getElementById("skCalendarId");
+      el.skCalendarNameDisplay = document.getElementById("skCalendarNameDisplay");
+      el.skCalendarName = document.getElementById("skCalendarName");
+      el.skCalendarDescription = document.getElementById("skCalendarDescription");
+      el.skCalendarFormSaveButton = document.getElementById("skCalendarFormSaveButton");
+      el.skCalendarFormCancelButton = document.getElementById("skCalendarFormCancelButton");
+      el.skCalendarFormDeleteButton = document.getElementById("skCalendarFormDeleteButton");
+      el.skEventList = document.getElementById("skEventList");
+      el.skEventForm = document.getElementById("skEventForm");
+      el.skEventId = document.getElementById("skEventId");
+      el.skEventNameDisplay = document.getElementById("skEventNameDisplay");
+      el.skEventTitle = document.getElementById("skEventTitle");
+      el.skEventDescription = document.getElementById("skEventDescription");
+      el.skEventDisplayDate = document.getElementById("skEventDisplayDate");
+      el.skEventCalendar = document.getElementById("skEventCalendar");
+      el.skEventSortKey = document.getElementById("skEventSortKey");
+      el.skEventFormSaveButton = document.getElementById("skEventFormSaveButton");
+      el.skEventFormCancelButton = document.getElementById("skEventFormCancelButton");
+      el.skEventFormDeleteButton = document.getElementById("skEventFormDeleteButton");
+      el.skConnectionList = document.getElementById("skConnectionList");
+      el.skConnectionForm = document.getElementById("skConnectionForm");
+      el.skConnectionId = document.getElementById("skConnectionId");
+      el.skConnectionNameDisplay = document.getElementById("skConnectionNameDisplay");
+      el.skConnectionSource = document.getElementById("skConnectionSource");
+      el.skConnectionRelType = document.getElementById("skConnectionRelType");
+      el.skConnectionTarget = document.getElementById("skConnectionTarget");
+      el.skConnectionDescription = document.getElementById("skConnectionDescription");
+      el.skConnectionLabel = document.getElementById("skConnectionLabel");
+      el.skConnectionFormSaveButton = document.getElementById("skConnectionFormSaveButton");
+      el.skConnectionFormCancelButton = document.getElementById("skConnectionFormCancelButton");
+      el.skConnectionFormDeleteButton = document.getElementById("skConnectionFormDeleteButton");
+      el.skMentionList = document.getElementById("skMentionList");
+      el.skMentionForm = document.getElementById("skMentionForm");
+      el.skMentionId = document.getElementById("skMentionId");
+      el.skMentionNameDisplay = document.getElementById("skMentionNameDisplay");
+      el.skMentionEntity = document.getElementById("skMentionEntity");
+      el.skMentionProject = document.getElementById("skMentionProject");
+      el.skMentionText = document.getElementById("skMentionText");
+      el.skMentionMethod = document.getElementById("skMentionMethod");
+      el.skMentionFormSaveButton = document.getElementById("skMentionFormSaveButton");
+      el.skMentionFormCancelButton = document.getElementById("skMentionFormCancelButton");
+      el.skMentionFormDeleteButton = document.getElementById("skMentionFormDeleteButton");
+      el.skAssetList = document.getElementById("skAssetList");
+      el.skAssetForm = document.getElementById("skAssetForm");
+      el.skAssetId = document.getElementById("skAssetId");
+      el.skAssetNameDisplay = document.getElementById("skAssetNameDisplay");
+      el.skAssetTitle = document.getElementById("skAssetTitle");
+      el.skAssetType = document.getElementById("skAssetType");
+      el.skAssetContent = document.getElementById("skAssetContent");
+      el.skAssetAudience = document.getElementById("skAssetAudience");
+      el.skAssetStatus = document.getElementById("skAssetStatus");
+      el.skAssetFormSaveButton = document.getElementById("skAssetFormSaveButton");
+      el.skAssetFormCancelButton = document.getElementById("skAssetFormCancelButton");
+      el.skAssetFormDeleteButton = document.getElementById("skAssetFormDeleteButton");
+      el.skContinuityList = document.getElementById("skContinuityList");
+      el.skContinuityFindingsList = document.getElementById("skContinuityFindingsList");
+      el.skContinuityScanButton = document.getElementById("skContinuityScanButton");
+      el.skContinuityScanStatus = document.getElementById("skContinuityScanStatus");
+    }
+
+    function restoreCodexLastSelection(seriesId) {
+      var selMap = { character: "characterId", location: "locationId", item: "objectId", lore: "loreId", map: "mapId", magic_system: "magicSystemId" };
+      var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+      for (var typeKey in selMap) {
+        var savedId = skLastSelection[selMap[typeKey]];
+        if (!savedId) continue;
+        var entity = entities.find(function (e) { return Number(e.id) === Number(savedId) && (e.codex_entity_types || {}).key === typeKey; });
+        if (entity) {
+          showCodexEntityDetail(entity, typeKey);
+          return;
+        }
+      }
+    }
+
+    function refreshCurrentCodexView() {
+      var seriesId = skCurrentSeriesId;
+      renderCodexTree(seriesId);
+      var treeItem = null;
+      CODEX_TREE_DEF.forEach(function (cat) {
+        cat.items.forEach(function (item) {
+          if (item.key === _codexActiveTreeItem) treeItem = item;
+        });
+      });
+      if (!treeItem) {
+        renderCodexDashboard(seriesId);
+      } else if (treeItem.isFeature) {
+        showCodexFeaturePage(treeItem.key);
+      } else if (treeItem.entityTypeKey && _codexActiveEntityId) {
+        var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+        var entity = entities.find(function (e) { return Number(e.id) === _codexActiveEntityId; });
+        if (entity) {
+          showCodexEntityDetail(entity, treeItem.entityTypeKey);
+        } else {
+          renderCodexDashboard(seriesId);
+        }
+      } else if (treeItem.entityTypeKey) {
+        renderCodexDashboard(seriesId);
+      }
+    }
+
+    function createFeatureHeader(label, icon) {
+      return "<div style='display:flex;align-items:center;gap:8px;flex-shrink:0;padding-bottom:4px;'>" +
+        "<span style='font-size:18px;'>" + icon + "</span>" +
+        "<span style='font-size:16px;font-weight:700;'>" + label + "</span>" +
+        "<span style='flex:1;'></span>" +
+      "</div>";
+    }
+
+    function rewireFeatureEventsForCodex() {
+      if (document.getElementById("skCalendarAddButton")) {
+        document.getElementById("skCalendarAddButton").addEventListener("click", function () {
+          editSkCalendar(0);
+        });
+      }
+      if (document.getElementById("skCalendarFormSaveButton")) {
+        document.getElementById("skCalendarFormSaveButton").addEventListener("click", saveSkCalendar);
+      }
+      if (document.getElementById("skCalendarFormCancelButton")) {
+        document.getElementById("skCalendarFormCancelButton").addEventListener("click", function () {
+          if (el.skCalendarForm) el.skCalendarForm.hidden = true;
+          skEditingCalendarId = 0;
+        });
+      }
+      if (document.getElementById("skCalendarFormDeleteButton")) {
+        document.getElementById("skCalendarFormDeleteButton").addEventListener("click", deleteSkCalendar);
+      }
+      if (document.getElementById("skEventAddButton")) {
+        document.getElementById("skEventAddButton").addEventListener("click", function () {
+          editSkEvent(0);
+        });
+      }
+      if (document.getElementById("skEventFormSaveButton")) {
+        document.getElementById("skEventFormSaveButton").addEventListener("click", saveSkEvent);
+      }
+      if (document.getElementById("skEventFormCancelButton")) {
+        document.getElementById("skEventFormCancelButton").addEventListener("click", function () {
+          if (el.skEventForm) el.skEventForm.hidden = true;
+          skEditingEventId = 0;
+        });
+      }
+      if (document.getElementById("skEventFormDeleteButton")) {
+        document.getElementById("skEventFormDeleteButton").addEventListener("click", deleteSkEvent);
+      }
+      if (document.getElementById("skConnectionAddButton")) {
+        document.getElementById("skConnectionAddButton").addEventListener("click", function () {
+          editSkConnection(0);
+        });
+      }
+      if (document.getElementById("skConnectionFormSaveButton")) {
+        document.getElementById("skConnectionFormSaveButton").addEventListener("click", saveSkConnection);
+      }
+      if (document.getElementById("skConnectionFormCancelButton")) {
+        document.getElementById("skConnectionFormCancelButton").addEventListener("click", function () {
+          if (el.skConnectionForm) el.skConnectionForm.hidden = true;
+          skEditingConnectionId = 0;
+        });
+      }
+      if (document.getElementById("skConnectionFormDeleteButton")) {
+        document.getElementById("skConnectionFormDeleteButton").addEventListener("click", deleteSkConnection);
+      }
+      if (document.getElementById("skMentionAddButton")) {
+        document.getElementById("skMentionAddButton").addEventListener("click", function () {
+          editSkMention(0);
+        });
+      }
+      if (document.getElementById("skMentionFormSaveButton")) {
+        document.getElementById("skMentionFormSaveButton").addEventListener("click", saveSkMention);
+      }
+      if (document.getElementById("skMentionFormCancelButton")) {
+        document.getElementById("skMentionFormCancelButton").addEventListener("click", function () {
+          if (el.skMentionForm) el.skMentionForm.hidden = true;
+          skEditingMentionId = 0;
+        });
+      }
+      if (document.getElementById("skMentionFormDeleteButton")) {
+        document.getElementById("skMentionFormDeleteButton").addEventListener("click", deleteSkMention);
+      }
+      if (document.getElementById("skAssetAddButton")) {
+        document.getElementById("skAssetAddButton").addEventListener("click", function () {
+          editSkAsset(0);
+        });
+      }
+      if (document.getElementById("skAssetFormSaveButton")) {
+        document.getElementById("skAssetFormSaveButton").addEventListener("click", saveSkAsset);
+      }
+      if (document.getElementById("skAssetFormCancelButton")) {
+        document.getElementById("skAssetFormCancelButton").addEventListener("click", function () {
+          if (el.skAssetForm) el.skAssetForm.hidden = true;
+          skEditingAssetId = 0;
+        });
+      }
+      if (document.getElementById("skAssetFormDeleteButton")) {
+        document.getElementById("skAssetFormDeleteButton").addEventListener("click", deleteSkAsset);
+      }
+      if (document.getElementById("skContinuityAddButton")) {
+        document.getElementById("skContinuityAddButton").addEventListener("click", function () {
+          editSkContinuityEntry(0);
+        });
+      }
     }

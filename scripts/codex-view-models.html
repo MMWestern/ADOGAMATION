@@ -18,7 +18,9 @@
         lore: 'lore',
         quest: 'subplots',
         journal: 'other',
-        continuity_note: 'continuity'
+        continuity_note: 'continuity',
+        map: 'maps',
+        magic_system: 'magic_systems'
       };
       var groupKey = pluralMap[typeKey] || typeKey;
       var linkedProjects = (projectLinks || []).map(function (link) {
@@ -177,7 +179,9 @@
       lore: 'lore',
       subplots: 'quest',
       continuity: 'continuity_note',
-      other: 'journal'
+      other: 'journal',
+      maps: 'map',
+      magic_systems: 'magic_system'
     };
 
     // Get entity list for a given sidebar type and series, switching between engines

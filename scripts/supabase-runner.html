@@ -68,7 +68,7 @@
         project_id: String(row && row.legacy_project_id || row && row.id || '').trim(),
         title: String(row && row.title || '').trim(),
         series: String(series.name || '').trim(),
-        'b#': row && row.book_number != null ? row.book_number : '',
+        'b#': row && row.book_number != null ? row.book_number : null,
         pen_name: String(row && row.pen_name || '').trim(),
         genre: String(row && row.genre || '').trim(),
         format: String(row && row.format || '').trim(),
