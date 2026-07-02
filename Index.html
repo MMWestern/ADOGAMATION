@@ -206,6 +206,45 @@
           </div>
         </div>
 
+        <div id="chatSidebarPanel" class="writing-codex-panel" hidden>
+          <div class="writing-codex-top">
+            <div id="chatInfoPanel" class="writing-codex-info-panel">
+              <img id="chatInfoImage" class="writing-codex-info-image" alt="Project cover" />
+              <div class="writing-codex-info-copy">
+                <div class="writing-codex-info-title" id="chatInfoTitle">Select a Project</div>
+                <div class="writing-codex-info-series" id="chatInfoSeries">No series</div>
+                <div class="writing-codex-info-grid">
+                  <div class="writing-codex-info-label">Genre</div>
+                  <div class="writing-codex-info-value" id="chatInfoGenre">—</div>
+                  <div class="writing-codex-info-label">Author</div>
+                  <div class="writing-codex-info-value" id="chatInfoAuthor">—</div>
+                  <div class="writing-codex-info-label">Words</div>
+                  <div class="writing-codex-info-value" id="chatInfoWords">0w</div>
+                </div>
+              </div>
+              <button id="chatSeriesButton" class="writing-codex-series-btn" type="button" title="Switch series book">SERIES</button>
+            </div>
+          </div>
+          <div class="writing-sidebar-tabs">
+            <button id="chatSidebarTabChats" type="button" class="writing-sidebar-tab is-active" onmousedown="switchChatSidebarTab('chats');return false;">CHATS</button>
+            <button id="chatSidebarTabSnippets" type="button" class="writing-sidebar-tab" onmousedown="switchChatSidebarTab('snippets');return false;">SNIPPETS</button>
+          </div>
+          <div id="chatSidebarChatsView" class="writing-sidebar-view">
+            <div class="chat-sidebar-header">
+              <strong>Chats</strong>
+              <button id="chatNewButton" type="button" class="chat-sidebar-new-btn" title="New Chat">+ New</button>
+            </div>
+            <div id="chatList" class="chat-sidebar-list"></div>
+          </div>
+          <div id="chatSidebarSnippetsView" class="writing-sidebar-view" hidden>
+            <div class="chat-sidebar-header">
+              <strong>Snippets</strong>
+              <button id="snippetNewButton" type="button" class="chat-sidebar-new-btn" title="New Snippet">+ New</button>
+            </div>
+            <div id="snippetList" class="chat-sidebar-list"></div>
+          </div>
+        </div>
+
         <div id="codexTreePanel" class="writing-codex-panel" hidden>
           <div class="writing-codex-top">
             <div id="codexInfoPanel" class="writing-codex-info-panel">
@@ -375,6 +414,7 @@
       <main class="panel">
         <div class="main-tab-bar">
           <button id="mainTabWriting" class="main-tab is-active" type="button" data-main-tab="writing">PROJECTS</button>
+          <button id="mainTabChat" class="main-tab" type="button" data-main-tab="chat">CHAT</button>
           <button id="mainTabPlan" class="main-tab" type="button" data-main-tab="plan">PLAN</button>
           <button id="mainTabWorkspace" class="main-tab" type="button" data-main-tab="workspace">WRITING</button>
           <button id="mainTabCodex" class="main-tab" type="button" data-main-tab="codex">CODEX</button>
@@ -390,6 +430,10 @@
               <div class="tiny landing-kicker">Home</div>
               <h2>Publishing Dashboard</h2>
               <p class="muted">A quick view of what needs doing today, what is moving through the pipeline, and where each series is sitting right now.</p>
+              <div class="landing-hero-actions">
+                <button id="newButton" type="button" class="projects-new-button" title="New Project">+ New Project</button>
+                <button id="seriesManagerButton" type="button" class="projects-manage-series-button" title="Manage Series">Manage Series</button>
+              </div>
             </div>
             <div id="landingHeroStats" class="landing-hero-stats"></div>
           </section>
@@ -454,7 +498,9 @@
             <h2>Projects</h2>
             <div class="muted" id="resultCount">0 visible results</div>
           </div>
-          <div class="tiny">Click a row to edit</div>
+           <div class="projects-header-actions">
+            <div class="tiny">Click a row to edit</div>
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -552,13 +598,6 @@
 
       <div id="mainTabContentPlan" class="main-tab-content" hidden>
         <div class="plan-panel">
-          <div class="plan-sub-tabs" role="tablist" aria-label="Planning section">
-            <button id="planSubTabOutline" class="plan-sub-tab is-active" type="button" data-plan-tab="outline" aria-pressed="true">Outlines</button>
-            <button id="planSubTabCharacterArcs" class="plan-sub-tab" type="button" data-plan-tab="character-arcs" aria-pressed="false">Character Arcs</button>
-            <button id="planSubTabBrainstorm" class="plan-sub-tab" type="button" data-plan-tab="brainstorm" aria-pressed="false">Brainstorming</button>
-            <button id="planSubTabWorldBuild" class="plan-sub-tab" type="button" data-plan-tab="world-build" aria-pressed="false">World Building</button>
-          </div>
-
           <div class="plan-tab-content-area">
             <div id="planTabOutline" class="plan-tab-pane">
               <div class="plan-empty-state" id="planOutlineEmpty">
@@ -569,41 +608,11 @@
               <div id="planOutlineContent" class="plan-editor-area" hidden>
                 <div class="plan-editor-toolbar">
                   <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
+                  <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
+                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
+                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
                 </div>
                 <div id="planOutlineGrid" class="plan-outline-grid"></div>
-              </div>
-            </div>
-
-            <div id="planTabCharacterArcs" class="plan-tab-pane" hidden>
-              <div class="plan-empty-state" id="planCharacterArcsEmpty">
-                <div class="plan-empty-icon">&#128101;</div>
-                <div class="plan-empty-title">Character arcs</div>
-                <div class="plan-empty-body">Track how each character changes across the story. Select a project to load its characters and define their arcs.</div>
-              </div>
-              <div id="planCharacterArcsContent" class="plan-editor-area" hidden>
-                <textarea id="planCharacterArcsEditor" class="plan-textarea" placeholder="Describe character arcs, motivations, and transformations..."></textarea>
-              </div>
-            </div>
-
-            <div id="planTabBrainstorm" class="plan-tab-pane" hidden>
-              <div class="plan-empty-state" id="planBrainstormEmpty">
-                <div class="plan-empty-icon">&#128161;</div>
-                <div class="plan-empty-title">Brainstorming board</div>
-                <div class="plan-empty-body">Jot ideas, what-if scenarios, and loose thoughts. Everything here is searchable and can be promoted into proper story elements.</div>
-              </div>
-              <div id="planBrainstormContent" class="plan-editor-area" hidden>
-                <textarea id="planBrainstormEditor" class="plan-textarea" placeholder="Drop ideas here..."></textarea>
-              </div>
-            </div>
-
-            <div id="planTabWorldBuild" class="plan-tab-pane" hidden>
-              <div class="plan-empty-state" id="planWorldBuildEmpty">
-                <div class="plan-empty-icon">&#127758;</div>
-                <div class="plan-empty-title">World building</div>
-                <div class="plan-empty-body">Map locations, cultures, histories, and systems. This feeds directly into the codex for reference while writing.</div>
-              </div>
-              <div id="planWorldBuildContent" class="plan-editor-area" hidden>
-                <textarea id="planWorldBuildEditor" class="plan-textarea" placeholder="Describe locations, cultures, magic systems, histories..."></textarea>
               </div>
             </div>
           </div>
@@ -619,6 +628,68 @@
               <input type="text" id="planCodexTagSearch" placeholder="Search codex..." />
             </div>
             <div class="plan-codex-tag-list" id="planCodexTagList"></div>
+          </div>
+        </div>
+
+        <div id="planOutlinePresetModal" class="plan-outline-preset-modal" hidden>
+          <div class="plan-outline-preset-card plan-outline-preset-card-wide">
+            <div class="plan-outline-preset-header">
+              <div class="plan-outline-preset-title">Outline Templates</div>
+              <button type="button" class="plan-outline-preset-close" id="planOutlinePresetClose">&#10005;</button>
+            </div>
+            <div class="plan-outline-preset-body plan-outline-preset-body-split">
+              <div class="plan-outline-preset-left">
+                <input type="text" class="plan-outline-preset-search" id="planOutlinePresetSearch" placeholder="Search templates..." />
+                <div class="plan-outline-preset-list" id="planOutlinePresetList"></div>
+                <button type="button" class="plan-outline-preset-new-btn" id="planOutlinePresetNewBtn">+ New Template</button>
+              </div>
+              <div class="plan-outline-preset-right">
+                <div class="plan-outline-preset-editor" id="planOutlinePresetEditor">
+                  <div class="plan-outline-preset-field">
+                    <label class="plan-outline-preset-label">Template Name</label>
+                    <input type="text" class="plan-outline-preset-input" id="planOutlinePresetName" placeholder="e.g. Three-Act Structure" />
+                  </div>
+                  <div class="plan-outline-preset-field">
+                    <label class="plan-outline-preset-label">Description</label>
+                    <input type="text" class="plan-outline-preset-input" id="planOutlinePresetDesc" placeholder="Brief description of this template" />
+                  </div>
+                  <div class="plan-outline-preset-tabs">
+                    <button type="button" class="plan-outline-preset-tab is-active" data-tab="quick" id="planOutlinePresetTabQuick">Quick</button>
+                    <button type="button" class="plan-outline-preset-tab" data-tab="manual" id="planOutlinePresetTabManual">Manual</button>
+                  </div>
+                  <div class="plan-outline-preset-tab-content" data-tab-content="quick">
+                    <div class="plan-outline-preset-field">
+                      <label class="plan-outline-preset-label">Shorthand</label>
+                      <input type="text" class="plan-outline-preset-input plan-outline-preset-input-mono" id="planOutlinePresetShorthand" placeholder="e.g. 3:4:3:2500" />
+                      <div class="plan-outline-preset-hint">Format: <strong>acts:chapters:scenes:wordsPerChapter</strong> &mdash; e.g. <code>3:4:3:2500</code> = 3 acts, 4 chapters each, 3 scenes each, 2500 words per chapter</div>
+                    </div>
+                    <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewQuick">
+                      <div class="plan-outline-preset-preview-empty">Enter a shorthand to see a preview.</div>
+                    </div>
+                  </div>
+                  <div class="plan-outline-preset-tab-content" data-tab-content="manual" hidden>
+                    <div class="plan-outline-preset-manual-split">
+                      <div class="plan-outline-preset-manual-left">
+                        <label class="plan-outline-preset-label">Raw Structure</label>
+                        <textarea class="plan-outline-preset-textarea" id="planOutlinePresetRawText" placeholder='Act 1: Setup
+  Chapter 1: The Beginning | wc: 2500
+    Scene 1: First Contact | wc: 800 | pov: John | purpose: Introduce conflict'></textarea>
+                        <div class="plan-outline-preset-hint">Indent with 2 spaces per level. Use <code>| key: value</code> for scene details (<code>wc</code>, <code>pov</code>, <code>povChar</code>, <code>purpose</code>, <code>notes</code>, <code>text</code>, <code>plot</code>).</div>
+                      </div>
+                      <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewManual">
+                        <div class="plan-outline-preset-preview-empty">Enter a structure to see a preview.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="plan-outline-preset-actions">
+                    <button type="button" class="primary-button" id="planOutlinePresetApplyBtn">Apply to Outline</button>
+                    <button type="button" class="plan-outline-preset-save-btn" id="planOutlinePresetSaveBtn">Save Template</button>
+                    <button type="button" class="plan-outline-preset-delete-btn" id="planOutlinePresetDeleteBtn">Delete</button>
+                    <button type="button" class="plan-outline-preset-cancel-btn" id="planOutlinePresetCancelBtn">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -894,6 +965,61 @@
             <div class="resource-status-bar-row">
               <div id="resourceStatusBar" class="status-bar">Resources ready.</div>
               <button id="resourceOpenErrorLogButton" type="button" class="status-log-button">Full Log</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mainTabContentChat" class="main-tab-content" hidden>
+        <div id="chatContainer" class="chat-container">
+          <div id="chatMessages" class="chat-messages"><div id="chatMessagesInner" class="chat-messages-inner"></div></div>
+          <div class="chat-panel">
+            <div class="chat-panel-right">
+              <button id="chatHideButton" class="hide-button" type="button">⌄ HIDE</button>
+              <div id="chatContextSize" class="chat-context-size">0 tokens</div>
+            </div>
+            <button id="chatContextButton" class="context-button" type="button">+ Context</button>
+            <div id="chatContextMenu" class="context-menu" hidden>
+              <div id="contextMainMenu" class="context-main-menu">
+                <div class="context-item" data-context="full-novel">
+                  <div class="context-title">Full Novel Text</div>
+                  <div class="context-description">This will include all novel text, which can be costly.</div>
+                </div>
+                <div class="context-item" data-context="full-outline">
+                  <div class="context-title">Full Outline</div>
+                  <div class="context-description">Full outline of the novel, including all acts, chapters, and scenes.</div>
+                </div>
+                <div class="context-row" data-context="acts">
+                  <span>Acts</span>
+                  <span>&#x203A;</span>
+                </div>
+                <div class="context-row" data-context="chapters">
+                  <span>Chapters</span>
+                  <span>&#x203A;</span>
+                </div>
+                <div class="context-row" data-context="scenes">
+                  <span>Scenes</span>
+                  <span>&#x203A;</span>
+                </div>
+                <div class="context-row" data-context="codex">
+                  <span>Codex</span>
+                  <span>&#x203A;</span>
+                </div>
+                <div class="clear-context" data-context="clear">Clear selection</div>
+              </div>
+              <div id="contextSubMenu" class="context-sub-menu" hidden></div>
+            </div>
+            <div id="chatContextPills" class="chat-context-pills" hidden></div>
+            <textarea id="chatInput" class="chat-input" placeholder="Ask any question..."></textarea>
+            <div class="chat-footer">
+              <div id="chatModelSelector" class="model-selector">
+                <div class="model-icon">✦</div>
+                <div>
+                  <div class="model-title">General Chat ˅</div>
+                  <div class="model-subtitle">Qwen3.5 9b</div>
+                </div>
+              </div>
+              <button id="chatSendButton" class="send-button" type="button" disabled>✈ Send</button>
             </div>
           </div>
         </div>
@@ -1276,12 +1402,24 @@
             <div id="writingInspectorScopeNote" class="writing-inspector-copy">Load a manuscript and choose a chapter or act from the dropdown.</div>
           </div>
 
-          <div class="writing-inspector-card">
-            <div class="tiny writing-inspector-label">Outline Notes</div>
-            <div id="writingInspectorOutline" class="writing-inspector-copy">Chapter and outline details will appear here as you move through the manuscript.</div>
+          <div class="writing-inspector-card writing-inspector-tabs-card">
+            <div class="writing-inspector-tabs" role="tablist">
+              <button type="button" class="writing-inspector-tab is-active" data-inspector-tab="outline">Outline</button>
+              <button type="button" class="writing-inspector-tab" data-inspector-tab="notes">Notes</button>
+              <button type="button" class="writing-inspector-tab" data-inspector-tab="fixes">Fixes</button>
+            </div>
+            <div class="writing-inspector-tab-pane is-active" data-inspector-pane="outline">
+              <div id="writingInspectorOutline" class="writing-inspector-copy">Chapter and outline details will appear here as you move through the manuscript.</div>
+            </div>
+            <div class="writing-inspector-tab-pane" data-inspector-pane="notes" hidden>
+              <textarea id="writingInspectorNoteText" class="writing-inspector-note-textarea" placeholder="Notes for this chapter..."></textarea>
+            </div>
+            <div class="writing-inspector-tab-pane" data-inspector-pane="fixes" hidden>
+              <textarea id="writingInspectorFixText" class="writing-inspector-note-textarea" placeholder="Fixes needed for this chapter..."></textarea>
+            </div>
           </div>
 
-          <div class="writing-inspector-card">
+          <div class="writing-inspector-card writing-inspector-bottom-card">
             <div class="tiny writing-inspector-label">Selected Codex Entry</div>
             <div id="writingInspectorCodexTitle" class="writing-inspector-title">Nothing selected</div>
             <div id="writingInspectorCodexBody" class="writing-inspector-copy">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
@@ -1627,6 +1765,7 @@
 
           <div class="toolbar-row trio">
             <button id="saveButton" class="primary">Save Now</button>
+            <button id="deleteProjectButton" class="danger-button" type="button">Delete Project</button>
             <button id="openImageButton">Open Image</button>
           </div>
         </div>
@@ -1764,11 +1903,29 @@
     </div>
   </div>
 
+  <div id="snippetModal" class="snippet-modal" aria-hidden="true">
+    <div class="snippet-modal-card">
+      <div class="snippet-modal-header">
+        <div class="snippet-modal-kicker">Snippet</div>
+        <button id="snippetModalClose" class="snippet-modal-close" type="button">&times;</button>
+      </div>
+      <input id="snippetModalTitle" class="snippet-modal-title" type="text" placeholder="Snippet title" />
+      <textarea id="snippetModalTextarea" class="snippet-modal-textarea" placeholder="Snippet content..."></textarea>
+      <div class="snippet-modal-footer">
+        <div id="snippetModalStatus" class="snippet-modal-status"></div>
+        <div class="snippet-modal-actions">
+          <button id="snippetModalDelete" class="snippet-modal-delete" type="button">Delete</button>
+          <button id="snippetModalSave" class="snippet-modal-save" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="aiSettingsModal" class="modal" aria-hidden="true">
     <div class="modal-card ai-settings-card">
       <div class="modal-header">
         <h3>AI Settings</h3>
-        <div class="muted">Configure OpenRouter, LM Studio, or Ollama connections. This only sets up access; writing tools come next.</div>
+        <div class="muted">Configure OpenRouter, LM Studio, Ollama, or Opencode connections. This only sets up access; writing tools come next.</div>
       </div>
 
       <div class="modal-body ai-settings-body">
@@ -1777,22 +1934,18 @@
             <button type="button" data-ai-provider="openrouter">OpenRouter</button>
             <button type="button" data-ai-provider="lmstudio">LM Studio</button>
             <button type="button" data-ai-provider="ollama">Ollama</button>
+            <button type="button" data-ai-provider="opencode">Opencode</button>
           </div>
 
           <div class="ai-settings-panel">
-            <div class="compact-row">
-              <div>
-                <label class="label" for="aiDefaultProvider">Default Provider</label>
-                <select id="aiDefaultProvider">
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="lmstudio">LM Studio</option>
-                  <option value="ollama">Ollama</option>
-                </select>
-              </div>
-              <div>
-                <label class="label" for="aiActiveProviderBadge">Current Panel</label>
-                <div id="aiActiveProviderBadge" class="ai-provider-badge">OpenRouter</div>
-              </div>
+            <div class="ai-default-provider-row">
+              <label class="label" for="aiDefaultProvider">Default Provider</label>
+              <select id="aiDefaultProvider">
+                <option value="openrouter">OpenRouter</option>
+                <option value="lmstudio">LM Studio</option>
+                <option value="ollama">Ollama</option>
+                <option value="opencode">Opencode (Zen)</option>
+              </select>
             </div>
 
             <div id="aiOpenRouterPanel" class="ai-provider-panel" data-ai-panel="openrouter">
@@ -1808,10 +1961,13 @@
               <div class="ai-model-row">
                 <div>
                   <label class="label" for="aiOpenRouterModel">Model</label>
-                  <input id="aiOpenRouterModel" type="text" placeholder="e.g. anthropic/claude-3.5-sonnet" list="aiOpenRouterModelList" />
+                  <input id="aiOpenRouterModel" type="text" placeholder="e.g. anthropic/claude-3.5-sonnet" autocomplete="off" />
                   <datalist id="aiOpenRouterModelList"></datalist>
                 </div>
+                <div class="ai-fetch-row">
                 <button id="aiOpenRouterFetchModelsButton" type="button">Fetch Models</button>
+                <span class="ai-model-count" id="aiOpenRouterModelCount"></span>
+              </div>
               </div>
             </div>
 
@@ -1828,10 +1984,13 @@
               <div class="ai-model-row">
                 <div>
                   <label class="label" for="aiLmStudioModel">Model</label>
-                  <input id="aiLmStudioModel" type="text" placeholder="Select or type model name" list="aiLmStudioModelList" />
+                  <input id="aiLmStudioModel" type="text" placeholder="Select or type model name" autocomplete="off" />
                   <datalist id="aiLmStudioModelList"></datalist>
                 </div>
+                <div class="ai-fetch-row">
                 <button id="aiLmStudioFetchModelsButton" type="button">Fetch Models</button>
+                <span class="ai-model-count" id="aiLmStudioModelCount"></span>
+              </div>
               </div>
             </div>
 
@@ -1848,15 +2007,41 @@
               <div class="ai-model-row">
                 <div>
                   <label class="label" for="aiOllamaModel">Model</label>
-                  <input id="aiOllamaModel" type="text" placeholder="Select or type model name" list="aiOllamaModelList" />
+                  <input id="aiOllamaModel" type="text" placeholder="Select or type model name" autocomplete="off" />
                   <datalist id="aiOllamaModelList"></datalist>
                 </div>
+                <div class="ai-fetch-row">
                 <button id="aiOllamaFetchModelsButton" type="button">Fetch Models</button>
+                <span class="ai-model-count" id="aiOllamaModelCount"></span>
+              </div>
+              </div>
+            </div>
+
+            <div id="aiOpencodePanel" class="ai-provider-panel" data-ai-panel="opencode" hidden>
+              <div class="ai-provider-heading">
+                <h4>Opencode (Zen)</h4>
+                <div class="tiny">Cloud models through Opencode Zen's OpenAI-compatible API. Get your API key at <a href="https://opencode.ai/auth" target="_blank">opencode.ai/auth</a>.</div>
+              </div>
+              <div>
+                <label class="label" for="aiOpencodeApiKey">API Key</label>
+                <input id="aiOpencodeApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
+                <label class="ai-inline-check"><input id="aiOpencodeClearKey" type="checkbox" /> Clear saved Opencode API key</label>
+              </div>
+              <div class="ai-model-row">
+                <div>
+                  <label class="label" for="aiOpencodeModel">Model</label>
+                  <input id="aiOpencodeModel" type="text" placeholder="e.g. gpt-5.5" autocomplete="off" />
+                  <datalist id="aiOpencodeModelList"></datalist>
+                </div>
+<div class="ai-fetch-row">
+                <button id="aiOpencodeFetchModelsButton" type="button">Fetch Models</button>
+                <span class="ai-model-count" id="aiOpencodeModelCount"></span>
+              </div>
               </div>
             </div>
 
             <div class="ai-settings-note">
-              Local endpoints can use browser/direct mode so your browser calls LAN or localhost services such as LM Studio or Ollama. If browser mode fails, check the server URL and CORS settings, or type the model name manually.
+              Local endpoints can use browser/direct mode so your browser calls LAN or localhost services such as LM Studio or Ollama. If browser mode fails, check the server URL and CORS settings, or type the model name manually. Opencode Zen is a cloud service — no browser mode needed.
             </div>
 
             <div id="aiSettingsStatus" class="status-bar">AI settings not loaded yet.</div>
@@ -2042,8 +2227,26 @@
       </div>
       <div class="modal-body markdown-ai-test-body">
         <div class="markdown-ai-test-top">
-          <div><label class="label">Provider</label><div id="markdownAITestProviderBadge" class="ai-provider-badge">Not loaded</div></div>
-          <div><label class="label">Model</label><div id="markdownAITestModelBadge" class="ai-provider-badge">Not selected</div></div>
+          <div>
+            <label class="label" for="markdownAITestProvider">Provider</label>
+            <select id="markdownAITestProvider">
+              <option value="openrouter">OpenRouter</option>
+              <option value="lmstudio">LM Studio</option>
+              <option value="ollama">Ollama</option>
+              <option value="opencode">Opencode (Zen)</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="markdownAITestModel">Model</label>
+            <div class="ai-model-row">
+              <input id="markdownAITestModel" type="text" placeholder="Select or type model name" autocomplete="off" />
+              <datalist id="markdownAITestModelList" style="display:none"></datalist>
+              <div class="ai-fetch-row">
+                <button id="markdownAITestFetchModelsButton" type="button" class="tiny">Fetch</button>
+                <span class="ai-model-count" id="markdownAITestModelCount"></span>
+              </div>
+            </div>
+          </div>
           <div><label class="label">Context</label><div id="markdownAITestContextBadge" class="ai-provider-badge">No context</div></div>
         </div>
         <div class="markdown-ai-test-options">
@@ -2161,7 +2364,51 @@
     </div>
   </div>
 
+  <div id="seriesManagerModal" class="modal" aria-hidden="true">
+    <div class="modal-card series-manager-card">
+      <div class="modal-header">
+        <h3>Series Manager</h3>
+        <div class="muted">Manage all series — create, edit names and summaries, or delete.</div>
+      </div>
+      <div class="modal-body">
+        <div class="series-manager-toolbar">
+          <button id="createSeriesButton" type="button" class="primary">+ New Series</button>
+        </div>
+        <div id="seriesManagerList" class="series-manager-list">
+          <div class="empty-state">Loading series...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeSeriesManagerButton" type="button">Close</button>
+      </div>
+    </div>
+  </div>
 
+  <div id="seriesEditModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="seriesEditModalTitle">Edit Series</h3>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="label" for="seriesEditName">Series Name</label>
+          <input id="seriesEditName" type="text" />
+        </div>
+        <div>
+          <label class="label" for="seriesEditSummary">Summary</label>
+          <textarea id="seriesEditSummary" rows="4"></textarea>
+        </div>
+        <div>
+          <label class="label" for="seriesEditImageUrl">Image URL</label>
+          <input id="seriesEditImageUrl" type="url" placeholder="Optional" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelSeriesEditButton" type="button">Cancel</button>
+        <button id="saveSeriesEditButton" class="primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
 
   <div id="imagePickerModal" class="modal" aria-hidden="true">
     <div class="modal-card image-picker-card">

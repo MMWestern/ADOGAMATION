@@ -457,6 +457,12 @@
       if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
       populateMarkdownAILocalContext();
       updateMarkdownAIContextBadge();
+      var payload = collectAISettingsFormData();
+      if (el.markdownAITestProvider && payload && payload.provider) el.markdownAITestProvider.value = payload.provider;
+      if (el.markdownAITestModel) {
+        var model = getSelectedAIModel(payload);
+        el.markdownAITestModel.value = model || "";
+      }
     }
 
     function closeMarkdownAITestModal() {
@@ -593,9 +599,10 @@
     }
 
     async function runMarkdownAITest() {
-      var payload = collectAISettingsFormData();
-      var model = getSelectedAIModel(payload);
-      if (!model) { setMarkdownAITestStatus("No model selected. Open AI Settings first.", "error"); return; }
+      var provider = el.markdownAITestProvider ? el.markdownAITestProvider.value : "";
+      var model = el.markdownAITestModel ? el.markdownAITestModel.value.trim() : "";
+      if (!provider) { setMarkdownAITestStatus("Select a provider first.", "error"); return; }
+      if (!model) { setMarkdownAITestStatus("Enter or select a model first.", "error"); return; }
       var systemEl = document.getElementById("markdownAITestSystemPrompt");
       var userEl = document.getElementById("markdownAITestUserPrompt");
       var tempEl = document.getElementById("markdownAITestTemperature");
@@ -606,11 +613,11 @@
       var fullUser = context ? context + "\n\n" + user : user;
       var temperature = tempEl ? Number(tempEl.value) || 0.7 : 0.7;
       var maxTokens = maxEl ? Number(maxEl.value) || 512 : 512;
-      setMarkdownAITestStatus("Sending test prompt to " + providerLabel(payload.provider) + "...", "warn");
+      setMarkdownAITestStatus("Sending test prompt to " + providerLabel(provider) + "...", "warn");
       setMarkdownAITestOutput("Waiting for AI response...", "warn");
       try {
         var result = await callEditorAI({
-          provider: payload.provider,
+          provider: provider,
           model: model,
           messages: [
             { role: "system", content: system },
@@ -628,6 +635,14 @@
       }
     }
 
+    function _getSavedAIKey(provider) {
+      try {
+        var raw = localStorage.getItem('writing_dashboard_ai_settings_v1');
+        if (raw) { var saved = JSON.parse(raw); if (saved && saved[provider] && saved[provider].apiKey) return saved[provider].apiKey; }
+      } catch (e) {}
+      return '';
+    }
+
     async function callEditorAI(payload) {
       var provider = payload.provider || "openrouter";
       var model = payload.model || "";
@@ -639,6 +654,7 @@
       var body = {};
       if (provider === "openrouter") {
         var apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("openrouter");
         url = "https://openrouter.ai/api/v1/chat/completions";
         if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
         body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens };
@@ -650,6 +666,12 @@
         var endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
         url = (endpoint || "http://localhost:11434") + "/api/chat";
         body = { model: model, messages: messages, stream: false, options: { temperature: temperature, num_predict: maxTokens } };
+      } else if (provider === "opencode") {
+        var apiKey = document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("opencode");
+        url = "/api/opencode-proxy/v1/chat/completions";
+        if (apiKey) headers["x-api-key"] = apiKey;
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens };
       }
       var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
       if (!response.ok) throw new Error("HTTP " + response.status);
@@ -663,6 +685,71 @@
       return { text: text, usage: data.usage || null };
     }
 
+    async function callEditorAIStream(payload, onToken) {
+      var provider = payload.provider || "openrouter";
+      var model = payload.model || "";
+      var messages = payload.messages || [];
+      var temperature = payload.temperature != null ? payload.temperature : 0.7;
+      var maxTokens = payload.max_tokens || 512;
+      var url = "";
+      var headers = { "Content-Type": "application/json" };
+      var body = {};
+      if (provider === "openrouter") {
+        var apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("openrouter");
+        url = "https://openrouter.ai/api/v1/chat/completions";
+        if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens, stream: true };
+      } else if (provider === "lmstudio") {
+        var endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
+        url = (endpoint || "http://localhost:1234/v1") + "/chat/completions";
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens, stream: true };
+      } else if (provider === "ollama") {
+        var endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+        url = (endpoint || "http://localhost:11434") + "/api/chat";
+        body = { model: model, messages: messages, stream: true, options: { temperature: temperature, num_predict: maxTokens } };
+      } else if (provider === "opencode") {
+        var apiKey = document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("opencode");
+        url = "/api/opencode-proxy/v1/chat/completions";
+        if (apiKey) headers["x-api-key"] = apiKey;
+        body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens, stream: true };
+      }
+      var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = "";
+      var fullText = "";
+      while (true) {
+        var result = await reader.read();
+        if (result.done) break;
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || line === "data: [DONE]") continue;
+          if (line.startsWith("data: ")) {
+            try {
+              var json = JSON.parse(line.slice(6));
+              var token = "";
+              if (provider === "ollama") {
+                token = json.message ? json.message.content || "" : "";
+              } else {
+                token = json.choices && json.choices[0] && json.choices[0].delta ? json.choices[0].delta.content || "" : "";
+              }
+              if (token) {
+                fullText += token;
+                if (onToken) onToken(token, fullText);
+              }
+            } catch (e) {}
+          }
+        }
+      }
+      return { text: fullText };
+    }
+
     async function callEditorEmbedding(inputText) {
       var aiConfig = collectAISettingsFormData();
       var provider = aiConfig.provider || "openrouter";
@@ -671,8 +758,8 @@
       var body = {};
       if (provider === "openrouter") {
         var apiKey = document.getElementById("aiOpenRouterApiKey") ? document.getElementById("aiOpenRouterApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("openrouter");
         var model = document.getElementById("aiOpenRouterModel") ? document.getElementById("aiOpenRouterModel").value.trim() : "";
-        // Use a default embedding model if none set
         var embModel = model || "text-embedding-3-small";
         url = "https://openrouter.ai/api/v1/embeddings";
         if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
@@ -686,6 +773,14 @@
         var model = document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "";
         url = (endpoint || "http://localhost:11434") + "/api/embeddings";
         body = { model: model || "nomic-embed-text", prompt: inputText };
+      } else if (provider === "opencode") {
+        var apiKey = document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "";
+        if (!apiKey) apiKey = _getSavedAIKey("opencode");
+        var model = document.getElementById("aiOpencodeModel") ? document.getElementById("aiOpencodeModel").value.trim() : "";
+        var embModel = model || "text-embedding-3-small";
+        url = "/api/opencode-proxy/v1/embeddings";
+        if (apiKey) headers["x-api-key"] = apiKey;
+        body = { model: embModel, input: inputText };
       }
       var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
       if (!response.ok) throw new Error("Embedding HTTP " + response.status + ": " + await response.text());
@@ -708,8 +803,32 @@
         endpoint = document.getElementById("aiLmStudioEndpoint") ? document.getElementById("aiLmStudioEndpoint").value.trim() : "";
       } else if (provider === "ollama") {
         endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
+      } else if (provider === "opencode") {
+        apiKey = document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "";
       }
       if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
+
+      var fetchBtn = provider === "openrouter" ? document.getElementById("aiOpenRouterFetchModelsButton") : provider === "lmstudio" ? document.getElementById("aiLmStudioFetchModelsButton") : provider === "ollama" ? document.getElementById("aiOllamaFetchModelsButton") : document.getElementById("aiOpencodeFetchModelsButton");
+      if (fetchBtn) fetchBtn.disabled = true;
+
+      // Opencode Zen API doesn't support CORS — route through local proxy
+      if (provider === "opencode") {
+        setAIStatus("Fetching opencode models via proxy...", "warn");
+        var proxyHeaders = { "Content-Type": "application/json" };
+        if (apiKey) proxyHeaders["x-api-key"] = apiKey;
+        fetch("/api/opencode-proxy/v1/models", { headers: proxyHeaders })
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+          .then(function (data) {
+            var models = (data.data || []).map(function (m) { return m.id || m; });
+            populateModelList(provider, models);
+            setAIStatus("Loaded " + models.length + " opencode model(s).", "ok");
+          })
+          .catch(function (e) {
+            setAIStatus("Failed to fetch models: " + (e.message || e) + ". Check endpoint and that the server is running.", "error");
+          })
+          .then(function () { if (fetchBtn) fetchBtn.disabled = false; });
+        return;
+      }
 
       var url = "";
       var headers = {};
@@ -722,12 +841,11 @@
         url = (endpoint || "http://localhost:11434") + "/api/tags";
       } else {
         setAIStatus("Unknown provider: " + provider, "error");
+        if (fetchBtn) fetchBtn.disabled = false;
         return;
       }
 
       setAIStatus("Fetching " + provider + " models...", "warn");
-      var fetchBtn = provider === "openrouter" ? document.getElementById("aiOpenRouterFetchModelsButton") : provider === "lmstudio" ? document.getElementById("aiLmStudioFetchModelsButton") : document.getElementById("aiOllamaFetchModelsButton");
-      if (fetchBtn) fetchBtn.disabled = true;
       fetch(url, { headers: headers })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(function (data) {
@@ -737,22 +855,122 @@
           } else {
             models = (data.data || data || []).map(function (m) { return m.id || m; });
           }
-          var modelInput = provider === "openrouter" ? document.getElementById("aiOpenRouterModel") : provider === "lmstudio" ? document.getElementById("aiLmStudioModel") : document.getElementById("aiOllamaModel");
-          var modelList = provider === "openrouter" ? document.getElementById("aiOpenRouterModelList") : provider === "lmstudio" ? document.getElementById("aiLmStudioModelList") : document.getElementById("aiOllamaModelList");
-          if (modelList) {
-            modelList.innerHTML = "";
-            models.forEach(function (m) {
-              var opt = document.createElement("option");
-              opt.value = m;
-              modelList.appendChild(opt);
-            });
-          }
+          populateModelList(provider, models);
           setAIStatus("Loaded " + models.length + " " + provider + " model(s).", "ok");
         })
         .catch(function (e) {
           setAIStatus("Failed to fetch models: " + (e.message || e) + ". Check endpoint and that the server is running.", "error");
         })
         .then(function () { if (fetchBtn) fetchBtn.disabled = false; });
+    }
+
+    function _providerCountId(provider) {
+      var map = { openrouter: "aiOpenRouterModelCount", lmstudio: "aiLmStudioModelCount", ollama: "aiOllamaModelCount", opencode: "aiOpencodeModelCount" };
+      return map[provider] || "";
+    }
+
+    function _providerButtonId(provider) {
+      var map = { openrouter: "aiOpenRouterFetchModelsButton", lmstudio: "aiLmStudioFetchModelsButton", ollama: "aiOllamaFetchModelsButton", opencode: "aiOpencodeFetchModelsButton" };
+      return map[provider] || "";
+    }
+
+    function populateModelList(provider, models) {
+      var providerInputMap = {
+        openrouter: "aiOpenRouterModel",
+        lmstudio: "aiLmStudioModel",
+        ollama: "aiOllamaModel",
+        opencode: "aiOpencodeModel"
+      };
+      var inputId = providerInputMap[provider];
+      if (inputId) {
+        var input = document.getElementById(inputId);
+        if (input) _buildModelDropdown(input, models);
+      }
+      var testInput = document.getElementById("markdownAITestModel");
+      if (testInput) _buildModelDropdown(testInput, models);
+      var countEl = document.getElementById(_providerCountId(provider));
+      if (countEl) countEl.textContent = models.length + " models";
+      var btn = document.getElementById(_providerButtonId(provider));
+      if (btn) {
+        btn.classList.remove("ai-fetch-flash");
+        void btn.offsetWidth;
+        btn.classList.add("ai-fetch-flash");
+      }
+      var testBtn = document.getElementById("markdownAITestFetchModelsButton");
+      if (testBtn && testBtn !== btn) {
+        testBtn.classList.remove("ai-fetch-flash");
+        void testBtn.offsetWidth;
+        testBtn.classList.add("ai-fetch-flash");
+      }
+      var testCount = document.getElementById("markdownAITestModelCount");
+      if (testCount) testCount.textContent = models.length + " models";
+    }
+
+    if (!document._aiDropdownInit) {
+      document._aiDropdownInit = true;
+      document.addEventListener("click", function (e) {
+        document.querySelectorAll(".ai-model-dropdown.is-open").forEach(function (dd) {
+          var wrap = dd.closest(".ai-model-field-wrap");
+          if (!wrap || !wrap.contains(e.target)) dd.classList.remove("is-open");
+        });
+      });
+    }
+
+    function _buildModelDropdown(input, models) {
+      var wrap = input.parentNode;
+      if (wrap && !wrap.classList.contains("ai-model-field-wrap")) {
+        var nw = document.createElement("span");
+        nw.className = "ai-model-field-wrap";
+        nw.style.cssText = "position:relative;display:inline-block;width:100%";
+        input.parentNode.insertBefore(nw, input);
+        nw.appendChild(input);
+        wrap = nw;
+      }
+      var toggle = wrap.querySelector(".ai-model-toggle");
+      if (!toggle) {
+        toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "ai-model-toggle";
+        toggle.textContent = "▾";
+        toggle.tabIndex = -1;
+        wrap.appendChild(toggle);
+      }
+      toggle.onclick = function (e) {
+        e.stopPropagation();
+        dd.classList.toggle("is-open");
+      };
+      var dd = wrap.querySelector(".ai-model-dropdown");
+      if (!dd) {
+        dd = document.createElement("div");
+        dd.className = "ai-model-dropdown";
+        wrap.appendChild(dd);
+      }
+      var currentVal = input.value.trim();
+      dd.innerHTML = "";
+      models.forEach(function (m) {
+        var opt = document.createElement("div");
+        opt.className = "ai-model-option" + (m === currentVal ? " is-current" : "");
+        opt.textContent = m;
+        opt.setAttribute("data-value", m);
+        opt.addEventListener("click", function (e) {
+          e.stopPropagation();
+          input.value = m;
+          dd.classList.remove("is-open");
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        dd.appendChild(opt);
+      });
+      input._ddFilter = function () {
+        var raw = input.value.trim();
+        var terms = raw ? raw.toLowerCase().split(/\s+/) : [];
+        dd.querySelectorAll(".ai-model-option").forEach(function (opt) {
+          var text = opt.textContent.toLowerCase();
+          opt.style.display = !terms.length || terms.every(function (t) { return text.indexOf(t) !== -1; }) ? "" : "none";
+        });
+        if (raw && !dd.classList.contains("is-open")) dd.classList.add("is-open");
+      };
+      input.removeEventListener("input", input._ddFilter);
+      input.addEventListener("input", input._ddFilter);
     }
 
     function setAIStatus(message, mode) {
@@ -820,8 +1038,15 @@
         if (olEndpoint && safe.endpoint) olEndpoint.value = safe.endpoint;
         if (olModel && safe.model) olModel.value = safe.model;
       }
+      var ocModel = document.getElementById("aiOpencodeModel");
+      if (safe.opencode) {
+        if (ocModel && safe.opencode.model) ocModel.value = safe.opencode.model;
+      } else if (safe.provider === "opencode") {
+        if (ocModel && safe.model) ocModel.value = safe.model;
+      }
       appState.aiSettings = appState.aiSettings || {};
       appState.aiSettings.isLoaded = true;
+      if (typeof updateChatModelDisplay === "function") updateChatModelDisplay();
     }
 
     function collectAISettingsFormData() {
@@ -841,6 +1066,11 @@
           endpoint: document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "http://localhost:11434",
           model: document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "",
           useBrowser: !!(document.getElementById("aiOllamaUseBrowser") && document.getElementById("aiOllamaUseBrowser").checked)
+        },
+        opencode: {
+          apiKey: document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "",
+          clearApiKey: !!(document.getElementById("aiOpencodeClearKey") && document.getElementById("aiOpencodeClearKey").checked),
+          model: document.getElementById("aiOpencodeModel") ? document.getElementById("aiOpencodeModel").value.trim() : ""
         }
       };
     }
@@ -849,6 +1079,7 @@
       var provider = (payload && payload.provider) || "openrouter";
       if (provider === "lmstudio") return (payload && payload.lmstudio) || {};
       if (provider === "ollama") return (payload && payload.ollama) || {};
+      if (provider === "opencode") return (payload && payload.opencode) || {};
       return (payload && payload.openrouter) || {};
     }
 
@@ -861,6 +1092,7 @@
       if (provider === "openrouter") return "OpenRouter";
       if (provider === "lmstudio") return "LM Studio";
       if (provider === "ollama") return "Ollama";
+      if (provider === "opencode") return "Opencode (Zen)";
       return provider || "Unknown";
     }
 
@@ -872,7 +1104,7 @@
         panel.hidden = panel.getAttribute("data-ai-panel") !== provider;
       });
       var badge = document.getElementById("aiActiveProviderBadge");
-      if (badge) badge.textContent = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : provider === "ollama" ? "Ollama" : provider;
+      if (badge) badge.textContent = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : provider === "ollama" ? "Ollama" : provider === "opencode" ? "Opencode (Zen)" : provider;
     }
 
     function saveAISettings() {
@@ -882,19 +1114,30 @@
         var orKey = document.getElementById("aiOpenRouterApiKey");
         var orModel = document.getElementById("aiOpenRouterModel");
         var orClear = document.getElementById("aiOpenRouterClearKey");
-        payload.apiKey = orKey ? orKey.value.trim() : "";
-        payload.model = orModel ? orModel.value.trim() : "";
-        payload.clearKey = orClear ? orClear.checked : false;
+        payload.openrouter = {};
+        payload.openrouter.apiKey = orKey ? orKey.value.trim() : "";
+        payload.openrouter.model = orModel ? orModel.value.trim() : "";
+        payload.openrouter.clearKey = orClear ? orClear.checked : false;
       } else if (provider === "lmstudio") {
         var lsEndpoint = document.getElementById("aiLmStudioEndpoint");
         var lsModel = document.getElementById("aiLmStudioModel");
-        payload.endpoint = lsEndpoint ? lsEndpoint.value.trim() : "";
-        payload.model = lsModel ? lsModel.value.trim() : "";
+        payload.lmstudio = {};
+        payload.lmstudio.endpoint = lsEndpoint ? lsEndpoint.value.trim() : "";
+        payload.lmstudio.model = lsModel ? lsModel.value.trim() : "";
       } else if (provider === "ollama") {
         var olEndpoint = document.getElementById("aiOllamaEndpoint");
         var olModel = document.getElementById("aiOllamaModel");
-        payload.endpoint = olEndpoint ? olEndpoint.value.trim() : "";
-        payload.model = olModel ? olModel.value.trim() : "";
+        payload.ollama = {};
+        payload.ollama.endpoint = olEndpoint ? olEndpoint.value.trim() : "";
+        payload.ollama.model = olModel ? olModel.value.trim() : "";
+      } else if (provider === "opencode") {
+        var ocKey = document.getElementById("aiOpencodeApiKey");
+        var ocModel = document.getElementById("aiOpencodeModel");
+        var ocClear = document.getElementById("aiOpencodeClearKey");
+        payload.opencode = {};
+        payload.opencode.apiKey = ocKey ? ocKey.value.trim() : "";
+        payload.opencode.model = ocModel ? ocModel.value.trim() : "";
+        payload.opencode.clearKey = ocClear ? ocClear.checked : false;
       }
       setAIStatus("Saving...", "warn");
       if (typeof sbClient !== "undefined" && sbClient) {
@@ -921,6 +1164,9 @@
       } else if (provider === "ollama") {
         endpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
         model = document.getElementById("aiOllamaModel") ? document.getElementById("aiOllamaModel").value.trim() : "";
+      } else if (provider === "opencode") {
+        apiKey = document.getElementById("aiOpencodeApiKey") ? document.getElementById("aiOpencodeApiKey").value.trim() : "";
+        model = document.getElementById("aiOpencodeModel") ? document.getElementById("aiOpencodeModel").value.trim() : "";
       }
       if (!provider) { setAIStatus("Select a provider first.", "error"); return; }
 
@@ -933,6 +1179,9 @@
         url = (endpoint || "http://localhost:1234/v1") + "/models";
       } else if (provider === "ollama") {
         url = (endpoint || "http://localhost:11434") + "/api/tags";
+      } else if (provider === "opencode") {
+        url = "/api/opencode-proxy/v1/models";
+        if (apiKey) headers["x-api-key"] = apiKey;
       }
 
       setAIStatus("Testing " + provider + " connection...", "warn");
@@ -954,23 +1203,21 @@
             count = list.length;
             sample = list.slice(0, 3).map(function (m) { return m.id || m.name || m; }).join(", ");
           }
-          var providerLabel = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : "Ollama";
           if (testBody) {
             testBody.innerHTML = "<div class='ai-test-success'>" +
               "<div class='ai-test-success-title'>Connection Successful</div>" +
-              "<div class='ai-test-success-detail'>" + providerLabel + " is online and responding.</div>" +
+              "<div class='ai-test-success-detail'>" + providerLabel(provider) + " is online and responding.</div>" +
               "<div class='ai-test-success-reply'>Models found: " + count + (sample ? "\n\nSample: " + sample : "") + "</div>" +
               (model ? "<div class='ai-test-success-model'>Selected model: " + escapeHtml(model) + "</div>" : "") +
             "</div>";
           }
-          setAIStatus(providerLabel + " connection OK. " + count + " model(s) available.", "ok");
+          setAIStatus(providerLabel(provider) + " connection OK. " + count + " model(s) available.", "ok");
         })
         .catch(function (e) {
-          var providerLabel = provider === "openrouter" ? "OpenRouter" : provider === "lmstudio" ? "LM Studio" : "Ollama";
           if (testBody) {
             testBody.innerHTML = "<div class='ai-test-error'>" +
               "<div class='ai-test-error-title'>Connection Failed</div>" +
-              "<div class='ai-test-error-detail'>" + escapeHtml(e.message || String(e)) + "</div>" +
+              "<div class='ai-test-error-detail'>" + providerLabel(provider) + ": " + escapeHtml(e.message || String(e)) + "</div>" +
               "<div class='ai-test-error-hints'>Check that the server is running, the endpoint is correct, and CORS allows browser requests.</div>" +
             "</div>";
           }

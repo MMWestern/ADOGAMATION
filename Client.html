@@ -496,13 +496,34 @@
       return out;
     }
 
+    function mergeUniqueSorted(a, b) {
+      const map = {};
+      const out = [];
+      a.concat(b).forEach(function (v) {
+        v = String(v || "").trim();
+        if (!v || map[v]) return;
+        map[v] = true;
+        out.push(v);
+      });
+      out.sort(function (a, b) { return a.localeCompare(b); });
+      return out;
+    }
+
     <?!= include('scripts/inspector-options'); ?>
 
     <?!= include('scripts/series-knowledge'); ?>
     <?!= include('scripts/plan-outline'); ?>
 
     function populateFilters() {
-      const seriesValues = getUniqueValues("series");
+      const seriesFromProjects = getUniqueValues("series");
+      var seriesMetaNames = [];
+      if (appState.seriesMetaById && typeof appState.seriesMetaById === "object") {
+        Object.keys(appState.seriesMetaById).forEach(function (id) {
+          var s = appState.seriesMetaById[id];
+          if (s && s.name) seriesMetaNames.push(s.name);
+        });
+      }
+      const seriesValues = mergeUniqueSorted(seriesFromProjects, seriesMetaNames);
       const penNameValues = getInspectorOptionValues("pen_name", getUniqueValues("pen_name"));
       const genreValues = getInspectorOptionValues("genre", getUniqueValues("genre"));
       const formatValues = getInspectorOptionValues("format", getUniqueValues("format"));
@@ -2960,6 +2981,7 @@
         syncSeriesFilterToSelectedProject(project);
       }
       fillDetailForm(project);
+      populateChatInfoPanel(project);
       preloadProjectDocs(project);
       preloadReferencePanelSelections(project, appState.markdownEditor && appState.markdownEditor.field);
       if (activeMainTab === "resources") {
@@ -2972,6 +2994,10 @@
           if (e) e.innerHTML = "";
         });
         closeSkCodexInspector();
+        if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+        if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexDashboard) el.codexDashboard.hidden = false;
+        _codexActiveEntityId = 0;
         loadSeriesKnowledgeForSelectedProject(false).then(function () {
           var seriesId = Number(project && project.series_id || 0);
           renderCodexTree(seriesId);
@@ -2983,6 +3009,7 @@
         openWritingWorkspace();
       }
       if (!isSameProject) {
+        flushCurrentWorkspaceEdits();
         appState.writingWorkspace.segments = [];
         appState.writingWorkspace.outline = null;
         appState.writingWorkspace.outlineSnapshot = "";
@@ -2990,9 +3017,15 @@
         appState.writingWorkspace.draftText = "";
         appState.writingWorkspace.savedSnapshot = "";
         appState.writingWorkspace.projectRow = 0;
+        appState.writingWorkspace.chapterNotes = {};
+        appState.writingWorkspace.chapterFixes = {};
+        appState.writingWorkspace.chapterNotesLoaded = false;
+        appState.writingWorkspace.chapterFixesLoaded = false;
+        appState.writingWorkspace.draftCache = {};
         if (el.planOutlineGrid) el.planOutlineGrid.innerHTML = "";
         if (el.planOutlineEmpty) el.planOutlineEmpty.hidden = false;
         if (el.planOutlineContent) el.planOutlineContent.hidden = true;
+        refreshWorkspaceTabDisabledState();
         if (activeMainTab === "workspace") {
           setTimeout(function () {
             loadWritingWorkspaceDraft();
@@ -3000,6 +3033,9 @@
         }
         if (activeMainTab === "plan" && project && project.project_id) {
           loadPlanData().then(function () { setPlanSubTab("outline"); });
+        }
+        if (activeMainTab !== "workspace" && activeMainTab !== "plan" && project && project.project_id) {
+          loadPlanData().then(function () { refreshWorkspaceTabDisabledState(); });
         }
       }
       renderProjectsTable();
@@ -3024,8 +3060,9 @@
         var sections = Array.isArray(sectionsResult && sectionsResult.sections) ? sectionsResult.sections : [];
         appState.writingWorkspace.segments = sections.length
           ? buildWritingWorkspaceSegmentsFromSections(sections, project)
-          : parseWritingWorkspaceSegments(project.short_summary || "", project);
+          : [];
         appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
+        refreshWorkspaceTabDisabledState();
       });
     }
 
@@ -4504,6 +4541,128 @@
         }
       }
       updateWritingInspectorCodex(selected);
+      switchInspectorTab(appState.writingWorkspace.inspectorTab || "outline");
+      renderWritingWorkspaceNotes();
+      renderWritingWorkspaceFixes();
+    }
+
+    function syncOutlineChaptersToSections(existingSections, project) {
+      var outline = appState.writingWorkspace.outline || {};
+      var acts = Array.isArray(outline.acts) ? outline.acts : [];
+      var outlineChapters = [];
+      acts.forEach(function (act) {
+        (act.children || []).forEach(function (ch) {
+          if (ch && ch.id) outlineChapters.push(ch);
+        });
+      });
+      if (!outlineChapters.length) return existingSections;
+      var existingKeys = {};
+      existingSections.forEach(function (s) {
+        existingKeys[String(s.sectionKey || s.key || "")] = true;
+      });
+      var result = existingSections.slice();
+      outlineChapters.forEach(function (ch) {
+        if (!existingKeys[ch.id]) {
+          result.push({
+            id: "",
+            sectionKey: ch.id,
+            title: String(ch.title || "").trim() || ("Chapter " + (result.length + 1)),
+            text: "",
+            sortOrder: result.length + 1
+          });
+        }
+      });
+      return result;
+    }
+
+    function renderWritingWorkspaceNotes() {
+      var segment = getWritingWorkspaceCurrentSegment();
+      var noteText = document.getElementById("writingInspectorNoteText");
+      if (!noteText) return;
+      noteText.value = segment ? (appState.writingWorkspace.chapterNotes[segment.key] || "") : "";
+    }
+
+    function renderWritingWorkspaceFixes() {
+      var segment = getWritingWorkspaceCurrentSegment();
+      var fixText = document.getElementById("writingInspectorFixText");
+      if (!fixText) return;
+      fixText.value = segment ? (appState.writingWorkspace.chapterFixes[segment.key] || "") : "";
+    }
+
+    function switchInspectorTab(tabName) {
+      var tabs = document.querySelectorAll(".writing-inspector-tab");
+      var panes = document.querySelectorAll(".writing-inspector-tab-pane");
+      tabs.forEach(function (tab) {
+        tab.classList.toggle("is-active", tab.getAttribute("data-inspector-tab") === tabName);
+      });
+      panes.forEach(function (pane) {
+        var isTarget = pane.getAttribute("data-inspector-pane") === tabName;
+        pane.hidden = !isTarget;
+        pane.classList.toggle("is-active", isTarget);
+      });
+      appState.writingWorkspace.inspectorTab = tabName;
+    }
+
+    function getWritingWorkspaceCurrentSegment() {
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var scope = String(appState.writingWorkspace.scope || "");
+      return scope ? segments.find(function (item) { return item.key === scope; }) || null : null;
+    }
+
+    function saveWritingWorkspaceNote() {
+      var segment = getWritingWorkspaceCurrentSegment();
+      if (!segment) return;
+      var project = getSelectedProject();
+      if (!project || !Number(project.project_id || 0)) return;
+      var text = document.getElementById("writingInspectorNoteText").value || "";
+      appState.writingWorkspace.chapterNotes[segment.key] = text;
+      callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [
+        project.project_id, "notes", segment.key, text
+      ]).catch(function (err) { console.warn("Failed to save chapter notes:", err); });
+    }
+
+    function saveWritingWorkspaceFix() {
+      var segment = getWritingWorkspaceCurrentSegment();
+      if (!segment) return;
+      var project = getSelectedProject();
+      if (!project || !Number(project.project_id || 0)) return;
+      var text = document.getElementById("writingInspectorFixText").value || "";
+      appState.writingWorkspace.chapterFixes[segment.key] = text;
+      callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [
+        project.project_id, "fixes", segment.key, text
+      ]).catch(function (err) { console.warn("Failed to save chapter fixes:", err); });
+    }
+
+    function loadChapterNotesAndFixes(project) {
+      var selected = project || getSelectedProject();
+      if (!selected || !Number(selected.project_id || 0)) return Promise.resolve();
+      if (appState.writingWorkspace.chapterNotesLoaded && appState.writingWorkspace.chapterFixesLoaded) return Promise.resolve();
+      return Promise.all([
+        callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [selected.project_id, "notes"]),
+        callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [selected.project_id, "fixes"])
+      ]).then(function (results) {
+        var notesResult = results[0];
+        var fixesResult = results[1];
+        appState.writingWorkspace.chapterNotes = {};
+        if (notesResult && notesResult.ok && Array.isArray(notesResult.sections)) {
+          notesResult.sections.forEach(function (sec) {
+            var key = sec.sectionKey || sec.key;
+            if (key) appState.writingWorkspace.chapterNotes[key] = sec.text || sec.markdown_content || "";
+          });
+        }
+        appState.writingWorkspace.chapterFixes = {};
+        if (fixesResult && fixesResult.ok && Array.isArray(fixesResult.sections)) {
+          fixesResult.sections.forEach(function (sec) {
+            var key = sec.sectionKey || sec.key;
+            if (key) appState.writingWorkspace.chapterFixes[key] = sec.text || sec.markdown_content || "";
+          });
+        }
+        appState.writingWorkspace.chapterNotesLoaded = true;
+        appState.writingWorkspace.chapterFixesLoaded = true;
+      }).catch(function () {
+        appState.writingWorkspace.chapterNotesLoaded = true;
+        appState.writingWorkspace.chapterFixesLoaded = true;
+      });
     }
 
     function renderWritingWorkspaceEditor(project) {
@@ -4551,9 +4710,6 @@
         renderWritingWorkspaceEditor(null);
         renderWritingCodexList(null);
         renderPlanOutline();
-        renderPlanBrainstorm();
-        renderPlanCharacterArcs();
-        renderPlanWorldBuild();
         refreshWritingWorkspaceSaveState();
         return Promise.resolve("");
       }
@@ -4562,9 +4718,6 @@
         renderWritingWorkspaceEditor(project);
         renderWritingCodexList(project);
         renderPlanOutline();
-        renderPlanBrainstorm();
-        renderPlanCharacterArcs();
-        renderPlanWorldBuild();
         refreshWritingWorkspaceSaveState();
         return Promise.resolve(appState.writingWorkspace.draftText);
       }
@@ -4586,9 +4739,7 @@
         renderWritingWorkspaceEditor(project);
         renderWritingCodexList(project);
         renderPlanOutline();
-        renderPlanBrainstorm();
-        renderPlanCharacterArcs();
-        renderPlanWorldBuild();
+
         refreshWritingWorkspaceSaveState();
         return Promise.resolve(fallback);
       }
@@ -4610,7 +4761,7 @@
           appState.writingWorkspace.lastSavedAt = "";
           appState.writingWorkspace.segments = sections.length
             ? buildWritingWorkspaceSegmentsFromSections(sections, project)
-            : parseWritingWorkspaceSegments(text, project);
+            : [];
           appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
           appState.writingWorkspace.savedSegmentTexts = {};
           appState.writingWorkspace.segments.forEach(function (seg) {
@@ -4626,13 +4777,31 @@
           getPlanOutline();
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
           populatePlanTextareas();
+          var syncedSections = syncOutlineChaptersToSections(sections, project);
+          if (syncedSections.length !== sections.length) {
+            sections = syncedSections;
+            appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sections, project);
+            appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sections);
+            appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
+            appState.writingWorkspace.savedSegmentTexts = {};
+            appState.writingWorkspace.segments.forEach(function (seg) {
+              appState.writingWorkspace.savedSegmentTexts[String(seg.key || "")] = {
+                text: String(seg.text || "").trim(),
+                title: String(seg.title || "").trim()
+              };
+            });
+          }
+          refreshWorkspaceTabDisabledState();
           cacheWritingWorkspaceDraft(project);
           renderWritingWorkspaceScopeOptions();
           renderWritingWorkspaceEditor(project);
           renderWritingCodexList(project);
           renderPlanOutline();
-          renderPlanCharacterArcs();
-          renderPlanWorldBuild();
+          loadChapterNotesAndFixes(project).then(function () {
+            renderWritingWorkspaceNotes();
+            renderWritingWorkspaceFixes();
+          });
+
           refreshWritingWorkspaceSaveState();
           return text;
         })
@@ -4640,22 +4809,16 @@
           if (appState.writingWorkspace.version !== loadVersion) return fallback;
           appState.writingWorkspace.draftText = fallback;
           appState.writingWorkspace.lastSavedAt = "";
-          appState.writingWorkspace.segments = parseWritingWorkspaceSegments(fallback, project);
+          appState.writingWorkspace.segments = [];
           appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
           appState.writingWorkspace.savedSegmentTexts = {};
-          appState.writingWorkspace.segments.forEach(function (seg) {
-            appState.writingWorkspace.savedSegmentTexts[String(seg.key || "")] = {
-              text: String(seg.text || "").trim(),
-              title: String(seg.title || "").trim()
-            };
-          });
+          refreshWorkspaceTabDisabledState();
           cacheWritingWorkspaceDraft(project);
           renderWritingWorkspaceScopeOptions();
           renderWritingWorkspaceEditor(project);
           renderWritingCodexList(project);
           renderPlanOutline();
-          renderPlanCharacterArcs();
-          renderPlanWorldBuild();
+
           refreshWritingWorkspaceSaveState();
           return fallback;
         });
@@ -4687,9 +4850,7 @@
         renderWritingCodexList(project);
         renderWritingWorkspaceInspector(project);
         initOutlineFromSegments();
-        renderPlanBrainstorm();
-        renderPlanCharacterArcs();
-        renderPlanWorldBuild();
+
         refreshWritingWorkspaceSaveState();
         if (Number(project.series_id || 0)) {
           loadSeriesKnowledgeForSelectedProject(false).finally(function () {
@@ -4713,6 +4874,10 @@
         appState.writingWorkspace.outline = cached.outline && cached.outline.acts ? cached.outline : null;
         if (appState.writingWorkspace.outline) sortOutlineBySortOrder_(appState.writingWorkspace.outline);
         appState.writingWorkspace.outlineSnapshot = String(cached.outlineSnapshot || "");
+        appState.writingWorkspace.chapterNotes = cached.chapterNotes ? JSON.parse(JSON.stringify(cached.chapterNotes)) : {};
+        appState.writingWorkspace.chapterFixes = cached.chapterFixes ? JSON.parse(JSON.stringify(cached.chapterFixes)) : {};
+        appState.writingWorkspace.chapterNotesLoaded = true;
+        appState.writingWorkspace.chapterFixesLoaded = true;
         appState.writingWorkspace.projectRow = projectRow;
         setWritingWorkspaceFilter(appState.writingWorkspace.filter);
         setWritingWorkspaceSidebarTab(appState.writingWorkspace.sidebarTab);
@@ -4722,9 +4887,8 @@
         renderWritingCodexList(project);
         renderWritingWorkspaceInspector(project);
         initOutlineFromSegments();
-        renderPlanBrainstorm();
-        renderPlanCharacterArcs();
-        renderPlanWorldBuild();
+        refreshWorkspaceTabDisabledState();
+
         refreshWritingWorkspaceSaveState();
         if (Number(project.series_id || 0)) {
           loadSeriesKnowledgeForSelectedProject(false).finally(function () {
@@ -4824,7 +4988,9 @@
         projectRow: Number(selected && selected.rowNumber || 0),
         savedSegmentTexts: Object.assign({}, appState.writingWorkspace.savedSegmentTexts || {}),
         outline: JSON.parse(JSON.stringify(appState.writingWorkspace.outline || {})),
-        outlineSnapshot: String(appState.writingWorkspace.outlineSnapshot || "")
+        outlineSnapshot: String(appState.writingWorkspace.outlineSnapshot || ""),
+        chapterNotes: JSON.parse(JSON.stringify(appState.writingWorkspace.chapterNotes || {})),
+        chapterFixes: JSON.parse(JSON.stringify(appState.writingWorkspace.chapterFixes || {}))
       };
     }
 
@@ -5009,6 +5175,17 @@
       renderPlanOutline();
     }
 
+    function flushCurrentWorkspaceEdits() {
+      var scope = String(appState.writingWorkspace.scope || "");
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var target = segments.find(function (item) { return item.key === scope; }) || null;
+      if (target && el.writingWorkspaceEditor) {
+        target.text = String(el.writingWorkspaceEditor.innerHTML || "").replace(/\r\n/g, "\n").trim();
+      }
+      if (el.writingInspectorNoteText) saveWritingWorkspaceNote();
+      if (el.writingInspectorFixText) saveWritingWorkspaceFix();
+    }
+
     function saveWritingWorkspaceDraft(options) {
       var settings = options && typeof options === "object" ? options : {};
       var project = getSelectedProject();
@@ -5066,6 +5243,39 @@
         setStatus("Workspace save failed" + (wsErrTitle ? " (" + wsErrTitle + ")" : "") + ": " + (error && error.message ? error.message : error), "error");
         return null;
       });
+    }
+
+    function cleanupOrphanedSections() {
+      var project = getSelectedProject();
+      if (!project || !Number(project.project_id || 0) || !sbClient) {
+        setStatus("Select a project first.", "error");
+        return;
+      }
+      if (!confirm("Delete orphaned draft sections from the database? This will remove any section documents that are no longer referenced by your outline.")) return;
+      var segKeys = (appState.writingWorkspace.segments || []).map(function (s) { return s.key; }).filter(Boolean);
+      callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "draft"]).then(function (result) {
+        var dbKeys = (result && result.sections || []).map(function (s) { return s.sectionKey; }).filter(Boolean);
+        var orphanKeys = dbKeys.filter(function (k) { return segKeys.indexOf(k) === -1; });
+        if (!orphanKeys.length) {
+          setStatus("No orphaned sections found.", "ok");
+          return;
+        }
+        return callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "draft", JSON.stringify(orphanKeys)]).then(function (delResult) {
+          if (delResult && delResult.ok) {
+            setStatus("Cleaned up " + orphanKeys.length + " orphaned section" + (orphanKeys.length === 1 ? "" : "s") + ".", "ok");
+          }
+        });
+      }).catch(function (err) {
+        setStatus("Cleanup failed: " + (err && err.message ? err.message : err), "error");
+      });
+    }
+
+    function refreshWorkspaceTabDisabledState() {
+      if (!el.mainTabWorkspace) return;
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var outline = appState.writingWorkspace.outline || {};
+      var hasChapters = segments.length > 0 || ((outline.acts || []).some(function (a) { return (a.children || []).length > 0; }));
+      el.mainTabWorkspace.classList.toggle("is-disabled", !hasChapters);
     }
 
     function schedulePlanOutlineSave() {
@@ -5321,7 +5531,7 @@
       }).join("");
     }
 
-    function openSeriesBooksModal(seriesName) {
+    function openSeriesBooksModal(seriesName, triggerEl) {
       const safeSeries = String(seriesName || el.detailSeries.value || "").trim();
       if (!safeSeries) {
         setStatus("This project does not have a series yet.", "warn");
@@ -5331,6 +5541,19 @@
       if (el.seriesBooksSubtitle) el.seriesBooksSubtitle.textContent = "Switch to another project in this series.";
       renderSeriesBooksList(safeSeries);
       if (el.seriesBooksModal) {
+        var card = el.seriesBooksModal.querySelector(".modal-card");
+        if (card && triggerEl) {
+          var rect = triggerEl.getBoundingClientRect();
+          var top = rect.bottom + 6;
+          var cardW = 356;
+          var isRightSide = rect.left + rect.width / 2 > window.innerWidth / 2;
+          var left = isRightSide ? rect.right - cardW : rect.left;
+          if (left + cardW > window.innerWidth - 12) left = window.innerWidth - cardW - 12;
+          if (left < 12) left = 12;
+          card.style.top = top + "px";
+          card.style.left = left + "px";
+          card.style.maxHeight = (window.innerHeight - top - 16) + "px";
+        }
         el.seriesBooksModal.classList.add("is-open");
         el.seriesBooksModal.setAttribute("aria-hidden", "false");
       }
@@ -5831,27 +6054,32 @@
 
     function switchMainTab(tabName) {
       var safeTab = String(tabName || "writing").trim().toLowerCase();
-      if (["writing", "plan", "workspace", "publishing", "marketing", "resources", "codex"].indexOf(safeTab) === -1) safeTab = "writing";
+      if (["writing", "plan", "workspace", "publishing", "marketing", "resources", "codex", "chat"].indexOf(safeTab) === -1) safeTab = "writing";
+      refreshWorkspaceTabDisabledState();
+      if (safeTab === "workspace" && el.mainTabWorkspace && el.mainTabWorkspace.classList.contains("is-disabled")) {
+        safeTab = "plan";
+      }
       activeMainTab = safeTab;
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         btn.classList.toggle("is-active", btn.getAttribute("data-main-tab") === safeTab);
       });
-      [el.mainTabContentWriting, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex].forEach(function (content) {
+      [el.mainTabContentWriting, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex, el.mainTabContentChat].forEach(function (content) {
         if (!content) return;
         content.hidden = content.id !== "mainTabContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
         if (!content.hidden) content.scrollTop = 0;
       });
       document.body.classList.toggle("resources-mode", safeTab === "resources");
       if (el.resourceInspectorPanel) el.resourceInspectorPanel.hidden = (safeTab !== "resources");
-      if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan");
+      if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.writingInspectorPanel) el.writingInspectorPanel.hidden = (safeTab !== "workspace");
       if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "codex");
 
-      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan");
+      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
       if (el.writingCodexPanel) el.writingCodexPanel.hidden = (safeTab !== "workspace");
       if (el.planInfoPanelSidebar) el.planInfoPanelSidebar.hidden = (safeTab !== "plan");
+      if (el.chatSidebarPanel) el.chatSidebarPanel.hidden = (safeTab !== "chat");
       if (el.codexTreePanel) el.codexTreePanel.hidden = (safeTab !== "codex");
       if (safeTab === "plan") {
         loadPlanData().then(function () { setPlanSubTab("outline"); });
@@ -5909,6 +6137,12 @@
       if (safeTab === "resources") {
         renderResourcesDashboard();
       }
+      if (safeTab === "chat") {
+        initChat();
+        renderChatList();
+        renderChatMessages();
+      }
+
       if (safeTab === "codex") {
         var codexProject = getSelectedProject();
         var codexSeriesId = Number(codexProject && codexProject.series_id || 0);
@@ -5917,6 +6151,10 @@
           if (e) e.innerHTML = "";
         });
         closeSkCodexInspector();
+        if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+        if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexDashboard) el.codexDashboard.hidden = false;
+        _codexActiveEntityId = 0;
         loadSeriesKnowledgeForSelectedProject(false).then(function () {
           skHasAutoSelected = false;
           renderCodexTree(codexSeriesId);
@@ -5924,6 +6162,776 @@
           restoreCodexLastSelection(codexSeriesId);
         });
       }
+    }
+
+    function initChat() {
+      appState.chats = appState.chats || [];
+      appState.activeChatId = appState.activeChatId || null;
+      appState.chats = _loadChatsFromStorage();
+      if (appState.chats.length && !appState.activeChatId) {
+        appState.activeChatId = appState.chats[0].id;
+      }
+      _loadChatsFromSupabase();
+    }
+
+    function _loadChatsFromStorage() {
+      try {
+        var saved = localStorage.getItem("chat_sessions_v1");
+        if (saved) { var parsed = JSON.parse(saved); if (Array.isArray(parsed)) return parsed; }
+      } catch (e) {}
+      return [];
+    }
+
+    function _loadChatsFromSupabase() {
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "chat_session"]).then(function (result) {
+        var serverRows = (result && result.rows) || [];
+        if (!serverRows.length) return;
+        var localKeys = {};
+        appState.chats.forEach(function (c) { localKeys[c.id] = true; });
+        var changed = false;
+        serverRows.forEach(function (s) {
+          var key = s.section_key || s.key || '';
+          if (key && !localKeys[key]) {
+            var messages = [];
+            try { messages = JSON.parse(s.markdown_content || "[]"); } catch (e) { messages = []; }
+            appState.chats.push({ id: key, name: s.title || "Chat", messages: messages, createdAt: s.sort_order || 0 });
+            changed = true;
+          }
+        });
+        if (changed) { _saveChatsToStorage(); renderChatList(); }
+      }).catch(function () {});
+    }
+
+    function _saveChatsToStorage() {
+      try { localStorage.setItem("chat_sessions_v1", JSON.stringify(appState.chats)); } catch (e) {}
+    }
+
+    function _syncChatToSupabase(chat) {
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") { setStatus("Chat saved locally (no DB connection).", "warn"); return; }
+      var sectionsJson = JSON.stringify([{ sectionKey: chat.id, title: chat.name || "Chat", text: JSON.stringify(chat.messages || []), sortOrder: Math.floor(Date.now() / 1000) }]);
+      callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+        project.project_id, "chat_session", chat.name || "Chat", sectionsJson
+      ]).then(function () {
+        setStatus("Chat saved to database.", "ok");
+      }).catch(function (err) {
+        setStatus("Chat DB save failed: " + (err && err.message ? err.message : String(err || "Unknown error")), "error");
+      });
+    }
+
+    function _deleteChatFromSupabase(chatId) {
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "chat_session", JSON.stringify([chatId])]).catch(function (err) {
+        setStatus("Chat DB delete failed: " + (err && err.message ? err.message : String(err || "Unknown error")), "error");
+      });
+    }
+
+    function saveChats() {
+      _saveChatsToStorage();
+      var chat = getActiveChat();
+      if (chat) _syncChatToSupabase(chat);
+    }
+
+    function getActiveChat() {
+      if (!appState.activeChatId) return null;
+      return appState.chats.find(function (c) { return c.id === appState.activeChatId; }) || null;
+    }
+
+    function updateChatModelDisplay() {
+      if (!el.chatModelTitle || !el.chatModelSubtitle) return;
+      var provider = el.aiDefaultProvider ? el.aiDefaultProvider.value : "openrouter";
+      var model = "";
+      if (provider === "openrouter" && el.aiOpenRouterModel) model = el.aiOpenRouterModel.value.trim();
+      else if (provider === "lmstudio" && el.aiLmStudioModel) model = el.aiLmStudioModel.value.trim();
+      else if (provider === "ollama" && el.aiOllamaModel) model = el.aiOllamaModel.value.trim();
+      else if (provider === "opencode" && el.aiOpencodeModel) model = el.aiOpencodeModel.value.trim();
+      var providerLabels = { openrouter: "OpenRouter", lmstudio: "LM Studio", ollama: "Ollama", opencode: "Opencode" };
+      el.chatModelTitle.textContent = (providerLabels[provider] || provider) + " \u02C5";
+      el.chatModelSubtitle.textContent = model || "No model set";
+    }
+
+    function populateChatInfoPanel(project) {
+      if (!project) return;
+      if (el.chatInfoImage) { el.chatInfoImage.src = getProjectDisplayImageUrl(project); el.chatInfoImage.alt = String(project.title || "").trim() + " cover"; }
+      if (el.chatInfoTitle) el.chatInfoTitle.textContent = String(project.title || "").trim() || "Untitled";
+      if (el.chatInfoSeries) el.chatInfoSeries.textContent = String(project.series || "").trim() || "No series";
+      if (el.chatSeriesButton) el.chatSeriesButton.hidden = !project || !project.series;
+      if (el.chatInfoGenre) el.chatInfoGenre.textContent = String(project.genre || "").trim() || "\u2014";
+      if (el.chatInfoAuthor) el.chatInfoAuthor.textContent = String(project.pen_name || "").trim() || "\u2014";
+      if (el.chatInfoWords) {
+        var totalWords = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
+        el.chatInfoWords.textContent = totalWords ? formatWordCount(totalWords) : "0w";
+      }
+    }
+
+    function updateChatContextSize() {
+      if (!el.chatContextSize) return;
+      var chat = getActiveChat();
+      var chatChars = 0;
+      if (chat && chat.messages) {
+        chat.messages.forEach(function (msg) { chatChars += (msg.content || "").length; });
+      }
+      var contextChars = 0;
+      var ctx = appState.chatContext;
+      if (ctx) {
+        contextChars += (buildChatContextContent(ctx) || "").length;
+      }
+      var chatTokens = Math.round(chatChars / 4);
+      var contextTokens = Math.round(contextChars / 4);
+      var totalTokens = chatTokens + contextTokens;
+      var chatStr = chatTokens > 1000 ? (chatTokens / 1000).toFixed(1) + "k" : chatTokens;
+      var contextStr = contextTokens > 1000 ? (contextTokens / 1000).toFixed(1) + "k" : contextTokens;
+      var totalStr = totalTokens > 1000 ? (totalTokens / 1000).toFixed(1) + "k" : totalTokens;
+      el.chatContextSize.textContent = chatStr + " chat + " + contextStr + " ctx = " + totalStr + " tokens";
+    }
+
+    function renderChatContextPills() {
+      if (!el.chatContextPills) return;
+      var ctx = appState.chatContext;
+      if (!ctx) {
+        el.chatContextPills.hidden = true;
+        return;
+      }
+      var outline = (typeof getPlanOutline === "function") ? getPlanOutline() : { acts: [] };
+      var acts = outline.acts || [];
+      var pills = [];
+      if (ctx.type === "full-novel") {
+        pills.push({ id: "full-novel", label: "Full Novel Text" });
+      } else if (ctx.type === "full-outline") {
+        pills.push({ id: "full-outline", label: "Full Outline" });
+      } else if (ctx.type === "acts") {
+        (ctx.selected || []).forEach(function (id) {
+          var a = acts.find(function (x) { return x.id === id; });
+          pills.push({ id: id, label: a ? (a.title || "Untitled Act") : id });
+        });
+      } else if (ctx.type === "chapters") {
+        (ctx.selected || []).forEach(function (id) {
+          var found = null;
+          acts.forEach(function (a) { (a.children || []).forEach(function (ch) { if (ch.id === id) found = (a.title || "Act") + " \u203A " + (ch.title || "Untitled Chapter"); }); });
+          pills.push({ id: id, label: found || id });
+        });
+      } else if (ctx.type === "scenes") {
+        (ctx.selected || []).forEach(function (id) {
+          var found = null;
+          acts.forEach(function (a) { (a.children || []).forEach(function (ch) { (ch.children || []).forEach(function (s) { if (s.id === id) found = (ch.title || "Chapter") + " \u203A " + (s.title || "Untitled Scene"); }); }); });
+          pills.push({ id: id, label: found || id });
+        });
+      } else if (ctx.type === "codex") {
+        var catLabels = { characters:"Characters", locations:"Locations", objects:"Objects/Items", lore:"Lore", subplots:"Subplots", other:"Other", continuity:"Continuity" };
+        (ctx.selected || []).forEach(function (id) {
+          pills.push({ id: id, label: catLabels[id] || id });
+        });
+      }
+      if (!pills.length) {
+        el.chatContextPills.hidden = true;
+        return;
+      }
+      var html = "";
+      pills.forEach(function (p) {
+        html += "<div class='context-pill' data-pill-id='" + p.id + "' data-pill-type='" + ctx.type + "'>" +
+          "<span>" + escapeHtml(p.label) + "</span>" +
+          "<span class='context-pill-remove' data-pill-remove=''>&times;</span></div>";
+      });
+      el.chatContextPills.innerHTML = html;
+      el.chatContextPills.hidden = false;
+      // remove handler via delegation
+      if (!el.chatContextPills._listenerAttached) {
+        el.chatContextPills.addEventListener("click", function (e) {
+          var removeBtn = e.target.closest("[data-pill-remove]");
+          if (!removeBtn) return;
+          var pill = removeBtn.closest(".context-pill");
+          if (!pill) return;
+          var id = pill.getAttribute("data-pill-id");
+          var type = pill.getAttribute("data-pill-type");
+          if (type === "full-novel" || type === "full-outline") {
+            appState.chatContext = null;
+            if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
+          } else if (type === "acts" || type === "chapters" || type === "scenes" || type === "codex") {
+            if (!appState.chatContext || appState.chatContext.type !== type) return;
+            var idx = appState.chatContext.selected.indexOf(id);
+            if (idx !== -1) {
+              appState.chatContext.selected.splice(idx, 1);
+            }
+            if (appState.chatContext.selected.length === 0) {
+              appState.chatContext = null;
+              if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
+            } else {
+              var label = type.charAt(0).toUpperCase() + type.slice(1) + " (" + appState.chatContext.selected.length + " selected)";
+              if (el.chatContextButton) el.chatContextButton.textContent = label + " \u02C5";
+            }
+          }
+          renderChatContextPills();
+          if (el.chatContextMenu) el.chatContextMenu.hidden = true;
+        });
+        el.chatContextPills._listenerAttached = true;
+      }
+      updateChatContextSize();
+    }
+
+    function renderChatList() {
+      if (!el.chatList) return;
+      if (!appState.chats.length) {
+        el.chatList.innerHTML = "<div class='chat-sidebar-empty'>No chats yet.<br>Start typing to create one.</div>";
+        return;
+      }
+      var html = "";
+      appState.chats.forEach(function (c) {
+        var active = c.id === appState.activeChatId ? " is-active" : "";
+        var name = c.name || "Chat " + (c.id ? c.id.slice(-4) : "");
+        var msgCount = (c.messages || []).length;
+        var lastMsg = "";
+        if (c.messages && c.messages.length) {
+          var last = c.messages[c.messages.length - 1];
+          if (last && last.content) lastMsg = last.content.replace(/\s+/g, " ").trim().substring(0, 80);
+        }
+        var dateStr = "";
+        if (c.createdAt) {
+          var d = new Date(c.createdAt);
+          dateStr = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        }
+        html += "<div class='chat-sidebar-item chat-card" + active + "' data-chat-id='" + c.id + "'>";
+        html += "<div class='chat-sidebar-item-header'>";
+        html += "<span class='chat-sidebar-item-name'>" + escapeHtml(name) + "</span>";
+        html += "<button class='chat-sidebar-item-delete' data-chat-id='" + c.id + "' title='Delete chat'>&times;</button>";
+        html += "</div>";
+        if (lastMsg) html += "<div class='chat-sidebar-item-excerpt'>" + escapeHtml(lastMsg) + "</div>";
+        html += "<div class='chat-sidebar-item-meta'>";
+        if (dateStr) html += "<span>" + dateStr + "</span>";
+        html += "<span>" + msgCount + " message" + (msgCount !== 1 ? "s" : "") + "</span>";
+        html += "</div>";
+        html += "</div>";
+      });
+      el.chatList.innerHTML = html;
+    }
+
+    var _snippets = [];
+    var _snippetStorageKey = function () { var p = getSelectedProject(); return p ? "snippets_" + p.project_id : null; };
+
+    function _saveSnippetsToStorage() {
+      var key = _snippetStorageKey();
+      if (key) { try { localStorage.setItem(key, JSON.stringify(_snippets)); } catch (e) {} }
+    }
+
+    function _loadSnippetsFromStorage() {
+      var key = _snippetStorageKey();
+      if (!key) return [];
+      try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+    }
+
+    function _syncSnippetToSupabase(snippet) {
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") { setStatus("Snippet saved locally (no DB connection).", "warn"); return; }
+      var sectionsJson = JSON.stringify([{ sectionKey: snippet.section_key, title: snippet.title || "", text: snippet.markdown_content || "", sortOrder: snippet.sort_order || Math.floor(Date.now() / 1000) }]);
+      callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+        project.project_id, "snippet", snippet.title || snippet.section_key, sectionsJson
+      ]).then(function () {
+        setStatus("Snippet saved to database.", "ok");
+      }).catch(function (err) {
+        setStatus("Snippet DB save failed: " + (err && err.message ? err.message : String(err || "Unknown error")), "error");
+      });
+    }
+
+    function _deleteSnippetFromSupabase(sectionKey) {
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "snippet", JSON.stringify([sectionKey])]).then(function () {
+        setStatus("Snippet deleted from database.", "ok");
+      }).catch(function (err) {
+        setStatus("Snippet DB delete failed: " + (err && err.message ? err.message : String(err || "Unknown error")), "error");
+      });
+    }
+
+    function switchChatSidebarTab(tab) {
+      if (tab === "snippets") {
+        el.chatSidebarTabChats.classList.remove("is-active");
+        el.chatSidebarTabSnippets.classList.add("is-active");
+        el.chatSidebarChatsView.hidden = true;
+        el.chatSidebarSnippetsView.hidden = false;
+        loadSnippets();
+      } else {
+        closeSnippetDetail();
+        el.chatSidebarTabSnippets.classList.remove("is-active");
+        el.chatSidebarTabChats.classList.add("is-active");
+        el.chatSidebarSnippetsView.hidden = true;
+        el.chatSidebarChatsView.hidden = false;
+      }
+    }
+
+    function loadSnippets() {
+      if (!el.snippetList) return;
+      _snippets = _loadSnippetsFromStorage();
+      renderSnippetList();
+      var project = getSelectedProject();
+      if (!project || typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "snippet"]).then(function (result) {
+        var serverRows = (result && result.rows) || [];
+        var localKeys = {};
+        _snippets.forEach(function (s) { localKeys[s.section_key] = true; });
+        var changed = false;
+        serverRows.forEach(function (s) {
+          var key = s.section_key || s.key || '';
+          if (key && !localKeys[key]) { _snippets.push(s); changed = true; }
+        });
+        if (changed) { _saveSnippetsToStorage(); renderSnippetList(); }
+      }).catch(function (err) {
+        setStatus("Snippet load from DB failed: " + (err && err.message ? err.message : String(err || "Unknown error")), "error");
+      });
+    }
+
+    function renderSnippetList() {
+      if (!el.snippetList) return;
+      if (!_snippets.length) {
+        el.snippetList.innerHTML = "<div class='chat-sidebar-empty'>No snippets yet.<br>Click + New to create one.</div>";
+        return;
+      }
+      var html = "";
+      _snippets.forEach(function (s) {
+        var active = appState._activeSnippetKey && s.section_key === appState._activeSnippetKey ? " is-active" : "";
+        var title = s.title || s.section_key || "Untitled";
+        var raw = (s.markdown_content || "").replace(/\s+/g, " ").trim();
+        var excerpt = raw.replace(/[#*_`~\[\]()>|]/g, "").substring(0, 100);
+        var wordCount = (s.markdown_content || "").split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+        var dateStr = "";
+        if (s.sort_order) {
+          var d = new Date(s.sort_order * 1000);
+          dateStr = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        }
+        html += "<div class='chat-sidebar-item snippet-card" + active + "' data-snippet-key='" + (s.section_key || "") + "'>";
+        html += "<div class='chat-sidebar-item-header'>";
+        html += "<span class='chat-sidebar-item-name'>" + escapeHtml(title) + "</span>";
+        html += "<button class='chat-sidebar-item-delete' data-snippet-key='" + (s.section_key || "") + "' title='Delete snippet'>&times;</button>";
+        html += "</div>";
+        if (excerpt) html += "<div class='chat-sidebar-item-excerpt'>" + escapeHtml(excerpt) + "</div>";
+        html += "<div class='chat-sidebar-item-meta'>";
+        if (dateStr) html += "<span>" + dateStr + "</span>";
+        html += "<span>" + wordCount + " word" + (wordCount !== 1 ? "s" : "") + "</span>";
+        html += "</div>";
+        html += "</div>";
+      });
+      el.snippetList.innerHTML = html;
+    }
+
+    function openSnippetDetail(snippetKey) {
+      var snippet = _snippets.find(function (s) { return s.section_key === snippetKey; });
+      if (!snippet) return;
+      appState._activeSnippetKey = snippetKey;
+      appState._snippetModalOpenedAt = Date.now();
+      appState._snippetEditing = false;
+      renderSnippetList();
+      positionSnippetModal();
+      renderSnippetModalContent(snippet);
+      el.snippetModal.classList.add("is-open");
+      el.snippetModal.setAttribute("aria-hidden", "false");
+    }
+
+    function renderSnippetModalContent(snippet) {
+      if (!el.snippetModalCard) return;
+      var title = snippet.title || snippet.section_key || "";
+      var content = snippet.markdown_content || "";
+      el.snippetModalCard.innerHTML =
+        "<div class='snippet-modal-header'>" +
+          "<div class='snippet-modal-kicker'>Snippet</div>" +
+          "<button id='snippetModalClose' class='snippet-modal-close' type='button'>&times;</button>" +
+        "</div>" +
+        "<input id='snippetModalTitle' class='snippet-modal-title' type='text' placeholder='Snippet title' />" +
+        "<div id='snippetModalEditor' class='snippet-modal-editor' contenteditable='true' spellcheck='true'></div>" +
+        "<div class='snippet-modal-footer'>" +
+          "<div id='snippetModalStatus' class='snippet-modal-status'></div>" +
+          "<div class='snippet-modal-actions'>" +
+            "<button id='snippetModalDelete' class='snippet-modal-delete' type='button'>Delete</button>" +
+            "<button id='snippetModalSave' class='snippet-modal-save' type='button'>Save</button>" +
+          "</div>" +
+        "</div>";
+      var titleInput = document.getElementById("snippetModalTitle");
+      var editor = document.getElementById("snippetModalEditor");
+      titleInput.value = title;
+      editor.innerHTML = typeof renderMarkdown === "function" ? renderMarkdown(content) : escapeHtml(content);
+      editor._rawContent = content;
+      document.getElementById("snippetModalClose").addEventListener("click", closeSnippetDetail);
+      document.getElementById("snippetModalDelete").addEventListener("click", deleteCurrentSnippet);
+      document.getElementById("snippetModalSave").addEventListener("click", function () {
+        var md = editor._rawContent || editor.innerText || "";
+        var titleVal = titleInput.value.trim();
+        saveSnippetDirect(titleVal, md);
+      });
+    }
+
+    function saveSnippetDirect(title, content) {
+      var project = getSelectedProject();
+      if (!project) return;
+      if (!title && !content) return;
+      var snippetKey = appState._activeSnippetKey || ("snippet_" + Date.now());
+      var snippet = _snippets.find(function (s) { return s.section_key === snippetKey; });
+      if (!snippet) {
+        snippet = { project_id: project.project_id, doc_type: "snippet", section_key: snippetKey, title: title, markdown_content: content, sort_order: Math.floor(Date.now() / 1000) };
+        _snippets.push(snippet);
+      }
+      snippet.title = title || snippetKey;
+      snippet.markdown_content = content;
+      snippet.sort_order = Math.floor(Date.now() / 1000);
+      _saveSnippetsToStorage();
+      _syncSnippetToSupabase(snippet);
+      renderSnippetList();
+      var statusEl = document.getElementById("snippetModalStatus");
+      if (statusEl) { statusEl.textContent = "Saved"; setTimeout(function () { if (statusEl) statusEl.textContent = ""; }, 2000); }
+    }
+
+    function positionSnippetModal() {
+      if (!el.snippetModal) return;
+      var sidebar = document.querySelector(".sidebar");
+      if (!sidebar) return;
+      var sidebarRect = sidebar.getBoundingClientRect();
+      var modalWidth = Math.min(500, Math.max(360, window.innerWidth - sidebarRect.right - 28));
+      var left = Math.min(window.innerWidth - modalWidth - 24, sidebarRect.right + 12);
+      var listRect = el.snippetList ? el.snippetList.getBoundingClientRect() : sidebarRect;
+      var top = Math.max(24, listRect.top);
+      var layoutEl = document.querySelector(".layout");
+      var bottom = layoutEl ? layoutEl.getBoundingClientRect().bottom - 16 : window.innerHeight - 16;
+      el.snippetModal.style.width = modalWidth + "px";
+      el.snippetModal.style.height = Math.max(360, bottom - top) + "px";
+      el.snippetModal.style.left = Math.max(24, left) + "px";
+      el.snippetModal.style.top = Math.max(24, top) + "px";
+    }
+
+    function closeSnippetDetail() {
+      if (el.snippetModal) {
+        el.snippetModal.classList.remove("is-open");
+        el.snippetModal.setAttribute("aria-hidden", "true");
+      }
+      appState._activeSnippetKey = null;
+      renderSnippetList();
+    }
+
+    function saveCurrentSnippet() {
+      var titleInput = document.getElementById("snippetModalTitle");
+      var textarea = document.getElementById("snippetModalTextarea");
+      if (!titleInput || !textarea) return;
+      var project = getSelectedProject();
+      if (!project) return;
+      var title = titleInput.value.trim();
+      var content = textarea.value;
+      if (!title && !content) return;
+      var snippetKey = appState._activeSnippetKey || ("snippet_" + Date.now());
+      var snippet = _snippets.find(function (s) { return s.section_key === snippetKey; });
+      if (!snippet) {
+        snippet = { project_id: project.project_id, doc_type: "snippet", section_key: snippetKey, title: title, markdown_content: content, sort_order: Math.floor(Date.now() / 1000) };
+        _snippets.push(snippet);
+      }
+      snippet.title = title || snippetKey;
+      snippet.markdown_content = content;
+      snippet.sort_order = Math.floor(Date.now() / 1000);
+      _saveSnippetsToStorage();
+      _syncSnippetToSupabase(snippet);
+      renderSnippetList();
+      var statusEl = document.getElementById("snippetModalStatus");
+      if (statusEl) { statusEl.textContent = "Saved"; setTimeout(function () { if (statusEl) statusEl.textContent = ""; }, 2000); }
+    }
+
+    function deleteCurrentSnippet() {
+      var snippetKey = appState._activeSnippetKey;
+      if (!snippetKey) return;
+      if (!confirm("Delete this snippet?")) return;
+      _snippets = _snippets.filter(function (s) { return s.section_key !== snippetKey; });
+      _saveSnippetsToStorage();
+      _deleteSnippetFromSupabase(snippetKey);
+      closeSnippetDetail();
+    }
+
+    function createNewSnippet() {
+      var project = getSelectedProject();
+      if (!project) return;
+      var key = "snippet_" + Date.now();
+      var snippet = { project_id: project.project_id, doc_type: "snippet", section_key: key, title: "New Snippet", markdown_content: "", sort_order: Math.floor(Date.now() / 1000) };
+      _snippets.push(snippet);
+      _saveSnippetsToStorage();
+      _syncSnippetToSupabase(snippet);
+      appState._activeSnippetKey = key;
+      openSnippetDetail(key);
+    }
+
+    function selectChat(chatId) {
+      appState.activeChatId = chatId;
+      renderChatList();
+      renderChatMessages();
+    }
+
+    function renderChatMessages() {
+      if (!el.chatMessagesInner) return;
+      el.chatMessagesInner.innerHTML = "";
+      var chat = getActiveChat();
+      if (!chat) { updateChatContextSize(); return; }
+      (chat.messages || []).forEach(function (msg) {
+        renderChatMessage(msg);
+      });
+      updateChatContextSize();
+    }
+
+    function createNewChat() {
+      var id = "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+      var chat = { id: id, name: "New Chat", messages: [], createdAt: Date.now() };
+      appState.chats.unshift(chat);
+      appState.activeChatId = id;
+      saveChats();
+      renderChatList();
+      if (el.chatMessagesInner) el.chatMessagesInner.innerHTML = "";
+      if (el.chatInput) { el.chatInput.value = ""; el.chatInput.focus(); }
+      if (el.chatSendButton) el.chatSendButton.disabled = true;
+      return chat;
+    }
+
+    function deleteChat(chatId) {
+      if (!chatId) return;
+      appState.chats = appState.chats.filter(function (c) { return c.id !== chatId; });
+      if (appState.activeChatId === chatId) {
+        appState.activeChatId = appState.chats.length ? appState.chats[0].id : null;
+      }
+      _saveChatsToStorage();
+      _deleteChatFromSupabase(chatId);
+      renderChatList();
+      if (!appState.activeChatId) {
+        if (el.chatMessagesInner) el.chatMessagesInner.innerHTML = "";
+      } else {
+        renderChatMessages();
+      }
+    }
+
+    function renderChatMessage(msg) {
+      if (!el.chatMessagesInner) return;
+      var div = document.createElement("div");
+      div.className = "chat-msg " + (msg.role === "user" ? "user" : "assistant");
+      if (msg.role === "loading") div.className = "chat-msg loading";
+      if (msg.role !== "loading") {
+        var label = document.createElement("div");
+        label.className = "label";
+        label.textContent = msg.role === "user" ? "You" : "Assistant";
+        div.appendChild(label);
+      }
+      var bubble = document.createElement("div");
+      bubble.className = "bubble";
+      if (msg.role === "assistant" && typeof renderMarkdown === "function") {
+        bubble.innerHTML = renderMarkdown(msg.content);
+      } else {
+        bubble.textContent = msg.content;
+      }
+      div.appendChild(bubble);
+      if (msg.role !== "loading" && msg.content) {
+        var footer = document.createElement("div");
+        footer.className = "chat-msg-footer";
+        var wordCount = msg.content.split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+        var countSpan = document.createElement("span");
+        countSpan.className = "chat-msg-word-count";
+        countSpan.textContent = wordCount + " word" + (wordCount !== 1 ? "s" : "");
+        footer.appendChild(countSpan);
+        var copyBtn = document.createElement("button");
+        copyBtn.className = "chat-msg-action";
+        copyBtn.textContent = "Copy";
+        copyBtn.addEventListener("click", function () {
+          navigator.clipboard.writeText(msg.content).then(function () {
+            copyBtn.textContent = "Copied!";
+            setTimeout(function () { copyBtn.textContent = "Copy"; }, 1500);
+          });
+        });
+        footer.appendChild(copyBtn);
+        if (msg.role === "assistant") {
+          var snippetBtn = document.createElement("button");
+          snippetBtn.className = "chat-msg-action";
+          snippetBtn.textContent = "Save as Snippet";
+          snippetBtn.addEventListener("click", function () {
+            var project = getSelectedProject();
+            if (!project) return;
+            var key = "snippet_" + Date.now();
+            var snippet = { project_id: project.project_id, doc_type: "snippet", section_key: key, title: msg.content.substring(0, 60).replace(/\s+/g, " ").trim(), markdown_content: msg.content, sort_order: Math.floor(Date.now() / 1000) };
+            _snippets.push(snippet);
+            _saveSnippetsToStorage();
+            _syncSnippetToSupabase(snippet);
+            renderSnippetList();
+            snippetBtn.textContent = "Saved!";
+            setTimeout(function () { snippetBtn.textContent = "Save as Snippet"; }, 1500);
+          });
+          footer.appendChild(snippetBtn);
+        }
+        div.appendChild(footer);
+      }
+      el.chatMessagesInner.appendChild(div);
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }
+
+    function buildChatContextContent(context) {
+      if (!context || !context.type) return "";
+      var outline = (typeof getPlanOutline === "function") ? getPlanOutline() : { acts: [] };
+      var acts = outline.acts || [];
+      var segments = appState.writingWorkspace.segments || [];
+
+      if (context.type === "full-novel") {
+        var draftText = appState.writingWorkspace.draftText || "";
+        return draftText.trim() ? draftText : "Full novel text not available yet.";
+      }
+
+      if (context.type === "full-outline") {
+        return formatOutlineForContext(acts);
+      }
+
+      if (context.type === "acts") {
+        var sel = context.selected || [];
+        var matched = acts.filter(function (a) { return sel.indexOf(a.id) !== -1; });
+        if (!matched.length) return "";
+        return "Selected Acts:\n" + matched.map(function (a) {
+          var chs = (a.children || []).map(function (ch) { return "  - " + (ch.title || "Untitled Chapter"); }).join("\n");
+          return (a.title || "Untitled Act") + (chs ? "\n" + chs : "");
+        }).join("\n\n");
+      }
+
+      if (context.type === "chapters") {
+        var selCh = context.selected || [];
+        var chLines = [];
+        acts.forEach(function (a) {
+          (a.children || []).forEach(function (ch) {
+            if (selCh.indexOf(ch.id) !== -1) {
+              var seg = segments.find(function (s) { return s.key === ch.id; });
+              chLines.push((a.title || "Act") + " \u203A " + (ch.title || "Untitled Chapter"));
+            }
+          });
+        });
+        return chLines.length ? "Selected Chapters:\n" + chLines.join("\n") : "";
+      }
+
+      if (context.type === "scenes") {
+        var selSc = context.selected || [];
+        var scLines = [];
+        acts.forEach(function (a) {
+          (a.children || []).forEach(function (ch) {
+            (ch.children || []).forEach(function (s) {
+              if (selSc.indexOf(s.id) !== -1) {
+                scLines.push((ch.title || "Chapter") + " \u203A " + (s.title || "Untitled Scene"));
+              }
+            });
+          });
+        });
+        return scLines.length ? "Selected Scenes:\n" + scLines.join("\n") : "";
+      }
+
+      if (context.type === "codex") {
+        var selCat = context.selected || [];
+        if (!selCat.length) return "";
+        var project = getSelectedProject();
+        var seriesId = Number(project && project.series_id || 0);
+        if (!seriesId) return "No series selected for codex context.";
+        var parts = [];
+        selCat.forEach(function (catKey) {
+          var entities = (typeof getCodexEntitiesForType_ === "function") ? getCodexEntitiesForType_(seriesId, catKey) : [];
+          if (entities.length) {
+            parts.push(catKey.charAt(0).toUpperCase() + catKey.slice(1) + ":");
+            entities.forEach(function (e) {
+              var name = e.name || "Untitled";
+              var desc = e.description || e.summary || "";
+              parts.push("  - " + name + (desc ? ": " + desc : ""));
+            });
+          }
+        });
+        return parts.length ? "Codex Entries:\n" + parts.join("\n") : "No codex entries found for selected categories.";
+      }
+
+      return "";
+    }
+
+    function formatOutlineForContext(acts) {
+      return acts.map(function (a) {
+        var chs = (a.children || []).map(function (ch) {
+          return "    - " + (ch.title || "Untitled Chapter") + " (" + (ch.children || []).length + " scenes)";
+        }).join("\n");
+        return "  " + (a.title || "Untitled Act") + "\n" + chs;
+      }).join("\n\n");
+    }
+
+    function sendChatMessage() {
+      if (!el.chatInput) return;
+      var text = el.chatInput.value.trim();
+      if (!text) return;
+
+      var chat = getActiveChat();
+      if (!chat) {
+        chat = createNewChat();
+        if (!chat) return;
+      }
+
+      el.chatInput.value = "";
+      if (el.chatSendButton) el.chatSendButton.disabled = true;
+
+      chat.messages = chat.messages || [];
+      chat.messages.push({ role: "user", content: text, timestamp: Date.now() });
+      if (chat.name === "New Chat" || !chat.name) {
+        chat.name = text.slice(0, 60) + (text.length > 60 ? "..." : "");
+      }
+      saveChats();
+      renderChatList();
+      renderChatMessage({ role: "user", content: text });
+
+      var loadingEl = document.createElement("div");
+      loadingEl.className = "chat-msg loading";
+      loadingEl.innerHTML = "<div class='bubble'>Thinking...</div>";
+      el.chatMessagesInner.appendChild(loadingEl);
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+
+      var provider = "openrouter";
+      var model = "";
+      if (el.aiDefaultProvider) provider = el.aiDefaultProvider.value || "openrouter";
+      if (provider === "openrouter") {
+        var orModel = document.getElementById("aiOpenRouterModel");
+        if (orModel) model = orModel.value.trim();
+      } else if (provider === "lmstudio") {
+        var lsModel = document.getElementById("aiLmStudioModel");
+        if (lsModel) model = lsModel.value.trim();
+      } else if (provider === "ollama") {
+        var olModel = document.getElementById("aiOllamaModel");
+        if (olModel) model = olModel.value.trim();
+      } else if (provider === "opencode") {
+        var ocModel = document.getElementById("aiOpencodeModel");
+        if (ocModel) model = ocModel.value.trim();
+      }
+
+      var systemMsg = "You are a helpful writing assistant for a fiction author. Answer questions about writing, editing, plotting, character development, and publishing.";
+      var chatProject = getSelectedProject();
+      if (chatProject) {
+        systemMsg += " The user's current project is \"" + (chatProject.title || "Untitled") + "\"";
+        if (chatProject.series) systemMsg += " in the \"" + chatProject.series + "\" series";
+        if (chatProject.genre) systemMsg += " (genre: " + chatProject.genre + ")";
+        systemMsg += ".";
+      }
+      var context = appState.chatContext;
+      if (context) {
+        var contextContent = buildChatContextContent(context);
+        if (contextContent) {
+          systemMsg += "\n\n--- Context from your project ---\n" + contextContent + "\n--- End of context ---\n\nUse the above context to inform your response.";
+        }
+      }
+      var messages = [
+        { role: "system", content: systemMsg }
+      ];
+      (chat.messages || []).forEach(function (m) {
+        messages.push({ role: m.role, content: m.content });
+      });
+
+      callEditorAI({
+        provider: provider,
+        model: model,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 2048
+      }).then(function (result) {
+        if (loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
+        var reply = result && result.text ? result.text.trim() : "(No response)";
+        chat.messages.push({ role: "assistant", content: reply, timestamp: Date.now() });
+        saveChats();
+        renderChatList();
+        renderChatMessage({ role: "assistant", content: reply });
+        updateChatContextSize();
+      }).catch(function (err) {
+        if (loadingEl.parentNode) loadingEl.parentNode.removeChild(loadingEl);
+        renderChatMessage({ role: "assistant", content: "Error: " + (err.message || err) });
+      });
     }
 
     function renderTimeline() {
@@ -6950,7 +7958,10 @@
               throw new Error(result.error || "Create failed.");
             }
 
-            mergeProjectUpdate(newProject, result);
+            mergeProjectUpdate(newProject, {
+              rowNumber: result.id,
+              series_id: result.series_id
+            });
             closeNewProjectModal();
             setStatus("New project created.", "ok");
           } catch (err) {
@@ -6965,6 +7976,160 @@
           setStatus("Create failed: " + (error && error.message ? error.message : error), "error");
         })
         .createProjectJsonFromClient(JSON.stringify(newProject));
+    }
+
+    function openSeriesManager() {
+      el.seriesManagerModal.classList.add("is-open");
+      el.seriesManagerModal.setAttribute("aria-hidden", "false");
+      renderSeriesManagerList();
+    }
+
+    function closeSeriesManager() {
+      el.seriesManagerModal.classList.remove("is-open");
+      el.seriesManagerModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderSeriesManagerList() {
+      el.seriesManagerList.innerHTML = '<div class="empty-state">Loading series...</div>';
+      callAppsScriptJson("listSeriesJsonFromClient", []).then(function (result) {
+        var rows = result && result.rows || [];
+        if (!rows.length) {
+          el.seriesManagerList.innerHTML = '<div class="empty-state">No series yet. Create one to get started.</div>';
+          return;
+        }
+        el.seriesManagerList.innerHTML = rows.map(function (s) {
+          var name = escapeHtml(s.name || "Untitled");
+          var summary = escapeHtml((s.summary || "").slice(0, 120));
+          var imageHtml = s.series_image_url ? '<img src="' + escapeHtml(s.series_image_url) + '" class="series-manager-item-thumb" alt="" />' : '';
+          return '<div class="series-manager-item" data-series-id="' + Number(s.id) + '">' +
+            imageHtml +
+            '<div class="series-manager-item-info">' +
+              '<div class="series-manager-item-name">' + name + '</div>' +
+              '<div class="series-manager-item-summary">' + (summary || "No summary") + '</div>' +
+            '</div>' +
+            '<div class="series-manager-item-actions">' +
+              '<button class="series-edit-btn" type="button">Edit</button>' +
+              '<button class="series-delete-btn" type="button">Delete</button>' +
+            '</div>' +
+          '</div>';
+        }).join("");
+
+        el.seriesManagerList.querySelectorAll(".series-edit-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var item = btn.closest(".series-manager-item");
+            var sid = Number(item.getAttribute("data-series-id"));
+            var row = rows.find(function (r) { return Number(r.id) === sid; });
+            if (row) openSeriesEditModal(row);
+          });
+        });
+        el.seriesManagerList.querySelectorAll(".series-delete-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var item = btn.closest(".series-manager-item");
+            var sid = Number(item.getAttribute("data-series-id"));
+            var row = rows.find(function (r) { return Number(r.id) === sid; });
+            if (row) deleteSeries(row);
+          });
+        });
+      }).catch(function (err) {
+        el.seriesManagerList.innerHTML = '<div class="empty-state">Failed to load series: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+      });
+    }
+
+    var _seriesEditId = 0;
+
+    function openSeriesEditModal(series) {
+      _seriesEditId = Number(series && series.id || 0);
+      el.seriesEditModalTitle.textContent = _seriesEditId ? "Edit Series" : "New Series";
+      el.seriesEditName.value = series && series.name || "";
+      el.seriesEditSummary.value = series && series.summary || "";
+      el.seriesEditImageUrl.value = series && series.series_image_url || "";
+      el.seriesEditModal.classList.add("is-open");
+      el.seriesEditModal.setAttribute("aria-hidden", "false");
+      setTimeout(function () { el.seriesEditName.focus(); }, 20);
+    }
+
+    function closeSeriesEditModal() {
+      el.seriesEditModal.classList.remove("is-open");
+      el.seriesEditModal.setAttribute("aria-hidden", "true");
+      _seriesEditId = 0;
+    }
+
+    function saveSeriesEdit() {
+      var name = el.seriesEditName.value.trim();
+      if (!name) {
+        setStatus("Series name is required.", "error");
+        el.seriesEditName.focus();
+        return;
+      }
+      var summary = el.seriesEditSummary.value.trim();
+      var imageUrl = el.seriesEditImageUrl.value.trim();
+      if (_seriesEditId) {
+        callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [_seriesEditId, JSON.stringify({
+          name: name,
+          summary: summary,
+          series_image_url: imageUrl
+        })]).then(function () {
+          setStatus("Series updated.", "ok");
+          closeSeriesEditModal();
+          renderSeriesManagerList();
+          loadSeriesMeta();
+          populateFilters();
+        }).catch(function (err) {
+          setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
+        });
+      } else {
+        callAppsScriptJson("createSeriesJsonFromClient", [name, summary, imageUrl]).then(function () {
+          setStatus("Series created.", "ok");
+          closeSeriesEditModal();
+          renderSeriesManagerList();
+          loadSeriesMeta();
+          populateFilters();
+        }).catch(function (err) {
+          setStatus("Create failed: " + (err && err.message ? err.message : err), "error");
+        });
+      }
+    }
+
+    function deleteSeries(series) {
+      var name = series && series.name || "this series";
+      if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+      callAppsScriptJson("deleteSeriesJsonFromClient", [Number(series.id)]).then(function (result) {
+        if (result.ok === false) {
+          setStatus(result.error || "Delete failed.", "error");
+          return;
+        }
+        setStatus("Series deleted.", "ok");
+        renderSeriesManagerList();
+        loadSeriesMeta();
+        populateFilters();
+      }).catch(function (err) {
+        setStatus("Delete failed: " + (err && err.message ? err.message : err), "error");
+      });
+    }
+
+    function deleteSelectedProject() {
+      var project = getSelectedProject();
+      if (!project) {
+        setStatus("Select a project first.", "error");
+        return;
+      }
+      if (!confirm('Permanently delete "' + (project.title || "Untitled") + '" and all its data? This cannot be undone.')) return;
+      callAppsScriptJson("deleteProjectJsonFromClient", [Number(project.rowNumber)]).then(function () {
+        setStatus("Project deleted.", "ok");
+        var idx = appState.projects.findIndex(function (p) { return Number(p.rowNumber) === Number(project.rowNumber); });
+        if (idx !== -1) appState.projects.splice(idx, 1);
+        var fidx = appState.filteredProjects.findIndex(function (p) { return Number(p.rowNumber) === Number(project.rowNumber); });
+        if (fidx !== -1) appState.filteredProjects.splice(fidx, 1);
+        persistProjectsToCache();
+        clearDetails();
+        populateFilters();
+        renderProjectsTable();
+        renderLandingDashboard();
+        if (el.seriesFilter) el.seriesFilter.value = "All";
+        applyFilters();
+      }).catch(function (err) {
+        setStatus("Delete failed: " + (err && err.message ? err.message : err), "error");
+      });
     }
 
     function createWorkspace() {
@@ -7310,6 +8475,12 @@
     if (el.markdownAITestConnectionButton) bindUiOnce(el.markdownAITestConnectionButton, "ai-test-connection", "click", runAIConnectionTest);
     if (el.markdownAITestPreviewButton) bindUiOnce(el.markdownAITestPreviewButton, "ai-test-preview", "click", previewMarkdownAITestPrompt);
     if (el.markdownAITestSendButton) bindUiOnce(el.markdownAITestSendButton, "ai-test-send", "click", runMarkdownAITest);
+    if (el.markdownAITestFetchModelsButton) {
+      el.markdownAITestFetchModelsButton.addEventListener("click", function () {
+        var provider = el.markdownAITestProvider ? el.markdownAITestProvider.value : "";
+        if (provider) fetchAIModels(provider);
+      });
+    }
     if (el.markdownAILocalContextSelect) {
       el.markdownAILocalContextSelect.addEventListener("change", function () {
         if (typeof updateMarkdownAIContextBadge === "function") updateMarkdownAIContextBadge();
@@ -7422,6 +8593,7 @@
     populateImageGeneratorStyleSelect();
     initializeLinkSections();
     setStatus("Binding UI...", "warn");
+    appState.writingWorkspace.draftCache = {};
     bindEvents();
     updateLinksPanelUi();
     setStatus("Checking authentication...", "warn");

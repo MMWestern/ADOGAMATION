@@ -42,6 +42,19 @@
         });
     });
 
+    function resolveSeriesIdByName_(name) {
+      return sbClient.from('series').select('id').eq('name', name).maybeSingle()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          if (res.data) return Number(res.data.id);
+          return sbClient.from('series').insert({ name: name }).select('id').single()
+            .then(function (ins) {
+              if (ins.error) throw ins.error;
+              return Number(ins.data.id);
+            });
+        });
+    }
+
     _sbDefine('saveProjectJsonFromClient', function (payloadJson) {
       var payload = JSON.parse(payloadJson);
       var record = {
@@ -63,11 +76,19 @@
         schedule_milestones: Array.isArray(payload.schedule_milestones) ? JSON.stringify(payload.schedule_milestones) : null,
         campaigns: Array.isArray(payload.campaigns) ? JSON.stringify(payload.campaigns) : null
       };
-      return sbClient.from('projects').update(record).eq('id', payload.rowNumber)
-        .then(function (res) {
-          if (res.error) throw res.error;
-          return JSON.stringify({ ok: true });
-        });
+      var seriesName = String(payload.series || '').trim();
+      var chain = Promise.resolve(Number(payload.series_id) || 0);
+      if (seriesName) {
+        chain = resolveSeriesIdByName_(seriesName);
+      }
+      return chain.then(function (sid) {
+        if (sid) record.series_id = sid;
+        return sbClient.from('projects').update(record).eq('id', payload.rowNumber)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, series_id: sid });
+          });
+      });
     });
 
     _sbDefine('saveSupabaseProjectOutlineJsonFromClient', function (projectId, outlineJson) {
@@ -127,6 +148,22 @@
         });
     });
 
+    _sbDefine('upsertSupabaseProjectSectionNoteFromClient', function (projectId, docType, sectionKey, markdownContent) {
+      return sbClient.from('document_sections').upsert({
+        project_id: projectId,
+        doc_type: docType,
+        section_key: sectionKey,
+        title: sectionKey,
+        markdown_content: markdownContent || '',
+        word_count: 0,
+        sort_order: 0
+      }, { onConflict: 'project_id,doc_type,section_key' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
     _sbDefine('saveSupabaseProjectDocumentJsonFromClient', function (projectId, docType, title, markdownText) {
       return sbClient.from('documents').upsert({
         project_id: projectId, doc_type: docType, title: title, markdown_content: markdownText, word_count: (markdownText || '').split(/\s+/).filter(function (w) { return w.length > 0; }).length
@@ -163,18 +200,69 @@
 
     _sbDefine('createProjectJsonFromClient', function (payloadJson) {
       var payload = JSON.parse(payloadJson);
-      return sbClient.from('projects').insert({
-        title: payload.title,
-        pen_name: payload.pen_name,
-        genre: payload.genre,
-        format: payload.format,
-        status: payload.status,
-        priority: payload.priority,
-        next_step: payload.next_step
-      }).select('id').single()
+      var seriesName = String(payload.series || '').trim();
+      var chain = seriesName ? resolveSeriesIdByName_(seriesName) : Promise.resolve(0);
+      return chain.then(function (sid) {
+        var record = {
+          title: payload.title,
+          book_number: payload['b#'] || payload.book_number || null,
+          pen_name: payload.pen_name,
+          genre: payload.genre,
+          format: payload.format,
+          status: payload.status,
+          priority: payload.priority,
+          next_step: payload.next_step,
+          short_summary: payload.short_summary || ''
+        };
+        if (sid) record.series_id = sid;
+        return sbClient.from('projects').insert(record).select('id').single()
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, id: res.data && res.data.id, series_id: sid });
+          });
+      });
+    });
+
+    _sbDefine('deleteProjectJsonFromClient', function (projectId) {
+      return sbClient.from('projects').delete().eq('id', projectId)
         .then(function (res) {
           if (res.error) throw res.error;
-          return JSON.stringify({ ok: true, id: res.data && res.data.id });
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('listSeriesJsonFromClient', function () {
+      return sbClient.from('series').select('id,name,summary,series_image_url').limit(500).order('name')
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('createSeriesJsonFromClient', function (name, summary, imageUrl) {
+      return sbClient.from('series').insert({
+        name: name,
+        summary: summary || '',
+        series_image_url: imageUrl || ''
+      }).select('id,name,summary,series_image_url').single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, series: res.data });
+        });
+    });
+
+    _sbDefine('deleteSeriesJsonFromClient', function (seriesId) {
+      return sbClient.from('projects').select('id').eq('series_id', seriesId).limit(1)
+        .then(function (check) {
+          if (check.error) throw check.error;
+          if (check.data && check.data.length) {
+            return JSON.stringify({ ok: false, error: 'Cannot delete series with existing projects. Remove or reassign the projects first.' });
+          }
+          return sbClient.from('series').delete().eq('id', seriesId)
+            .then(function (res) {
+              if (res.error) throw res.error;
+              return JSON.stringify({ ok: true });
+            });
         });
     });
 
@@ -251,6 +339,18 @@
                 return JSON.stringify({ ok: true, docId: check.data[0].id });
               });
           }
-          return JSON.stringify({ ok: true, docId: 0 });
+      return JSON.stringify({ ok: true, docId: 0 });
+        });
+    });
+
+    _sbDefine('deleteSupabaseProjectSectionsByKeysFromClient', function (projectId, docType, keysJson) {
+      var keys = JSON.parse(keysJson);
+      if (!Array.isArray(keys) || !keys.length) return JSON.stringify({ ok: true, deleted: 0 });
+      return sbClient.from('document_sections').delete()
+        .eq('project_id', projectId).eq('doc_type', docType)
+        .in('section_key', keys)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, deleted: keys.length });
         });
     });
