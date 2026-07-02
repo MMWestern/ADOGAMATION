@@ -1565,7 +1565,9 @@
       bindUiOnce(el.planOutlineAddAct, "plan-add-act", "click", addPlanAct);
 
       if (el.planOutlineCreateFromOutline) {
-        bindUiOnce(el.planOutlineCreateFromOutline, "plan-create-from-outline", "click", openPlanOutlinePresetModal);
+        bindUiOnce(el.planOutlineCreateFromOutline, "plan-create-from-outline", "click", function () {
+          if (typeof openPlanOutlinePresetModal === "function") openPlanOutlinePresetModal();
+        });
       }
       if (el.planOutlinePresetClose) {
         bindUiOnce(el.planOutlinePresetClose, "plan-preset-close", "click", closePlanOutlinePresetModal);
