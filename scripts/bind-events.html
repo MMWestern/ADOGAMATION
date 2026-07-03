@@ -1562,7 +1562,9 @@
         });
       });
 
-      bindUiOnce(el.planOutlineAddAct, "plan-add-act", "click", addPlanAct);
+      bindUiOnce(el.planOutlineAddAct, "plan-add-act", "click", function () {
+        if (typeof addPlanAct === "function") addPlanAct();
+      });
 
       if (el.planOutlineCreateFromOutline) {
         bindUiOnce(el.planOutlineCreateFromOutline, "plan-create-from-outline", "click", function () {
@@ -1581,7 +1583,7 @@
       }
       if (el.planOutlinePresetSearch) {
         el.planOutlinePresetSearch.addEventListener("input", function () {
-          renderTemplateList(el.planOutlinePresetSearch.value);
+          if (typeof renderTemplateList === "function") renderTemplateList(el.planOutlinePresetSearch.value);
         });
       }
       if (el.planOutlinePresetList) {
@@ -1616,14 +1618,14 @@
         });
       }
       if (el.planOutlinePresetTabQuick) {
-        el.planOutlinePresetTabQuick.addEventListener("click", function () { switchOutlineTab("quick"); });
+        el.planOutlinePresetTabQuick.addEventListener("click", function () { if (typeof switchOutlineTab === "function") switchOutlineTab("quick"); });
       }
       if (el.planOutlinePresetTabManual) {
-        el.planOutlinePresetTabManual.addEventListener("click", function () { switchOutlineTab("manual"); });
+        el.planOutlinePresetTabManual.addEventListener("click", function () { if (typeof switchOutlineTab === "function") switchOutlineTab("manual"); });
       }
       if (el.planOutlinePresetRawText) {
         el.planOutlinePresetRawText.addEventListener("input", function () {
-          updatePreviewFromActiveTab();
+          if (typeof updatePreviewFromActiveTab === "function") updatePreviewFromActiveTab();
         });
       }
 
@@ -1631,11 +1633,15 @@
         bindUiOnce(el.planOutlineCleanupOrphans, "plan-cleanup-orphans", "click", cleanupOrphanedSections);
       }
       if (el.planOutlineDeleteAll) {
-        bindUiOnce(el.planOutlineDeleteAll, "plan-delete-all", "click", deleteAllPlanOutline);
+        bindUiOnce(el.planOutlineDeleteAll, "plan-delete-all", "click", function () {
+          if (typeof deleteAllPlanOutline === "function") deleteAllPlanOutline();
+        });
       }
 
       if (el.planCodexTagClose) {
-        bindUiOnce(el.planCodexTagClose, "plan-codex-close", "click", closePlanCodexTagModal);
+        bindUiOnce(el.planCodexTagClose, "plan-codex-close", "click", function () {
+          if (typeof closePlanCodexTagModal === "function") closePlanCodexTagModal();
+        });
       }
       if (el.planCodexTagModal) {
         el.planCodexTagModal.addEventListener("click", function (e) {
