@@ -1570,10 +1570,14 @@
         });
       }
       if (el.planOutlinePresetClose) {
-        bindUiOnce(el.planOutlinePresetClose, "plan-preset-close", "click", closePlanOutlinePresetModal);
+        bindUiOnce(el.planOutlinePresetClose, "plan-preset-close", "click", function () {
+          if (typeof closePlanOutlinePresetModal === "function") closePlanOutlinePresetModal();
+        });
       }
       if (el.planOutlinePresetCancelBtn) {
-        bindUiOnce(el.planOutlinePresetCancelBtn, "plan-preset-cancel", "click", closePlanOutlinePresetModal);
+        bindUiOnce(el.planOutlinePresetCancelBtn, "plan-preset-cancel", "click", function () {
+          if (typeof closePlanOutlinePresetModal === "function") closePlanOutlinePresetModal();
+        });
       }
       if (el.planOutlinePresetSearch) {
         el.planOutlinePresetSearch.addEventListener("input", function () {
@@ -1583,25 +1587,33 @@
       if (el.planOutlinePresetList) {
         el.planOutlinePresetList.addEventListener("click", function (e) {
           var item = e.target.closest("[data-template-id]");
-          if (item) selectTemplate(item.getAttribute("data-template-id"));
+          if (item && typeof selectTemplate === "function") selectTemplate(item.getAttribute("data-template-id"));
         });
       }
       if (el.planOutlinePresetNewBtn) {
-        bindUiOnce(el.planOutlinePresetNewBtn, "plan-preset-new", "click", selectNewTemplate);
+        bindUiOnce(el.planOutlinePresetNewBtn, "plan-preset-new", "click", function () {
+          if (typeof selectNewTemplate === "function") selectNewTemplate();
+        });
       }
       if (el.planOutlinePresetShorthand) {
         el.planOutlinePresetShorthand.addEventListener("input", function () {
-          updatePreviewFromActiveTab();
+          if (typeof updatePreviewFromActiveTab === "function") updatePreviewFromActiveTab();
         });
       }
       if (el.planOutlinePresetApplyBtn) {
-        bindUiOnce(el.planOutlinePresetApplyBtn, "plan-preset-apply", "click", applyCurrentTemplate);
+        bindUiOnce(el.planOutlinePresetApplyBtn, "plan-preset-apply", "click", function () {
+          if (typeof applyCurrentTemplate === "function") applyCurrentTemplate();
+        });
       }
       if (el.planOutlinePresetSaveBtn) {
-        bindUiOnce(el.planOutlinePresetSaveBtn, "plan-preset-save", "click", saveCurrentTemplate);
+        bindUiOnce(el.planOutlinePresetSaveBtn, "plan-preset-save", "click", function () {
+          if (typeof saveCurrentTemplate === "function") saveCurrentTemplate();
+        });
       }
       if (el.planOutlinePresetDeleteBtn) {
-        bindUiOnce(el.planOutlinePresetDeleteBtn, "plan-preset-delete", "click", deleteCurrentTemplate);
+        bindUiOnce(el.planOutlinePresetDeleteBtn, "plan-preset-delete", "click", function () {
+          if (typeof deleteCurrentTemplate === "function") deleteCurrentTemplate();
+        });
       }
       if (el.planOutlinePresetTabQuick) {
         el.planOutlinePresetTabQuick.addEventListener("click", function () { switchOutlineTab("quick"); });

@@ -89,10 +89,12 @@ const supabaseKeys = Object.keys(process.env).filter(k => k.includes("SUPABASE")
 console.log("  SUPABASE env var keys found:", supabaseKeys.length ? supabaseKeys.join(", ") : "(none)");
 const envUrl = process.env.SUPABASE_URL || "";
 const envKey = process.env.SUPABASE_ANON_KEY || "";
+const buildTimestamp = new Date().toISOString();
 const envJs = 'window.__SUPABASE_URL__=' + JSON.stringify(envUrl) + ';\n' +
-              'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envKey) + ';\n';
+              'window.__SUPABASE_ANON_KEY__=' + JSON.stringify(envKey) + ';\n' +
+              'window.__BUILD_TIMESTAMP__=' + JSON.stringify(buildTimestamp) + ';\n';
 fs.writeFileSync(path.join(DIST, "env.js"), envJs, "utf8");
-console.log(`  env.js -> build/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"})`);
+console.log(`  env.js -> build/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"}, timestamp=${buildTimestamp})`);
 
 // Copy data files
 const dataDir = path.join(ROOT, "data");
