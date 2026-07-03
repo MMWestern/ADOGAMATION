@@ -5,22 +5,7 @@
     var _dragDropFired = false;
 
     function setPlanSubTab(tabKey) {
-      var tabs = ["outline", "character-arcs", "brainstorm", "world-build"];
-      var btnMap = { outline: "planSubTabOutline", "character-arcs": "planSubTabCharacterArcs", brainstorm: "planSubTabBrainstorm", "world-build": "planSubTabWorldBuild" };
-      var paneMap = { outline: "planTabOutline", "character-arcs": "planTabCharacterArcs", brainstorm: "planTabBrainstorm", "world-build": "planTabWorldBuild" };
-      tabs.forEach(function (key) {
-        var btn = el[btnMap[key]];
-        var pane = el[paneMap[key]];
-        if (btn) {
-          btn.classList.toggle("is-active", key === tabKey);
-          btn.setAttribute("aria-pressed", key === tabKey ? "true" : "false");
-        }
-        if (pane) pane.hidden = key !== tabKey;
-      });
-      if (tabKey === "outline") renderPlanOutline();
-      if (tabKey === "character-arcs") renderPlanCharacterArcs();
-      if (tabKey === "brainstorm") renderPlanBrainstorm();
-      if (tabKey === "world-build") renderPlanWorldBuild();
+      renderPlanOutline();
     }
 
     function sortOutlineBySortOrder_(outline) {
@@ -203,21 +188,52 @@
       schedulePlanOutlineSave();
     }
 
+    function deleteAllPlanOutline() {
+      if (!confirm("DELETE ALL OUTLINE DATA?\n\nThis will permanently remove every act, chapter, and scene from your outline. The writing workspace will be empty. This action cannot be undone.\n\nAre you absolutely sure?")) return;
+      if (!confirm("Really delete everything? There is no undo.")) return;
+      var outline = getPlanOutline();
+      var allKeys = [];
+      (outline.acts || []).forEach(function (a) { (a.children || []).forEach(function (c) { if (c.id) allKeys.push(c.id); }); });
+      outline.acts = [];
+      syncOutlineToSegments();
+      renderPlanOutline();
+      schedulePlanOutlineSave();
+      if (allKeys.length && typeof callAppsScriptJson === "function") {
+        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+        if (project && Number(project.project_id || 0)) {
+          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "draft", JSON.stringify(allKeys)]);
+        }
+      }
+    }
+
     function deletePlanNode(nodeId) {
       var outline = getPlanOutline();
+      var orphanedKeys = [];
       outline.acts = outline.acts || [];
       outline.acts = outline.acts.filter(function (a) {
-        if (a.id === nodeId) return false;
+        if (a.id === nodeId) {
+          (a.children || []).forEach(function (c) { if (c.id) orphanedKeys.push(c.id); });
+          return false;
+        }
         a.children = (a.children || []).filter(function (c) {
-          if (c.id === nodeId) return false;
+          if (c.id === nodeId) {
+            if (c.id) orphanedKeys.push(c.id);
+            return false;
+          }
           c.children = (c.children || []).filter(function (s) { return s.id !== nodeId; });
           return true;
         });
         return true;
       });
-      renderPlanOutline();
       syncOutlineToSegments();
+      renderPlanOutline();
       schedulePlanOutlineSave();
+      if (orphanedKeys.length && typeof callAppsScriptJson === "function") {
+        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+        if (project && Number(project.project_id || 0)) {
+          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "draft", JSON.stringify(orphanedKeys)]);
+        }
+      }
     }
 
     function updatePlanNodeTitle(nodeId, title) {
@@ -387,6 +403,7 @@
 
     function renderPlanOutline() {
       initOutlineFromSegments();
+      if (typeof refreshWorkspaceTabDisabledState === "function") refreshWorkspaceTabDisabledState();
       var outline = getPlanOutline();
       var grid = el.planOutlineGrid;
       var empty = el.planOutlineEmpty;
@@ -404,12 +421,26 @@
           var totalWords = (appState.writingWorkspace.segments || []).reduce(function (sum, seg) { return sum + (Number(seg.wordCount) || 0); }, 0);
           el.planInfoWords.textContent = totalWords ? formatWordCount(totalWords) : "0w";
         }
+        if (el.chatInfoImage) { el.chatInfoImage.src = getProjectDisplayImageUrl(project); el.chatInfoImage.alt = String(project.title || "").trim() + " cover"; }
+        if (el.chatInfoTitle) el.chatInfoTitle.textContent = String(project.title || "").trim() || "Untitled";
+        if (el.chatInfoSeries) el.chatInfoSeries.textContent = String(project.series || "").trim() || "No series";
+    if (el.chatSeriesButton) el.chatSeriesButton.hidden = !project || !project.series;
+        if (el.chatInfoGenre) el.chatInfoGenre.textContent = String(project.genre || "").trim() || "—";
+        if (el.chatInfoAuthor) el.chatInfoAuthor.textContent = String(project.pen_name || "").trim() || "—";
+        if (el.chatInfoWords) {
+          el.chatInfoWords.textContent = el.planInfoWords ? el.planInfoWords.textContent : "0w";
+        }
       }
       var acts = outline.acts || [];
       if (!acts.length) {
         empty.hidden = false;
         content.hidden = true;
         grid.innerHTML = "";
+        if (empty.querySelector(".plan-empty-body")) {
+          empty.querySelector(".plan-empty-body").textContent = project
+            ? "No chapters created yet. Use the \"Create from Outline\" button above to get started, or add acts and chapters manually."
+            : "Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.";
+        }
         return;
       }
       empty.hidden = true;
@@ -439,7 +470,6 @@
         var chapterCount = (act.children || []).length;
         var sceneCount = (act.children || []).reduce(function (sum, ch) { return sum + (ch.children || []).length; }, 0);
         var countLabel = chapterCount + " chapter" + (chapterCount === 1 ? "" : "s") + ", " + sceneCount + " scene" + (sceneCount === 1 ? "" : "s");
-        var sceneNum = 0;
         return '<div class="plan-act' + (act.collapsed ? " collapsed" : "") + '" data-act-id="' + escapeHtml(act.id) + '">' +
           '<div class="plan-act-header" data-act-id="' + escapeHtml(act.id) + '">' +
             '<span class="plan-act-chevron">&#9660;</span>' +
@@ -454,6 +484,7 @@
             (act.children || []).map(function (chapter) {
               globalChapterNum += 1;
               var chNum = globalChapterNum;
+              var sceneNum = 0;
               return '<div class="plan-chapter" draggable="true" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
                 '<div class="plan-chapter-header">' +
                   '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
@@ -1037,4 +1068,419 @@
       empty.hidden = true;
       content.hidden = false;
       editor.value = String((appState.writingWorkspace.outline || {}).worldBuilding || "");
+    }
+
+    var _selectedTemplateId = null;
+    var _activeTab = "quick";
+
+    function getDefaultOutlineTemplates() {
+      return [
+        { id: "default-3act", name: "Three-Act Structure", description: "3 acts, 4 chapters each, 3 scenes per chapter, 2500 words per chapter.", shorthand: "3:4:3:2500" },
+        { id: "default-5act", name: "Five-Act Structure", description: "5 acts, 3 chapters each, 3 scenes per chapter, 2000 words per chapter.", shorthand: "5:3:3:2000" }
+      ];
+    }
+
+    function loadOutlineTemplates() {
+      var stored = localStorage.getItem("planOutlineTemplates");
+      if (stored) {
+        try { var parsed = JSON.parse(stored); if (Array.isArray(parsed) && parsed.length) return parsed; } catch (e) {}
+      }
+      return getDefaultOutlineTemplates();
+    }
+
+    function saveOutlineTemplates(templates) {
+      localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
+    }
+
+    function parseOutlineShorthand(shorthand) {
+      var parts = String(shorthand || "").split(":").map(function (p) { var n = parseInt(p, 10); return isNaN(n) ? 0 : n; });
+      if (parts.length !== 4 || parts.some(function (p) { return p < 1; })) return null;
+      return { acts: parts[0], chapters: parts[1], scenes: parts[2], words: parts[3] };
+    }
+
+    function getActTitles(count) {
+      var known = {
+        3: ["Act 1: Setup", "Act 2: Confrontation", "Act 3: Resolution"],
+        5: ["Act 1: Exposition", "Act 2: Rising Action", "Act 3: Climax", "Act 4: Falling Action", "Act 5: Denouement"]
+      };
+      return known[count] || [];
+    }
+
+    function generateOutlineFromShorthand(shorthand) {
+      var config = parseOutlineShorthand(shorthand);
+      if (!config) return null;
+      var acts = [];
+      var actTitles = getActTitles(config.acts);
+      for (var a = 0; a < config.acts; a++) {
+        var chapters = [];
+        for (var c = 0; c < config.chapters; c++) {
+          var scenes = [];
+          for (var s = 0; s < config.scenes; s++) {
+            scenes.push({
+              id: generateOutlineNodeId(),
+              type: "scene",
+              title: "Scene " + (s + 1),
+              sortOrder: s,
+              purpose: "",
+              pov: "",
+              targetWordCount: Math.round(config.words / config.scenes),
+              mainPlotFunction: "",
+              notes: "",
+              characterIds: []
+            });
+          }
+          chapters.push({
+            id: generateOutlineNodeId(),
+            type: "chapter",
+            title: "Chapter " + (c + 1),
+            sortOrder: c,
+            children: scenes
+          });
+        }
+        acts.push({
+          id: generateOutlineNodeId(),
+          type: "act",
+          title: actTitles[a] || "Act " + (a + 1),
+          sortOrder: a,
+          children: chapters
+        });
+      }
+      return acts;
+    }
+
+    function parseOutlineText(text) {
+      if (!text) return null;
+      var lines = String(text).split("\n");
+      var acts = [];
+      var currentAct = null;
+      var currentChapter = null;
+      var actSort = 0, chapterSort = 0, sceneSort = 0;
+
+      function parseMeta(part) {
+        part = part.trim();
+        var colonIdx = part.indexOf(":");
+        if (colonIdx === -1) return null;
+        var key = part.substring(0, colonIdx).trim().toLowerCase();
+        var val = part.substring(colonIdx + 1).trim();
+        return { key: key, val: val };
+      }
+
+      function parseFields(str) {
+        var parts = str.split("|");
+        var title = parts[0].trim();
+        var fields = { title: title, wc: 0, povType: "", povCharacterId: "", purpose: "", notes: "", text: "", mainPlotFunction: "" };
+        for (var i = 1; i < parts.length; i++) {
+          var m = parseMeta(parts[i]);
+          if (m) {
+            if (m.key === "wc" || m.key === "words") fields.wc = parseInt(m.val, 10) || 0;
+            else if (m.key === "pov") fields.povType = m.val;
+            else if (m.key === "povchar") fields.povCharacterId = m.val;
+            else if (m.key === "purpose") fields.purpose = m.val;
+            else if (m.key === "notes") fields.notes = m.val;
+            else if (m.key === "text") fields.text = m.val;
+            else if (m.key === "plot") fields.mainPlotFunction = m.val;
+          }
+        }
+        return fields;
+      }
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var trimmed = line.trim();
+        if (!trimmed || trimmed.charAt(0) === "#" || trimmed.indexOf("//") === 0) continue;
+        var indent = 0;
+        while (indent < line.length && line.charAt(indent) === " ") indent++;
+        if (indent < 2) {
+          var f = parseFields(trimmed);
+          currentAct = { id: generateOutlineNodeId(), type: "act", title: f.title, sortOrder: actSort++, children: [] };
+          acts.push(currentAct);
+          currentChapter = null;
+        } else if (indent < 4) {
+          if (!currentAct) continue;
+          var f = parseFields(trimmed);
+          currentChapter = { id: generateOutlineNodeId(), type: "chapter", title: f.title, sortOrder: chapterSort++, targetWordCount: f.wc || undefined, children: [] };
+          currentAct.children.push(currentChapter);
+          sceneSort = 0;
+        } else {
+          if (!currentChapter) continue;
+          var f = parseFields(trimmed);
+          currentChapter.children.push({
+            id: generateOutlineNodeId(),
+            type: "scene",
+            title: f.title,
+            sortOrder: sceneSort++,
+            purpose: f.purpose || "",
+            povType: f.povType || "",
+            povCharacterId: f.povCharacterId || "",
+            targetWordCount: f.wc || 0,
+            mainPlotFunction: f.mainPlotFunction || "",
+            notes: f.notes || "",
+            text: f.text || ""
+          });
+        }
+      }
+      return acts.length ? acts : null;
+    }
+
+    function formatNumber(n) {
+      return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function renderOutlinePreview(shorthand) {
+      var config = parseOutlineShorthand(shorthand);
+      if (!config) return '<div class="plan-outline-preset-preview-empty">Enter a valid shorthand to see a preview.</div>';
+      var actTitles = getActTitles(config.acts);
+      var totalWords = config.acts * config.chapters * config.words;
+      var totalScenes = config.acts * config.chapters * config.scenes;
+      var html = '<div class="plan-outline-preset-preview-total">' + config.acts + " acts &middot; " + config.chapters + " ch/act &middot; " + config.scenes + " sc/ch &middot; " + totalScenes + " scenes &middot; ~" + formatNumber(totalWords) + " words</div>";
+      for (var a = 0; a < config.acts; a++) {
+        html += '<div class="plan-outline-preset-preview-act">' + escapeHtml(actTitles[a] || "Act " + (a + 1)) + "</div>";
+        for (var c = 0; c < Math.min(config.chapters, 4); c++) {
+          var chLabel = c < config.chapters - 1 || config.chapters <= 4 ? "Chapter " + (c + 1) : (config.chapters > 4 ? "... Chapter " + config.chapters : "Chapter " + (c + 1));
+          html += '<div class="plan-outline-preset-preview-chapter">' + escapeHtml(chLabel) + ' <span class="plan-outline-preset-preview-wc">(' + formatNumber(config.words) + 'w, ' + config.scenes + ' scenes)</span></div>';
+        }
+        if (config.chapters > 4) {
+          html += '<div class="plan-outline-preset-preview-chapter" style="color:#55555e;">&hellip; ' + config.chapters + " chapters total</div>";
+        }
+      }
+      return html;
+    }
+
+    function renderOutlinePreviewFromActs(acts) {
+      if (!acts || !acts.length) return '<div class="plan-outline-preset-preview-empty">Enter a valid structure to see a preview.</div>';
+      var totalWords = 0;
+      var totalChapters = 0;
+      var totalScenes = 0;
+      var html = "";
+      for (var a = 0; a < acts.length; a++) {
+        var act = acts[a];
+        var chs = act.children || [];
+        html += '<div class="plan-outline-preset-preview-act">' + escapeHtml(act.title || "Act " + (a + 1)) + "</div>";
+        totalChapters += chs.length;
+        for (var c = 0; c < chs.length; c++) {
+          var ch = chs[c];
+          var scs = ch.children || [];
+          var chWc = 0;
+          for (var s = 0; s < scs.length; s++) { chWc += Number(scs[s].targetWordCount || 0); }
+          totalScenes += scs.length;
+          totalWords += chWc;
+          html += '<div class="plan-outline-preset-preview-chapter">' + escapeHtml(ch.title || "Chapter " + (c + 1)) + ' <span class="plan-outline-preset-preview-wc">(' + formatNumber(chWc) + "w, " + scs.length + " scenes)</span></div>";
+          for (var s = 0; s < scs.length; s++) {
+            var sc = scs[s];
+            var scWc = Number(sc.targetWordCount || 0);
+            var parts = ['<span class="plan-outline-preset-preview-wc">' + (scWc ? formatNumber(scWc) + "w" : "—") + "</span>"];
+            if (sc.povType) parts.push('<span class="plan-outline-preset-preview-tag">' + escapeHtml(sc.povType) + "</span>");
+            if (sc.povCharacterId) parts.push('<span class="plan-outline-preset-preview-tag">char: ' + escapeHtml(sc.povCharacterId) + "</span>");
+            if (sc.purpose) parts.push('<span class="plan-outline-preset-preview-detail">' + escapeHtml(sc.purpose) + "</span>");
+            if (sc.notes) parts.push('<span class="plan-outline-preset-preview-detail" style="color:#55555e;">' + escapeHtml(sc.notes.length > 60 ? sc.notes.substring(0, 60) + "…" : sc.notes) + "</span>");
+            html += '<div class="plan-outline-preset-preview-scene">' + escapeHtml(sc.title || "Scene " + (s + 1)) + " — " + parts.join(" ") + "</div>";
+          }
+        }
+      }
+      html = '<div class="plan-outline-preset-preview-total">' + acts.length + " acts &middot; " + totalChapters + " chapters &middot; " + totalScenes + " scenes &middot; ~" + formatNumber(totalWords) + " words</div>" + html;
+      return html;
+    }
+
+    function renderTemplateList(query) {
+      if (!el.planOutlinePresetList) return;
+      var templates = loadOutlineTemplates();
+      var q = String(query || "").trim().toLowerCase();
+      if (q) templates = templates.filter(function (t) { return t.name.toLowerCase().indexOf(q) !== -1 || t.description.toLowerCase().indexOf(q) !== -1; });
+      var defaults = getDefaultOutlineTemplates();
+      var html = "";
+      var hasDefaults = templates.some(function (t) { return defaults.some(function (d) { return d.id === t.id; }); });
+      if (hasDefaults) {
+        html += '<div class="plan-outline-preset-list-divider">Defaults</div>';
+        templates.filter(function (t) { return defaults.some(function (d) { return d.id === t.id; }); }).forEach(function (t) {
+          html += renderTemplateListItem(t);
+        });
+      }
+      var custom = templates.filter(function (t) { return !defaults.some(function (d) { return d.id === t.id; }); });
+      if (custom.length) {
+        html += '<div class="plan-outline-preset-list-divider">Custom</div>';
+        custom.forEach(function (t) { html += renderTemplateListItem(t); });
+      }
+      el.planOutlinePresetList.innerHTML = html || '<div style="padding:16px 10px;color:#6b7280;font-size:11px;text-align:center;">No templates found.</div>';
+    }
+
+    function renderTemplateListItem(t) {
+      var sel = _selectedTemplateId === t.id ? ' is-selected' : '';
+      var badge = t.rawText ? ' <span style="color:#a855f7;font-weight:400;">Manual</span>' : "";
+      var meta = "";
+      if (t.rawText) {
+        var acts = parseOutlineText(t.rawText);
+        if (acts) { var tc = 0, ts = 0; for (var a = 0; a < acts.length; a++) { tc += (acts[a].children || []).length; for (var c = 0; c < (acts[a].children || []).length; c++) { ts += ((acts[a].children[c] || {}).children || []).length; } } meta = acts.length + " acts &middot; " + tc + " ch &middot; " + ts + " sc"; }
+      } else {
+        var config = parseOutlineShorthand(t.shorthand);
+        meta = config ? config.acts + " acts &middot; " + config.chapters + " ch &middot; " + config.scenes + " sc &middot; " + config.words + "w/ch" : t.shorthand;
+      }
+      return '<div class="plan-outline-preset-list-item' + sel + '" data-template-id="' + escapeHtml(t.id) + '">' +
+        '<div class="plan-outline-preset-list-item-name">' + escapeHtml(t.name) + badge + '</div>' +
+        '<div class="plan-outline-preset-list-item-meta">' + escapeHtml(meta) + '</div></div>';
+    }
+
+    function switchOutlineTab(tab) {
+      _activeTab = tab;
+      if (el.planOutlinePresetTabQuick) el.planOutlinePresetTabQuick.classList.toggle("is-active", tab === "quick");
+      if (el.planOutlinePresetTabManual) el.planOutlinePresetTabManual.classList.toggle("is-active", tab === "manual");
+      var quickContent = document.querySelector("[data-tab-content='quick']");
+      var manualContent = document.querySelector("[data-tab-content='manual']");
+      if (quickContent) quickContent.hidden = tab !== "quick";
+      if (manualContent) manualContent.hidden = tab !== "manual";
+      updatePreviewFromActiveTab();
+    }
+
+    function updatePreviewFromActiveTab() {
+      if (_activeTab === "manual") {
+        var preview = document.getElementById("planOutlinePresetPreviewManual");
+        if (!preview) return;
+        var text = el.planOutlinePresetRawText ? el.planOutlinePresetRawText.value : "";
+        var acts = parseOutlineText(text);
+        preview.innerHTML = acts ? renderOutlinePreviewFromActs(acts) : '<div class="plan-outline-preset-preview-empty">Enter a valid structure to see a preview.</div>';
+      } else {
+        var preview = document.getElementById("planOutlinePresetPreviewQuick");
+        if (!preview) return;
+        var shorthand = el.planOutlinePresetShorthand ? String(el.planOutlinePresetShorthand.value || "").trim() : "";
+        preview.innerHTML = renderOutlinePreview(shorthand);
+      }
+    }
+
+    function selectTemplate(templateId) {
+      _selectedTemplateId = templateId;
+      var templates = loadOutlineTemplates();
+      var t;
+      for (var i = 0; i < templates.length; i++) { if (templates[i].id === templateId) { t = templates[i]; break; } }
+      if (!t) return;
+      if (el.planOutlinePresetName) el.planOutlinePresetName.value = t.name;
+      if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = t.description;
+      if (t.rawText) {
+        switchOutlineTab("manual");
+        if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = t.rawText;
+        if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+      } else {
+        switchOutlineTab("quick");
+        if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = t.shorthand;
+        if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      }
+      updatePreviewFromActiveTab();
+      if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = getDefaultOutlineTemplates().some(function (d) { return d.id === templateId; }) ? "none" : "";
+      renderTemplateList();
+    }
+
+    function selectNewTemplate() {
+      _selectedTemplateId = null;
+      if (el.planOutlinePresetName) el.planOutlinePresetName.value = "";
+      if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = "";
+      if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+      if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      switchOutlineTab("quick");
+      if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = "none";
+      renderTemplateList();
+      if (el.planOutlinePresetName) el.planOutlinePresetName.focus();
+    }
+
+    function saveCurrentTemplate() {
+      var name = el.planOutlinePresetName ? String(el.planOutlinePresetName.value || "").trim() : "";
+      var desc = el.planOutlinePresetDesc ? String(el.planOutlinePresetDesc.value || "").trim() : "";
+      if (!name) { setStatus("Template name is required.", "error"); if (el.planOutlinePresetName) el.planOutlinePresetName.focus(); return; }
+      var templates = loadOutlineTemplates();
+      if (_activeTab === "manual") {
+        var rawText = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
+        if (!rawText) { setStatus("Raw structure is required.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
+        if (!parseOutlineText(rawText)) { setStatus("Invalid structure format. Check indentation and syntax.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
+        if (_selectedTemplateId) {
+          for (var i = 0; i < templates.length; i++) {
+            if (templates[i].id === _selectedTemplateId) {
+              templates[i].name = name;
+              templates[i].description = desc;
+              templates[i].rawText = rawText;
+              delete templates[i].shorthand;
+              break;
+            }
+          }
+        } else {
+          templates.push({ id: "tmpl-" + Date.now(), name: name, description: desc, rawText: rawText });
+          _selectedTemplateId = templates[templates.length - 1].id;
+        }
+      } else {
+        var shorthand = el.planOutlinePresetShorthand ? String(el.planOutlinePresetShorthand.value || "").trim() : "";
+        if (!shorthand) { setStatus("Shorthand is required.", "error"); if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.focus(); return; }
+        if (!parseOutlineShorthand(shorthand)) { setStatus("Invalid shorthand format. Use acts:chapters:scenes:wordsPerChapter (e.g. 3:4:3:2500).", "error"); if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.focus(); return; }
+        if (_selectedTemplateId) {
+          for (var i = 0; i < templates.length; i++) {
+            if (templates[i].id === _selectedTemplateId) {
+              templates[i].name = name;
+              templates[i].description = desc;
+              templates[i].shorthand = shorthand;
+              delete templates[i].rawText;
+              break;
+            }
+          }
+        } else {
+          templates.push({ id: "tmpl-" + Date.now(), name: name, description: desc, shorthand: shorthand });
+          _selectedTemplateId = templates[templates.length - 1].id;
+        }
+      }
+      saveOutlineTemplates(templates);
+      renderTemplateList();
+      setStatus("Template saved.", "ok");
+    }
+
+    function deleteCurrentTemplate() {
+      if (!_selectedTemplateId) return;
+      var defaults = getDefaultOutlineTemplates();
+      if (defaults.some(function (d) { return d.id === _selectedTemplateId; })) return;
+      if (!confirm('Delete "' + (el.planOutlinePresetName ? el.planOutlinePresetName.value : "") + '"? This cannot be undone.')) return;
+      var templates = loadOutlineTemplates();
+      templates = templates.filter(function (t) { return t.id !== _selectedTemplateId; });
+      saveOutlineTemplates(templates);
+      _selectedTemplateId = null;
+      selectNewTemplate();
+      setStatus("Template deleted.", "ok");
+    }
+
+    function applyCurrentTemplate() {
+      var acts;
+      if (_activeTab === "manual") {
+        var text = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
+        if (!text) { setStatus("Enter a raw structure first.", "error"); return; }
+        acts = parseOutlineText(text);
+        if (!acts) { setStatus("Invalid structure format. Check indentation and syntax.", "error"); return; }
+      } else {
+        var shorthand = el.planOutlinePresetShorthand ? String(el.planOutlinePresetShorthand.value || "").trim() : "";
+        if (!shorthand) { setStatus("Enter a shorthand first.", "error"); return; }
+        acts = generateOutlineFromShorthand(shorthand);
+        if (!acts) { setStatus("Invalid shorthand. Use acts:chapters:scenes:wordsPerChapter (e.g. 3:4:3:2500).", "error"); return; }
+      }
+      var outline = getPlanOutline();
+      var hasExisting = (outline.acts || []).some(function (act) { return (act.children || []).length > 0; });
+      if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return;
+      outline.acts = acts;
+      closePlanOutlinePresetModal();
+      syncOutlineToSegments();
+      renderPlanOutline();
+      schedulePlanOutlineSave();
+      if (typeof callAppsScriptJson === "function") {
+        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+        if (project && Number(project.project_id || 0)) {
+          callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+            project.project_id,
+            "draft",
+            String(project.title || "Project").trim() + " - Draft",
+            JSON.stringify(appState.writingWorkspace.segments || [])
+          ]);
+        }
+      }
+    }
+
+    function openPlanOutlinePresetModal() {
+      if (!el.planOutlinePresetModal) return;
+      _selectedTemplateId = null;
+      selectNewTemplate();
+      el.planOutlinePresetModal.hidden = false;
+    }
+
+    function closePlanOutlinePresetModal() {
+      if (!el.planOutlinePresetModal) return;
+      el.planOutlinePresetModal.hidden = true;
     }
