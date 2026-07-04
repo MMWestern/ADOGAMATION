@@ -2988,6 +2988,9 @@
       renderChatList();
       renderChatMessages();
       _loadChatsFromSupabase();
+      _snippets = _loadSnippetsFromStorage();
+      renderSnippetList();
+      loadSnippets();
       preloadProjectDocs(project);
       preloadReferencePanelSelections(project, appState.markdownEditor && appState.markdownEditor.field);
       if (activeMainTab === "resources") {
