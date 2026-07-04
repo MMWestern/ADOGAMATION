@@ -2982,6 +2982,11 @@
       }
       fillDetailForm(project);
       populateChatInfoPanel(project);
+      appState.chats = _loadChatsFromStorage();
+      appState.activeChatId = appState.chats.length ? appState.chats[0].id : null;
+      renderChatList();
+      renderChatMessages();
+      _loadChatsFromSupabase();
       preloadProjectDocs(project);
       preloadReferencePanelSelections(project, appState.markdownEditor && appState.markdownEditor.field);
       if (activeMainTab === "resources") {
@@ -6174,9 +6179,13 @@
       _loadChatsFromSupabase();
     }
 
+    var _chatStorageKey = function () { var p = getSelectedProject(); return p ? "chat_sessions_" + p.project_id : null; };
+
     function _loadChatsFromStorage() {
+      var key = _chatStorageKey();
+      if (!key) return [];
       try {
-        var saved = localStorage.getItem("chat_sessions_v1");
+        var saved = localStorage.getItem(key);
         if (saved) { var parsed = JSON.parse(saved); if (Array.isArray(parsed)) return parsed; }
       } catch (e) {}
       return [];
@@ -6205,7 +6214,8 @@
     }
 
     function _saveChatsToStorage() {
-      try { localStorage.setItem("chat_sessions_v1", JSON.stringify(appState.chats)); } catch (e) {}
+      var key = _chatStorageKey();
+      if (key) { try { localStorage.setItem(key, JSON.stringify(appState.chats)); } catch (e) {} }
     }
 
     function _syncChatToSupabase(chat) {
