@@ -148,7 +148,7 @@
       });
       renderPlanOutline();
       syncOutlineToSegments();
-      schedulePlanOutlineSave();
+      if (typeof savePlanOutline === "function") savePlanOutline();
       if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
     }
 
@@ -171,7 +171,7 @@
       }
       renderPlanOutline();
       syncOutlineToSegments();
-      schedulePlanOutlineSave();
+      if (typeof savePlanOutline === "function") savePlanOutline();
       if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
     }
 
@@ -1485,7 +1485,7 @@
       closePlanOutlinePresetModal();
       syncOutlineToSegments();
       renderPlanOutline();
-      schedulePlanOutlineSave();
+      if (typeof savePlanOutline === "function") savePlanOutline();
       var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
       if (project && Number(project.project_id || 0)) {
         (acts || []).forEach(function (act) {
