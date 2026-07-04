@@ -157,13 +157,18 @@
       var act = (outline.acts || []).find(function (a) { return a.id === actId; });
       if (!act) return;
       act.children = act.children || [];
-      act.children.push({
+      var newChapter = {
         id: generateOutlineNodeId(),
         type: "chapter",
         title: "Chapter " + (act.children.length + 1),
         sortOrder: act.children.length,
         children: []
-      });
+      };
+      act.children.push(newChapter);
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && Number(project.project_id || 0)) {
+        if (typeof initNotesAndFixesForChapter === "function") initNotesAndFixesForChapter(project.project_id, newChapter.id);
+      }
       renderPlanOutline();
       syncOutlineToSegments();
       schedulePlanOutlineSave();
@@ -1481,9 +1486,14 @@
       syncOutlineToSegments();
       renderPlanOutline();
       schedulePlanOutlineSave();
-      if (typeof callAppsScriptJson === "function") {
-        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
-        if (project && Number(project.project_id || 0)) {
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && Number(project.project_id || 0)) {
+        (acts || []).forEach(function (act) {
+          (act.children || []).forEach(function (chapter) {
+            if (chapter.id && typeof initNotesAndFixesForChapter === "function") initNotesAndFixesForChapter(project.project_id, chapter.id);
+          });
+        });
+        if (typeof callAppsScriptJson === "function") {
           callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
             project.project_id,
             "draft",

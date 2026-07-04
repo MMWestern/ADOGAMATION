@@ -4642,6 +4642,14 @@
       ]).catch(function (err) { console.warn("Failed to save chapter fixes:", err); });
     }
 
+    function initNotesAndFixesForChapter(projectId, chapterKey) {
+      if (!projectId || !chapterKey || typeof callAppsScriptJson !== "function") return;
+      appState.writingWorkspace.chapterNotes[chapterKey] = appState.writingWorkspace.chapterNotes[chapterKey] || "";
+      appState.writingWorkspace.chapterFixes[chapterKey] = appState.writingWorkspace.chapterFixes[chapterKey] || "";
+      callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [projectId, "notes", chapterKey, ""]).catch(function () {});
+      callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [projectId, "fixes", chapterKey, ""]).catch(function () {});
+    }
+
     function loadChapterNotesAndFixes(project) {
       var selected = project || getSelectedProject();
       if (!selected || !Number(selected.project_id || 0)) return Promise.resolve();
@@ -5095,6 +5103,7 @@
       appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sectionPayloads);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sectionPayloads, project);
       appState.writingWorkspace.scope = newId;
+      initNotesAndFixesForChapter(project.project_id, newId);
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);
