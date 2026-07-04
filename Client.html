@@ -2982,6 +2982,7 @@
       }
       fillDetailForm(project);
       populateChatInfoPanel(project);
+      appState._outlineInitializedForProjectId = null;
       appState.chats = _loadChatsFromStorage();
       appState.activeChatId = appState.chats.length ? appState.chats[0].id : null;
       renderChatList();
@@ -5034,12 +5035,14 @@
         setStatus("Select a project before adding a chapter.", "warn");
         return;
       }
+      flushCurrentWorkspaceEdits();
       var sectionPayloads = getWritingWorkspaceSectionPayloadsCurrent(project);
       var nextIndex = sectionPayloads.length + 1;
       var nextTitle = "Chapter " + nextIndex;
+      var newId = typeof generateOutlineNodeId === "function" ? generateOutlineNodeId() : "chapter-" + nextIndex;
       sectionPayloads.push({
-        id: "",
-        sectionKey: "chapter-" + nextIndex,
+        id: newId,
+        sectionKey: newId,
         title: nextTitle,
         text: "<div><br></div>",
         sortOrder: nextIndex
@@ -5047,10 +5050,11 @@
       sectionPayloads = renumberWritingWorkspaceSections(sectionPayloads);
       appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sectionPayloads);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sectionPayloads, project);
-      appState.writingWorkspace.scope = "chapter-" + nextIndex;
+      appState.writingWorkspace.scope = newId;
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);
+      if (typeof syncOutlineToSegments === "function") syncOutlineToSegments();
       renderPlanOutline();
       scheduleWritingWorkspaceAutoSave();
       refreshWritingWorkspaceSaveState();
@@ -5210,18 +5214,20 @@
       appState.writingWorkspace.isSaving = true;
       setWritingWorkspaceMeta(project, settings.autosave ? "Autosaving..." : "Saving...");
       refreshWritingWorkspaceSaveState();
+      var savedSnapshotCapture = snapshot;
+      var savedSegmentsCapture = JSON.parse(snapshot);
       var draftPromise = callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
         project.project_id,
         "draft",
         String(project.title || "Project").trim() + " - Draft",
-        JSON.stringify(segments)
+        savedSnapshotCapture
       ]);
-      var outlinePromise = settings.autosave ? Promise.resolve(null) : savePlanOutline();
+      var outlinePromise = typeof savePlanOutline === "function" ? savePlanOutline() : Promise.resolve(null);
       return Promise.all([draftPromise, outlinePromise]).then(function () {
         appState.writingWorkspace.isSaving = false;
-        appState.writingWorkspace.draftText = segments.map(function (s) { return String(s.text || "").trim(); }).join("\n\n");
+        appState.writingWorkspace.draftText = savedSegmentsCapture.map(function (s) { return String(s.text || "").trim(); }).join("\n\n");
         appState.writingWorkspace.lastSavedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(segments, project);
+        appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(savedSegmentsCapture, project);
         appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
         appState.writingWorkspace.savedSegmentTexts = {};
         appState.writingWorkspace.segments.forEach(function (seg) {

@@ -50,6 +50,9 @@
     }
 
     function initOutlineFromSegments() {
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      var projectId = project ? String(project.project_id || "") : "";
+      if (projectId && appState._outlineInitializedForProjectId === projectId) return;
       var outline = getPlanOutline();
       var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var outlineChCount = getOutlineChapterCount();
@@ -73,6 +76,7 @@
           })
         }];
       }
+      if (projectId) appState._outlineInitializedForProjectId = projectId;
     }
 
     var _outlineIdCounter = 0;
@@ -98,6 +102,7 @@
     }
 
     function syncOutlineToSegments() {
+      if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
       renumberOutlineChapters();
       var outline = getPlanOutline();
       var existingSegments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
