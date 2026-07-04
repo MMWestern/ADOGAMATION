@@ -206,9 +206,15 @@
       if (allKeys.length && typeof callAppsScriptJson === "function") {
         var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
         if (project && Number(project.project_id || 0)) {
-          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "draft", JSON.stringify(allKeys)]);
+          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "draft", JSON.stringify(allKeys)]).catch(function () {});
+          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "notes", JSON.stringify(allKeys)]).catch(function () {});
+          callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "fixes", JSON.stringify(allKeys)]).catch(function () {});
         }
       }
+      allKeys.forEach(function (key) {
+        if (appState.writingWorkspace.chapterNotes) delete appState.writingWorkspace.chapterNotes[key];
+        if (appState.writingWorkspace.chapterFixes) delete appState.writingWorkspace.chapterFixes[key];
+      });
     }
 
     function deletePlanNode(nodeId) {
