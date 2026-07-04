@@ -2716,6 +2716,9 @@
             testUrl = (aiConfig.lmstudio && aiConfig.lmstudio.endpoint || "http://localhost:1234/v1") + "/models";
         } else if (provider === "ollama") {
             testUrl = (aiConfig.ollama && aiConfig.ollama.endpoint || "http://localhost:11434") + "/api/tags";
+        } else if (provider === "opencode") {
+            testUrl = "/api/opencode-proxy/v1/models";
+            if (aiConfig.opencode && aiConfig.opencode.apiKey) headers["x-api-key"] = aiConfig.opencode.apiKey;
         }
 
         if (testUrl && navigator.onLine !== false) {
@@ -3400,6 +3403,17 @@
         });
       });
 
+      if (el.codexReviewButton) {
+        el.codexReviewButton.addEventListener("click", function () {
+          if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+          if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+          if (el.codexDashboard) el.codexDashboard.hidden = false;
+          var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+          var seriesId = Number(project && project.series_id || 0);
+          if (seriesId) renderCodexDashboard(seriesId);
+        });
+      }
+
       var newEntryBtn = el.codexNewEntry;
       var newEntryDropdown = el.codexNewEntryDropdown;
       if (newEntryBtn && newEntryDropdown) {
@@ -3486,6 +3500,13 @@
         });
       });
       el.codexDashboardStats.innerHTML = html;
+
+      if (countTotal === 0 && seriesId) {
+        var emptyMsg = document.createElement("div");
+        emptyMsg.className = "codex-dashboard-empty";
+        emptyMsg.textContent = "No entries yet. Use the + New button in the sidebar to add characters, locations, and more.";
+        el.codexDashboardStats.appendChild(emptyMsg);
+      }
 
       el.codexDashboardStats.querySelectorAll(".codex-dashboard-card").forEach(function (card) {
         card.addEventListener("click", function () {
@@ -3828,6 +3849,11 @@
         var remove = e.target.closest(".codex-sub-tab-remove");
         if (remove) {
           var removeKey = remove.getAttribute("data-remove") || "";
+          var removeSection = container.querySelector(".codex-dynamic-section[data-section-key='" + removeKey + "']");
+          var removeTa = removeSection ? removeSection.querySelector("textarea") : null;
+          if (removeTa && removeTa.value.trim()) {
+            if (!confirm("This section contains text. Are you sure you want to delete it?")) return;
+          }
           removeCodexDetailSection(removeKey);
           return;
         }
@@ -4132,8 +4158,18 @@
             .then(function () {
               setStatus("Deleted.", "ok");
               _codexActiveEntityId = 0;
+              if (typeof closeSkCodexInspector === "function") closeSkCodexInspector();
+              if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+              if (el.codexDashboard) el.codexDashboard.hidden = false;
               renderCodexTree(seriesId);
               renderCodexDashboard(seriesId);
+              var remaining = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+              if (remaining.length) {
+                var first = remaining[0];
+                var firstType = (first.codex_entity_types || {}).key || "";
+                var treeEntry = el.codexTreeContainer ? el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + first.id + "']") : null;
+                if (treeEntry) treeEntry.click();
+              }
             })
             .catch(function (error) {
               setStatus("Delete failed: " + (error && error.message ? error.message : error), "error");
@@ -4357,6 +4393,15 @@
     function refreshCurrentCodexView() {
       var seriesId = skCurrentSeriesId;
       renderCodexTree(seriesId);
+      var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+      if (!entities.length) {
+        _codexActiveEntityId = 0;
+        if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+        if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexDashboard) el.codexDashboard.hidden = false;
+        renderCodexDashboard(seriesId);
+        return;
+      }
       var treeItem = null;
       CODEX_TREE_DEF.forEach(function (cat) {
         cat.items.forEach(function (item) {
@@ -4364,18 +4409,27 @@
         });
       });
       if (!treeItem) {
+        if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+        if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexDashboard) el.codexDashboard.hidden = false;
         renderCodexDashboard(seriesId);
       } else if (treeItem.isFeature) {
         showCodexFeaturePage(treeItem.key);
       } else if (treeItem.entityTypeKey && _codexActiveEntityId) {
-        var entities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
         var entity = entities.find(function (e) { return Number(e.id) === _codexActiveEntityId; });
         if (entity) {
           showCodexEntityDetail(entity, treeItem.entityTypeKey);
         } else {
+          if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+          if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+          if (el.codexDashboard) el.codexDashboard.hidden = false;
+          _codexActiveEntityId = 0;
           renderCodexDashboard(seriesId);
         }
       } else if (treeItem.entityTypeKey) {
+        if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+        if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexDashboard) el.codexDashboard.hidden = false;
         renderCodexDashboard(seriesId);
       }
     }
