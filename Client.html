@@ -5124,6 +5124,12 @@
       }
       var confirmed = window.confirm("Delete " + String(target.title || "this chapter") + "?");
       if (!confirmed) return;
+      delete appState.writingWorkspace.chapterNotes[safeKey];
+      delete appState.writingWorkspace.chapterFixes[safeKey];
+      if (typeof callAppsScriptJson === "function" && Number(project.project_id || 0)) {
+        callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "notes", JSON.stringify([safeKey])]).catch(function () {});
+        callAppsScriptJson("deleteSupabaseProjectSectionsByKeysFromClient", [project.project_id, "fixes", JSON.stringify([safeKey])]).catch(function () {});
+      }
       sectionPayloads = sectionPayloads.filter(function (item) {
         return String(item.sectionKey || "") !== safeKey;
       });
