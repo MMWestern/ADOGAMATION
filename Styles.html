@@ -3115,7 +3115,7 @@
     .writing-inspector-tabs {
       display: flex;
       gap: 2px;
-      padding: 0 10px 4px;
+      padding: 6px 10px 4px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
@@ -3126,7 +3126,7 @@
       border: none;
       border-radius: 0;
       background: transparent;
-      color: var(--muted);
+      color: #777884;
       font-size: 11px;
       font-weight: 600;
       line-height: 1.2;
@@ -3137,11 +3137,22 @@
       letter-spacing: 0;
     }
     .writing-inspector-tab:hover {
-      color: var(--text);
+      color: #f2f2f4;
     }
     .writing-inspector-tab.is-active {
-      color: var(--text);
-      background: #e2e8f0;
+      color: #f2f2f4;
+      background: transparent;
+    }
+
+    .writing-inspector-tab.is-active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 6px;
+      right: 6px;
+      height: 2px;
+      background: #7fa7d9;
+      border-radius: 1px;
     }
 
     .writing-inspector-tab-pane {
@@ -13862,7 +13873,7 @@ body.dark-mode .writing-inspector-tab:hover {
 }
 body.dark-mode .writing-inspector-tab.is-active {
   color: #f2f2f4;
-  background: #2a2a2f;
+  background: transparent;
 }
 
 body.dark-mode .writing-inspector-note-item {
