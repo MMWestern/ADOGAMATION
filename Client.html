@@ -4813,11 +4813,21 @@
         })
         .catch(function () {
           if (appState.writingWorkspace.version !== loadVersion) return fallback;
-          appState.writingWorkspace.draftText = fallback;
-          appState.writingWorkspace.lastSavedAt = "";
-          appState.writingWorkspace.segments = [];
-          appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
-          appState.writingWorkspace.savedSegmentTexts = {};
+          var backup = loadWorkspaceBackupFromLocalStorage(Number(project.project_id || 0));
+          if (backup && backup.segments && backup.segments.length) {
+            appState.writingWorkspace.draftText = backup.draftText || "";
+            appState.writingWorkspace.segments = backup.segments;
+            appState.writingWorkspace.savedSnapshot = backup.savedSnapshot || JSON.stringify(backup.segments);
+            appState.writingWorkspace.scope = backup.scope || "";
+            appState.writingWorkspace.outline = backup.outline || {};
+            setStatus("Loaded workspace from local backup (Supabase unreachable).", "warn");
+          } else {
+            appState.writingWorkspace.draftText = fallback;
+            appState.writingWorkspace.lastSavedAt = "";
+            appState.writingWorkspace.segments = [];
+            appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
+            appState.writingWorkspace.savedSegmentTexts = {};
+          }
           refreshWorkspaceTabDisabledState();
           cacheWritingWorkspaceDraft(project);
           renderWritingWorkspaceScopeOptions();
@@ -5000,6 +5010,37 @@
       };
     }
 
+    function backupWorkspaceToLocalStorage() {
+      var project = getSelectedProject();
+      if (!project) return;
+      var projectId = Number(project.project_id || 0);
+      if (!projectId) return;
+      if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      try {
+        localStorage.setItem("workspace_backup_" + projectId, JSON.stringify({
+          segments: segments,
+          outline: appState.writingWorkspace.outline || {},
+          scope: appState.writingWorkspace.scope || "",
+          draftText: appState.writingWorkspace.draftText || "",
+          savedSnapshot: appState.writingWorkspace.savedSnapshot || "",
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+    }
+
+    function loadWorkspaceBackupFromLocalStorage(projectId) {
+      try {
+        var raw = localStorage.getItem("workspace_backup_" + projectId);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return null;
+    }
+
+    function clearWorkspaceBackup(projectId) {
+      try { localStorage.removeItem("workspace_backup_" + projectId); } catch (e) {}
+    }
+
     function refreshWritingWorkspaceSaveState() {
       var project = getSelectedProject();
       if (!project) {
@@ -5092,8 +5133,7 @@
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);
-      renderPlanOutline();
-      scheduleWritingWorkspaceAutoSave();
+      if (typeof deletePlanNode === "function") { deletePlanNode(safeKey); } else { renderPlanOutline(); scheduleWritingWorkspaceAutoSave(); }
       refreshWritingWorkspaceSaveState();
       setStatus("Chapter deleted from the manuscript.", "ok");
     }
@@ -5117,8 +5157,10 @@
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);
+      if (typeof syncOutlineToSegments === "function") syncOutlineToSegments();
       renderPlanOutline();
       scheduleWritingWorkspaceAutoSave();
+      schedulePlanOutlineSave();
       refreshWritingWorkspaceSaveState();
       setStatus("Chapter moved " + direction + ".", "ok");
     }
@@ -5129,24 +5171,28 @@
         setStatus("Select a project before adding a scene.", "warn");
         return;
       }
+      flushCurrentWorkspaceEdits();
       var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var sceneCount = segments.filter(function (s) { return String(s.title || "").toLowerCase().indexOf("scene") !== -1; }).length;
       var nextSceneNumber = sceneCount + 1;
       var nextIndex = segments.length + 1;
+      var newId = typeof generateOutlineNodeId === "function" ? generateOutlineNodeId() : "chapter-" + nextIndex;
       var newSection = {
-        key: "chapter-" + nextIndex,
+        key: newId,
         title: "Scene " + nextSceneNumber,
         text: "",
         sortOrder: nextIndex
       };
       segments.push(newSection);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(segments, project);
-      appState.writingWorkspace.scope = newSection.key;
+      appState.writingWorkspace.scope = newId;
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);
+      if (typeof syncOutlineToSegments === "function") syncOutlineToSegments();
       renderPlanOutline();
       scheduleWritingWorkspaceAutoSave();
+      schedulePlanOutlineSave();
       refreshWritingWorkspaceSaveState();
       setStatus("New scene inserted.", "ok");
     }
@@ -5214,6 +5260,7 @@
       appState.writingWorkspace.isSaving = true;
       setWritingWorkspaceMeta(project, settings.autosave ? "Autosaving..." : "Saving...");
       refreshWritingWorkspaceSaveState();
+      backupWorkspaceToLocalStorage();
       var savedSnapshotCapture = snapshot;
       var savedSegmentsCapture = JSON.parse(snapshot);
       var draftPromise = callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
@@ -5236,13 +5283,15 @@
             title: String(seg.title || "").trim()
           };
         });
-        cacheWritingWorkspaceDraft(project);
-        renderWritingWorkspaceScopeOptions();
+          cacheWritingWorkspaceDraft(project);
+          clearWorkspaceBackup(Number(project.project_id || 0));
+          renderWritingWorkspaceScopeOptions();
         renderWritingWorkspaceInspector(project);
         renderWritingChapterList(project);
         renderPlanOutline();
         setWritingWorkspaceMeta(project, "Saved " + appState.writingWorkspace.lastSavedAt);
         refreshWritingWorkspaceSaveState();
+        clearWorkspaceBackup(Number(project.project_id || 0));
         var wsTitle = String(project && project.title || "").trim();
         setStatus((settings.autosave ? "Workspace autosaved" : "Workspace saved") + (wsTitle ? ": " + wsTitle : "") + ".", "ok");
         return true;
@@ -6129,6 +6178,8 @@
         }
       }
       if (safeTab !== "workspace") {
+        if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
+        if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
         stopAutoSaveTimer();
         if (el.sidebarAutoSaveTimerCircle) el.sidebarAutoSaveTimerCircle.hidden = true;
       } else {
@@ -8545,6 +8596,8 @@
     }
 
     window.addEventListener("beforeunload", function (event) {
+      if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
+      if (typeof backupWorkspaceToLocalStorage === "function") backupWorkspaceToLocalStorage();
       if (isResourceDirty()) {
         event.preventDefault();
         event.returnValue = "";
