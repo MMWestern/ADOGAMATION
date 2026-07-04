@@ -149,6 +149,7 @@
       renderPlanOutline();
       syncOutlineToSegments();
       schedulePlanOutlineSave();
+      if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
     }
 
     function addPlanChapter(actId) {
@@ -166,6 +167,7 @@
       renderPlanOutline();
       syncOutlineToSegments();
       schedulePlanOutlineSave();
+      if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
     }
 
     function addPlanScene(chapterId) {
@@ -190,7 +192,9 @@
         characterIds: []
       });
       renderPlanOutline();
+      syncOutlineToSegments();
       schedulePlanOutlineSave();
+      if (typeof scheduleWritingWorkspaceAutoSave === "function") scheduleWritingWorkspaceAutoSave();
     }
 
     function deleteAllPlanOutline() {
