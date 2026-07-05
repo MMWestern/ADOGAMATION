@@ -1098,6 +1098,7 @@
 
     var _selectedTemplateId = null;
     var _activeTab = "quick";
+    var _templatesLoadedFromSupabase = false;
 
     function getDefaultOutlineTemplates() {
       return [
@@ -1116,6 +1117,26 @@
 
     function saveOutlineTemplates(templates) {
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
+      if (typeof callAppsScriptJson === "function") {
+        callAppsScriptJson("saveUserDataJsonFromClient", ["outline_templates", "Outline Templates", JSON.stringify(templates)]).then(function (result) {
+          try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); } catch (e) {}
+        }, function () {});
+      }
+    }
+
+    function loadOutlineTemplatesFromSupabase() {
+      if (_templatesLoadedFromSupabase || typeof callAppsScriptJson !== "function") return;
+      _templatesLoadedFromSupabase = true;
+      callAppsScriptJson("getUserDataJsonFromClient", ["outline_templates"]).then(function (result) {
+        try {
+          var r = JSON.parse(result);
+          if (!r.exists || !r.text) return;
+          var parsed = JSON.parse(r.text);
+          if (!Array.isArray(parsed) || !parsed.length) return;
+          localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
+          if (typeof renderTemplateList === "function") renderTemplateList();
+        } catch (e) {}
+      }, function () {});
     }
 
     function parseOutlineShorthand(shorthand) {
@@ -1506,6 +1527,7 @@
 
     function openPlanOutlinePresetModal() {
       if (!el.planOutlinePresetModal) return;
+      if (typeof loadOutlineTemplatesFromSupabase === "function") loadOutlineTemplatesFromSupabase();
       _selectedTemplateId = null;
       selectNewTemplate();
       el.planOutlinePresetModal.hidden = false;
@@ -1515,3 +1537,7 @@
       if (!el.planOutlinePresetModal) return;
       el.planOutlinePresetModal.hidden = true;
     }
+
+    if (typeof setTimeout === "function") setTimeout(function () {
+      if (typeof loadOutlineTemplatesFromSupabase === "function") loadOutlineTemplatesFromSupabase();
+    }, 2000);
