@@ -6159,6 +6159,7 @@
       if (el.planInfoPanelSidebar) el.planInfoPanelSidebar.hidden = (safeTab !== "plan");
       if (el.chatSidebarPanel) el.chatSidebarPanel.hidden = (safeTab !== "chat");
       if (el.codexTreePanel) el.codexTreePanel.hidden = (safeTab !== "codex");
+      if (el.planGenreGuidePanel) el.planGenreGuidePanel.hidden = (safeTab !== "plan");
       if (safeTab === "plan") {
         loadPlanData().then(function () { setPlanSubTab("outline"); });
       }
