@@ -513,7 +513,11 @@
     function populateResourceCategoryList() {
       if (!el.resourceCategoryList) return;
       var cats = {};
-      appState.resources.forEach(function (r) { cats[String(r.category || "General").trim()] = true; });
+      appState.resources.forEach(function (r) {
+        var cat = String(r.category || "General").trim();
+        if (cat.indexOf("_system_") === 0) return;
+        cats[cat] = true;
+      });
       var catList = Object.keys(cats).sort();
       el.resourceCategoryList.innerHTML = catList.map(function (c) { return "<option value='" + escapeHtml(c) + "'>"; }).join("");
     }

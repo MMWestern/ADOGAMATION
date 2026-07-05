@@ -1,4 +1,5 @@
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
@@ -100,6 +101,35 @@ const server = http.createServer((req, res) => {
     proxyReq.on("error", function (err) {
       res.writeHead(502, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "ComfyUI proxy error: " + err.message }));
+    });
+    req.pipe(proxyReq);
+    return;
+  }
+
+  if (urlPath.startsWith("/api/opencode-proxy/")) {
+    const opencodePath = urlPath.replace("/api/opencode-proxy", "") || "/";
+    const targetUrl = "https://opencode.ai/zen" + opencodePath + (req.url.includes("?") ? "?" + req.url.split("?")[1] : "");
+    const apiKey = req.headers["x-api-key"] || "";
+    const proxyHeaders = {
+      "Content-Type": req.headers["content-type"] || "application/json"
+    };
+    if (apiKey) proxyHeaders["Authorization"] = "Bearer " + apiKey;
+    const transport = targetUrl.startsWith("https") ? https : http;
+    const proxyReq = transport.request(targetUrl, {
+      method: req.method,
+      headers: proxyHeaders
+    }, function (proxyRes) {
+      const headers = Object.assign({}, proxyRes.headers, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, DELETE, PUT, OPTIONS, PATCH",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key"
+      });
+      res.writeHead(proxyRes.statusCode, headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on("error", function (err) {
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Opencode proxy error: " + err.message }));
     });
     req.pipe(proxyReq);
     return;

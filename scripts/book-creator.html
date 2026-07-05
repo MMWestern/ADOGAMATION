@@ -1021,6 +1021,9 @@
         var olEndpoint = document.getElementById("aiOllamaEndpoint") ? document.getElementById("aiOllamaEndpoint").value.trim() : "";
         transport = "Direct browser fetch → " + (olEndpoint || "http://localhost:11434");
         body = { model: request.model, messages: messages, stream: false, options: { temperature: request.temperature, num_predict: request.maxTokens } };
+      } else if (provider === "opencode") {
+        transport = "Direct browser fetch → opencode.ai/zen";
+        body = { model: request.model, messages: messages, temperature: request.temperature, max_tokens: request.maxTokens };
       }
       return { transport: transport, body: body };
     }
