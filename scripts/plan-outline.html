@@ -1098,6 +1098,7 @@
 
     var _selectedTemplateId = null;
     var _activeTab = "quick";
+    var _templatesLoadedFromSupabase = false;
 
     function getDefaultOutlineTemplates() {
       return [
@@ -1116,6 +1117,34 @@
 
     function saveOutlineTemplates(templates) {
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && Number(project.project_id || 0) && typeof callAppsScriptJson === "function") {
+        var sections = templates.map(function (t) {
+          return { sectionKey: t.id, title: t.name, text: JSON.stringify(t), sortOrder: 0 };
+        });
+        callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+          project.project_id, "outline_template", "Outline Templates", JSON.stringify(sections)
+        ]);
+      }
+    }
+
+    function loadOutlineTemplatesFromSupabase() {
+      if (_templatesLoadedFromSupabase || typeof callAppsScriptJson !== "function") return;
+      _templatesLoadedFromSupabase = true;
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (!project || !Number(project.project_id || 0)) return;
+      callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "outline_template"]).then(function (result) {
+        try {
+          var r = typeof result === "string" ? JSON.parse(result) : result;
+          if (!r.ok || !r.sections || !r.sections.length) return;
+          var parsed = r.sections.map(function (s) {
+            try { return JSON.parse(s.text); } catch (e) { return null; }
+          }).filter(function (t) { return t && t.id; });
+          if (!parsed.length) return;
+          localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
+          if (typeof renderTemplateList === "function") renderTemplateList();
+        } catch (e) {}
+      }, function () {});
     }
 
     function parseOutlineShorthand(shorthand) {
@@ -1506,6 +1535,7 @@
 
     function openPlanOutlinePresetModal() {
       if (!el.planOutlinePresetModal) return;
+      if (typeof loadOutlineTemplatesFromSupabase === "function") loadOutlineTemplatesFromSupabase();
       _selectedTemplateId = null;
       selectNewTemplate();
       el.planOutlinePresetModal.hidden = false;
@@ -1515,3 +1545,7 @@
       if (!el.planOutlinePresetModal) return;
       el.planOutlinePresetModal.hidden = true;
     }
+
+    if (typeof setTimeout === "function") setTimeout(function () {
+      if (typeof loadOutlineTemplatesFromSupabase === "function") loadOutlineTemplatesFromSupabase();
+    }, 2000);
