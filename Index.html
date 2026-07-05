@@ -598,37 +598,39 @@
       </div>
 
       <div id="mainTabContentPlan" class="main-tab-content" hidden>
-        <div class="plan-panel">
-          <div class="plan-panel-body">
-            <div class="plan-tab-content-area">
-              <div id="planTabOutline" class="plan-tab-pane">
-                <div class="plan-empty-state" id="planOutlineEmpty">
-                  <div class="plan-empty-icon">&#128196;</div>
-                  <div class="plan-empty-title">No outline yet</div>
-                  <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
-                </div>
-                <div id="planOutlineContent" class="plan-editor-area" hidden>
-                  <div class="plan-editor-toolbar">
-                    <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
-                    <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
-                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
-                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+        <div class="plan-panel-wrap">
+          <div class="plan-panel">
+            <div class="plan-panel-body">
+              <div class="plan-tab-content-area">
+                <div id="planTabOutline" class="plan-tab-pane">
+                  <div class="plan-empty-state" id="planOutlineEmpty">
+                    <div class="plan-empty-icon">&#128196;</div>
+                    <div class="plan-empty-title">No outline yet</div>
+                    <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
                   </div>
-                  <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                  <div id="planOutlineContent" class="plan-editor-area" hidden>
+                    <div class="plan-editor-toolbar">
+                      <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
+                      <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
+                      <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
+                      <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+                    </div>
+                    <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
-              <div class="plan-genre-guide-header">
-                <div class="plan-genre-guide-title">
-                  <span class="plan-genre-guide-name" id="planGenreGuideName">Genre Guide</span>
-                  <span class="plan-genre-guide-sub" id="planGenreGuideChapterLabel">No chapter selected</span>
-                </div>
-                <button type="button" class="plan-genre-guide-close" id="planGenreGuideClose">&#10005;</button>
+          </div>
+          <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
+            <div class="plan-genre-guide-header">
+              <div class="plan-genre-guide-title">
+                <span class="plan-genre-guide-name" id="planGenreGuideName">Genre Guide</span>
+                <span class="plan-genre-guide-sub" id="planGenreGuideChapterLabel">No chapter selected</span>
               </div>
-              <div class="plan-genre-guide-body" id="planGenreGuideBody">
-                <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
-              </div>
+              <button type="button" class="plan-genre-guide-close" id="planGenreGuideClose">&#10005;</button>
+            </div>
+            <div class="plan-genre-guide-body" id="planGenreGuideBody">
+              <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
             </div>
           </div>
         </div>

@@ -3318,19 +3318,23 @@
     .plan-panel {
       display: flex;
       flex-direction: column;
-      position: absolute;
-      inset: 0;
+      flex: 1;
+      min-height: 0;
       padding: 8px 16px 16px;
       gap: 6px;
+    }
+
+    .plan-panel-wrap {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
       min-height: 0;
     }
 
     .plan-panel-body {
       display: flex;
-      flex-direction: row;
       flex: 1;
       min-height: 0;
-      gap: 8px;
       overflow: hidden;
     }
 
