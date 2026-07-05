@@ -515,6 +515,7 @@
                 '<div class="plan-chapter-header">' +
                   '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
                   '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
+                  (outline.genreGuide && outline.genreGuide.chapters && outline.genreGuide.chapters[chNum - 1] ? '<span class="plan-genre-indicator" data-chapter-index="' + (chNum - 1) + '" title="Show genre guide for this chapter">GG</span>' : '') +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
                   '<div class="plan-chapter-actions">' +
                     '<button type="button" class="plan-chapter-action" data-action="delete" data-node-id="' + escapeHtml(chapter.id) + '">&#10005;</button>' +
@@ -636,6 +637,17 @@
         btn.addEventListener("click", function () {
           var chapterId = this.getAttribute("data-chapter-id");
           if (chapterId) addPlanScene(chapterId);
+        });
+      });
+
+      grid.querySelectorAll(".plan-genre-indicator").forEach(function (badge) {
+        badge.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var idx = parseInt(this.getAttribute("data-chapter-index"), 10);
+          if (!isNaN(idx)) {
+            openPlanGenreGuidePanel();
+            renderPlanGenreGuideForChapter(idx);
+          }
         });
       });
 
@@ -1096,6 +1108,225 @@
       editor.value = String((appState.writingWorkspace.outline || {}).worldBuilding || "");
     }
 
+    function parseGenreGuideMarkdown(text) {
+      if (!text) return null;
+      var chapterRegex = /^##\s+Chapter\s+(\d+)\s*:\s*(.+)$/gm;
+      var chapters = [];
+      var lastIndex = 0;
+      var match;
+      var parts = [];
+      while ((match = chapterRegex.exec(text)) !== null) {
+        if (lastIndex > 0) {
+          parts[parts.length - 1].body = text.substring(lastIndex, match.index);
+        }
+        parts.push({ num: parseInt(match[1], 10), title: match[2].trim(), body: "" });
+        lastIndex = match.index + match[0].length;
+      }
+      if (parts.length && lastIndex < text.length) {
+        parts[parts.length - 1].body = text.substring(lastIndex);
+      }
+      parts.forEach(function (p) {
+        if (!p.body) return;
+        var body = p.body;
+        var entry = { title: p.title, whatShouldHappen: "", primaryPurpose: "", multiFunction: "", structuralBeats: "", ratings: "" };
+        var whatMatch = body.match(/\*\*What\s+Should\s+Happen:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|$)/i);
+        if (whatMatch) entry.whatShouldHappen = whatMatch[1].trim();
+        var notesSection = body.match(/\*\*Chapter\s+Notes:\*\*\s*([\s\S]*?)(?=\n\s*##|$)/i);
+        if (notesSection) {
+          var notes = notesSection[1];
+          var purposeMatch = notes.match(/\*\*Primary\s+Purpose:\*\*\s*(.+)/i);
+          if (purposeMatch) entry.primaryPurpose = purposeMatch[1].trim();
+          var multiMatch = notes.match(/\*\*Multi-function:\*\*\s*(.+)/i);
+          if (multiMatch) entry.multiFunction = multiMatch[1].trim();
+          var beatsMatch = notes.match(/\*\*Structural\s+Beats:\*\*\s*(.+)/i);
+          if (beatsMatch) entry.structuralBeats = beatsMatch[1].trim();
+          var ratingsMatch = notes.match(/\*\*Ratings:\*\*\s*(.+)/i);
+          if (ratingsMatch) entry.ratings = ratingsMatch[1].trim();
+        }
+        chapters.push(entry);
+      });
+      return chapters.length ? chapters : null;
+    }
+
+    function splitIntoActs(chapters, numActs) {
+      if (!chapters || !chapters.length) return [];
+      numActs = Math.max(1, Math.min(numActs || 3, chapters.length));
+      var acts = [];
+      var base = Math.floor(chapters.length / numActs);
+      var extra = chapters.length % numActs;
+      var idx = 0;
+      for (var a = 0; a < numActs; a++) {
+        var count = base + (a < extra ? 1 : 0);
+        acts.push(chapters.slice(idx, idx + count));
+        idx += count;
+      }
+      return acts;
+    }
+
+    function applyGenreGuideTemplate(text, numActs) {
+      var chapters = parseGenreGuideMarkdown(text);
+      if (!chapters || !chapters.length) { setStatus("Could not parse any chapters. Check the format.", "error"); return false; }
+      var actGroups = splitIntoActs(chapters, numActs);
+      var actLabels = ["Act 1: Setup", "Act 2: Confrontation", "Act 3: Resolution", "Act 4", "Act 5", "Act 6", "Act 7", "Act 8", "Act 9", "Act 10"];
+      var outline = getPlanOutline();
+      var hasExisting = (outline.acts || []).some(function (act) { return (act.children || []).length > 0; });
+      if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return false;
+      var acts = [];
+      var actSort = 0, chapterSort = 0;
+      actGroups.forEach(function (group, ai) {
+        var chapters = [];
+        group.forEach(function (ch) {
+          var scene = {
+            id: generateOutlineNodeId(),
+            type: "scene",
+            title: ch.title,
+            sortOrder: 0,
+            purpose: ch.primaryPurpose || "",
+            povType: "",
+            povCharacterId: "",
+            targetWordCount: 0,
+            mainPlotFunction: ch.structuralBeats || "",
+            notes: ch.ratings || "",
+            text: ch.whatShouldHappen || "",
+            characterIds: []
+          };
+          chapters.push({
+            id: generateOutlineNodeId(),
+            type: "chapter",
+            title: ch.title,
+            sortOrder: chapterSort++,
+            children: [scene]
+          });
+        });
+        acts.push({
+          id: generateOutlineNodeId(),
+          type: "act",
+          title: actLabels[ai] || "Act " + (ai + 1),
+          sortOrder: actSort++,
+          children: chapters
+        });
+      });
+      outline.acts = acts;
+      outline.genreGuide = { name: "", chapters: chapters };
+      var nameMatch = text.match(/^##\s*(.+?)(?:\s*Plot\s*Template)?\s*$/m);
+      outline.genreGuide.name = nameMatch ? nameMatch[1].trim() : "Imported Genre Guide";
+      closePlanOutlinePresetModal();
+      syncOutlineToSegments();
+      renderPlanOutline();
+      if (typeof savePlanOutline === "function") savePlanOutline();
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && Number(project.project_id || 0)) {
+        acts.forEach(function (act) {
+          (act.children || []).forEach(function (chapter) {
+            if (chapter.id && typeof initNotesAndFixesForChapter === "function") initNotesAndFixesForChapter(project.project_id, chapter.id);
+          });
+        });
+        if (typeof callAppsScriptJson === "function") {
+          callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+            project.project_id, "draft",
+            String(project.title || "Project").trim() + " - Draft",
+            JSON.stringify(appState.writingWorkspace.segments || [])
+          ]);
+        }
+      }
+      openPlanGenreGuidePanel(0);
+      return true;
+    }
+
+    function renderGenreGuidePreview(text, numActs) {
+      if (!text) return '<div class="plan-outline-preset-preview-empty">Paste a genre guide to see a preview.</div>';
+      var chapters = parseGenreGuideMarkdown(text);
+      if (!chapters || !chapters.length) return '<div class="plan-outline-preset-preview-empty">No chapters could be parsed. Check the format (use ## Chapter N: Title headings).</div>';
+      var actGroups = splitIntoActs(chapters, numActs);
+      var actLabels = ["Act 1: Setup", "Act 2: Confrontation", "Act 3: Resolution", "Act 4", "Act 5", "Act 6", "Act 7", "Act 8", "Act 9", "Act 10"];
+      var totalScenes = 0;
+      var html = "";
+      actGroups.forEach(function (group, ai) {
+        html += "<div style='margin-bottom:10px;'><div style='font-size:12px;font-weight:700;color:#a5a5ad;margin-bottom:4px;'>" + (actLabels[ai] || "Act " + (ai + 1)) + " <span style='font-weight:400;color:#6b7280;'>(" + group.length + " ch)</span></div>";
+        group.forEach(function (ch) {
+          html += "<div style='font-size:11px;color:#c8c8d0;padding:2px 0 2px 12px;'>" + escapeHtml(ch.title) + "</div>";
+          totalScenes++;
+        });
+        html += "</div>";
+      });
+      html += "<div style='font-size:11px;color:#6b7280;border-top:1px solid #2a2a2f;padding-top:8px;'>" + chapters.length + " chapters &middot; " + actGroups.length + " acts &middot; " + totalScenes + " scenes</div>";
+      return html;
+    }
+
+    function openPlanGenreGuidePanel(chapterIndex) {
+      if (!el.planGenreGuidePanel) return;
+      el.planGenreGuidePanel.hidden = false;
+      if (chapterIndex !== undefined) renderPlanGenreGuideForChapter(chapterIndex);
+    }
+
+    function closePlanGenreGuidePanel() {
+      if (!el.planGenreGuidePanel) return;
+      el.planGenreGuidePanel.hidden = true;
+    }
+
+    function renderPlanGenreGuideForChapter(chapterIndex) {
+      if (!el.planGenreGuideBody) return;
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      if (!guide || !guide.chapters || !guide.chapters.length) {
+        el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded.</div>';
+        return;
+      }
+      var ch = guide.chapters[chapterIndex];
+      if (!ch) {
+        el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">Chapter ' + (chapterIndex + 1) + ' not found in genre guide.</div>';
+        return;
+      }
+      if (el.planGenreGuideName) el.planGenreGuideName.textContent = guide.name || "Genre Guide";
+      if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = "Chapter " + (chapterIndex + 1) + ": " + ch.title;
+      var ratingsHtml = "";
+      if (ch.ratings) {
+        var parts = ch.ratings.split(",");
+        var ratingItems = [];
+        parts.forEach(function (p) {
+          var kv = p.split(":");
+          if (kv.length === 2) ratingItems.push({ label: kv[0].trim(), value: kv[1].trim() });
+        });
+        if (ratingItems.length) {
+          ratingsHtml = '<div class="plan-genre-guide-ratings">';
+          ratingItems.forEach(function (r) {
+            ratingsHtml += '<span class="plan-genre-guide-rating"><span class="plan-genre-guide-rating-label">' + escapeHtml(r.label) + '</span> ' + escapeHtml(r.value) + '</span>';
+          });
+          ratingsHtml += "</div>";
+        }
+      }
+      var html = "";
+      html += '<div class="plan-genre-guide-section">';
+      html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
+      html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.whatShouldHappen || "") + '</div>';
+      html += "</div>";
+      if (ch.primaryPurpose) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Primary Purpose</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.primaryPurpose) + '</div>';
+        html += "</div>";
+      }
+      if (ch.multiFunction) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Multi-function</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.multiFunction) + '</div>';
+        html += "</div>";
+      }
+      if (ch.structuralBeats) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Structural Beats</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.structuralBeats) + '</div>';
+        html += "</div>";
+      }
+      if (ratingsHtml) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Ratings</div>';
+        html += ratingsHtml;
+        html += "</div>";
+      }
+      el.planGenreGuideBody.innerHTML = html;
+    }
+
     var _selectedTemplateId = null;
     var _activeTab = "quick";
     var _templatesLoadedFromSupabase = false;
@@ -1385,10 +1616,13 @@
       _activeTab = tab;
       if (el.planOutlinePresetTabQuick) el.planOutlinePresetTabQuick.classList.toggle("is-active", tab === "quick");
       if (el.planOutlinePresetTabManual) el.planOutlinePresetTabManual.classList.toggle("is-active", tab === "manual");
+      if (el.planOutlinePresetTabPaste) el.planOutlinePresetTabPaste.classList.toggle("is-active", tab === "paste");
       var quickContent = document.querySelector("[data-tab-content='quick']");
       var manualContent = document.querySelector("[data-tab-content='manual']");
+      var pasteContent = document.querySelector("[data-tab-content='paste']");
       if (quickContent) quickContent.hidden = tab !== "quick";
       if (manualContent) manualContent.hidden = tab !== "manual";
+      if (pasteContent) pasteContent.hidden = tab !== "paste";
       updatePreviewFromActiveTab();
     }
 
@@ -1399,6 +1633,21 @@
         var text = el.planOutlinePresetRawText ? el.planOutlinePresetRawText.value : "";
         var acts = parseOutlineText(text);
         preview.innerHTML = acts ? renderOutlinePreviewFromActs(acts) : '<div class="plan-outline-preset-preview-empty">Enter a valid structure to see a preview.</div>';
+      } else if (_activeTab === "paste") {
+        var preview = document.getElementById("planOutlinePresetPreviewPaste");
+        if (!preview) return;
+        var text = el.planOutlinePresetPasteText ? el.planOutlinePresetPasteText.value : "";
+        var numActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        preview.innerHTML = renderGenreGuidePreview(text, numActs);
+        var statsEl = document.getElementById("planOutlinePresetPasteStats");
+        if (statsEl) {
+          var chapters = parseGenreGuideMarkdown(text);
+          if (chapters && chapters.length) {
+            statsEl.textContent = chapters.length + " chapters / " + numActs + " acts";
+          } else {
+            statsEl.textContent = "No chapters parsed yet";
+          }
+        }
       } else {
         var preview = document.getElementById("planOutlinePresetPreviewQuick");
         if (!preview) return;
@@ -1415,14 +1664,22 @@
       if (!t) return;
       if (el.planOutlinePresetName) el.planOutlinePresetName.value = t.name;
       if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = t.description;
-      if (t.rawText) {
+      if (t.genreGuideRaw) {
+        switchOutlineTab("paste");
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = t.genreGuideRaw;
+        if (el.planOutlinePresetPasteActs) el.planOutlinePresetPasteActs.value = String(t.genreGuideActs || 3);
+        if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+        if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      } else if (t.rawText) {
         switchOutlineTab("manual");
         if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = t.rawText;
         if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
       } else {
         switchOutlineTab("quick");
         if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = t.shorthand;
         if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
       }
       updatePreviewFromActiveTab();
       if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = getDefaultOutlineTemplates().some(function (d) { return d.id === templateId; }) ? "none" : "";
@@ -1430,15 +1687,16 @@
     }
 
     function selectNewTemplate() {
-      _selectedTemplateId = null;
       if (el.planOutlinePresetName) el.planOutlinePresetName.value = "";
       if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = "";
       if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
       if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
+      if (el.planOutlinePresetPasteActs) el.planOutlinePresetPasteActs.value = "3";
+      _selectedTemplateId = null;
       switchOutlineTab("quick");
       if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = "none";
       renderTemplateList();
-      if (el.planOutlinePresetName) el.planOutlinePresetName.focus();
     }
 
     function saveCurrentTemplate() {
@@ -1446,7 +1704,28 @@
       var desc = el.planOutlinePresetDesc ? String(el.planOutlinePresetDesc.value || "").trim() : "";
       if (!name) { setStatus("Template name is required.", "error"); if (el.planOutlinePresetName) el.planOutlinePresetName.focus(); return; }
       var templates = loadOutlineTemplates();
-      if (_activeTab === "manual") {
+      if (_activeTab === "paste") {
+        var genreGuideRaw = el.planOutlinePresetPasteText ? String(el.planOutlinePresetPasteText.value || "").trim() : "";
+        if (!genreGuideRaw) { setStatus("Pasted text is required.", "error"); if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.focus(); return; }
+        if (!parseGenreGuideMarkdown(genreGuideRaw)) { setStatus("Could not parse any chapters. Check the format.", "error"); if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.focus(); return; }
+        var genreGuideActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        if (_selectedTemplateId) {
+          for (var i = 0; i < templates.length; i++) {
+            if (templates[i].id === _selectedTemplateId) {
+              templates[i].name = name;
+              templates[i].description = desc;
+              templates[i].genreGuideRaw = genreGuideRaw;
+              templates[i].genreGuideActs = genreGuideActs;
+              delete templates[i].shorthand;
+              delete templates[i].rawText;
+              break;
+            }
+          }
+        } else {
+          templates.push({ id: "tmpl-" + Date.now(), name: name, description: desc, genreGuideRaw: genreGuideRaw, genreGuideActs: genreGuideActs });
+          _selectedTemplateId = templates[templates.length - 1].id;
+        }
+      } else if (_activeTab === "manual") {
         var rawText = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
         if (!rawText) { setStatus("Raw structure is required.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
         if (!parseOutlineText(rawText)) { setStatus("Invalid structure format. Check indentation and syntax.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
@@ -1457,6 +1736,8 @@
               templates[i].description = desc;
               templates[i].rawText = rawText;
               delete templates[i].shorthand;
+              delete templates[i].genreGuideRaw;
+              delete templates[i].genreGuideActs;
               break;
             }
           }
@@ -1475,6 +1756,8 @@
               templates[i].description = desc;
               templates[i].shorthand = shorthand;
               delete templates[i].rawText;
+              delete templates[i].genreGuideRaw;
+              delete templates[i].genreGuideActs;
               break;
             }
           }
@@ -1502,6 +1785,14 @@
     }
 
     function applyCurrentTemplate() {
+      var outline = getPlanOutline();
+      if (_activeTab === "paste") {
+        var text = el.planOutlinePresetPasteText ? String(el.planOutlinePresetPasteText.value || "").trim() : "";
+        if (!text) { setStatus("Paste a genre guide first.", "error"); return; }
+        var numActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        applyGenreGuideTemplate(text, numActs);
+        return;
+      }
       var acts;
       if (_activeTab === "manual") {
         var text = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
@@ -1514,10 +1805,11 @@
         acts = generateOutlineFromShorthand(shorthand);
         if (!acts) { setStatus("Invalid shorthand. Use acts:chapters:scenes:wordsPerChapter (e.g. 3:4:3:2500).", "error"); return; }
       }
-      var outline = getPlanOutline();
       var hasExisting = (outline.acts || []).some(function (act) { return (act.children || []).length > 0; });
       if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return;
       outline.acts = acts;
+      delete outline.genreGuide;
+      closePlanGenreGuidePanel();
       closePlanOutlinePresetModal();
       syncOutlineToSegments();
       renderPlanOutline();

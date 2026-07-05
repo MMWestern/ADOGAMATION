@@ -1623,9 +1623,27 @@
       if (el.planOutlinePresetTabManual) {
         el.planOutlinePresetTabManual.addEventListener("click", function () { if (typeof switchOutlineTab === "function") switchOutlineTab("manual"); });
       }
+      if (el.planOutlinePresetTabPaste) {
+        el.planOutlinePresetTabPaste.addEventListener("click", function () { if (typeof switchOutlineTab === "function") switchOutlineTab("paste"); });
+      }
       if (el.planOutlinePresetRawText) {
         el.planOutlinePresetRawText.addEventListener("input", function () {
           if (typeof updatePreviewFromActiveTab === "function") updatePreviewFromActiveTab();
+        });
+      }
+      if (el.planOutlinePresetPasteText) {
+        el.planOutlinePresetPasteText.addEventListener("input", function () {
+          if (typeof updatePreviewFromActiveTab === "function") updatePreviewFromActiveTab();
+        });
+      }
+      if (el.planOutlinePresetPasteActs) {
+        el.planOutlinePresetPasteActs.addEventListener("input", function () {
+          if (typeof updatePreviewFromActiveTab === "function") updatePreviewFromActiveTab();
+        });
+      }
+      if (el.planGenreGuideClose) {
+        el.planGenreGuideClose.addEventListener("click", function () {
+          if (typeof closePlanGenreGuidePanel === "function") closePlanGenreGuidePanel();
         });
       }
 

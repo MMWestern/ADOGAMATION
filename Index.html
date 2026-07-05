@@ -599,21 +599,35 @@
 
       <div id="mainTabContentPlan" class="main-tab-content" hidden>
         <div class="plan-panel">
-          <div class="plan-tab-content-area">
-            <div id="planTabOutline" class="plan-tab-pane">
-              <div class="plan-empty-state" id="planOutlineEmpty">
-                <div class="plan-empty-icon">&#128196;</div>
-                <div class="plan-empty-title">No outline yet</div>
-                <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
-              </div>
-              <div id="planOutlineContent" class="plan-editor-area" hidden>
-                <div class="plan-editor-toolbar">
-                  <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
-                  <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
-                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
-                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+          <div class="plan-panel-body">
+            <div class="plan-tab-content-area">
+              <div id="planTabOutline" class="plan-tab-pane">
+                <div class="plan-empty-state" id="planOutlineEmpty">
+                  <div class="plan-empty-icon">&#128196;</div>
+                  <div class="plan-empty-title">No outline yet</div>
+                  <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
                 </div>
-                <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                <div id="planOutlineContent" class="plan-editor-area" hidden>
+                  <div class="plan-editor-toolbar">
+                    <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
+                    <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
+                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
+                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+                  </div>
+                  <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                </div>
+              </div>
+            </div>
+            <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
+              <div class="plan-genre-guide-header">
+                <div class="plan-genre-guide-title">
+                  <span class="plan-genre-guide-name" id="planGenreGuideName">Genre Guide</span>
+                  <span class="plan-genre-guide-sub" id="planGenreGuideChapterLabel">No chapter selected</span>
+                </div>
+                <button type="button" class="plan-genre-guide-close" id="planGenreGuideClose">&#10005;</button>
+              </div>
+              <div class="plan-genre-guide-body" id="planGenreGuideBody">
+                <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
               </div>
             </div>
           </div>
@@ -657,6 +671,7 @@
                   <div class="plan-outline-preset-tabs">
                     <button type="button" class="plan-outline-preset-tab is-active" data-tab="quick" id="planOutlinePresetTabQuick">Quick</button>
                     <button type="button" class="plan-outline-preset-tab" data-tab="manual" id="planOutlinePresetTabManual">Manual</button>
+                    <button type="button" class="plan-outline-preset-tab" data-tab="paste" id="planOutlinePresetTabPaste">Paste</button>
                   </div>
                   <div class="plan-outline-preset-tab-content" data-tab-content="quick">
                     <div class="plan-outline-preset-field">
@@ -679,6 +694,32 @@
                       </div>
                       <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewManual">
                         <div class="plan-outline-preset-preview-empty">Enter a structure to see a preview.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="plan-outline-preset-tab-content" data-tab-content="paste" hidden>
+                    <div class="plan-outline-preset-paste-split">
+                      <div class="plan-outline-preset-manual-left">
+                        <label class="plan-outline-preset-label">Genre Guide Markdown</label>
+                        <textarea class="plan-outline-preset-textarea plan-outline-preset-textarea-paste" id="planOutlinePresetPasteText" placeholder="Paste a genre guide template here...
+
+## Chapter 1: Title
+**What Should Happen:** Description of what happens...
+**Chapter Notes:**
+* **Primary Purpose:** ...
+* **Multi-function:** ...
+* **Structural Beats:** ...
+* **Ratings:** Scene Intensity: X, ..."></textarea>
+                        <div class="plan-outline-preset-paste-options">
+                          <div class="plan-outline-preset-field">
+                            <label class="plan-outline-preset-label plan-outline-preset-label-inline">Number of acts</label>
+                            <input type="number" class="plan-outline-preset-input plan-outline-preset-input-narrow" id="planOutlinePresetPasteActs" value="3" min="1" max="10" />
+                          </div>
+                          <div class="plan-outline-preset-paste-stats" id="planOutlinePresetPasteStats">No chapters parsed yet</div>
+                        </div>
+                      </div>
+                      <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewPaste">
+                        <div class="plan-outline-preset-preview-empty">Paste a genre guide to see a preview.</div>
                       </div>
                     </div>
                   </div>
