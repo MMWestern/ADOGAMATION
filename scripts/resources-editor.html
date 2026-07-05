@@ -53,6 +53,7 @@
       var groups = {};
       resources.forEach(function (r) {
         var cat = String(r.category || "General").trim();
+        if (cat.indexOf("_system_") === 0) return;
         if (!groups[cat]) groups[cat] = [];
         groups[cat].push(r);
       });
