@@ -1119,8 +1119,10 @@
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
       if (typeof callAppsScriptJson === "function") {
         callAppsScriptJson("saveUserDataJsonFromClient", ["outline_templates", "Outline Templates", JSON.stringify(templates)]).then(function (result) {
-          try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); } catch (e) {}
-        }, function () {});
+          try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); else console.log("Templates saved to Supabase (general_resources, category=outline_templates)"); } catch (e) {}
+        }, function (err) {
+          setStatus("Supabase save failed: " + (err && err.message ? err.message : String(err)), "error");
+        });
       }
     }
 
@@ -1130,13 +1132,18 @@
       callAppsScriptJson("getUserDataJsonFromClient", ["outline_templates"]).then(function (result) {
         try {
           var r = JSON.parse(result);
-          if (!r.exists || !r.text) return;
+          if (!r.exists || !r.text) { console.log("No templates in Supabase yet."); return; }
           var parsed = JSON.parse(r.text);
           if (!Array.isArray(parsed) || !parsed.length) return;
           localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
+          console.log("Loaded " + parsed.length + " templates from Supabase.");
           if (typeof renderTemplateList === "function") renderTemplateList();
-        } catch (e) {}
-      }, function () {});
+        } catch (e) {
+          console.warn("Error loading templates from Supabase:", e);
+        }
+      }, function (err) {
+        console.warn("Supabase load failed:", err && err.message ? err.message : String(err));
+      });
     }
 
     function parseOutlineShorthand(shorthand) {
