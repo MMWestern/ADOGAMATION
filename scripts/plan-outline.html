@@ -1299,8 +1299,8 @@
       });
       if (!found) chapterNum = 0;
       var chapterTitle = ch.title || "";
-      if (el.planGenreGuideName) el.planGenreGuideName.textContent = guide.name || "Genre Guide";
       if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = chapterNum ? "Chapter " + chapterNum + ": " + chapterTitle : chapterTitle;
+      if (el.planGenreGuideName) el.planGenreGuideName.textContent = guide.name || "Genre Guide";
       var ratingsHtml = "";
       if (ch.ratings) {
         var parts = ch.ratings.split(",");
