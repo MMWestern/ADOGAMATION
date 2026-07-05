@@ -1119,7 +1119,7 @@
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
       if (typeof callAppsScriptJson === "function") {
         callAppsScriptJson("saveUserDataJsonFromClient", ["outline_templates", "Outline Templates", JSON.stringify(templates)]).then(function (result) {
-          try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); else console.log("Templates saved to Supabase (documents, project_id=-1, doc_type=outline_templates)"); } catch (e) {}
+          try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); else setStatus("Template saved.", "ok"); } catch (e) {}
         }, function (err) {
           setStatus("Supabase save failed: " + (err && err.message ? err.message : String(err)), "error");
         });
