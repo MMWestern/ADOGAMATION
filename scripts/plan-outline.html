@@ -1300,7 +1300,9 @@
       if (!found) chapterNum = 0;
       var chapterTitle = ch.title || "";
       if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = chapterNum ? "Chapter " + chapterNum + ": " + chapterTitle : chapterTitle;
-      if (el.planGenreGuideName) el.planGenreGuideName.textContent = guide.name || "Genre Guide";
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      var genre = project && project.genre ? String(project.genre).trim().toUpperCase() : "";
+      if (el.planGenreGuideName) el.planGenreGuideName.textContent = genre ? "GENRE GUIDE - " + genre : guide.name || "Genre Guide";
       var ratingsHtml = "";
       if (ch.ratings) {
         var parts = ch.ratings.split(",");
@@ -1364,6 +1366,8 @@
         return;
       }
       var ch = guide.byChapterId[chapterId];
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      var genre = project && project.genre ? String(project.genre).trim().toUpperCase() : "";
       var ratingsHtml = "";
       if (ch.ratings) {
         var parts = ch.ratings.split(",");
@@ -1381,6 +1385,9 @@
         }
       }
       var html = '<div style="padding:4px 0;">';
+      if (genre) {
+        html += '<div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">GENRE GUIDE - ' + escapeHtml(genre) + '</div>';
+      }
       html += '<div style="font-size:12px;font-weight:700;color:#f2f2f4;margin-bottom:10px;">' + escapeHtml(ch.title || "") + '</div>';
       html += '<div class="plan-genre-guide-section">';
       html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
