@@ -60,6 +60,9 @@
       bindUiOnce(el.writingSidebarTabChapters, "writing-sidebar-chapters", "click", function () {
         setWritingWorkspaceSidebarTab("chapters");
       });
+      bindUiOnce(el.writingSidebarTabGG, "writing-sidebar-gg", "click", function () {
+        setWritingWorkspaceSidebarTab("genreGuide");
+      });
 
       [el.writingCodexFilterAll, el.writingCodexFilterSeries, el.writingCodexFilterBook].forEach(function (button) {
         if (!button) return;
@@ -322,6 +325,7 @@
           renderWritingWorkspaceEditor(getSelectedProject());
           renderWritingChapterList(getSelectedProject());
           refreshWritingWorkspaceSaveState();
+          if (typeof renderWritingGenreGuide === "function" && el.writingGenreGuideView && !el.writingGenreGuideView.hidden) renderWritingGenreGuide();
         });
       }
 
@@ -330,6 +334,7 @@
           appState.writingWorkspace.scope = String(el.writingWorkspaceScopeSelect.value || "");
           renderWritingWorkspaceEditor(getSelectedProject());
           renderWritingChapterList(getSelectedProject());
+          if (typeof renderWritingGenreGuide === "function" && el.writingGenreGuideView && !el.writingGenreGuideView.hidden) renderWritingGenreGuide();
           refreshWritingWorkspaceSaveState();
         });
       }

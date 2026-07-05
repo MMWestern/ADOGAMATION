@@ -3103,8 +3103,13 @@
       appState.writingWorkspace.sidebarTab = nextTab;
       if (el.writingSidebarTabChapters) el.writingSidebarTabChapters.classList.toggle("is-active", nextTab === "chapters");
       if (el.writingSidebarTabCodex) el.writingSidebarTabCodex.classList.toggle("is-active", nextTab === "codex");
+      if (el.writingSidebarTabGG) el.writingSidebarTabGG.classList.toggle("is-active", nextTab === "genreGuide");
       if (el.writingChaptersView) el.writingChaptersView.hidden = nextTab !== "chapters";
       if (el.writingCodexView) el.writingCodexView.hidden = nextTab !== "codex";
+      if (el.writingGenreGuideView) el.writingGenreGuideView.hidden = nextTab !== "genreGuide";
+      if (nextTab === "genreGuide" && typeof renderWritingGenreGuide === "function") {
+        renderWritingGenreGuide();
+      }
     }
 
     function getWritingCodexEntries(project) {

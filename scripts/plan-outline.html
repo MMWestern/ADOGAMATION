@@ -1340,6 +1340,70 @@
       el.planGenreGuideBody.innerHTML = html;
     }
 
+    function renderWritingGenreGuide() {
+      if (!el.writingGenreGuideBody) return;
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      if (!guide || !guide.byChapterId) {
+        el.writingGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded. Use a genre guide template from the Plan tab outline presets.</div>';
+        return;
+      }
+      var chapterId = String(appState.writingWorkspace.scope || "");
+      if (!chapterId || !guide.byChapterId[chapterId]) {
+        el.writingGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">Select a chapter in the chapter list to view its genre guide content.</div>';
+        return;
+      }
+      var ch = guide.byChapterId[chapterId];
+      var ratingsHtml = "";
+      if (ch.ratings) {
+        var parts = ch.ratings.split(",");
+        var ratingItems = [];
+        parts.forEach(function (p) {
+          var kv = p.split(":");
+          if (kv.length === 2) ratingItems.push({ label: kv[0].trim(), value: kv[1].trim() });
+        });
+        if (ratingItems.length) {
+          ratingsHtml = '<div class="plan-genre-guide-ratings">';
+          ratingItems.forEach(function (r) {
+            ratingsHtml += '<span class="plan-genre-guide-rating"><span class="plan-genre-guide-rating-label">' + escapeHtml(r.label) + '</span> ' + escapeHtml(r.value) + '</span>';
+          });
+          ratingsHtml += "</div>";
+        }
+      }
+      var html = '<div style="padding:12px;">';
+      html += '<div style="font-size:12px;font-weight:700;color:#f2f2f4;margin-bottom:10px;">' + escapeHtml(ch.title || "") + '</div>';
+      html += '<div class="plan-genre-guide-section">';
+      html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
+      html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.whatShouldHappen || "") + '</div>';
+      html += "</div>";
+      if (ch.primaryPurpose) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Primary Purpose</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.primaryPurpose) + '</div>';
+        html += "</div>";
+      }
+      if (ch.multiFunction) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Multi-function</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.multiFunction) + '</div>';
+        html += "</div>";
+      }
+      if (ch.structuralBeats) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Structural Beats</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.structuralBeats) + '</div>';
+        html += "</div>";
+      }
+      if (ratingsHtml) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Ratings</div>';
+        html += ratingsHtml;
+        html += "</div>";
+      }
+      html += "</div>";
+      el.writingGenreGuideBody.innerHTML = html;
+    }
+
     var _selectedTemplateId = null;
     var _activeTab = "quick";
     var _templatesLoadedFromSupabase = false;
