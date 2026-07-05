@@ -1118,12 +1118,16 @@
     function saveOutlineTemplates(templates) {
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
       if (typeof callAppsScriptJson === "function") {
-        callAppsScriptJson("saveUserDataJsonFromClient", ["outline_templates", "Outline Templates", JSON.stringify(templates)]).then(function (result) {
+        var sections = templates.map(function (t) {
+          return { sectionKey: t.id, title: t.name, text: JSON.stringify(t), sortOrder: 0 };
+        });
+        callAppsScriptJson("saveUserDataJsonFromClient", ["outline_templates", "Outline Templates", JSON.stringify(sections)]).then(function (result) {
           try { var r = JSON.parse(result); if (!r.ok) setStatus("Failed to save templates to cloud.", "error"); else setStatus("Template saved.", "ok"); } catch (e) {}
         }, function (err) {
           setStatus("Supabase save failed: " + (err && err.message ? err.message : String(err)), "error");
         });
       }
+    }
     }
 
     function loadOutlineTemplatesFromSupabase() {
@@ -1132,11 +1136,13 @@
       callAppsScriptJson("getUserDataJsonFromClient", ["outline_templates"]).then(function (result) {
         try {
           var r = JSON.parse(result);
-          if (!r.exists || !r.text) { console.log("No templates in Supabase yet."); return; }
-          var parsed = JSON.parse(r.text);
-          if (!Array.isArray(parsed) || !parsed.length) return;
-          localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
-          console.log("Loaded " + parsed.length + " templates from Supabase.");
+          if (!r.ok || !r.sections || !r.sections.length) { console.log("No templates in Supabase yet."); return; }
+          var templates = r.sections.map(function (s) {
+            try { return JSON.parse(s.text); } catch (e) { return null; }
+          }).filter(function (t) { return t && t.id; });
+          if (!templates.length) return;
+          localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
+          console.log("Loaded " + templates.length + " templates from Supabase.");
           if (typeof renderTemplateList === "function") renderTemplateList();
         } catch (e) {
           console.warn("Error loading templates from Supabase:", e);
