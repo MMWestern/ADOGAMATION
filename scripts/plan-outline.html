@@ -1099,6 +1099,7 @@
     var _selectedTemplateId = null;
     var _activeTab = "quick";
     var _templatesLoadedFromSupabase = false;
+    var _systemTemplateResourceId = null;
 
     function getDefaultOutlineTemplates() {
       return [
@@ -1117,32 +1118,38 @@
 
     function saveOutlineTemplates(templates) {
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
-      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
-      if (project && Number(project.project_id || 0) && typeof callAppsScriptJson === "function") {
-        var sections = templates.map(function (t) {
-          return { sectionKey: t.id, title: t.name, text: JSON.stringify(t), sortOrder: 0 };
-        });
-        callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
-          project.project_id, "outline_template", "Outline Templates", JSON.stringify(sections)
-        ]);
+      if (typeof callAppsScriptJson === "function") {
+        callAppsScriptJson("saveGeneralResourceFromClient", [_systemTemplateResourceId || 0, "Outline Templates", "_system_outline_templates", JSON.stringify(templates)]).then(function (result) {
+          try { var r = typeof result === "string" ? JSON.parse(result) : result; if (r && r.ok && r.id) _systemTemplateResourceId = Number(r.id); } catch (e) {}
+        }, function () {});
       }
     }
 
     function loadOutlineTemplatesFromSupabase() {
       if (_templatesLoadedFromSupabase || typeof callAppsScriptJson !== "function") return;
       _templatesLoadedFromSupabase = true;
-      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
-      if (!project || !Number(project.project_id || 0)) return;
-      callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "outline_template"]).then(function (result) {
+      callAppsScriptJson("listGeneralResourcesFromClient", []).then(function (result) {
         try {
           var r = typeof result === "string" ? JSON.parse(result) : result;
-          if (!r.ok || !r.sections || !r.sections.length) return;
-          var parsed = r.sections.map(function (s) {
-            try { return JSON.parse(s.text); } catch (e) { return null; }
-          }).filter(function (t) { return t && t.id; });
-          if (!parsed.length) return;
-          localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
-          if (typeof renderTemplateList === "function") renderTemplateList();
+          if (!r.ok || !r.resources || !r.resources.length) return;
+          var match = null;
+          for (var i = 0; i < r.resources.length; i++) {
+            if (String(r.resources[i].category || "").trim() === "_system_outline_templates") {
+              match = r.resources[i]; break;
+            }
+          }
+          if (!match) return;
+          _systemTemplateResourceId = Number(match.id);
+          callAppsScriptJson("getGeneralResourceFromClient", [match.id]).then(function (res2) {
+            try {
+              var r2 = typeof res2 === "string" ? JSON.parse(res2) : res2;
+              if (!r2.ok || !r2.text) return;
+              var parsed = JSON.parse(r2.text);
+              if (!Array.isArray(parsed) || !parsed.length) return;
+              localStorage.setItem("planOutlineTemplates", JSON.stringify(parsed));
+              if (typeof renderTemplateList === "function") renderTemplateList();
+            } catch (e) {}
+          }, function () {});
         } catch (e) {}
       }, function () {});
     }
@@ -1548,4 +1555,4 @@
 
     if (typeof setTimeout === "function") setTimeout(function () {
       if (typeof loadOutlineTemplatesFromSupabase === "function") loadOutlineTemplatesFromSupabase();
-    }, 2000);
+    }, 3000);
