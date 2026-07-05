@@ -343,51 +343,6 @@
         });
     });
 
-    _sbDefine('getUserDataJsonFromClient', function (dataType) {
-      return sbClient.from('documents').select('id,doc_type,title,markdown_content,word_count,updated_at,created_at')
-        .is('project_id', null).is('series_id', null).eq('doc_type', dataType).limit(1).maybeSingle()
-        .then(function (res) {
-          if (res.error) throw res.error;
-          if (!res.data) {
-            return JSON.stringify({ ok: true, exists: false, dataType: dataType, title: '', text: '', wordCount: 0 });
-          }
-          var row = res.data;
-          return JSON.stringify({
-            ok: true, exists: true, dataType: dataType,
-            title: row.title || '', text: row.markdown_content || '', wordCount: row.word_count || 0,
-            updatedAt: row.updated_at || row.created_at || ''
-          });
-        });
-    });
-
-    _sbDefine('saveUserDataJsonFromClient', function (dataType, title, payloadJson) {
-      var text = String(payloadJson || '');
-      return sbClient.from('documents').select('id').is('project_id', null).is('series_id', null).eq('doc_type', dataType).limit(1)
-        .then(function (check) {
-          var payload = {
-            project_id: null,
-            series_id: null,
-            doc_type: dataType,
-            title: title || '',
-            markdown_content: text,
-            word_count: text.split(/\s+/).filter(function (w) { return w.length > 0; }).length
-          };
-          if (check.data && check.data.length) {
-            return sbClient.from('documents').update(payload).eq('id', check.data[0].id).select('id,title,word_count,updated_at').single()
-              .then(function (res) {
-                if (res.error) throw res.error;
-                return JSON.stringify({ ok: true, dataType: dataType, title: res.data.title, wordCount: res.data.word_count });
-              });
-          } else {
-            return sbClient.from('documents').insert([payload]).select('id,title,word_count,created_at').single()
-              .then(function (res) {
-                if (res.error) throw res.error;
-                return JSON.stringify({ ok: true, dataType: dataType, title: res.data.title, wordCount: res.data.word_count });
-              });
-          }
-        });
-    });
-
     _sbDefine('deleteSupabaseProjectSectionsByKeysFromClient', function (projectId, docType, keysJson) {
       var keys = JSON.parse(keysJson);
       if (!Array.isArray(keys) || !keys.length) return JSON.stringify({ ok: true, deleted: 0 });
