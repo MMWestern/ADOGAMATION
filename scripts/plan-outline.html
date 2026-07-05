@@ -1292,13 +1292,15 @@
       var chapterNum = 0;
       var found = false;
       var outlineChapterTitle = "";
-      (outline.acts || []).forEach(function (act) {
-        (act.children || []).forEach(function (outlineCh) {
+      (outline.acts || []).some(function (act) {
+        return (act.children || []).some(function (outlineCh) {
           chapterNum++;
           if (outlineCh.id === chapterId) {
             found = true;
             outlineChapterTitle = outlineCh.title || "";
+            return true;
           }
+          return false;
         });
       });
       if (!found) chapterNum = 0;
