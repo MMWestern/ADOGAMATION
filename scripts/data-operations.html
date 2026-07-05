@@ -213,6 +213,7 @@
     // --- Resources ---
     _sbDefine('listGeneralResourcesFromClient', function () {
       return sbClient.from('general_resources').select('id,title,category,word_count,sort_order,updated_at,created_at')
+        .not('category', 'like', '\\_system\\_%')
         .order('category', { ascending: true }).order('sort_order', { ascending: true }).order('title', { ascending: true }).limit(5000)
         .then(function (res) {
           if (res.error) throw res.error;
