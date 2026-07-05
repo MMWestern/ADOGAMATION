@@ -1289,9 +1289,18 @@
         el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">Chapter not found in genre guide.</div>';
         return;
       }
+      var chapterNum = 0;
+      var found = false;
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (outlineCh) {
+          chapterNum++;
+          if (outlineCh.id === chapterId) found = true;
+        });
+      });
+      if (!found) chapterNum = 0;
       var chapterTitle = ch.title || "";
       if (el.planGenreGuideName) el.planGenreGuideName.textContent = guide.name || "Genre Guide";
-      if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = chapterTitle;
+      if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = chapterNum ? "Chapter " + chapterNum + ": " + chapterTitle : chapterTitle;
       var ratingsHtml = "";
       if (ch.ratings) {
         var parts = ch.ratings.split(",");
