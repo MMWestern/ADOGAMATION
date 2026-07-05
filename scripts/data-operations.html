@@ -213,7 +213,6 @@
     // --- Resources ---
     _sbDefine('listGeneralResourcesFromClient', function () {
       return sbClient.from('general_resources').select('id,title,category,word_count,sort_order,updated_at,created_at')
-        .not('category', 'like', 'outline_%')
         .order('category', { ascending: true }).order('sort_order', { ascending: true }).order('title', { ascending: true }).limit(5000)
         .then(function (res) {
           if (res.error) throw res.error;
@@ -990,8 +989,7 @@
         provider: 'openrouter',
         openrouter: { model: '', hasApiKey: false },
         lmstudio: { endpoint: 'http://localhost:1234/v1', model: '', useBrowser: true },
-        ollama: { endpoint: 'http://localhost:11434', model: '', useBrowser: true },
-        opencode: { model: '', hasApiKey: false }
+        ollama: { endpoint: 'http://localhost:11434', model: '', useBrowser: true }
       };
     }
 
@@ -1020,10 +1018,6 @@
           endpoint: (saved.ollama && saved.ollama.endpoint) || defaults.ollama.endpoint,
           model: (saved.ollama && saved.ollama.model) || defaults.ollama.model,
           useBrowser: saved.ollama && saved.ollama.useBrowser != null ? !!saved.ollama.useBrowser : defaults.ollama.useBrowser
-        },
-        opencode: {
-          model: (saved.opencode && saved.opencode.model) || defaults.opencode.model,
-          hasApiKey: !!(saved.opencode && saved.opencode.apiKey)
         }
       };
     }
@@ -1041,12 +1035,12 @@
       try {
         var payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
         var defaults = _getDefaultAISettings();
-        var provider = ['openrouter', 'lmstudio', 'ollama', 'opencode'].indexOf(payload.provider) !== -1 ? payload.provider : defaults.provider;
+        var provider = ['openrouter', 'lmstudio', 'ollama'].indexOf(payload.provider) !== -1 ? payload.provider : defaults.provider;
         var settingsToSave = {
           provider: provider,
           openrouter: {
             model: String(payload.openrouter && payload.openrouter.model || '').trim(),
-            apiKey: payload.openrouter && payload.openrouter.clearKey ? '' : String(payload.openrouter && payload.openrouter.apiKey || '').trim()
+            apiKey: String(payload.openrouter && payload.openrouter.apiKey || (payload.openrouter && payload.openrouter.apiKey === '' ? '' : '') || '').trim()
           },
           lmstudio: {
             endpoint: String(payload.lmstudio && payload.lmstudio.endpoint || defaults.lmstudio.endpoint).trim(),
@@ -1057,10 +1051,6 @@
             endpoint: String(payload.ollama && payload.ollama.endpoint || defaults.ollama.endpoint).trim(),
             model: String(payload.ollama && payload.ollama.model || '').trim(),
             useBrowser: payload.ollama && payload.ollama.useBrowser != null ? !!payload.ollama.useBrowser : defaults.ollama.useBrowser
-          },
-          opencode: {
-            model: String(payload.opencode && payload.opencode.model || '').trim(),
-            apiKey: payload.opencode && payload.opencode.clearKey ? '' : String(payload.opencode && payload.opencode.apiKey || '').trim()
           }
         };
         localStorage.setItem(AI_SETTINGS_LOCAL_KEY, JSON.stringify(settingsToSave));
@@ -1105,13 +1095,6 @@
         } else if (provider === 'ollama') {
           var endpoint2 = _normalizeUrlNoSlash(payload.ollama && payload.ollama.endpoint || 'http://localhost:11434');
           url = (/\/api$/i.test(endpoint2) ? endpoint2 : endpoint2 + '/api') + '/tags';
-        } else if (provider === 'opencode') {
-          url = 'https://opencode.ai/zen/v1/models';
-          var typedKey2 = payload.opencode && String(payload.opencode.apiKey || '').trim();
-          var saved2 = _loadAISettings();
-          var savedKey2 = String(saved2.opencode && saved2.opencode.apiKey || '').trim();
-          var apiKey2 = typedKey2 || savedKey2;
-          if (apiKey2) headers['Authorization'] = 'Bearer ' + apiKey2;
         } else {
           throw new Error('Unknown AI provider: ' + provider);
         }
@@ -1190,17 +1173,6 @@
           if (!model3) throw new Error('Ollama model is not set.');
           url = (/\/api$/i.test(endpoint2) ? endpoint2 : endpoint2 + '/api') + '/chat';
           body = { model: model3, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], options: { temperature: temperature, num_predict: maxTokens }, stream: false };
-        } else if (provider === 'opencode') {
-          var typedKey3 = payload.opencode && String(payload.opencode.apiKey || '').trim();
-          var saved3 = _loadAISettings();
-          var savedKey3 = String(saved3.opencode && saved3.opencode.apiKey || '').trim();
-          var apiKey3 = typedKey3 || savedKey3;
-          if (!apiKey3) throw new Error('Opencode API key is not saved. Open AI Settings and add it first.');
-          var model4 = String(request.model || payload.opencode && payload.opencode.model || '').trim();
-          if (!model4) throw new Error('Opencode model is not set.');
-          url = 'https://opencode.ai/zen/v1/chat/completions';
-          headers['Authorization'] = 'Bearer ' + apiKey3;
-          body = { model: model4, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: temperature, max_tokens: maxTokens, stream: false };
         } else {
           throw new Error('Unknown AI provider: ' + provider);
         }

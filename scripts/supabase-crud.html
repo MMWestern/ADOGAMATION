@@ -344,7 +344,7 @@
     });
 
     _sbDefine('getUserDataJsonFromClient', function (dataType) {
-      return sbClient.from('general_resources').select('*').eq('category', dataType).limit(1).maybeSingle()
+      return sbClient.from('documents').select('*').eq('project_id', -1).eq('doc_type', dataType).limit(1).maybeSingle()
         .then(function (res) {
           if (res.error) throw res.error;
           if (!res.data) {
@@ -361,27 +361,17 @@
 
     _sbDefine('saveUserDataJsonFromClient', function (dataType, title, payloadJson) {
       var text = String(payloadJson || '');
-      return sbClient.from('general_resources').select('id').eq('category', dataType).limit(1)
-        .then(function (check) {
-          var payload = {
-            category: dataType,
-            title: title || '',
-            markdown_content: text,
-            word_count: text.split(/\s+/).filter(function (w) { return w.length > 0; }).length
-          };
-          if (check.data && check.data.length) {
-            return sbClient.from('general_resources').update(payload).eq('id', check.data[0].id).select('id,title,word_count,updated_at').single()
-              .then(function (res) {
-                if (res.error) throw res.error;
-                return JSON.stringify({ ok: true, dataType: dataType, title: res.data.title, wordCount: res.data.word_count });
-              });
-          } else {
-            return sbClient.from('general_resources').insert([payload]).select('id,title,word_count,created_at').single()
-              .then(function (res) {
-                if (res.error) throw res.error;
-                return JSON.stringify({ ok: true, dataType: dataType, title: res.data.title, wordCount: res.data.word_count });
-              });
-          }
+      var payload = {
+        project_id: -1,
+        doc_type: dataType,
+        title: title || '',
+        markdown_content: text,
+        word_count: text.split(/\s+/).filter(function (w) { return w.length > 0; }).length
+      };
+      return sbClient.from('documents').upsert(payload, { onConflict: 'project_id,doc_type' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, dataType: dataType, title: payload.title, wordCount: payload.word_count });
         });
     });
 
