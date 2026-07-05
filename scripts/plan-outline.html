@@ -1341,16 +1341,17 @@
     }
 
     function renderWritingGenreGuide() {
-      if (!el.writingGenreGuideBody) return;
+      var container = el.writingInspectorGG;
+      if (!container) return;
       var outline = getPlanOutline();
       var guide = outline.genreGuide;
       if (!guide || !guide.byChapterId) {
-        el.writingGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded. Use a genre guide template from the Plan tab outline presets.</div>';
+        container.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded. Use a genre guide template from the Plan tab outline presets.</div>';
         return;
       }
       var chapterId = String(appState.writingWorkspace.scope || "");
       if (!chapterId || !guide.byChapterId[chapterId]) {
-        el.writingGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">Select a chapter in the chapter list to view its genre guide content.</div>';
+        container.innerHTML = '<div class="plan-genre-guide-empty">Select a chapter in the chapter list to view its genre guide content.</div>';
         return;
       }
       var ch = guide.byChapterId[chapterId];
@@ -1401,7 +1402,7 @@
         html += "</div>";
       }
       html += "</div>";
-      el.writingGenreGuideBody.innerHTML = html;
+      container.innerHTML = html;
     }
 
     var _selectedTemplateId = null;
