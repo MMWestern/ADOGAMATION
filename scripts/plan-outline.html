@@ -1351,17 +1351,15 @@
       if (!found) chapterNum = 0;
       var originalTitle = ch.title || "";
       var editedTitle = outlineChapterTitle || "";
-      var displayTitle = "";
-      if (chapterNum) {
+      if (el.planGenreGuideChapterLabel) {
         if (editedTitle && editedTitle !== originalTitle) {
-          displayTitle = "Chapter " + chapterNum + ": " + originalTitle + " (edited: " + editedTitle + ")";
+          var prefix = chapterNum ? "Chapter " + chapterNum + ": " : "";
+          el.planGenreGuideChapterLabel.innerHTML = '<span style="color:#22c55e;font-weight:800;text-transform:uppercase;">' + escapeHtml(prefix + editedTitle) + '</span><span style="color:#64748b;font-size:10px;margin-left:6px;">(edited from: ' + escapeHtml(originalTitle) + ')</span>';
         } else {
-          displayTitle = "Chapter " + chapterNum + ": " + (editedTitle || originalTitle);
+          var labelText = chapterNum ? "Chapter " + chapterNum + ": " + (editedTitle || originalTitle) : (editedTitle || originalTitle);
+          el.planGenreGuideChapterLabel.textContent = labelText;
         }
-      } else {
-        displayTitle = editedTitle || originalTitle;
       }
-      if (el.planGenreGuideChapterLabel) el.planGenreGuideChapterLabel.textContent = displayTitle;
       var guideName = guide.name ? String(guide.name).trim().toUpperCase() : "";
       if (el.planGenreGuideName) el.planGenreGuideName.textContent = guideName ? "GENRE GUIDE - " + guideName : "Genre Guide";
       var ratingsHtml = "";
@@ -1438,11 +1436,12 @@
       });
       var originalTitle = ch.title || "";
       var editedTitle = outlineChapterTitle || "";
-      var displayTitle = "";
+      var titleHtml = "";
       if (editedTitle && editedTitle !== originalTitle) {
-        displayTitle = originalTitle + " (edited: " + editedTitle + ")";
+        titleHtml = '<div style="font-size:12px;font-weight:800;color:#22c55e;text-transform:uppercase;margin-bottom:4px;">' + escapeHtml(editedTitle) + '</div>' +
+          '<div style="font-size:10px;color:#64748b;margin-bottom:10px;">edited from: ' + escapeHtml(originalTitle) + '</div>';
       } else {
-        displayTitle = editedTitle || originalTitle;
+        titleHtml = '<div style="font-size:12px;font-weight:700;color:#f2f2f4;margin-bottom:10px;">' + escapeHtml(editedTitle || originalTitle) + '</div>';
       }
       var ratingsHtml = "";
       if (ch.ratings) {
@@ -1464,7 +1463,7 @@
       if (guideName) {
         html += '<div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">GENRE GUIDE - ' + escapeHtml(guideName) + '</div>';
       }
-      html += '<div style="font-size:12px;font-weight:700;color:#f2f2f4;margin-bottom:10px;">' + escapeHtml(displayTitle) + '</div>';
+      html += titleHtml;
       html += '<div class="plan-genre-guide-section">';
       html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
       html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.whatShouldHappen || "") + '</div>';
