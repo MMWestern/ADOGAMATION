@@ -575,10 +575,10 @@
                       '</div>' +
                       '<div class="plan-scene-fields">' +
                         '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '"' + (function() { var cid = String(scene.povCharacterId || ""); if (!cid || cid === "narrator") return ""; var match = characters.find(function(c) { return String(c.id || "") === cid; }); var col = match ? String(match.color || "").trim() : ""; return col ? ' style="background:' + escapeHtml(col) + 'dd;color:#fff;border-color:' + escapeHtml(col) + ';"' : ""; })() + '>' +
+                          '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '">' +
                             '<span class="plan-scene-pov-type">' + escapeHtml(scene.povType || "Type") + '</span>' +
                             '<span class="plan-scene-pov-sep">·</span>' +
-                            '<span class="plan-scene-pov-who">' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
+                            '<span class="plan-scene-pov-who"' + (function() { var cid = String(scene.povCharacterId || ""); if (!cid || cid === "narrator") return ""; var match = characters.find(function(c) { return String(c.id || "") === cid; }); var col = match ? String(match.color || "").trim() : ""; return col ? ' style="background:' + escapeHtml(col) + 'dd;color:#fff;border-radius:3px;padding:0 4px;"' : ""; })() + '>' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
                             '<span class="plan-scene-pov-arrow">&#9660;</span>' +
                           '</span>' +
                         '</div>' +
