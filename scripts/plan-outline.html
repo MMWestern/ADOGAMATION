@@ -687,6 +687,13 @@
             openPlanGenreGuidePanel();
             renderPlanGenreGuideForChapter(chapterId);
           }
+          var sel = window.getSelection();
+          if (sel) {
+            var range = document.createRange();
+            range.selectNodeContents(this);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
         });
       });
 
