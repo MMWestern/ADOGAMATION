@@ -5312,7 +5312,6 @@
         renderPlanOutline();
         setWritingWorkspaceMeta(project, "Saved " + appState.writingWorkspace.lastSavedAt);
         refreshWritingWorkspaceSaveState();
-        clearWorkspaceBackup(Number(project.project_id || 0));
         var wsTitle = String(project && project.title || "").trim();
         setStatus((settings.autosave ? "Workspace autosaved" : "Workspace saved") + (wsTitle ? ": " + wsTitle : "") + ".", "ok");
         return true;
@@ -5399,6 +5398,7 @@
         setStatus("Plan outline saved" + (ot ? ": " + ot : "") + ".", "ok");
         return true;
       }).catch(function (error) {
+        backupWorkspaceToLocalStorage();
         setStatus("Outline save failed: " + (error && error.message ? error.message : error), "error");
         return null;
       });

@@ -317,6 +317,7 @@
         bindUiOnce(el.writingChapterList, "writing-chapter-select", "click", function (event) {
           var button = event.target && event.target.closest ? event.target.closest("[data-writing-chapter-key]") : null;
           if (!button) return;
+          if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
           appState.writingWorkspace.scope = String(button.getAttribute("data-writing-chapter-key") || "");
           renderWritingWorkspaceScopeOptions();
           renderWritingWorkspaceEditor(getSelectedProject());
@@ -328,6 +329,7 @@
 
       if (el.writingWorkspaceScopeSelect) {
         bindUiOnce(el.writingWorkspaceScopeSelect, "writing-scope-change", "change", function () {
+          if (typeof flushCurrentWorkspaceEdits === "function") flushCurrentWorkspaceEdits();
           appState.writingWorkspace.scope = String(el.writingWorkspaceScopeSelect.value || "");
           renderWritingWorkspaceEditor(getSelectedProject());
           renderWritingChapterList(getSelectedProject());
