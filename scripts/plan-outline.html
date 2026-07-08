@@ -562,12 +562,9 @@
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
                         '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
-                        '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '">' +
-                          '<span class="plan-scene-pov-type">' + escapeHtml(scene.povType || "Type") + '</span>' +
-                          '<span class="plan-scene-pov-sep">·</span>' +
-                          '<span class="plan-scene-pov-who">' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
-                          '<span class="plan-scene-pov-arrow">&#9660;</span>' +
-                        '</span>' +
+                        '<span class="plan-scene-field-label">Target:</span>' +
+                        '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
+                        '<span class="plan-scene-wc">words</span>' +
                         '<div class="plan-scene-actions">' +
                           '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
                           '<button type="button" class="plan-scene-action" data-action="move-down" data-node-id="' + escapeHtml(scene.id) + '">&#9660;</button>' +
@@ -576,9 +573,12 @@
                       '</div>' +
                       '<div class="plan-scene-fields">' +
                         '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-field-label">Target:</span>' +
-                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
-                          '<span class="plan-scene-wc">words</span>' +
+                          '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '">' +
+                            '<span class="plan-scene-pov-type">' + escapeHtml(scene.povType || "Type") + '</span>' +
+                            '<span class="plan-scene-pov-sep">·</span>' +
+                            '<span class="plan-scene-pov-who">' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
+                            '<span class="plan-scene-pov-arrow">&#9660;</span>' +
+                          '</span>' +
                         '</div>' +
                         '<div class="plan-scene-field plan-scene-field-textarea">' +
                           '<div class="plan-scene-text-box" contenteditable="true" spellcheck="false" data-placeholder="Write scene details here..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="text">' + escapeHtml(scene.text || "") + '</div>' +
