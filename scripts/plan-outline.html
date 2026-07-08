@@ -680,6 +680,16 @@
         });
       });
 
+      grid.querySelectorAll(".plan-chapter-title").forEach(function (title) {
+        title.addEventListener("focus", function () {
+          var chapterId = this.getAttribute("data-node-id");
+          if (chapterId) {
+            openPlanGenreGuidePanel();
+            renderPlanGenreGuideForChapter(chapterId);
+          }
+        });
+      });
+
       grid.querySelectorAll(".plan-scene-tag-add").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var sceneId = this.getAttribute("data-scene-id");
