@@ -6167,6 +6167,8 @@
         loadPlanData().then(function () { setPlanSubTab("outline"); });
       }
       if (safeTab === "workspace") {
+        renderWritingChapterList(getSelectedProject());
+        renderWritingWorkspaceScopeOptions();
         applyWritingWorkspaceSpellcheck();
       } else {
         document.body.classList.remove("writing-focus-mode");
