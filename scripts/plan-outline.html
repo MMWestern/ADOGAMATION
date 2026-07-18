@@ -6,6 +6,28 @@
 
     function setPlanSubTab(tabKey) {
       renderPlanOutline();
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      openPlanGenreGuidePanel();
+      if (guide && guide.byChapterId) {
+        var firstChapterId = null;
+        (outline.acts || []).some(function (act) {
+          return (act.children || []).some(function (ch) { firstChapterId = ch.id; return true; });
+        });
+        var restoreId = guide._lastSelectedChapterId && guide.byChapterId[guide._lastSelectedChapterId] ? guide._lastSelectedChapterId : firstChapterId;
+        if (restoreId) {
+          renderPlanGenreGuideForChapter(restoreId);
+        } else {
+          el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No chapters exist yet. Add chapters from the outline.</div>';
+          el.planGenreGuideChapterLabel.textContent = "No chapters";
+          var guideName = guide.name ? String(guide.name).trim().toUpperCase() : "";
+          if (el.planGenreGuideName) el.planGenreGuideName.textContent = guideName ? "GENRE GUIDE - " + guideName : "Genre Guide";
+        }
+      } else {
+        el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No genre guide loaded. Import a genre guide template from the outline presets.</div>';
+        el.planGenreGuideChapterLabel.textContent = "";
+        if (el.planGenreGuideName) el.planGenreGuideName.textContent = "Genre Guide";
+      }
     }
 
     function sortOutlineBySortOrder_(outline) {
@@ -267,7 +289,17 @@
       var node = findPlanNodeById(outline, nodeId);
       if (node) {
         node.title = String(title || "").trim();
-        if (node.type === "chapter") syncOutlineToSegments();
+        if (node.type === "chapter") {
+          syncOutlineToSegments();
+          var guide = outline.genreGuide;
+          if (guide && guide._lastSelectedChapterId === nodeId && el.planGenreGuidePanel && !el.planGenreGuidePanel.hidden) {
+            renderPlanGenreGuideForChapter(nodeId);
+          }
+          if (String(appState.writingWorkspace.scope || "") === nodeId) {
+            renderWritingWorkspaceEditor(getSelectedProject());
+            renderWritingGenreGuide();
+          }
+        }
         schedulePlanOutlineSave();
       }
     }
@@ -333,7 +365,7 @@
             var html = "<div class='writing-inspector-outline-scenes'>" + scenes.map(function (scene, sIdx) {
               var parts = [];
               var headerParts = [];
-              headerParts.push("<span style='font-size:13px;font-weight:700;color:#e2e8f0;'>SCENE " + (sIdx + 1) + "</span>");
+              headerParts.push("<span style='font-size:11px;font-weight:800;color:#60a5fa;'>SCENE " + (sIdx + 1) + "</span>");
               var povPills = [];
               if (scene.povType) {
                 povPills.push("<span style='display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:#1e293b;color:#94a3b8;'>" + escapeHtml(scene.povType) + "</span>");
@@ -364,7 +396,7 @@
               var sceneText = stripHtmlTags(scene.text || "").trim();
               if (sceneText) {
                 var lines = sceneText.split("\n").map(function (l) { return String(l || "").trim(); }).filter(Boolean);
-                parts.push("<div style='font-size:10px;color:#94a3b8;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
+                parts.push("<div style='font-size:13px;color:#60a5fa;line-height:1.35;margin-bottom:4px;'>" + escapeHtml(lines.slice(0, 5).join("\n")) + "</div>");
               }
               if (scene.targetWordCount) parts.push("<div style='font-size:10px;color:#64748b;line-height:1.35;'><strong>Target:</strong> " + Number(scene.targetWordCount).toLocaleString() + " words</div>");
               var codexTags = getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity);
@@ -515,6 +547,7 @@
                 '<div class="plan-chapter-header">' +
                   '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
                   '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
+                  (outline.genreGuide && outline.genreGuide.byChapterId && outline.genreGuide.byChapterId[chapter.id] ? '<span class="plan-genre-indicator" data-chapter-id="' + escapeHtml(chapter.id) + '" title="Show genre guide for this chapter">GG</span>' : '') +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +
                   '<div class="plan-chapter-actions">' +
                     '<button type="button" class="plan-chapter-action" data-action="delete" data-node-id="' + escapeHtml(chapter.id) + '">&#10005;</button>' +
@@ -529,26 +562,25 @@
                     return '<div class="plan-scene" data-scene-id="' + escapeHtml(scene.id) + '">' +
                       '<div class="plan-scene-header">' +
                         '<span class="plan-scene-number">SCENE ' + sceneNum + '</span>' +
-                        '<div class="plan-scene-actions">' +
-                          '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
-                          '<button type="button" class="plan-scene-action" data-action="move-down" data-node-id="' + escapeHtml(scene.id) + '">&#9660;</button>' +
-                          '<button type="button" class="plan-scene-action" data-action="delete" data-node-id="' + escapeHtml(scene.id) + '">&#10005;</button>' +
+                        '<div class="plan-scene-header-right">' +
+                          '<span class="plan-scene-field-label">Target:</span>' +
+                          '<span class="plan-scene-field-value plan-scene-target-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
+                          '<span class="plan-scene-wc">WORDS</span>' +
+                          '<div class="plan-scene-actions">' +
+                            '<button type="button" class="plan-scene-action" data-action="move-up" data-node-id="' + escapeHtml(scene.id) + '">&#9650;</button>' +
+                            '<button type="button" class="plan-scene-action" data-action="move-down" data-node-id="' + escapeHtml(scene.id) + '">&#9660;</button>' +
+                            '<button type="button" class="plan-scene-action" data-action="delete" data-node-id="' + escapeHtml(scene.id) + '">&#10005;</button>' +
+                          '</div>' +
                         '</div>' +
                       '</div>' +
                       '<div class="plan-scene-fields">' +
                         '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-field-label">POV:</span>' +
                           '<span class="plan-scene-pov-chip" data-scene-id="' + escapeHtml(scene.id) + '">' +
                             '<span class="plan-scene-pov-type">' + escapeHtml(scene.povType || "Type") + '</span>' +
                             '<span class="plan-scene-pov-sep">·</span>' +
-                            '<span class="plan-scene-pov-who">' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
+                            '<span class="plan-scene-pov-who"' + (function() { var cid = String(scene.povCharacterId || ""); if (!cid || cid === "narrator") return ""; var match = characters.find(function(c) { return String(c.id || "") === cid; }); var col = match ? String(match.color || "").trim() : ""; return col ? ' style="background:' + escapeHtml(col) + 'dd;color:#fff;border-radius:3px;padding:0 4px;"' : ""; })() + '>' + escapeHtml(_getPovCharacterName(scene, characters) || "Who") + '</span>' +
                             '<span class="plan-scene-pov-arrow">&#9660;</span>' +
                           '</span>' +
-                        '</div>' +
-                        '<div class="plan-scene-field">' +
-                          '<span class="plan-scene-field-label">Target:</span>' +
-                          '<span class="plan-scene-field-value" contenteditable="true" spellcheck="false" data-placeholder="3000" data-scene-id="' + escapeHtml(scene.id) + '" data-field="targetWordCount">' + escapeHtml(wcLabel) + '</span>' +
-                          '<span class="plan-scene-wc">words</span>' +
                         '</div>' +
                         '<div class="plan-scene-field plan-scene-field-textarea">' +
                           '<div class="plan-scene-text-box" contenteditable="true" spellcheck="false" data-placeholder="Write scene details here..." data-scene-id="' + escapeHtml(scene.id) + '" data-field="text">' + escapeHtml(scene.text || "") + '</div>' +
@@ -636,6 +668,34 @@
         btn.addEventListener("click", function () {
           var chapterId = this.getAttribute("data-chapter-id");
           if (chapterId) addPlanScene(chapterId);
+        });
+      });
+
+      grid.querySelectorAll(".plan-genre-indicator").forEach(function (badge) {
+        badge.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var chapterId = this.getAttribute("data-chapter-id");
+          if (chapterId) {
+            openPlanGenreGuidePanel();
+            renderPlanGenreGuideForChapter(chapterId);
+          }
+        });
+      });
+
+      grid.querySelectorAll(".plan-chapter-title").forEach(function (title) {
+        title.addEventListener("focus", function () {
+          var chapterId = this.getAttribute("data-node-id");
+          if (chapterId) {
+            openPlanGenreGuidePanel();
+            renderPlanGenreGuideForChapter(chapterId);
+          }
+          var sel = window.getSelection();
+          if (sel) {
+            var range = document.createRange();
+            range.selectNodeContents(this);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
         });
       });
 
@@ -799,6 +859,11 @@
           schedulePlanOutlineSave();
         });
       });
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      if (guide && guide._lastSelectedChapterId && guide.byChapterId && guide.byChapterId[guide._lastSelectedChapterId]) {
+        highlightGenreGuideChapter(guide._lastSelectedChapterId);
+      }
     }
 
     function getPlanSceneCodexTags(scene, characters, locations, objects, lore, subplots, other, continuity, showRemove) {
@@ -1096,10 +1161,362 @@
       editor.value = String((appState.writingWorkspace.outline || {}).worldBuilding || "");
     }
 
+    function parseGenreGuideMarkdown(text) {
+      if (!text) return null;
+      var chapterRegex = /^#{1,3}\s+Chapter\s+(\d+)\s*:\s*(.+)$/gm;
+      var chapters = [];
+      var lastIndex = 0;
+      var match;
+      var parts = [];
+      while ((match = chapterRegex.exec(text)) !== null) {
+        if (lastIndex > 0) {
+          parts[parts.length - 1].body = text.substring(lastIndex, match.index);
+        }
+        parts.push({ num: parseInt(match[1], 10), title: match[2].trim(), body: "" });
+        lastIndex = match.index + match[0].length;
+      }
+      if (parts.length && lastIndex < text.length) {
+        parts[parts.length - 1].body = text.substring(lastIndex);
+      }
+      parts.forEach(function (p) {
+        if (!p.body) return;
+        var body = p.body;
+        var entry = { title: p.title, whatShouldHappen: "", primaryPurpose: "", multiFunction: "", structuralBeats: "", ratings: "" };
+        var whatMatch = body.match(/\*\*What\s+Should\s+Happen:\*\*\s*([\s\S]*?)(?=\n\s*\*\*|$)/i);
+        if (whatMatch) entry.whatShouldHappen = whatMatch[1].trim();
+        var notesSection = body.match(/\*\*Chapter\s+Notes:\*\*\s*([\s\S]*?)(?=\n\s*##|$)/i);
+        if (notesSection) {
+          var notes = notesSection[1];
+          var purposeMatch = notes.match(/\*\*Primary\s+Purpose:\*\*\s*(.+)/i);
+          if (purposeMatch) entry.primaryPurpose = purposeMatch[1].trim();
+          var multiMatch = notes.match(/\*\*Multi-function:\*\*\s*(.+)/i);
+          if (multiMatch) entry.multiFunction = multiMatch[1].trim();
+          var beatsMatch = notes.match(/\*\*Structural\s+Beats:\*\*\s*(.+)/i);
+          if (beatsMatch) entry.structuralBeats = beatsMatch[1].trim();
+          var ratingsMatch = notes.match(/\*\*Ratings:\*\*\s*(.+)/i);
+          if (ratingsMatch) entry.ratings = ratingsMatch[1].trim();
+        }
+        chapters.push(entry);
+      });
+      return chapters.length ? chapters : null;
+    }
+
+    function splitIntoActs(chapters, numActs) {
+      if (!chapters || !chapters.length) return [];
+      numActs = Math.max(1, Math.min(numActs || 3, chapters.length));
+      var acts = [];
+      var base = Math.floor(chapters.length / numActs);
+      var extra = chapters.length % numActs;
+      var idx = 0;
+      for (var a = 0; a < numActs; a++) {
+        var count = base + (a < extra ? 1 : 0);
+        acts.push(chapters.slice(idx, idx + count));
+        idx += count;
+      }
+      return acts;
+    }
+
+    function applyGenreGuideTemplate(text, numActs) {
+      var chapters = parseGenreGuideMarkdown(text);
+      if (!chapters || !chapters.length) { setStatus("Could not parse any chapters. Check the format.", "error"); return false; }
+      var actGroups = splitIntoActs(chapters, numActs);
+      var actLabels = ["Act 1: Setup", "Act 2: Confrontation", "Act 3: Resolution", "Act 4", "Act 5", "Act 6", "Act 7", "Act 8", "Act 9", "Act 10"];
+      var outline = getPlanOutline();
+      var hasExisting = (outline.acts || []).some(function (act) { return (act.children || []).length > 0; });
+      if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return false;
+      var acts = [];
+      var actSort = 0, chapterSort = 0;
+      var guideByChapterId = {};
+      actGroups.forEach(function (group, ai) {
+        var chapters = [];
+        group.forEach(function (ch) {
+          var chapterId = generateOutlineNodeId();
+          var sceneId = generateOutlineNodeId();
+          var scene = {
+            id: sceneId,
+            type: "scene",
+            title: "",
+            sortOrder: 0,
+            purpose: "",
+            povType: "",
+            povCharacterId: "",
+            targetWordCount: 0,
+            mainPlotFunction: "",
+            notes: "",
+            text: "",
+            characterIds: []
+          };
+          chapters.push({
+            id: chapterId,
+            type: "chapter",
+            title: ch.title,
+            sortOrder: chapterSort++,
+            children: [scene]
+          });
+          guideByChapterId[chapterId] = {
+            title: ch.title,
+            whatShouldHappen: ch.whatShouldHappen,
+            primaryPurpose: ch.primaryPurpose,
+            multiFunction: ch.multiFunction,
+            structuralBeats: ch.structuralBeats,
+            ratings: ch.ratings
+          };
+        });
+        acts.push({
+          id: generateOutlineNodeId(),
+          type: "act",
+          title: actLabels[ai] || "Act " + (ai + 1),
+          sortOrder: actSort++,
+          children: chapters
+        });
+      });
+      outline.acts = acts;
+      outline.genreGuide = { name: "", byChapterId: guideByChapterId };
+      var nameMatch = text.match(/^#{1,3}\s+(.+?)(?:\s*Plot\s*Template)?\s*$/m);
+      outline.genreGuide.name = nameMatch ? nameMatch[1].trim() : "Imported Genre Guide";
+      closePlanOutlinePresetModal();
+      syncOutlineToSegments();
+      renderPlanOutline();
+      if (typeof savePlanOutline === "function") savePlanOutline();
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && Number(project.project_id || 0)) {
+        acts.forEach(function (act) {
+          (act.children || []).forEach(function (chapter) {
+            if (chapter.id && typeof initNotesAndFixesForChapter === "function") initNotesAndFixesForChapter(project.project_id, chapter.id);
+          });
+        });
+        if (typeof callAppsScriptJson === "function") {
+          callAppsScriptJson("saveSupabaseProjectSectionDocumentJsonFromClient", [
+            project.project_id, "draft",
+            String(project.title || "Project").trim() + " - Draft",
+            JSON.stringify(appState.writingWorkspace.segments || [])
+          ]);
+        }
+      }
+      var firstChapterId = acts.length && acts[0].children && acts[0].children.length ? acts[0].children[0].id : null;
+      if (firstChapterId) openPlanGenreGuidePanel(firstChapterId);
+      return true;
+    }
+
+    function renderGenreGuidePreview(text, numActs) {
+      if (!text) return '<div class="plan-outline-preset-preview-empty">Paste a genre guide to see a preview.</div>';
+      var chapters = parseGenreGuideMarkdown(text);
+      if (!chapters || !chapters.length) return '<div class="plan-outline-preset-preview-empty">No chapters could be parsed. Check the format (use ## Chapter N: Title headings).</div>';
+      var actGroups = splitIntoActs(chapters, numActs);
+      var actLabels = ["Act 1: Setup", "Act 2: Confrontation", "Act 3: Resolution", "Act 4", "Act 5", "Act 6", "Act 7", "Act 8", "Act 9", "Act 10"];
+      var totalScenes = 0;
+      var html = "";
+      actGroups.forEach(function (group, ai) {
+        html += "<div style='margin-bottom:10px;'><div style='font-size:12px;font-weight:700;color:#a5a5ad;margin-bottom:4px;'>" + (actLabels[ai] || "Act " + (ai + 1)) + " <span style='font-weight:400;color:#6b7280;'>(" + group.length + " ch)</span></div>";
+        group.forEach(function (ch) {
+          html += "<div style='font-size:11px;color:#c8c8d0;padding:2px 0 2px 12px;'>" + escapeHtml(ch.title) + "</div>";
+          totalScenes++;
+        });
+        html += "</div>";
+      });
+      html += "<div style='font-size:11px;color:#6b7280;border-top:1px solid #2a2a2f;padding-top:8px;'>" + chapters.length + " chapters &middot; " + actGroups.length + " acts &middot; " + totalScenes + " scenes</div>";
+      return html;
+    }
+
+    function openPlanGenreGuidePanel(chapterIndex) {
+      if (!el.planGenreGuidePanel) return;
+      el.planGenreGuidePanel.hidden = false;
+      if (chapterIndex !== undefined) renderPlanGenreGuideForChapter(chapterIndex);
+    }
+
+    function closePlanGenreGuidePanel() {
+      if (!el.planGenreGuidePanel) return;
+      el.planGenreGuidePanel.hidden = true;
+    }
+
+    function highlightGenreGuideChapter(chapterId) {
+      var grid = el.planOutlineGrid;
+      if (!grid) return;
+      grid.querySelectorAll(".plan-chapter").forEach(function (ch) {
+        ch.classList.toggle("gg-active", ch.getAttribute("data-chapter-id") === chapterId);
+      });
+    }
+
+    function renderPlanGenreGuideForChapter(chapterId) {
+      if (!el.planGenreGuideBody) return;
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      if (!guide || !guide.byChapterId) {
+        el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded.</div>';
+        return;
+      }
+      var ch = guide.byChapterId[chapterId];
+      if (!ch) {
+        el.planGenreGuideBody.innerHTML = '<div class="plan-genre-guide-empty">Chapter not found in genre guide.</div>';
+        return;
+      }
+      var chapterNum = 0;
+      var found = false;
+      var outlineChapterTitle = "";
+      (outline.acts || []).some(function (act) {
+        return (act.children || []).some(function (outlineCh) {
+          chapterNum++;
+          if (outlineCh.id === chapterId) {
+            found = true;
+            outlineChapterTitle = outlineCh.title || "";
+            return true;
+          }
+          return false;
+        });
+      });
+      if (!found) chapterNum = 0;
+      var originalTitle = ch.title || "";
+      var editedTitle = outlineChapterTitle || "";
+      if (el.planGenreGuideChapterLabel) {
+        if (editedTitle && editedTitle !== originalTitle) {
+          var prefix = chapterNum ? "Chapter " + chapterNum + ": " : "";
+          el.planGenreGuideChapterLabel.innerHTML = '<span style="color:#22c55e;font-weight:800;text-transform:uppercase;">' + escapeHtml(prefix + editedTitle) + '</span><span style="color:#64748b;font-size:10px;margin-left:6px;">(edited from: ' + escapeHtml(originalTitle) + ')</span>';
+        } else {
+          var labelText = chapterNum ? "Chapter " + chapterNum + ": " + (editedTitle || originalTitle) : (editedTitle || originalTitle);
+          el.planGenreGuideChapterLabel.textContent = labelText;
+        }
+      }
+      var guideName = guide.name ? String(guide.name).trim().toUpperCase() : "";
+      if (el.planGenreGuideName) el.planGenreGuideName.textContent = guideName ? "GENRE GUIDE - " + guideName : "Genre Guide";
+      var ratingsHtml = "";
+      if (ch.ratings) {
+        var parts = ch.ratings.split(",");
+        var ratingItems = [];
+        parts.forEach(function (p) {
+          var kv = p.split(":");
+          if (kv.length === 2) ratingItems.push({ label: kv[0].trim(), value: kv[1].trim() });
+        });
+        if (ratingItems.length) {
+          ratingsHtml = '<div class="plan-genre-guide-ratings">';
+          ratingItems.forEach(function (r) {
+            ratingsHtml += '<span class="plan-genre-guide-rating"><span class="plan-genre-guide-rating-label">' + escapeHtml(r.label) + '</span> ' + escapeHtml(r.value) + '</span>';
+          });
+          ratingsHtml += "</div>";
+        }
+      }
+      var html = "";
+      html += '<div class="plan-genre-guide-section">';
+      html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
+      html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.whatShouldHappen || "") + '</div>';
+      html += "</div>";
+      if (ch.primaryPurpose) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Primary Purpose</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.primaryPurpose) + '</div>';
+        html += "</div>";
+      }
+      if (ch.multiFunction) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Multi-function</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.multiFunction) + '</div>';
+        html += "</div>";
+      }
+      if (ch.structuralBeats) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Structural Beats</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.structuralBeats) + '</div>';
+        html += "</div>";
+      }
+      if (ratingsHtml) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Ratings</div>';
+        html += ratingsHtml;
+        html += "</div>";
+      }
+      el.planGenreGuideBody.innerHTML = html;
+      guide._lastSelectedChapterId = chapterId;
+      highlightGenreGuideChapter(chapterId);
+    }
+
+    function renderWritingGenreGuide() {
+      var container = el.writingInspectorGG;
+      if (!container) return;
+      var outline = getPlanOutline();
+      var guide = outline.genreGuide;
+      if (!guide || !guide.byChapterId) {
+        container.innerHTML = '<div class="plan-genre-guide-empty">No genre guide data loaded. Use a genre guide template from the Plan tab outline presets.</div>';
+        return;
+      }
+      var chapterId = String(appState.writingWorkspace.scope || "");
+      if (!chapterId || !guide.byChapterId[chapterId]) {
+        container.innerHTML = '<div class="plan-genre-guide-empty">Select a chapter in the chapter list to view its genre guide content.</div>';
+        return;
+      }
+      var ch = guide.byChapterId[chapterId];
+      var guideName = guide.name ? String(guide.name).trim().toUpperCase() : "";
+      var outlineChapterTitle = "";
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (outlineCh) {
+          if (outlineCh.id === chapterId) outlineChapterTitle = outlineCh.title || "";
+        });
+      });
+      var originalTitle = ch.title || "";
+      var editedTitle = outlineChapterTitle || "";
+      var titleHtml = "";
+      if (editedTitle && editedTitle !== originalTitle) {
+        titleHtml = '<div style="font-size:12px;font-weight:800;color:#22c55e;text-transform:uppercase;margin-bottom:4px;">' + escapeHtml(editedTitle) + '</div>' +
+          '<div style="font-size:10px;color:#64748b;margin-bottom:10px;">edited from: ' + escapeHtml(originalTitle) + '</div>';
+      } else {
+        titleHtml = '<div style="font-size:12px;font-weight:700;color:#f2f2f4;margin-bottom:10px;">' + escapeHtml(editedTitle || originalTitle) + '</div>';
+      }
+      var ratingsHtml = "";
+      if (ch.ratings) {
+        var parts = ch.ratings.split(",");
+        var ratingItems = [];
+        parts.forEach(function (p) {
+          var kv = p.split(":");
+          if (kv.length === 2) ratingItems.push({ label: kv[0].trim(), value: kv[1].trim() });
+        });
+        if (ratingItems.length) {
+          ratingsHtml = '<div class="plan-genre-guide-ratings">';
+          ratingItems.forEach(function (r) {
+            ratingsHtml += '<span class="plan-genre-guide-rating"><span class="plan-genre-guide-rating-label">' + escapeHtml(r.label) + '</span> ' + escapeHtml(r.value) + '</span>';
+          });
+          ratingsHtml += "</div>";
+        }
+      }
+      var html = '<div style="padding:4px 0;">';
+      if (guideName) {
+        html += '<div style="font-size:10px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">GENRE GUIDE - ' + escapeHtml(guideName) + '</div>';
+      }
+      html += titleHtml;
+      html += '<div class="plan-genre-guide-section">';
+      html += '<div class="plan-genre-guide-section-label">What Should Happen</div>';
+      html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.whatShouldHappen || "") + '</div>';
+      html += "</div>";
+      if (ch.primaryPurpose) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Primary Purpose</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.primaryPurpose) + '</div>';
+        html += "</div>";
+      }
+      if (ch.multiFunction) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Multi-function</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.multiFunction) + '</div>';
+        html += "</div>";
+      }
+      if (ch.structuralBeats) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Structural Beats</div>';
+        html += '<div class="plan-genre-guide-section-text">' + escapeHtml(ch.structuralBeats) + '</div>';
+        html += "</div>";
+      }
+      if (ratingsHtml) {
+        html += '<div class="plan-genre-guide-section">';
+        html += '<div class="plan-genre-guide-section-label">Ratings</div>';
+        html += ratingsHtml;
+        html += "</div>";
+      }
+      html += "</div>";
+      container.innerHTML = html;
+    }
+
     var _selectedTemplateId = null;
     var _activeTab = "quick";
     var _templatesLoadedFromSupabase = false;
     var _systemTemplateResourceId = null;
+    var _templatesGeneration = 0;
 
     function getDefaultOutlineTemplates() {
       return [
@@ -1117,10 +1534,18 @@
     }
 
     function saveOutlineTemplates(templates) {
+      ++_templatesGeneration;
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
       if (typeof callAppsScriptJson === "function") {
         callAppsScriptJson("saveGeneralResourceFromClient", [_systemTemplateResourceId || 0, "Outline Templates", "_system_outline_templates", JSON.stringify(templates)]).then(function (result) {
-          try { var r = typeof result === "string" ? JSON.parse(result) : result; if (r && r.ok && r.id) _systemTemplateResourceId = Number(r.id); } catch (e) {}
+          try {
+            var r = typeof result === "string" ? JSON.parse(result) : result;
+            if (r && r.ok && r.id) {
+              _systemTemplateResourceId = Number(r.id);
+              _templatesLoadedFromSupabase = false;
+              loadOutlineTemplatesFromSupabase();
+            }
+          } catch (e) {}
         }, function () {});
       }
     }
@@ -1128,8 +1553,10 @@
     function loadOutlineTemplatesFromSupabase() {
       if (_templatesLoadedFromSupabase || typeof callAppsScriptJson !== "function") return;
       _templatesLoadedFromSupabase = true;
+      var gen = ++_templatesGeneration;
       callAppsScriptJson("listGeneralResourcesFromClient", []).then(function (result) {
         try {
+          if (gen !== _templatesGeneration) return;
           var r = typeof result === "string" ? JSON.parse(result) : result;
           if (!r.ok || !r.resources || !r.resources.length) return;
           var match = null;
@@ -1142,6 +1569,7 @@
           _systemTemplateResourceId = Number(match.id);
           callAppsScriptJson("getGeneralResourceFromClient", [match.id]).then(function (res2) {
             try {
+              if (gen !== _templatesGeneration) return;
               var r2 = typeof res2 === "string" ? JSON.parse(res2) : res2;
               if (!r2.ok || !r2.text) return;
               var parsed = JSON.parse(r2.text);
@@ -1385,10 +1813,13 @@
       _activeTab = tab;
       if (el.planOutlinePresetTabQuick) el.planOutlinePresetTabQuick.classList.toggle("is-active", tab === "quick");
       if (el.planOutlinePresetTabManual) el.planOutlinePresetTabManual.classList.toggle("is-active", tab === "manual");
+      if (el.planOutlinePresetTabPaste) el.planOutlinePresetTabPaste.classList.toggle("is-active", tab === "paste");
       var quickContent = document.querySelector("[data-tab-content='quick']");
       var manualContent = document.querySelector("[data-tab-content='manual']");
+      var pasteContent = document.querySelector("[data-tab-content='paste']");
       if (quickContent) quickContent.hidden = tab !== "quick";
       if (manualContent) manualContent.hidden = tab !== "manual";
+      if (pasteContent) pasteContent.hidden = tab !== "paste";
       updatePreviewFromActiveTab();
     }
 
@@ -1399,6 +1830,21 @@
         var text = el.planOutlinePresetRawText ? el.planOutlinePresetRawText.value : "";
         var acts = parseOutlineText(text);
         preview.innerHTML = acts ? renderOutlinePreviewFromActs(acts) : '<div class="plan-outline-preset-preview-empty">Enter a valid structure to see a preview.</div>';
+      } else if (_activeTab === "paste") {
+        var preview = document.getElementById("planOutlinePresetPreviewPaste");
+        if (!preview) return;
+        var text = el.planOutlinePresetPasteText ? el.planOutlinePresetPasteText.value : "";
+        var numActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        preview.innerHTML = renderGenreGuidePreview(text, numActs);
+        var statsEl = document.getElementById("planOutlinePresetPasteStats");
+        if (statsEl) {
+          var chapters = parseGenreGuideMarkdown(text);
+          if (chapters && chapters.length) {
+            statsEl.textContent = chapters.length + " chapters / " + numActs + " acts";
+          } else {
+            statsEl.textContent = "No chapters parsed yet";
+          }
+        }
       } else {
         var preview = document.getElementById("planOutlinePresetPreviewQuick");
         if (!preview) return;
@@ -1415,14 +1861,22 @@
       if (!t) return;
       if (el.planOutlinePresetName) el.planOutlinePresetName.value = t.name;
       if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = t.description;
-      if (t.rawText) {
+      if (t.genreGuideRaw) {
+        switchOutlineTab("paste");
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = t.genreGuideRaw;
+        if (el.planOutlinePresetPasteActs) el.planOutlinePresetPasteActs.value = String(t.genreGuideActs || 3);
+        if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+        if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      } else if (t.rawText) {
         switchOutlineTab("manual");
         if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = t.rawText;
         if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
       } else {
         switchOutlineTab("quick");
         if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = t.shorthand;
         if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+        if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
       }
       updatePreviewFromActiveTab();
       if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = getDefaultOutlineTemplates().some(function (d) { return d.id === templateId; }) ? "none" : "";
@@ -1430,15 +1884,16 @@
     }
 
     function selectNewTemplate() {
-      _selectedTemplateId = null;
       if (el.planOutlinePresetName) el.planOutlinePresetName.value = "";
       if (el.planOutlinePresetDesc) el.planOutlinePresetDesc.value = "";
       if (el.planOutlinePresetShorthand) el.planOutlinePresetShorthand.value = "";
       if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.value = "";
+      if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.value = "";
+      if (el.planOutlinePresetPasteActs) el.planOutlinePresetPasteActs.value = "3";
+      _selectedTemplateId = null;
       switchOutlineTab("quick");
       if (el.planOutlinePresetDeleteBtn) el.planOutlinePresetDeleteBtn.style.display = "none";
       renderTemplateList();
-      if (el.planOutlinePresetName) el.planOutlinePresetName.focus();
     }
 
     function saveCurrentTemplate() {
@@ -1446,7 +1901,28 @@
       var desc = el.planOutlinePresetDesc ? String(el.planOutlinePresetDesc.value || "").trim() : "";
       if (!name) { setStatus("Template name is required.", "error"); if (el.planOutlinePresetName) el.planOutlinePresetName.focus(); return; }
       var templates = loadOutlineTemplates();
-      if (_activeTab === "manual") {
+      if (_activeTab === "paste") {
+        var genreGuideRaw = el.planOutlinePresetPasteText ? String(el.planOutlinePresetPasteText.value || "").trim() : "";
+        if (!genreGuideRaw) { setStatus("Pasted text is required.", "error"); if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.focus(); return; }
+        if (!parseGenreGuideMarkdown(genreGuideRaw)) { setStatus("Could not parse any chapters. Check the format.", "error"); if (el.planOutlinePresetPasteText) el.planOutlinePresetPasteText.focus(); return; }
+        var genreGuideActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        if (_selectedTemplateId) {
+          for (var i = 0; i < templates.length; i++) {
+            if (templates[i].id === _selectedTemplateId) {
+              templates[i].name = name;
+              templates[i].description = desc;
+              templates[i].genreGuideRaw = genreGuideRaw;
+              templates[i].genreGuideActs = genreGuideActs;
+              delete templates[i].shorthand;
+              delete templates[i].rawText;
+              break;
+            }
+          }
+        } else {
+          templates.push({ id: "tmpl-" + Date.now(), name: name, description: desc, genreGuideRaw: genreGuideRaw, genreGuideActs: genreGuideActs });
+          _selectedTemplateId = templates[templates.length - 1].id;
+        }
+      } else if (_activeTab === "manual") {
         var rawText = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
         if (!rawText) { setStatus("Raw structure is required.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
         if (!parseOutlineText(rawText)) { setStatus("Invalid structure format. Check indentation and syntax.", "error"); if (el.planOutlinePresetRawText) el.planOutlinePresetRawText.focus(); return; }
@@ -1457,6 +1933,8 @@
               templates[i].description = desc;
               templates[i].rawText = rawText;
               delete templates[i].shorthand;
+              delete templates[i].genreGuideRaw;
+              delete templates[i].genreGuideActs;
               break;
             }
           }
@@ -1475,6 +1953,8 @@
               templates[i].description = desc;
               templates[i].shorthand = shorthand;
               delete templates[i].rawText;
+              delete templates[i].genreGuideRaw;
+              delete templates[i].genreGuideActs;
               break;
             }
           }
@@ -1502,6 +1982,14 @@
     }
 
     function applyCurrentTemplate() {
+      var outline = getPlanOutline();
+      if (_activeTab === "paste") {
+        var text = el.planOutlinePresetPasteText ? String(el.planOutlinePresetPasteText.value || "").trim() : "";
+        if (!text) { setStatus("Paste a genre guide first.", "error"); return; }
+        var numActs = parseInt(el.planOutlinePresetPasteActs ? el.planOutlinePresetPasteActs.value : "3", 10) || 3;
+        applyGenreGuideTemplate(text, numActs);
+        return;
+      }
       var acts;
       if (_activeTab === "manual") {
         var text = el.planOutlinePresetRawText ? String(el.planOutlinePresetRawText.value || "").trim() : "";
@@ -1514,10 +2002,11 @@
         acts = generateOutlineFromShorthand(shorthand);
         if (!acts) { setStatus("Invalid shorthand. Use acts:chapters:scenes:wordsPerChapter (e.g. 3:4:3:2500).", "error"); return; }
       }
-      var outline = getPlanOutline();
       var hasExisting = (outline.acts || []).some(function (act) { return (act.children || []).length > 0; });
       if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return;
       outline.acts = acts;
+      delete outline.genreGuide;
+      closePlanGenreGuidePanel();
       closePlanOutlinePresetModal();
       syncOutlineToSegments();
       renderPlanOutline();

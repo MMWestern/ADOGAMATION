@@ -305,6 +305,22 @@
           </div>
           <div id="codexTreeContainer" class="writing-codex-list"></div>
         </div>
+
+        <div id="hubHomeSidebar" class="hub-sidebar-panel" hidden></div>
+
+        <div id="hubHandbookSidebar" class="hub-sidebar-panel" hidden>
+          <div class="handbook-nav">
+            <div class="handbook-search-wrap">
+              <input id="handbookSearch" type="search" class="handbook-search" placeholder="Search handbook...">
+              <button id="handbookNavNewEntry" type="button" class="handbook-nav-new-entry" title="New entry in selected section">+ New Entry</button>
+            </div>
+            <div class="handbook-nav-list" id="handbookNavList"></div>
+          </div>
+        </div>
+
+        <div id="hubInboxSidebar" class="hub-sidebar-panel" hidden></div>
+
+        <div id="hubSettingsSidebar" class="hub-sidebar-panel" hidden></div>
         </div>
 
         <div class="sidebar-bottom-toolbar">
@@ -413,6 +429,14 @@
       </aside>
 
       <main class="panel">
+        <div class="hub-tab-bar">
+          <button id="hubTabHome" class="hub-tab" type="button" data-hub-tab="home">HOME</button>
+          <button id="hubTabStudio" class="hub-tab is-active" type="button" data-hub-tab="studio">STUDIO</button>
+          <button id="hubTabHandbook" class="hub-tab" type="button" data-hub-tab="handbook">HANDBOOK</button>
+          <button id="hubTabInbox" class="hub-tab" type="button" data-hub-tab="inbox">INBOX</button>
+          <button id="hubTabSettings" class="hub-tab" type="button" data-hub-tab="settings">SETTINGS</button>
+        </div>
+        <div id="hubContentStudio" class="hub-tab-content">
         <div class="main-tab-bar">
           <button id="mainTabWriting" class="main-tab is-active" type="button" data-main-tab="writing">PROJECTS</button>
           <button id="mainTabChat" class="main-tab" type="button" data-main-tab="chat">CHAT</button>
@@ -599,21 +623,23 @@
 
       <div id="mainTabContentPlan" class="main-tab-content" hidden>
         <div class="plan-panel">
-          <div class="plan-tab-content-area">
-            <div id="planTabOutline" class="plan-tab-pane">
-              <div class="plan-empty-state" id="planOutlineEmpty">
-                <div class="plan-empty-icon">&#128196;</div>
-                <div class="plan-empty-title">No outline yet</div>
-                <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
-              </div>
-              <div id="planOutlineContent" class="plan-editor-area" hidden>
-                <div class="plan-editor-toolbar">
-                  <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
-                  <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
-                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
-                  <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+          <div class="plan-panel-body">
+            <div class="plan-tab-content-area">
+              <div id="planTabOutline" class="plan-tab-pane">
+                <div class="plan-empty-state" id="planOutlineEmpty">
+                  <div class="plan-empty-icon">&#128196;</div>
+                  <div class="plan-empty-title">No outline yet</div>
+                  <div class="plan-empty-body">Select a project to view or create an outline. Outlines can be imported from your outline template or built scene-by-scene.</div>
                 </div>
-                <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                <div id="planOutlineContent" class="plan-editor-area" hidden>
+                  <div class="plan-editor-toolbar">
+                    <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
+                    <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
+                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
+                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
+                  </div>
+                  <div id="planOutlineGrid" class="plan-outline-grid"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -657,6 +683,7 @@
                   <div class="plan-outline-preset-tabs">
                     <button type="button" class="plan-outline-preset-tab is-active" data-tab="quick" id="planOutlinePresetTabQuick">Quick</button>
                     <button type="button" class="plan-outline-preset-tab" data-tab="manual" id="planOutlinePresetTabManual">Manual</button>
+                    <button type="button" class="plan-outline-preset-tab" data-tab="paste" id="planOutlinePresetTabPaste">Paste</button>
                   </div>
                   <div class="plan-outline-preset-tab-content" data-tab-content="quick">
                     <div class="plan-outline-preset-field">
@@ -679,6 +706,32 @@
                       </div>
                       <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewManual">
                         <div class="plan-outline-preset-preview-empty">Enter a structure to see a preview.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="plan-outline-preset-tab-content" data-tab-content="paste" hidden>
+                    <div class="plan-outline-preset-paste-split">
+                      <div class="plan-outline-preset-manual-left">
+                        <label class="plan-outline-preset-label">Genre Guide Markdown</label>
+                        <textarea class="plan-outline-preset-textarea plan-outline-preset-textarea-paste" id="planOutlinePresetPasteText" placeholder="Paste a genre guide template here...
+
+### Chapter 1: Title
+**What Should Happen:** Description of what happens...
+**Chapter Notes:**
+* **Primary Purpose:** ...
+* **Multi-function:** ...
+* **Structural Beats:** ...
+* **Ratings:** Scene Intensity: X, ..."></textarea>
+                        <div class="plan-outline-preset-paste-options">
+                          <div class="plan-outline-preset-field">
+                            <label class="plan-outline-preset-label plan-outline-preset-label-inline">Number of acts</label>
+                            <input type="number" class="plan-outline-preset-input plan-outline-preset-input-narrow" id="planOutlinePresetPasteActs" value="3" min="1" max="10" />
+                          </div>
+                          <div class="plan-outline-preset-paste-stats" id="planOutlinePresetPasteStats">No chapters parsed yet</div>
+                        </div>
+                      </div>
+                      <div class="plan-outline-preset-preview" id="planOutlinePresetPreviewPaste">
+                        <div class="plan-outline-preset-preview-empty">Paste a genre guide to see a preview.</div>
                       </div>
                     </div>
                   </div>
@@ -1025,10 +1078,131 @@
           </div>
         </div>
       </div>
+      </div>
+
+      <div id="hubContentHome" class="hub-tab-content">
+        <div class="home-dashboard">
+          <div class="home-stats-row" id="homeStatsRow"></div>
+          <div class="home-grid">
+            <div class="home-column">
+              <section class="home-panel" id="homeFocusPanel">
+                <div class="home-panel-header">
+                  <strong>Today's Focus</strong>
+                  <span class="tiny">What needs attention right now</span>
+                </div>
+                <div class="home-panel-body" id="homeFocusBody"></div>
+              </section>
+              <section class="home-panel" id="homeRecentPanel">
+                <div class="home-panel-header">
+                  <strong>Recently Updated</strong>
+                  <span class="tiny">Projects with recent activity</span>
+                </div>
+                <div class="home-panel-body" id="homeRecentBody"></div>
+              </section>
+            </div>
+            <div class="home-column">
+              <section class="home-panel" id="homeMilestonesPanel">
+                <div class="home-panel-header">
+                  <strong>Upcoming Milestones</strong>
+                  <span class="tiny">Schedule deadlines and events</span>
+                </div>
+                <div class="home-panel-body" id="homeMilestonesBody"></div>
+              </section>
+              <section class="home-panel" id="homeQuickPanel">
+                <div class="home-panel-header">
+                  <strong>Quick Actions</strong>
+                  <span class="tiny">Common tasks and navigation</span>
+                </div>
+                <div class="home-panel-body" id="homeQuickBody"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="hubContentHandbook" class="hub-tab-content">
+        <div class="handbook-content">
+
+          <div id="handbookContentArea" class="handbook-content-area" hidden>
+            <div id="handbookEntryDetail" class="handbook-entry-detail" hidden>
+              <div class="handbook-content-top">
+                <div class="handbook-content-meta">
+                  <span id="handbookBreadcrumb" class="handbook-breadcrumb"></span>
+                  <span id="handbookDetailStatusWrap" hidden>
+                    <button type="button" class="handbook-status-toggle handbook-detail-status" id="handbookDetailStatus">Draft</button>
+                  </span>
+                  <button id="handbookNewEntryBtn" type="button" class="handbook-action-btn primary" title="New entry in current section">+ New</button>
+                  <button id="handbookDeleteEntryBtn" type="button" class="handbook-action-btn handbook-delete-btn" title="Delete this entry">Delete</button>
+                </div>
+                <h2 id="handbookContentTitle" class="handbook-content-title" contenteditable="true" spellcheck="false">Untitled</h2>
+                <div class="handbook-content-tags">
+                  <input type="text" id="handbookEntryTags" class="handbook-tags-input" placeholder="Add tags..." spellcheck="false">
+                </div>
+              </div>
+              <div class="handbook-format-bar" id="handbookFormatBar">
+                <select id="handbookFontFamily" class="handbook-font-select">
+                  <option value="'Inter', sans-serif" style="font-family:'Inter',sans-serif">Inter</option>
+                  <option value="'Barlow', sans-serif" style="font-family:'Barlow',sans-serif">Barlow</option>
+                  <option value="'Exo 2', sans-serif" style="font-family:'Exo 2',sans-serif">Exo 2</option>
+                  <option value="'Georgia', serif" style="font-family:Georgia,serif">Classic Serif</option>
+                  <option value="'Times New Roman', serif" style="font-family:'Times New Roman',serif">Times</option>
+                  <option value="'Palatino Linotype', serif" style="font-family:'Palatino Linotype',serif">Palatino</option>
+                  <option value="'Zilla Slab', serif" style="font-family:'Zilla Slab',serif">Zilla Slab</option>
+                  <option value="'Roboto Serif', serif" style="font-family:'Roboto Serif',serif">Roboto Serif</option>
+                  <option value="'Bespoke Serif', serif" style="font-family:'Bespoke Serif',serif">Bespoke Serif</option>
+                  <option value="'Courier Prime', monospace" style="font-family:'Courier Prime',monospace">Courier Prime</option>
+                  <option value="'Courier New', monospace" style="font-family:'Courier New',monospace">Courier</option>
+                </select>
+                <select id="handbookFontSize">
+                  <option value="12">Small</option>
+                  <option value="14" selected>Medium</option>
+                  <option value="16">Large</option>
+                  <option value="18">XL</option>
+                </select>
+                <select id="handbookLineHeight" class="handbook-lh-select">
+                  <option value="1.0">Tight</option>
+                  <option value="1.2" selected>Snug</option>
+                  <option value="1.4">Comfortable</option>
+                  <option value="1.6">Spacious</option>
+                </select>
+                <span class="handbook-format-sep"></span>
+                <button type="button" class="handbook-format-btn" data-h-cmd="bold" title="Bold"><strong>B</strong></button>
+                <button type="button" class="handbook-format-btn" data-h-cmd="italic" title="Italic"><em>I</em></button>
+                <span class="handbook-format-sep"></span>
+                <button type="button" class="handbook-format-btn" data-h-cmd="formatBlock" data-h-val="H1" title="Heading 1">H1</button>
+                <button type="button" class="handbook-format-btn" data-h-cmd="formatBlock" data-h-val="H2" title="Heading 2">H2</button>
+                <button type="button" class="handbook-format-btn" data-h-cmd="formatBlock" data-h-val="H3" title="Heading 3">H3</button>
+                <button type="button" class="handbook-format-btn" data-h-cmd="formatBlock" data-h-val="P" title="Paragraph">P</button>
+                <span class="handbook-format-sep"></span>
+                <button type="button" class="handbook-format-btn" data-h-cmd="formatBlock" data-h-val="BLOCKQUOTE" title="Quote">"</button>
+              </div>
+              <div id="handbookEntryBody" class="handbook-entry-body" contenteditable="true" spellcheck="true"></div>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+
+      <div id="hubContentInbox" class="hub-tab-content" hidden></div>
+
+      <div id="hubContentSettings" class="hub-tab-content" hidden></div>
 
     </main>
 
       <section class="panel details">
+        <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
+          <div class="plan-genre-guide-header">
+            <div class="plan-genre-guide-title">
+              <span class="plan-genre-guide-name" id="planGenreGuideChapterLabel">No chapter selected</span>
+              <span class="plan-genre-guide-sub" id="planGenreGuideName">Genre Guide</span>
+            </div>
+            <button type="button" class="plan-genre-guide-close" id="planGenreGuideClose">&#10005;</button>
+          </div>
+          <div class="plan-genre-guide-body" id="planGenreGuideBody">
+            <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
+          </div>
+        </div>
         <div id="resourceInspectorPanel" class="resource-inspector-panel" hidden>
           <div class="resource-inspector-header">
             <div>
@@ -1408,6 +1582,7 @@
               <button type="button" class="writing-inspector-tab is-active" data-inspector-tab="outline">Outline</button>
               <button type="button" class="writing-inspector-tab" data-inspector-tab="notes">Notes</button>
               <button type="button" class="writing-inspector-tab" data-inspector-tab="fixes">Fixes</button>
+              <button type="button" class="writing-inspector-tab" data-inspector-tab="gg">GG</button>
             </div>
             <div class="writing-inspector-tab-pane is-active" data-inspector-pane="outline">
               <div id="writingInspectorOutline" class="writing-inspector-copy">Chapter and outline details will appear here as you move through the manuscript.</div>
@@ -1417,6 +1592,11 @@
             </div>
             <div class="writing-inspector-tab-pane" data-inspector-pane="fixes" hidden>
               <textarea id="writingInspectorFixText" class="writing-inspector-note-textarea" placeholder="Fixes needed for this chapter..."></textarea>
+            </div>
+            <div class="writing-inspector-tab-pane" data-inspector-pane="gg" hidden>
+              <div id="writingInspectorGG" style="flex:1;min-height:0;overflow-y:auto;padding:4px 6px;">
+                <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
+              </div>
             </div>
           </div>
 
@@ -1772,7 +1952,37 @@
         </div>
         </div>
 
-        <div id="detailsErrorLogPanel" class="details-error-log-panel">
+        <div id="hubHandbookDetails" class="hub-details-panel" hidden>
+          <div class="handbook-details-wrap" id="handbookDetailsWrap">
+            <div class="handbook-details-section">
+              <span class="handbook-details-label">Entry ID</span>
+              <span class="handbook-details-value" id="hDetailDocId">—</span>
+            </div>
+            <div class="handbook-details-section">
+              <span class="handbook-details-label">Last Updated</span>
+              <span class="handbook-details-value" id="hDetailUpdated">—</span>
+            </div>
+            <div class="handbook-details-section">
+              <span class="handbook-details-label">Version</span>
+              <span class="handbook-details-value" id="hDetailVersion">—</span>
+            </div>
+            <div class="handbook-details-section">
+              <span class="handbook-details-label">Related Entries</span>
+              <span class="handbook-details-value handbook-details-placeholder" id="hDetailRelated">Relationship view coming soon.</span>
+            </div>
+            <div class="handbook-details-section">
+              <span class="handbook-details-label">Review Date</span>
+              <span class="handbook-details-value handbook-details-placeholder" id="hDetailReview">—</span>
+            </div>
+          </div>
+          <div class="handbook-details-empty" id="handbookDetailsEmpty">
+            <span class="handbook-details-placeholder">Select an entry to view details.</span>
+          </div>
+        </div>
+
+        <div id="hubSettingsDetails" class="hub-details-panel" hidden></div>
+
+          <div id="detailsErrorLogPanel" class="details-error-log-panel">
           <div class="details-error-log-header">
             <span class="details-error-log-title">Latest</span>
             <button id="detailsErrorLogFullButton" type="button" class="details-error-log-full-btn">Full Log</button>
