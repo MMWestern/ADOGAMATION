@@ -96,13 +96,15 @@ const envJs = 'window.__SUPABASE_URL__=' + JSON.stringify(envUrl) + ';\n' +
 fs.writeFileSync(path.join(DIST, "env.js"), envJs, "utf8");
 console.log(`  env.js -> build/env.js (url=${envUrl ? "set" : "EMPTY"}, key=${envKey ? "set" : "EMPTY"}, timestamp=${buildTimestamp})`);
 
-// Copy data files
+// Copy data files (skip subdirectories like migrations)
 const dataDir = path.join(ROOT, "data");
 if (fs.existsSync(dataDir)) {
   const distData = path.join(DIST, "data");
   fs.mkdirSync(distData, { recursive: true });
-  for (const f of fs.readdirSync(dataDir)) {
-    fs.copyFileSync(path.join(dataDir, f), path.join(distData, f));
+  for (const f of fs.readdirSync(dataDir, { withFileTypes: true })) {
+    if (f.isFile()) {
+      fs.copyFileSync(path.join(dataDir, f.name), path.join(distData, f.name));
+    }
   }
 }
 
