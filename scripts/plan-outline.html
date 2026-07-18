@@ -1516,6 +1516,7 @@
     var _activeTab = "quick";
     var _templatesLoadedFromSupabase = false;
     var _systemTemplateResourceId = null;
+    var _templatesGeneration = 0;
 
     function getDefaultOutlineTemplates() {
       return [
@@ -1533,10 +1534,18 @@
     }
 
     function saveOutlineTemplates(templates) {
+      ++_templatesGeneration;
       localStorage.setItem("planOutlineTemplates", JSON.stringify(templates));
       if (typeof callAppsScriptJson === "function") {
         callAppsScriptJson("saveGeneralResourceFromClient", [_systemTemplateResourceId || 0, "Outline Templates", "_system_outline_templates", JSON.stringify(templates)]).then(function (result) {
-          try { var r = typeof result === "string" ? JSON.parse(result) : result; if (r && r.ok && r.id) _systemTemplateResourceId = Number(r.id); } catch (e) {}
+          try {
+            var r = typeof result === "string" ? JSON.parse(result) : result;
+            if (r && r.ok && r.id) {
+              _systemTemplateResourceId = Number(r.id);
+              _templatesLoadedFromSupabase = false;
+              loadOutlineTemplatesFromSupabase();
+            }
+          } catch (e) {}
         }, function () {});
       }
     }
@@ -1544,8 +1553,10 @@
     function loadOutlineTemplatesFromSupabase() {
       if (_templatesLoadedFromSupabase || typeof callAppsScriptJson !== "function") return;
       _templatesLoadedFromSupabase = true;
+      var gen = ++_templatesGeneration;
       callAppsScriptJson("listGeneralResourcesFromClient", []).then(function (result) {
         try {
+          if (gen !== _templatesGeneration) return;
           var r = typeof result === "string" ? JSON.parse(result) : result;
           if (!r.ok || !r.resources || !r.resources.length) return;
           var match = null;
@@ -1558,6 +1569,7 @@
           _systemTemplateResourceId = Number(match.id);
           callAppsScriptJson("getGeneralResourceFromClient", [match.id]).then(function (res2) {
             try {
+              if (gen !== _templatesGeneration) return;
               var r2 = typeof res2 === "string" ? JSON.parse(res2) : res2;
               if (!r2.ok || !r2.text) return;
               var parsed = JSON.parse(r2.text);

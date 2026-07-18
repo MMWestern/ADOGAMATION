@@ -6,6 +6,13 @@
         });
       });
 
+      [el.hubTabHome, el.hubTabStudio, el.hubTabHandbook, el.hubTabInbox, el.hubTabSettings].forEach(function (btn) {
+        if (!btn) return;
+        bindUiOnce(btn, "hub-tab-switch", "click", function () {
+          switchHubTab(btn.getAttribute("data-hub-tab"));
+        });
+      });
+
       function updateWritingCodexSearchClear() {
         if (!el.writingCodexSearchClear) return;
         el.writingCodexSearchClear.hidden = !String(el.writingCodexSearchInput && el.writingCodexSearchInput.value || "").trim();
@@ -2139,5 +2146,29 @@
             subMenu.hidden = true;
           });
         }
+      }
+
+      var homeContent = document.getElementById("hubContentHome");
+      if (homeContent) {
+        homeContent.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-home-action]");
+          if (!btn) return;
+          e.preventDefault();
+          var action = btn.getAttribute("data-home-action");
+          if (action === "new-project") {
+            switchHubTab("studio");
+            switchMainTab("writing");
+            setTimeout(function () {
+              var nb = document.getElementById("newButton");
+              if (nb) nb.click();
+            }, 100);
+          } else if (action === "inbox") {
+            switchHubTab("inbox");
+          } else if (action === "handbook") {
+            switchHubTab("handbook");
+          } else if (action === "studio") {
+            switchHubTab("studio");
+          }
+        });
       }
     }

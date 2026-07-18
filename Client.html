@@ -6141,6 +6141,8 @@
         safeTab = "plan";
       }
       activeMainTab = safeTab;
+      if (!appState.hubState) appState.hubState = {};
+      appState.hubState.studioLastTab = safeTab;
       [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         btn.classList.toggle("is-active", btn.getAttribute("data-main-tab") === safeTab);
@@ -6248,6 +6250,793 @@
           restoreCodexLastSelection(codexSeriesId);
         });
       }
+    }
+
+    function renderHomeDashboard() {
+      var projects = appState.projects || [];
+      renderHomeStats(projects);
+      renderHomeFocus(projects);
+      renderHomeMilestones(projects);
+      renderHomeRecent(projects);
+      renderHomeQuickActions();
+    }
+
+    function renderHomeStats(projects) {
+      var el_ = document.getElementById("homeStatsRow");
+      if (!el_) return;
+      var total = projects.length;
+      var inProgress = projects.filter(function (p) { return ["Writing","Draft","Editing"].indexOf(p.status) !== -1; }).length;
+      var highPri = projects.filter(function (p) { return p.priority === "High"; }).length;
+      var publishReady = projects.filter(function (p) { return p.status === "Publish Ready"; }).length;
+      var published = projects.filter(function (p) { return p.status === "Published"; }).length;
+      var now = Date.now();
+      var dueSoon = 0;
+      projects.forEach(function (p) {
+        (p.schedule_milestones || []).forEach(function (m) {
+          if (m.done) return;
+          if (!m.date) return;
+          var d = new Date(m.date);
+          if (!isNaN(d.getTime()) && d.getTime() - now < 14 * 86400000 && d.getTime() > now) dueSoon++;
+        });
+      });
+      var cards = [
+        { value: total, label: "Total Books" },
+        { value: inProgress, label: "In Progress" },
+        { value: dueSoon, label: "Due Soon" },
+        { value: publishReady, label: "Publish Ready" },
+        { value: highPri, label: "High Priority" },
+        { value: published, label: "Published" }
+      ];
+      el_.innerHTML = cards.map(function (c) {
+        return '<div class="home-stat-card"><div class="home-stat-value">' + c.value + '</div><div class="home-stat-label">' + c.label + '</div></div>';
+      }).join("");
+    }
+
+    function renderHomeFocus(projects) {
+      var el_ = document.getElementById("homeFocusBody");
+      if (!el_) return;
+      var focus = projects.filter(function (p) { return p.priority === "High" && p.next_step && p.next_step.trim(); });
+      focus.sort(function (a, b) {
+        var order = { "High": 0, "Medium": 1, "Low": 2 };
+        return (order[a.priority] || 99) - (order[b.priority] || 99);
+      });
+      focus = focus.slice(0, 6);
+      if (!focus.length) {
+        el_.innerHTML = '<div class="home-empty">Nothing urgent right now. Keep creating.</div>';
+        return;
+      }
+      el_.innerHTML = focus.map(function (p) {
+        var thumb = "";
+        var imgUrl = normalizeImageUrl(p.image || p.series_image || "") || getDefaultImageUrl();
+        thumb = '<div class="home-focus-thumb" style="background-image:url(&quot;' + imgUrl + '&quot;)"></div>';
+        return '<div class="home-focus-card">' +
+          '<div class="home-focus-thumb-wrap">' + thumb + '</div>' +
+          '<div class="home-focus-card-body">' +
+            '<div class="home-focus-card-title">' + escapeHtml(p.title || "Untitled") + '</div>' +
+            '<div class="home-focus-card-meta">' + escapeHtml(p.next_step) + '</div>' +
+            '<div class="home-focus-card-row">' +
+              '<span class="pill priority-' + (p.priority || "").toLowerCase() + '">' + escapeHtml(p.priority || "") + '</span>' +
+              '<span class="pill status-' + (p.status || "").toLowerCase().replace(/ /g, "-") + '">' + escapeHtml(p.status || "") + '</span>' +
+              (p.series ? '<span class="tiny">' + escapeHtml(p.series) + '</span>' : "") +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function renderHomeMilestones(projects) {
+      var el_ = document.getElementById("homeMilestonesBody");
+      if (!el_) return;
+      var all = [];
+      projects.forEach(function (p) {
+        (p.schedule_milestones || []).forEach(function (m) {
+          all.push({ project: p.title, milestone: m.name, date: m.date, description: m.description, done: m.done });
+        });
+      });
+      all = all.filter(function (m) { return !m.done && m.date; });
+      all.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+      all = all.slice(0, 8);
+      if (!all.length) {
+        el_.innerHTML = '<div class="home-empty">No upcoming milestones.</div>';
+        return;
+      }
+      el_.innerHTML = all.map(function (m) {
+        var d = new Date(m.date);
+        var label = isNaN(d.getTime()) ? m.date : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        return '<div class="home-milestone-card">' +
+          '<div class="home-milestone-title">' + escapeHtml(m.milestone) + '</div>' +
+          '<div class="home-milestone-meta">' + escapeHtml(m.project) + ' &mdash; ' + label + '</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function renderHomeRecent(projects) {
+      var el_ = document.getElementById("homeRecentBody");
+      if (!el_) return;
+      var sorted = projects.slice().sort(function (a, b) {
+        return new Date(b.last_updated || 0) - new Date(a.last_updated || 0);
+      });
+      sorted = sorted.slice(0, 5);
+      if (!sorted.length) {
+        el_.innerHTML = '<div class="home-empty">No projects yet.</div>';
+        return;
+      }
+      el_.innerHTML = sorted.map(function (p) {
+        var updated = "";
+        if (p.last_updated) {
+          var diff = Date.now() - new Date(p.last_updated).getTime();
+          var mins = Math.round(diff / 60000);
+          var hrs = Math.round(diff / 3600000);
+          var days = Math.round(diff / 86400000);
+          if (mins < 60) updated = mins + "m ago";
+          else if (hrs < 24) updated = hrs + "h ago";
+          else updated = days + "d ago";
+        }
+        var thumb = "";
+        var imgUrl = normalizeImageUrl(p.image || p.series_image || "") || getDefaultImageUrl();
+        thumb = '<div class="home-focus-thumb" style="background-image:url(&quot;' + imgUrl + '&quot;)"></div>';
+        return '<div class="home-focus-card">' +
+          '<div class="home-focus-thumb-wrap">' + thumb + '</div>' +
+          '<div class="home-focus-card-body">' +
+            '<div class="home-focus-card-title">' + escapeHtml(p.title || "Untitled") + '</div>' +
+            '<div class="home-focus-card-meta">' + (p.series ? escapeHtml(p.series) : "") + (updated ? " &middot; Updated " + updated : "") + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function renderHomeQuickActions() {
+      var el_ = document.getElementById("homeQuickBody");
+      if (!el_) return;
+      el_.innerHTML =
+        '<div class="home-quick-actions">' +
+          '<button type="button" class="home-quick-btn" data-home-action="new-project">' +
+            '<span class="home-quick-btn-icon">+</span> New Project' +
+          '</button>' +
+          '<button type="button" class="home-quick-btn" data-home-action="inbox">' +
+            '<span class="home-quick-btn-icon">&#x1f4e5;</span> Open Inbox' +
+          '</button>' +
+          '<button type="button" class="home-quick-btn" data-home-action="handbook">' +
+            '<span class="home-quick-btn-icon">&#x1f4d6;</span> View Handbook' +
+          '</button>' +
+          '<button type="button" class="home-quick-btn" data-home-action="studio">' +
+            '<span class="home-quick-btn-icon">&#x1f3ac;</span> Go to Studio' +
+          '</button>' +
+        '</div>';
+    }
+
+    // -- Handbook Module --
+    var H_DEPARTMENTS = ["Company", "Publishing", "Writing", "Finance", "Investment", "Legal", "Marketing", "Technology", "Reference", "Archive"];
+    var H_SECTIONS = ["Purpose", "Principles", "Roadmap", "Trigger Points", "Procedures", "Reference", "Open Questions"];
+    var H_DEPT_ABBR = { Company:"COMP", Publishing:"PUBL", Writing:"WRIT", Finance:"FIN", Investment:"INVT", Legal:"LEGL", Marketing:"MKTG", Technology:"TECH", Reference:"REFR", Archive:"ARCH" };
+
+    var H_STORE_KEY = "adogamation_handbook_entries";
+    var H_TABLE = "handbook_entries";
+    var hDeptsExpanded = {};
+    var hSecsExpanded = {};
+    var hActiveDept = "";
+    var hActiveSection = "";
+    var hActiveEntryId = null;
+    var hEditingEntryId = null;
+    var hEntriesCache = null;
+    var hEntriesLoaded = false;
+    var hLoadCallbacks = [];
+
+    function hRowToEntry(r) {
+      return {
+        id: r.id,
+        docId: r.doc_id || "",
+        title: r.title || "",
+        department: r.department || "",
+        section: r.section || "",
+        entryType: r.entry_type || "Reference",
+        status: r.status || "draft",
+        content: r.content || "",
+        tags: Array.isArray(r.tags) ? r.tags : [],
+        relatedEntries: Array.isArray(r.related_entries) ? r.related_entries : [],
+        version: r.version || 1,
+        author: r.author || "",
+        createdAt: r.created_at || "",
+        updatedAt: r.updated_at || ""
+      };
+    }
+
+    function hEntryToRow(e) {
+      return {
+        id: e.id,
+        doc_id: e.docId || null,
+        title: e.title,
+        department: e.department,
+        section: e.section,
+        entry_type: e.entryType,
+        status: e.status,
+        content: e.content,
+        tags: Array.isArray(e.tags) ? e.tags : [],
+        related_entries: Array.isArray(e.relatedEntries) ? e.relatedEntries : [],
+        version: e.version || 1,
+        author: e.author || "",
+        created_at: e.createdAt || new Date().toISOString(),
+        updated_at: e.updatedAt || new Date().toISOString()
+      };
+    }
+
+    function hLoadEntries(callback) {
+      if (hEntriesLoaded && hEntriesCache !== null) { if (callback) callback(hEntriesCache); return; }
+      hLoadCallbacks.push(callback);
+      if (hLoadCallbacks.length > 1) return;
+      function done(entries) {
+        hEntriesCache = entries;
+        hEntriesLoaded = true;
+        try { localStorage.setItem(H_STORE_KEY, JSON.stringify(entries)); } catch (e) {}
+        hLoadCallbacks.forEach(function (cb) { if (cb) cb(entries); });
+        hLoadCallbacks = [];
+      }
+      hLoadLocalFallback(null, function () {
+        if (typeof sbClient !== "undefined" && sbClient) {
+          sbClient.from(H_TABLE).select("*").order("updated_at", { ascending: false }).limit(500)
+            .then(function (res) {
+              if (!res.error && Array.isArray(res.data)) {
+                done(res.data.map(function (r) { return hRowToEntry(r); }));
+                return;
+              }
+              if (!hEntriesLoaded) done(hEntriesCache || []);
+            })
+            .catch(function () { if (!hEntriesLoaded) done(hEntriesCache || []); });
+        }
+      });
+    }
+
+    function hLoadLocalFallback(_, doneInner) {
+      try {
+        var cached = JSON.parse(localStorage.getItem(H_STORE_KEY));
+        if (Array.isArray(cached)) {
+          hEntriesCache = cached;
+          hEntriesLoaded = true;
+          hLoadCallbacks.forEach(function (cb) { if (cb) cb(cached); });
+          hLoadCallbacks = [];
+        }
+      } catch (e) {}
+      if (doneInner) doneInner();
+    }
+
+    function hGetEntries() {
+      return hEntriesCache || [];
+    }
+
+    function hGetEntryById(id) {
+      var entries = hGetEntries();
+      for (var i = 0; i < entries.length; i++) { if (entries[i].id === id) return entries[i]; }
+      return null;
+    }
+
+    function hSaveEntries(entries) {
+      hEntriesCache = entries;
+      try { localStorage.setItem(H_STORE_KEY, JSON.stringify(entries)); } catch (e) {}
+      if (typeof sbClient !== "undefined" && sbClient) {
+        var rows = entries.map(function (e) { return hEntryToRow(e); });
+        sbClient.from(H_TABLE).upsert(rows, { onConflict: "id" })
+          .then(function (res) { if (res.error) console.warn("Handbook Supabase save error:", res.error); })
+          .catch(function (err) { console.warn("Handbook Supabase save failed:", err); });
+      }
+    }
+
+    function hDeleteEntryFromDb(id) {
+      var entries = hGetEntries().filter(function (e) { return e.id !== id; });
+      hEntriesCache = entries;
+      try { localStorage.setItem(H_STORE_KEY, JSON.stringify(entries)); } catch (e) {}
+      if (typeof sbClient !== "undefined" && sbClient) {
+        sbClient.from(H_TABLE).delete().eq("id", id)
+          .then(function (res) { if (res.error) console.warn("Handbook delete error:", res.error); })
+          .catch(function (err) { console.warn("Handbook delete failed:", err); });
+      }
+    }
+
+    function hGenId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+    function hGenDocId(dept) {
+      var abbr = H_DEPT_ABBR[dept] || "GEN";
+      var entries = hGetEntries().filter(function (e) { return e.department === dept && e.docId; });
+      var maxNum = 0;
+      entries.forEach(function (e) {
+        var parts = e.docId.split("-");
+        if (parts[0] === abbr && parts[1]) {
+          var n = parseInt(parts[1], 10);
+          if (!isNaN(n) && n > maxNum) maxNum = n;
+        }
+      });
+      var nextNum = maxNum + 1;
+      return abbr + "-" + ("000" + nextNum).slice(-3);
+    }
+
+    function hFormatDate(iso) {
+      if (!iso) return "";
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+    }
+
+    function hDetailedVersion(v) {
+      return "v" + (v || 1) + "." + 0;
+    }
+
+    function hGetEntryCount(dept, section) {
+      return hGetEntries().filter(function (e) { return e.department === dept && e.section === section; }).length;
+    }
+
+    function hRenderNav() {
+      var el_ = document.getElementById("handbookNavList");
+      if (!el_) return;
+      var html = "";
+      H_DEPARTMENTS.forEach(function (dept) {
+        var expanded = hDeptsExpanded[dept] !== false;
+        html += '<div class="handbook-dept-group">' +
+          '<div class="handbook-dept-heading" data-h-dept="' + dept + '">' +
+            '<span class="handbook-dept-arrow' + (expanded ? ' is-open' : '') + '">&#9654;</span>' +
+            dept +
+          '</div>' +
+          '<div class="handbook-section-list"' + (expanded ? '' : ' style="display:none"') + '>';
+        H_SECTIONS.forEach(function (sec) {
+          var secKey = dept + "|" + sec;
+          var secExpanded = hSecsExpanded[secKey] !== false;
+          var secEntries = hGetEntries().filter(function (e) { return e.department === dept && e.section === sec; });
+          var active = (hActiveDept === dept && hActiveSection === sec && !hActiveEntryId) ? ' is-active' : '';
+          html += '<div class="handbook-section-item' + active + '" data-h-sec-key="' + secKey + '" data-h-dept="' + dept + '" data-h-section="' + sec + '">' +
+            '<span class="handbook-section-arrow' + (secExpanded ? ' is-open' : '') + '">&#9654;</span>' +
+            sec +
+            (secEntries.length ? '<span class="handbook-section-count">' + secEntries.length + '</span>' : '') +
+          '</div>';
+          html += '<div class="handbook-entry-nav-wrap"' + (secExpanded ? '' : ' style="display:none"') + '>';
+          secEntries.forEach(function (e) {
+            var eActive = (hActiveEntryId === e.id) ? ' is-active' : '';
+            html += '<div class="handbook-entry-nav-item' + eActive + '" data-h-entry="' + e.id + '">' +
+              '<span class="handbook-entry-nav-dot"></span>' +
+              escapeHtml(e.title || "Untitled") +
+            '</div>';
+          });
+          html += '</div>';
+        });
+        html += '</div></div>';
+      });
+      el_.innerHTML = html;
+    }
+
+    function hShowEmpty() {
+      var area = document.getElementById("handbookContentArea");
+      if (area) area.hidden = true;
+      hUpdateDetailsPanel(null);
+      hRenderNav();
+    }
+
+    function hShowSectionContent(dept, section) {
+      hActiveDept = dept;
+      hActiveSection = section;
+      hActiveEntryId = null;
+      hEditingEntryId = null;
+      hUpdateDetailsPanel(null);
+      var searchInput = document.getElementById("handbookSearch");
+      if (searchInput) searchInput.value = "";
+      hShowEmpty();
+      hRenderNav();
+    }
+
+    var hEditTimer = null;
+
+    function hShowEntryDetail(entryId) {
+      hActiveEntryId = entryId;
+      hEditingEntryId = null;
+      var entry = hGetEntryById(entryId);
+      if (!entry) { hShowSectionContent(hActiveDept, hActiveSection); return; }
+      var area = document.getElementById("handbookContentArea");
+      if (area) area.hidden = false;
+      var bc = document.getElementById("handbookBreadcrumb");
+      if (bc) bc.textContent = entry.department + " / " + entry.section + " / " + (entry.title || "Untitled");
+      var statusWrap = document.getElementById("handbookDetailStatusWrap");
+      if (statusWrap) statusWrap.hidden = false;
+      var statusBtn = document.getElementById("handbookDetailStatus");
+      if (statusBtn) {
+        var isPublished = entry.status === "published";
+        statusBtn.classList.toggle("is-published", isPublished);
+        statusBtn.textContent = isPublished ? "Published" : "Draft";
+      }
+      var titleEl = document.getElementById("handbookContentTitle");
+      if (titleEl) titleEl.textContent = entry.title || "Untitled";
+      var body = document.getElementById("handbookEntryBody");
+      if (body) body.innerHTML = (entry.content || "").trim();
+      var tagsInput = document.getElementById("handbookEntryTags");
+      if (tagsInput) tagsInput.value = (Array.isArray(entry.tags) ? entry.tags : []).join(", ");
+      var detail = document.getElementById("handbookEntryDetail");
+      if (detail) detail.hidden = false;
+      handbookApplyTypography();
+      hUpdateDetailsPanel(entry);
+      hRenderNav();
+    }
+
+    function hScheduleHandbookAutosave() {
+      if (hEditTimer) clearTimeout(hEditTimer);
+      hEditTimer = setTimeout(function () {
+        if (!hActiveEntryId) return;
+        var entry = hGetEntryById(hActiveEntryId);
+        if (!entry) return;
+        var body = document.getElementById("handbookEntryBody");
+        var titleEl = document.getElementById("handbookContentTitle");
+        var tagsInput = document.getElementById("handbookEntryTags");
+        if (!body) return;
+        var newContent = body.innerHTML.trim();
+        var newTitle = titleEl ? titleEl.textContent.trim() : entry.title;
+        var newTags = tagsInput ? tagsInput.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : entry.tags;
+        if (newContent === (entry.content || "") && newTitle === entry.title && JSON.stringify(newTags) === JSON.stringify(entry.tags || [])) return;
+        entry.content = newContent;
+        entry.title = newTitle;
+        entry.tags = newTags;
+        entry.version = (entry.version || 1) + 1;
+        entry.updatedAt = new Date().toISOString();
+        hSaveEntries(hGetEntries());
+        hUpdateDetailsPanel(entry);
+        hRenderNav();
+      }, 800);
+    }
+
+    function hCreateNewEntryInContext() {
+      var dept = hActiveDept || "Company";
+      var section = hActiveSection || "Purpose";
+      var entries = hGetEntries();
+      var newEntry = {
+        id: hGenId(),
+        docId: hGenDocId(dept),
+        title: "New Entry",
+        department: dept,
+        section: section,
+        entryType: "Reference",
+        status: "draft",
+        content: "",
+        tags: [],
+        relatedEntries: [],
+        version: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        author: "self"
+      };
+      entries.push(newEntry);
+      hSaveEntries(entries);
+      hActiveDept = dept;
+      hActiveSection = section;
+      hShowEntryDetail(newEntry.id);
+    }
+
+    function hToggleDetailsPanel() {
+      if (el.hubHandbookDetails) {
+        el.hubHandbookDetails.hidden = (activeHubTab !== "handbook" || !hActiveEntryId);
+      }
+    }
+
+    function hUpdateDetailsPanel(entry) {
+      if (!entry) {
+        var wrap = document.getElementById("handbookDetailsWrap");
+        var emptyDoc = document.getElementById("handbookDetailsEmpty");
+        if (wrap) wrap.hidden = true;
+        if (emptyDoc) emptyDoc.hidden = false;
+        hToggleDetailsPanel();
+        return;
+      }
+      var wrap = document.getElementById("handbookDetailsWrap");
+      var emptyDoc = document.getElementById("handbookDetailsEmpty");
+      if (wrap) wrap.hidden = false;
+      if (emptyDoc) emptyDoc.hidden = true;
+      var docId = document.getElementById("hDetailDocId");
+      if (docId) docId.textContent = entry.docId || "—";
+      var updated = document.getElementById("hDetailUpdated");
+      if (updated) updated.textContent = hFormatDate(entry.updatedAt) || "—";
+      var ver = document.getElementById("hDetailVersion");
+      if (ver) ver.textContent = hDetailedVersion(entry.version);
+      hToggleDetailsPanel();
+    }
+
+
+
+    function hDeleteEntry(entryId) {
+      if (!confirm("Delete this handbook entry?")) return;
+      hDeleteEntryFromDb(entryId);
+      hShowSectionContent(hActiveDept, hActiveSection);
+      setStatus("Entry deleted.", "ok");
+    }
+
+    var HANDBOOK_FONT_KEY = "handbook-font-prefs";
+
+    function handbookApplyTypography() {
+      var body = document.getElementById("handbookEntryBody");
+      if (!body) return;
+      var ff = document.getElementById("handbookFontFamily");
+      var fs = document.getElementById("handbookFontSize");
+      var lh = document.getElementById("handbookLineHeight");
+      if (ff) body.style.fontFamily = ff.value || "'Georgia', serif";
+      if (fs) body.style.fontSize = String(fs.value || 14) + "px";
+      if (lh) body.style.lineHeight = String(lh.value || 1.4);
+    }
+
+    function handbookSaveFontPrefs() {
+      var ff = document.getElementById("handbookFontFamily");
+      var fs = document.getElementById("handbookFontSize");
+      var lh = document.getElementById("handbookLineHeight");
+      var prefs = {
+        fontFamily: ff ? ff.value : "",
+        fontSize: fs ? fs.value : "",
+        lineHeight: lh ? lh.value : ""
+      };
+      try { localStorage.setItem(HANDBOOK_FONT_KEY, JSON.stringify(prefs)); } catch (_) {}
+    }
+
+    function handbookLoadFontPrefs() {
+      var raw = null;
+      try { raw = JSON.parse(localStorage.getItem(HANDBOOK_FONT_KEY) || "null"); } catch (_) {}
+      if (!raw) return;
+      var ff = document.getElementById("handbookFontFamily");
+      var fs = document.getElementById("handbookFontSize");
+      var lh = document.getElementById("handbookLineHeight");
+      if (ff && raw.fontFamily) ff.value = raw.fontFamily;
+      if (fs && raw.fontSize) fs.value = raw.fontSize;
+      if (lh && raw.lineHeight) lh.value = raw.lineHeight;
+    }
+
+    function hSearch(query) {
+      var q = String(query || "").trim().toLowerCase();
+      if (!q) {
+        if (hActiveEntryId) { hShowEntryDetail(hActiveEntryId); return; }
+        if (hActiveDept && hActiveSection) { hShowSectionContent(hActiveDept, hActiveSection); return; }
+        hShowEmpty();
+        return;
+      }
+      var entries = hGetEntries().filter(function (e) {
+        return (e.title && e.title.toLowerCase().indexOf(q) !== -1) ||
+               (e.content && e.content.toLowerCase().indexOf(q) !== -1) ||
+               (e.department && e.department.toLowerCase().indexOf(q) !== -1) ||
+               (e.entryType && e.entryType.toLowerCase().indexOf(q) !== -1) ||
+               (Array.isArray(e.tags) && e.tags.some(function (t) { return t.toLowerCase().indexOf(q) !== -1; }));
+      });
+      entries.sort(function (a, b) { return (b.updatedAt || b.createdAt || "") > (a.updatedAt || a.createdAt || "") ? 1 : -1; });
+      var area = document.getElementById("handbookContentArea");
+      if (area) area.hidden = false;
+      var detail = document.getElementById("handbookEntryDetail");
+      if (detail) detail.hidden = true;
+      var bc = document.getElementById("handbookBreadcrumb");
+      if (bc) bc.textContent = "Search Results";
+      hUpdateDetailsPanel(null);
+      var container = document.createElement("div");
+      container.className = "handbook-search-results";
+      if (!entries.length) {
+        container.innerHTML = '<div class="home-empty">No results found.</div>';
+      } else {
+        container.innerHTML = '<div class="handbook-search-count">' + entries.length + ' result' + (entries.length !== 1 ? "s" : "") + ' for "' + escapeHtml(q) + '"</div>' +
+          entries.map(function (e) {
+            return '<div class="handbook-search-item" data-h-entry="' + e.id + '">' +
+              '<span class="handbook-search-item-title">' + escapeHtml(e.title || "Untitled") + '</span>' +
+              '<span class="handbook-search-item-location">' + escapeHtml(e.department) + ' / ' + escapeHtml(e.section) + '</span>' +
+            '</div>';
+          }).join("");
+      }
+      var existing = area.querySelector(".handbook-search-results");
+      if (existing) existing.remove();
+      area.appendChild(container);
+    }
+
+    function renderMarkdown(md) {
+      if (!md) return "";
+      var html = String(md);
+      html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html = html.replace(/^#### (.+)$/gm, "<h4>$1</h4>");
+      html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
+      html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+      html = html.replace(/^- (.+)$/gm, "<li>$1</li>");
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>");
+      html = html.replace(/\n/g, "<br>");
+      return html;
+    }
+
+    function initHandbookEvents() {
+      var navList = document.getElementById("handbookNavList");
+      if (navList) {
+        navList.addEventListener("click", function (e) {
+          var entryItem = e.target.closest(".handbook-entry-nav-item");
+          if (entryItem) {
+            var eid = entryItem.getAttribute("data-h-entry");
+            if (eid) {
+              var entry = hGetEntryById(eid);
+              if (entry) {
+                hActiveDept = entry.department;
+                hActiveSection = entry.section;
+              }
+              hShowEntryDetail(eid);
+            }
+            return;
+          }
+          var deptHead = e.target.closest(".handbook-dept-heading");
+          if (deptHead) {
+            var dept = deptHead.getAttribute("data-h-dept");
+            if (dept) {
+              hDeptsExpanded[dept] = hDeptsExpanded[dept] === false ? true : false;
+              hRenderNav();
+            }
+            return;
+          }
+          var secItem = e.target.closest(".handbook-section-item");
+          if (secItem) {
+            var d = secItem.getAttribute("data-h-dept");
+            var s = secItem.getAttribute("data-h-section");
+            var secKey = secItem.getAttribute("data-h-sec-key");
+            if (secKey) {
+              hSecsExpanded[secKey] = hSecsExpanded[secKey] === false ? true : false;
+            }
+            if (d && s) {
+              hShowSectionContent(d, s);
+            } else {
+              hRenderNav();
+            }
+          }
+        });
+      }
+
+      var area = document.getElementById("handbookContentArea");
+      if (area) {
+        area.addEventListener("click", function (e) {
+          var fmtBtn = e.target.closest("[data-h-cmd]");
+          if (fmtBtn) {
+            var cmd = fmtBtn.getAttribute("data-h-cmd");
+            var val = fmtBtn.getAttribute("data-h-val") || null;
+            var body = document.getElementById("handbookEntryBody");
+            if (body) body.focus();
+            try {
+              if (cmd === "formatBlock") {
+                document.execCommand("formatBlock", false, val);
+              } else {
+                document.execCommand(cmd, false, val);
+              }
+            } catch (_) {}
+            return;
+          }
+          var toggle = e.target.closest(".handbook-detail-status");
+          if (toggle && hActiveEntryId) {
+            toggle.classList.toggle("is-published");
+            toggle.textContent = toggle.classList.contains("is-published") ? "Published" : "Draft";
+            var entry = hGetEntryById(hActiveEntryId);
+            if (entry) {
+              entry.status = toggle.classList.contains("is-published") ? "published" : "draft";
+              entry.version = (entry.version || 1) + 1;
+              entry.updatedAt = new Date().toISOString();
+              hSaveEntries(hGetEntries());
+              hUpdateDetailsPanel(entry);
+            }
+            return;
+          }
+          var searchItem = e.target.closest("[data-h-entry]");
+          if (searchItem) {
+            var eid = searchItem.getAttribute("data-h-entry");
+            hShowEntryDetail(eid);
+            return;
+          }
+        });
+        area.addEventListener("input", function (e) {
+          if (e.target.matches("#handbookEntryBody, #handbookContentTitle, #handbookEntryTags")) {
+            hScheduleHandbookAutosave();
+          }
+        });
+      }
+
+      var newBtn = document.getElementById("handbookNewEntryBtn");
+      if (newBtn) newBtn.addEventListener("click", function () {
+        hCreateNewEntryInContext();
+      });
+
+      var navNewBtn = document.getElementById("handbookNavNewEntry");
+      if (navNewBtn) navNewBtn.addEventListener("click", function () {
+        hCreateNewEntryInContext();
+      });
+
+      var delBtn = document.getElementById("handbookDeleteEntryBtn");
+      if (delBtn) delBtn.addEventListener("click", function () {
+        if (hActiveEntryId) hDeleteEntry(hActiveEntryId);
+      });
+
+      ["handbookFontFamily", "handbookFontSize", "handbookLineHeight"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("change", function () {
+          handbookApplyTypography();
+          handbookSaveFontPrefs();
+        });
+      });
+      handbookLoadFontPrefs();
+
+      var searchInput = document.getElementById("handbookSearch");
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          hSearch(this.value);
+        });
+      }
+    }
+
+    function renderHandbook() {
+      hDeptsExpanded = {};
+      hActiveDept = "";
+      hActiveSection = "";
+      hActiveEntryId = null;
+      hEditingEntryId = null;
+      hLoadEntries(function () {
+        hRenderNav();
+        hShowEmpty();
+      });
+    }
+
+    function switchHubTab(tabName) {
+      var safeTab = String(tabName || "studio").trim().toLowerCase();
+      if (["home", "studio", "handbook", "inbox", "settings"].indexOf(safeTab) === -1) safeTab = "studio";
+      if (activeHubTab === safeTab) return;
+      activeHubTab = safeTab;
+
+      if (safeTab !== "studio" && typeof flushCurrentWorkspaceEdits === "function") {
+        flushCurrentWorkspaceEdits();
+      }
+
+      [el.hubTabHome, el.hubTabStudio, el.hubTabHandbook, el.hubTabInbox, el.hubTabSettings].forEach(function (btn) {
+        if (!btn) return;
+        btn.classList.toggle("is-active", btn.getAttribute("data-hub-tab") === safeTab);
+      });
+
+      ["hubContentHome", "hubContentStudio", "hubContentHandbook", "hubContentInbox", "hubContentSettings"].forEach(function (id) {
+        var c = document.getElementById(id);
+        if (!c) return;
+        c.hidden = id !== "hubContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
+      });
+
+      ["searchPanelContent", "resourceTreePanel", "writingCodexPanel", "planInfoPanelSidebar", "chatSidebarPanel", "codexTreePanel"].forEach(function (id) {
+        var p = document.getElementById(id);
+        if (!p) return;
+        if (safeTab !== "studio") p.hidden = true;
+      });
+
+      if (el.hubHomeSidebar) el.hubHomeSidebar.hidden = (safeTab !== "home");
+      if (el.hubHandbookSidebar) el.hubHandbookSidebar.hidden = (safeTab !== "handbook");
+      if (el.hubInboxSidebar) el.hubInboxSidebar.hidden = (safeTab !== "inbox");
+      if (el.hubSettingsSidebar) el.hubSettingsSidebar.hidden = (safeTab !== "settings");
+
+      ["planGenreGuidePanel", "resourceInspectorPanel", "projectInspectorPanel", "writingInspectorPanel", "seriesKnowledgeFormsPanel"].forEach(function (id) {
+        var p = document.getElementById(id);
+        if (!p) return;
+        if (safeTab !== "studio") p.hidden = true;
+      });
+
+      if (el.hubDetailsPanel) el.hubDetailsPanel.hidden = (safeTab !== "studio" && safeTab !== "handbook");
+      if (typeof hToggleDetailsPanel === "function") hToggleDetailsPanel();
+      if (el.hubSettingsDetails) el.hubSettingsDetails.hidden = (safeTab !== "settings");
+
+      if (safeTab === "studio") {
+        var lastTab = appState.hubState && appState.hubState.studioLastTab || "writing";
+        switchMainTab(lastTab);
+      }
+
+      if (safeTab === "home" && typeof renderHomeDashboard === "function") {
+        renderHomeDashboard();
+      }
+
+      if (safeTab === "handbook") {
+        if (typeof renderHandbook === "function") renderHandbook();
+        if (typeof initHandbookEvents === "function") initHandbookEvents();
+      }
+
+      appState.activeHubTab = safeTab;
+      try { localStorage.setItem("adogamation_activeHubTab", safeTab); } catch (e) {}
+    }
+
+    function initHub() {
+      var savedTab = "home";
+      try {
+        var stored = localStorage.getItem("adogamation_activeHubTab");
+        if (stored && ["home","studio","handbook","inbox","settings"].indexOf(stored) !== -1) savedTab = stored;
+      } catch (e) {}
+      switchHubTab(savedTab);
     }
 
     function initChat() {
@@ -7815,6 +8604,7 @@
               populateImagePickerMetaDatalists();
               loadInspectorOptions();
               applyFilters();
+              if (activeHubTab === "home" && typeof renderHomeDashboard === "function") renderHomeDashboard();
 
               if (appState.projects.length) {
                 const stillExists = appState.projects.some(function (p) {
@@ -8696,6 +9486,7 @@
         setStatus("UI bound. Loading data...", "warn");
         loadProjects();
         if (typeof loadAISettings === "function") loadAISettings();
+        if (typeof initHub === "function") initHub();
       } else {
         setStatus("Please log in to continue.", "warn");
       }
