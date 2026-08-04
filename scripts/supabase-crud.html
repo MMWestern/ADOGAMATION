@@ -354,3 +354,163 @@
           return JSON.stringify({ ok: true, deleted: keys.length });
         });
     });
+
+    _sbDefine('getSupabaseDocumentTypesJsonFromClient', function () {
+      return sbClient.from('document_types').select('*').order('sort_order').limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseDocumentTypesJsonFromClient', function (typesJson) {
+      var types = JSON.parse(typesJson);
+      var upsertRows = types.map(function (t) {
+        return {
+          type_key: t.type_key,
+          label: t.label || t.type_key,
+          icon: t.icon || '',
+          sort_order: t.sort_order || 0
+        };
+      });
+      return sbClient.from('document_types').upsert(upsertRows, { onConflict: 'type_key' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('deleteSupabaseDocumentTypeJsonFromClient', function (typeKey) {
+      return sbClient.from('document_types').delete().eq('type_key', typeKey)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseGenerationPromptsJsonFromClient', function () {
+      return sbClient.from('generation_prompts').select('*').order('channel').limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseGenerationPromptsJsonFromClient', function (promptsJson) {
+      var prompts = JSON.parse(promptsJson);
+      var upsertRows = prompts.map(function (p) {
+        return {
+          channel: p.channel,
+          task_name: p.task_name,
+          doc_type: p.doc_type || null,
+          prompt_template: p.prompt_template || '',
+          system_prompt: p.system_prompt || '',
+          model: p.model || 'gpt-4o'
+        };
+      });
+      return sbClient.from('generation_prompts').upsert(upsertRows, { onConflict: 'channel,task_name,doc_type' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('deleteSupabaseGenerationPromptJsonFromClient', function (channel, taskName, docType) {
+      return sbClient.from('generation_prompts').delete()
+        .eq('channel', channel).eq('task_name', taskName).eq('doc_type', docType)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseMarketingTemplatesJsonFromClient', function () {
+      return sbClient.from('marketing_templates').select('*').order('name').limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          console.log("[Marketing Templates] Supabase returned:", JSON.stringify(res.data, null, 2));
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseMarketingTemplatesJsonFromClient', function (templatesJson) {
+      var templates = JSON.parse(templatesJson);
+      var upsertRows = Object.keys(templates).map(function (name) {
+        return {
+          name: name,
+          entries: templates[name].entries ? templates[name].entries.map(function(e) {
+            return {
+              taskName: e.taskName,
+              channel: e.channel || '',
+              dayOffset: e.dayOffset || 0,
+              generatesDoc: !!e.generatesDoc,
+              docType: e.docType || '',
+              promptKey: e.promptKey || ''
+            };
+          }) : []
+        };
+      });
+      return sbClient.from('marketing_templates').upsert(upsertRows, { onConflict: 'name' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('deleteSupabaseMarketingTemplateJsonFromClient', function (name) {
+      return sbClient.from('marketing_templates').delete().eq('name', name)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseScheduleTemplatesJsonFromClient', function () {
+      return sbClient.from('schedule_templates').select('*').order('name').limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseScheduleTemplatesJsonFromClient', function (templatesJson) {
+      var templates = JSON.parse(templatesJson);
+      var upsertRows = Object.keys(templates).map(function (name) {
+        return {
+          name: name,
+          milestones: templates[name].milestones ? templates[name].milestones.map(function(m) {
+            return {
+              name: m.name,
+              dayOffset: m.dayOffset || 0,
+              generatesDoc: !!m.generatesDoc,
+              docType: m.docType || '',
+              promptKey: m.promptKey || ''
+            };
+          }) : []
+        };
+      });
+      return sbClient.from('schedule_templates').upsert(upsertRows, { onConflict: 'name' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('deleteSupabaseScheduleTemplateJsonFromClient', function (name) {
+      return sbClient.from('schedule_templates').delete().eq('name', name)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getSupabaseGenerationContentJsonFromClient', function (projectId, docType) {
+      return sbClient.from('document_sections').select('section_key,markdown_content,updated_at')
+        .eq('project_id', projectId).eq('doc_type', docType).limit(500)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var map = {};
+          (res.data || []).forEach(function (r) { map[r.section_key] = r.markdown_content || ''; });
+          return JSON.stringify({ ok: true, content: map });
+        });
+    });

@@ -124,7 +124,7 @@ const DEFAULT_STATUS_OPTIONS = [
       { key: "motivation_arc", label: "Motivation / Arc" }
     ];
 
-    const SCHEDULE_TEMPLATES = {
+    let SCHEDULE_TEMPLATES = {
       "Novel (6wk)": {
         name: "Novel (6wk)",
         milestones: [
@@ -165,9 +165,9 @@ const DEFAULT_STATUS_OPTIONS = [
         ]
       }
     };
-    const SCHEDULE_TEMPLATE_OPTIONS = Object.keys(SCHEDULE_TEMPLATES);
+    let SCHEDULE_TEMPLATE_OPTIONS = Object.keys(SCHEDULE_TEMPLATES);
 
-    const MARKETING_TEMPLATES = {
+    let MARKETING_TEMPLATES = {
       "Social Launch": {
         name: "Social Launch",
         entries: [
@@ -203,7 +203,28 @@ const DEFAULT_STATUS_OPTIONS = [
         ]
       }
     };
-    const MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
+let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
+
+    const DOCUMENT_TYPES = [
+      { type_key: "email", label: "Email", icon: "✉" },
+      { type_key: "social_post", label: "Social Post", icon: "📱" },
+      { type_key: "ad_copy", label: "Ad Copy", icon: "📢" },
+      { type_key: "task_list", label: "Task List", icon: "☑" },
+      { type_key: "summary", label: "Summary", icon: "📋" }
+    ];
+    let documentTypeOptions = DOCUMENT_TYPES.slice();
+
+    const GENERATION_CHANNELS = ["Newsletter", "Social Media", "Amazon Ads", "Patreon", "Web Fiction", "Website", "Internal"];
+    const GENERATION_MODEL = "gpt-4o";
+    const DEFAULT_GENERATION_PROMPTS = [
+      { channel: "Newsletter", task_name: "Write launch email", doc_type: "email", label: "Newsletter - Launch Email", system_prompt: "You are a book launch specialist. Write a launch day email that creates urgency and excitement. Be professional but passionate.", prompt_template: "Write a launch day email (400-600 words) for this book:\n\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\nPublish Date: {publish_date}\nPen Name: {pen_name}\n\nInclude: announcement, what makes this book special, early reviews if available, purchase links placeholder, and a thank you to readers." },
+      { channel: "Social Media", task_name: "Cover reveal post", doc_type: "social_post", label: "Social - Cover Reveal", system_prompt: "You are a social media marketing expert for authors. Write short, punchy social media posts that generate excitement.", prompt_template: "Write a social media post announcing a book cover reveal:\n\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\n\nMake it exciting and engaging. Include relevant hashtags." },
+      { channel: "Social Media", task_name: "Launch day posts", doc_type: "social_post", label: "Social - Launch Day", system_prompt: "You are a social media marketing expert for authors.", prompt_template: "Write 3 social media posts for launch day:\n\nTitle: {title}\nGenre: {genre}\n\nMake each post different: one excited/announcing, one mysterious/teasing, one personal/behind-the-scenes." },
+      { channel: "Newsletter", task_name: "Write email teaser", doc_type: "email", label: "Newsletter - Pre-order Teaser", system_prompt: "You are a book marketing assistant. Write an engaging newsletter.", prompt_template: "Write a pre-order teaser email (300-500 words):\n\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\nPublish Date: {publish_date}\nPen Name: {pen_name}\n\nInclude a compelling hook and clear call to action." },
+      { channel: "Amazon Ads", task_name: "BookBub ad submission", doc_type: "ad_copy", label: "Ads - BookBub", system_prompt: "You are an Amazon Ads specialist.", prompt_template: "Write a BookBub ad submission (under 500 characters):\n\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\n\nMake it compelling and clickable." },
+      { channel: "Internal", task_name: "Release summary", doc_type: "summary", label: "Internal - Release Summary", system_prompt: "You are a publishing analyst.", prompt_template: "Write a release summary report (300-500 words):\n\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\nPublish Date: {publish_date}\nStatus: {status}\n\nInclude: project overview, key milestones, current status, next steps." }
+    ];
+    let generationPromptOptions = DEFAULT_GENERATION_PROMPTS.slice();
 
     const DEFAULT_EDITOR_THEME_COLORS = {
       draft: "#ff6b57",

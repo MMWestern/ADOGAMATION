@@ -1,0 +1,343 @@
+    // ============================================================
+    // LIFECYCLE ENGINE — Supabase CRUD Operations
+    // ============================================================
+
+    // ---- Templates ----
+
+    _sbDefine('listLifecycleTemplates', function () {
+      return Promise.all([
+        sbClient.from('lifecycle_templates').select('*').order('sort_order', { ascending: true }).order('name', { ascending: true }).limit(100),
+        sbClient.from('lifecycle_template_stages').select('*').order('sort_order', { ascending: true }).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        if (results[1].error) throw results[1].error;
+        var templates = results[0].data || [];
+        var stages = results[1].data || [];
+        var stagesByTemplate = {};
+        stages.forEach(function (s) {
+          var tid = Number(s.template_id || 0);
+          if (!stagesByTemplate[tid]) stagesByTemplate[tid] = [];
+          stagesByTemplate[tid].push(s);
+        });
+        templates.forEach(function (t) {
+          t.stages = stagesByTemplate[Number(t.id)] || [];
+        });
+        return JSON.stringify({ ok: true, templates: templates });
+      });
+    });
+
+    _sbDefine('getLifecycleTemplate', function (templateId) {
+      var safeId = Number(templateId || 0);
+      if (!safeId) throw new Error('Template id is required.');
+      return Promise.all([
+        sbClient.from('lifecycle_templates').select('*').eq('id', safeId).single(),
+        sbClient.from('lifecycle_template_stages').select('*').eq('template_id', safeId).order('sort_order', { ascending: true }).limit(5000)
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        if (results[1].error) throw results[1].error;
+        var template = results[0].data;
+        template.stages = results[1].data || [];
+        return JSON.stringify({ ok: true, template: template });
+      });
+    });
+
+    _sbDefine('saveLifecycleTemplate', function (templateId, name, description, isDefault, stagesJson) {
+      var safeId = templateId != null ? Number(templateId) : null;
+      var safeName = String(name || '').trim();
+      var safeDesc = String(description || '').trim();
+      if (!safeName) throw new Error('Template name is required.');
+      var payload = { name: safeName, description: safeDesc, is_default: !!isDefault };
+      var stages = [];
+      try { stages = JSON.parse(stagesJson || '[]'); } catch (e) { stages = []; }
+
+      var saveOp = safeId
+        ? sbClient.from('lifecycle_templates').update(payload).eq('id', safeId).select().single()
+        : sbClient.from('lifecycle_templates').insert([payload]).select().single();
+
+      return saveOp.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+
+        // Delete existing stages then reinsert
+        return sbClient.from('lifecycle_template_stages').delete().eq('template_id', savedId).then(function (delRes) {
+          if (delRes.error) throw delRes.error;
+          if (!stages.length) return savedId;
+
+          var rows = stages.map(function (s, i) {
+            return {
+              template_id: savedId,
+              stage_key: String(s.stage_key || s.key || ''),
+              label: String(s.label || ''),
+              phase: String(s.phase || 'Pre-Production'),
+              is_required: s.is_required !== false,
+              sort_order: Number(s.sort_order != null ? s.sort_order : i),
+              gate_conditions: s.gate_conditions || {}
+            };
+          }).filter(function (r) { return r.stage_key && r.label; });
+
+          if (!rows.length) return savedId;
+          return sbClient.from('lifecycle_template_stages').insert(rows).then(function (insRes) {
+            if (insRes.error) throw insRes.error;
+            return savedId;
+          });
+        });
+      }).then(function (savedId) {
+        return JSON.stringify({ ok: true, templateId: savedId });
+      });
+    });
+
+    _sbDefine('deleteLifecycleTemplate', function (templateId) {
+      var safeId = Number(templateId || 0);
+      if (!safeId) throw new Error('Template id is required.');
+      return sbClient.from('lifecycle_templates').delete().eq('id', safeId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    // ---- Project Lifecycle Assignment ----
+
+    _sbDefine('getProjectLifecycle', function (projectId) {
+      var safeId = Number(projectId || 0);
+      if (!safeId) throw new Error('Project id is required.');
+      return sbClient.from('project_lifecycles').select('*').eq('project_id', safeId).limit(1)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          if (!rows.length) return JSON.stringify({ ok: true, lifecycle: null, stages: [], approvals: [] });
+          var lifecycle = rows[0];
+          var lifecycleId = Number(lifecycle.id);
+
+          return Promise.all([
+            sbClient.from('project_stage_status').select('*').eq('lifecycle_id', lifecycleId).order('sort_order', { ascending: true }).limit(100),
+            sbClient.from('lifecycle_approvals').select('*').eq('project_id', safeId).order('requested_at', { ascending: false }).limit(100),
+            sbClient.from('lifecycle_template_stages').select('*').eq('template_id', Number(lifecycle.template_id)).order('sort_order', { ascending: true }).limit(100)
+          ]).then(function (results) {
+            if (results[0].error) throw results[0].error;
+            if (results[1].error) throw results[1].error;
+            if (results[2].error) throw results[2].error;
+            return JSON.stringify({
+              ok: true,
+              lifecycle: lifecycle,
+              stages: results[0].data || [],
+              approvals: results[1].data || [],
+              templateStages: results[2].data || []
+            });
+          });
+        });
+    });
+
+    _sbDefine('assignProjectLifecycle', function (projectId, templateId) {
+      var safeProjectId = Number(projectId || 0);
+      var safeTemplateId = Number(templateId || 0);
+      if (!safeProjectId) throw new Error('Project id is required.');
+      if (!safeTemplateId) throw new Error('Template id is required.');
+
+      // Get template stages first
+      return sbClient.from('lifecycle_template_stages').select('*').eq('template_id', safeTemplateId).order('sort_order', { ascending: true }).limit(100)
+        .then(function (tRes) {
+          if (tRes.error) throw tRes.error;
+          var templateStages = tRes.data || [];
+
+          // Create the project_lifecycles row
+          return sbClient.from('project_lifecycles').insert([{
+            project_id: safeProjectId,
+            template_id: safeTemplateId
+          }]).select().single().then(function (lRes) {
+            if (lRes.error) throw lRes.error;
+            var lifecycle = lRes.data;
+            var lifecycleId = Number(lifecycle.id);
+
+            // Create initial stage_status rows
+            var stageRows = templateStages.map(function (s, i) {
+              return {
+                project_id: safeProjectId,
+                lifecycle_id: lifecycleId,
+                stage_key: s.stage_key,
+                status: 'pending',
+                sort_order: Number(s.sort_order != null ? s.sort_order : i)
+              };
+            });
+
+            if (!stageRows.length) {
+              return JSON.stringify({ ok: true, lifecycle: lifecycle, stages: [] });
+            }
+
+            return sbClient.from('project_stage_status').insert(stageRows).then(function (sRes) {
+              if (sRes.error) throw sRes.error;
+              return JSON.stringify({
+                ok: true,
+                lifecycle: lifecycle,
+                stages: sRes.data || []
+              });
+            });
+          });
+        });
+    });
+
+    // ---- Stage Status ----
+
+    _sbDefine('updateProjectStageStatus', function (projectId, stageKey, status, blockedReason, notes) {
+      var safeProjectId = Number(projectId || 0);
+      var safeKey = String(stageKey || '').trim();
+      var safeStatus = String(status || 'pending').trim();
+      if (!safeProjectId || !safeKey) throw new Error('Project id and stage key are required.');
+
+      var payload = { status: safeStatus };
+      if (safeStatus === 'complete') payload.completed_at = new Date().toISOString();
+      else payload.completed_at = null;
+      if (blockedReason !== undefined && blockedReason !== null) payload.blocked_reason = String(blockedReason);
+      if (notes !== undefined && notes !== null) payload.notes = String(notes);
+
+      return sbClient.from('project_stage_status').update(payload)
+        .eq('project_id', safeProjectId).eq('stage_key', safeKey)
+        .select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, stage: res.data });
+        });
+    });
+
+    // ---- Approvals ----
+
+    _sbDefine('requestLifecycleApproval', function (projectId, stageKey, approverName) {
+      var safeProjectId = Number(projectId || 0);
+      var safeKey = String(stageKey || '').trim();
+      if (!safeProjectId || !safeKey) throw new Error('Project id and stage key are required.');
+      return sbClient.from('lifecycle_approvals').insert([{
+        project_id: safeProjectId,
+        stage_key: safeKey,
+        approver_name: String(approverName || '').trim() || null
+      }]).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, approval: res.data });
+        });
+    });
+
+    _sbDefine('decideLifecycleApproval', function (approvalId, decision, notes) {
+      var safeId = Number(approvalId || 0);
+      var safeDecision = String(decision || '').trim();
+      if (!safeId || !safeDecision) throw new Error('Approval id and decision are required.');
+      if (['approved', 'rejected'].indexOf(safeDecision) === -1) throw new Error('Decision must be approved or rejected.');
+
+      return sbClient.from('lifecycle_approvals').update({
+        decision: safeDecision,
+        decided_at: new Date().toISOString(),
+        notes: String(notes || '').trim() || null
+      }).eq('id', safeId).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, approval: res.data });
+        });
+    });
+
+    _sbDefine('getProjectApprovals', function (projectId) {
+      var safeId = Number(projectId || 0);
+      if (!safeId) throw new Error('Project id is required.');
+      return sbClient.from('lifecycle_approvals').select('*')
+        .eq('project_id', safeId)
+        .order('requested_at', { ascending: false })
+        .limit(100)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, approvals: res.data || [] });
+        });
+    });
+
+    // ---- Communications Drafts ----
+
+    _sbDefine('listLifecycleCommsDrafts', function (projectId) {
+      var safeId = Number(projectId || 0);
+      if (!safeId) throw new Error('Project id is required.');
+      return sbClient.from('document_sections').select('*')
+        .eq('project_id', safeId)
+        .eq('doc_type', 'lifecycle_comms')
+        .order('created_at', { ascending: false })
+        .limit(100)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          var drafts = rows.map(function (r) {
+            var parts = String(r.section_key || '').split('::');
+            return {
+              id: r.id,
+              commType: parts[0] || '',
+              sectionKey: r.section_key || '',
+              title: r.title || '',
+              content: r.markdown_content || '',
+              wordCount: r.word_count || 0,
+              createdAt: r.created_at || '',
+              updatedAt: r.updated_at || ''
+            };
+          });
+          return JSON.stringify({ ok: true, drafts: drafts });
+        });
+    });
+
+    _sbDefine('saveLifecycleCommsDraft', function (projectId, commType, title, content) {
+      var safeId = Number(projectId || 0);
+      var safeType = String(commType || '').trim();
+      if (!safeId || !safeType) throw new Error('Project id and comm type are required.');
+      var sectionKey = safeType + '::' + Date.now();
+      var safeContent = String(content || '');
+      var safeTitle = String(title || '').trim() || safeType;
+      return sbClient.from('document_sections').insert([{
+        project_id: safeId,
+        doc_type: 'lifecycle_comms',
+        section_key: sectionKey,
+        title: safeTitle,
+        markdown_content: safeContent,
+        word_count: safeContent.split(/\s+/).filter(function (w) { return w.length > 0; }).length,
+        sort_order: 0
+      }]).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, draft: res.data });
+        });
+    });
+
+    _sbDefine('updateLifecycleCommsDraft', function (draftId, title, content) {
+      var safeId = Number(draftId || 0);
+      if (!safeId) throw new Error('Draft id is required.');
+      var safeContent = String(content || '');
+      var safeTitle = String(title || '').trim();
+      var payload = {
+        markdown_content: safeContent,
+        word_count: safeContent.split(/\s+/).filter(function (w) { return w.length > 0; }).length
+      };
+      if (safeTitle) payload.title = safeTitle;
+      return sbClient.from('document_sections').update(payload).eq('id', safeId).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, draft: res.data });
+        });
+    });
+
+    _sbDefine('deleteLifecycleCommsDraft', function (draftId) {
+      var safeId = Number(draftId || 0);
+      if (!safeId) throw new Error('Draft id is required.');
+      return sbClient.from('document_sections').delete().eq('id', safeId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('unassignProjectLifecycle', function (projectId) {
+      var safeId = Number(projectId || 0);
+      if (!safeId) throw new Error('Project id is required.');
+      // Delete in parallel: lifecycle (cascades to stage_status), approvals, comms drafts
+      return Promise.all([
+        sbClient.from('project_lifecycles').delete().eq('project_id', safeId),
+        sbClient.from('lifecycle_approvals').delete().eq('project_id', safeId),
+        sbClient.from('document_sections').delete().eq('project_id', safeId).eq('doc_type', 'lifecycle_comms')
+      ]).then(function (results) {
+        if (results[0].error) throw results[0].error;
+        if (results[1].error) throw results[1].error;
+        if (results[2].error) throw results[2].error;
+        return JSON.stringify({ ok: true });
+      });
+    });

@@ -1,5 +1,5 @@
     function bindEvents() {
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         bindUiOnce(btn, "main-tab-switch", "click", function () {
           switchMainTab(btn.getAttribute("data-main-tab"));
@@ -1073,13 +1073,42 @@
       if (el.marketingEntryAddButton) el.marketingEntryAddButton.addEventListener("click", addMarketingEntry);
       if (el.marketingTemplateSelector) el.marketingTemplateSelector.addEventListener("change", renderMarketingTemplateEditor);
 
+      if (el.documentTypesButton) el.documentTypesButton.addEventListener("click", openDocumentTypesModal);
+      if (el.documentTypesCloseButton) el.documentTypesCloseButton.addEventListener("click", closeDocumentTypesModal);
+      if (el.documentTypesSaveButton) el.documentTypesSaveButton.addEventListener("click", saveDocumentTypes);
+      if (el.documentTypeNewButton) el.documentTypeNewButton.addEventListener("click", newDocumentType);
+      if (el.documentTypeDeleteButton) el.documentTypeDeleteButton.addEventListener("click", deleteDocumentType);
+      if (el.documentTypeSelector) el.documentTypeSelector.addEventListener("change", renderDocumentTypeEditor);
+
+      if (el.generationPromptsButton) el.generationPromptsButton.addEventListener("click", openGenerationPromptsModal);
+      if (el.generationPromptsCloseButton) el.generationPromptsCloseButton.addEventListener("click", closeGenerationPromptsModal);
+      if (el.generationPromptsSaveButton) el.generationPromptsSaveButton.addEventListener("click", saveGenerationPrompts);
+      if (el.generationPromptNewButton) el.generationPromptNewButton.addEventListener("click", newGenerationPrompt);
+      if (el.generationPromptDeleteButton) el.generationPromptDeleteButton.addEventListener("click", deleteGenerationPrompt);
+      if (el.generationPromptChannelSelect) el.generationPromptChannelSelect.addEventListener("change", renderGenerationPromptList);
+      if (el.generationPromptDocTypeSelect) el.generationPromptDocTypeSelect.addEventListener("change", renderGenerationPromptList);
+
+      if (el.generationReviewCloseButton) el.generationReviewCloseButton.addEventListener("click", closeGenerationReview);
+      if (el.generationReviewSaveButton) el.generationReviewSaveButton.addEventListener("click", saveGenerationReview);
+      if (el.generationReviewRegenerateButton) el.generationReviewRegenerateButton.addEventListener("click", regenerateGenerationReview);
+      if (el.generationReviewLockButton) el.generationReviewLockButton.addEventListener("click", toggleGenerationReviewLock);
+      if (el.generationReviewDeleteButton) el.generationReviewDeleteButton.addEventListener("click", deleteGenerationReview);
+      if (el.marketingGenerateAllButton) el.marketingGenerateAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) generateAllForProject(p); });
+      if (el.marketingDeleteAllButton) el.marketingDeleteAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) deleteAllGeneratedContent(p.rowNumber); });
+      if (el.marketingLockAllButton) el.marketingLockAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) lockAllTasks(p, true); });
+      if (el.marketingUnlockAllButton) el.marketingUnlockAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) lockAllTasks(p, false); });
+      if (el.publishingGenerateAllButton) el.publishingGenerateAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) generateAllForProject(p); });
+      if (el.publishingDeleteAllButton) el.publishingDeleteAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) deleteAllGeneratedContent(p.rowNumber); });
+      if (el.publishingLockAllButton) el.publishingLockAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) lockAllTasks(p, true); });
+      if (el.publishingUnlockAllButton) el.publishingUnlockAllButton.addEventListener("click", function () { var p = appState.projects.find(function (x) { return Number(x.rowNumber) === Number(appState.selectedRowNumber); }); if (p) lockAllTasks(p, false); });
+
       [document.getElementById("publishingTimeline"), document.getElementById("marketingTimeline")].forEach(function (section) {
         if (!section) return;
         section.addEventListener("click", function (event) {
           var eventEl = event.target && event.target.closest(".timeline-event");
           if (!eventEl) return;
           var row = Number(eventEl.getAttribute("data-row") || 0);
-          if (row) { selectProject(row); switchMainTab("writing"); }
+          if (row) { selectProject(row); }
         });
       });
 
@@ -1345,6 +1374,14 @@
           toggleLinkSection(button.getAttribute("data-link-section"));
         });
       }
+
+      if (el.toggleProjectsTableButton) {
+        el.toggleProjectsTableButton.addEventListener("click", function () {
+          var isCollapsed = el.projectsTableWrap.classList.toggle("collapsed");
+          el.toggleProjectsTableButton.textContent = isCollapsed ? "Show Projects" : "Hide Projects";
+        });
+      }
+
       el.clearFiltersButton.addEventListener("click", clearFilters);
 
       [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
@@ -1664,6 +1701,15 @@
       if (el.planOutlineDeleteAll) {
         bindUiOnce(el.planOutlineDeleteAll, "plan-delete-all", "click", function () {
           if (typeof deleteAllPlanOutline === "function") deleteAllPlanOutline();
+        });
+      }
+      if (el.planOutlineSaveButton) {
+        bindUiOnce(el.planOutlineSaveButton, "plan-save", "click", function () {
+          if (typeof saveManager !== "undefined") {
+            saveManager.saveImmediate("planOutline", { autosave: false });
+          } else if (typeof savePlanOutline === "function") {
+            savePlanOutline();
+          }
         });
       }
 

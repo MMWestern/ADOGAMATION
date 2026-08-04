@@ -129,6 +129,46 @@ Unique constraint: `(project_id, doc_type, section_key)`
 | created_at | TIMESTAMPTZ |
 | updated_at | TIMESTAMPTZ |
 
+#### `marketing_templates`
+| Column | Type |
+|---|---|
+| id | BIGSERIAL PK |
+| name | TEXT NOT NULL UNIQUE |
+| entries | JSONB | Array of `{taskName, channel, dayOffset}` objects |
+| created_at | TIMESTAMPTZ |
+
+#### `document_types`
+| Column | Type |
+|---|---|
+| id | BIGSERIAL PK |
+| type_key | TEXT NOT NULL UNIQUE |
+| label | TEXT |
+| icon | TEXT |
+| sort_order | INTEGER |
+| created_at | TIMESTAMPTZ |
+
+#### `schedule_templates`
+| Column | Type |
+|---|---|
+| id | BIGSERIAL PK |
+| name | TEXT NOT NULL UNIQUE |
+| milestones | JSONB | Array of `{name, dayOffset}` objects |
+| created_at | TIMESTAMPTZ |
+
+#### `generation_prompts`
+| Column | Type |
+|---|---|
+| id | BIGSERIAL PK |
+| channel | TEXT | e.g. "Newsletter", "Social Media" |
+| task_name | TEXT | e.g. "Write launch email" |
+| doc_type | TEXT | references document_types.type_key |
+| prompt_template | TEXT | the user-facing prompt text |
+| system_prompt | TEXT | optional system prompt |
+| model | TEXT | model name e.g. "gpt-4o" |
+| created_at | TIMESTAMPTZ |
+
+Unique constraint: `(channel, task_name, doc_type)`
+
 #### `book_creator_pockets`
 | Column | Type |
 |---|---|
@@ -302,6 +342,50 @@ Storage bucket `project-images` uses the same pattern:
 ```sql
 CREATE POLICY "Authenticated storage access" ON storage.objects
   FOR ALL USING (bucket_id = 'project-images' AND auth.uid() IS NOT NULL);
+```
+
+#### `marketing_templates`
+```sql
+ALTER TABLE marketing_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all access to marketing_templates"
+ON marketing_templates FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+```
+
+#### `document_types`
+```sql
+ALTER TABLE document_types ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all access to document_types"
+ON document_types FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+```
+
+#### `schedule_templates`
+```sql
+ALTER TABLE schedule_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all access to schedule_templates"
+ON schedule_templates FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+```
+
+#### `generation_prompts`
+```sql
+ALTER TABLE generation_prompts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all access to generation_prompts"
+ON generation_prompts FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
 ```
 
 ---

@@ -126,6 +126,7 @@
         savedSegmentTexts: {},
         outline: null,
         outlineSnapshot: "",
+        savedOutlineChapterStates: {},
         outlineSaveTimer: 0,
         codexSaveTimer: 0,
         chapterNotes: {},
@@ -140,5 +141,24 @@
       },
       chats: [],
       activeChatId: null,
-      chatContext: null
+      chatContext: null,
+      lifecycle: {
+        lastCalculated: null,
+        currentPhase: "",
+        currentStage: "",
+        progressPct: 0,
+        blockers: [],
+        nextActions: [],
+        stageChecklist: [],
+        communicationQueue: [],
+        lifecycleId: null,
+        templateId: null,
+        templateName: "",
+        templateStages: [],
+        stageStatuses: [],
+        approvals: [],
+        isAssigned: false,
+        loading: false,
+        expandedStage: null
+      }
     };

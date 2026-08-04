@@ -1,3 +1,29 @@
+    function loadMarketingTemplates() {
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && Array.isArray(data.rows) && data.rows.length) {
+                MARKETING_TEMPLATES = {};
+                MARKETING_TEMPLATE_OPTIONS = [];
+                data.rows.forEach(function (row) {
+                  var name = String(row.name || "").trim();
+                  if (!name) return;
+                  var entries = [];
+                  try { entries = typeof row.entries === "string" ? JSON.parse(row.entries) : (row.entries || []); } catch (e) { entries = []; }
+                  MARKETING_TEMPLATES[name] = { name: name, entries: entries };
+                  MARKETING_TEMPLATE_OPTIONS.push(name);
+                });
+              }
+            } catch (err) { console.error("load marketing templates error", err); }
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseMarketingTemplatesJsonFromClient();
+      });
+    }
+
     function openMarketingTemplatesModal() {
       if (!el.marketingTemplatesModal) return;
       el.marketingTemplatesModal.classList.add("is-open");
@@ -41,10 +67,42 @@
       tmpl.entries.forEach(function (e, i) {
         var row = document.createElement("div");
         row.className = "schedule-milestone-row";
+        var generatesDoc = e.generatesDoc !== false ? 'checked' : '';
+        var docTypeVal = e.docType || '';
+        var promptKeyVal = e.promptKey || '';
+        var channelVal = e.channel || '';
+
+        var docTypeOpts = "<option value=''>—</option>";
+        if (typeof documentTypeOptions !== 'undefined' && Array.isArray(documentTypeOptions)) {
+          documentTypeOptions.forEach(function(t) {
+            var sel = t.type_key === docTypeVal ? ' selected' : '';
+            docTypeOpts += "<option value='" + t.type_key + "'" + sel + ">" + (t.icon ? t.icon + ' ' : '') + t.label + "</option>";
+          });
+        }
+
+        var channelOpts = "<option value=''>—</option>";
+        if (typeof GENERATION_CHANNELS !== 'undefined' && Array.isArray(GENERATION_CHANNELS)) {
+          GENERATION_CHANNELS.forEach(function(ch) {
+            var sel = ch === channelVal ? ' selected' : '';
+            channelOpts += "<option value='" + ch + "'" + sel + ">" + ch + "</option>";
+          });
+        }
+
+        var promptOpts = "<option value=''>—</option>";
+        if (typeof generationPromptOptions !== 'undefined' && Array.isArray(generationPromptOptions)) {
+          generationPromptOptions.forEach(function(p) {
+            var sel = p.task_name === promptKeyVal ? ' selected' : '';
+            promptOpts += "<option value='" + p.task_name + "'" + sel + ">" + p.task_name + "</option>";
+          });
+        }
+
         row.innerHTML =
-          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(e.taskName) + "' placeholder='Task name' />" +
-          "<input type='text' class='marketing-entry-channel' value='" + escapeHtml(e.channel || "") + "' placeholder='Channel' />" +
-          "<input type='number' class='schedule-milestone-offset' value='" + Number(e.dayOffset) + "' placeholder='Days' />" +
+          "<input type='checkbox' class='marketing-entry-gen-check' " + generatesDoc + " title='Generates a document' />" +
+          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(e.taskName) + "' placeholder='Task name' style='flex:2' />" +
+          "<select class='marketing-entry-channel' style='flex:1;min-width:110px'>" + channelOpts + "</select>" +
+          "<select class='marketing-entry-doc-type' style='flex:1;min-width:120px'" + (generatesDoc ? '' : ' disabled') + ">" + docTypeOpts + "</select>" +
+          "<select class='marketing-entry-prompt-key' style='flex:1.4;min-width:150px'" + (generatesDoc ? '' : ' disabled') + ">" + promptOpts + "</select>" +
+          "<input type='number' class='schedule-milestone-offset' value='" + Number(e.dayOffset) + "' placeholder='Days' style='width:50px' />" +
           "<span class='tiny' style='white-space:nowrap;'>days from publish</span>" +
           "<button type='button' class='schedule-milestone-delete' data-entry-index='" + i + "'>×</button>";
         list.appendChild(row);
@@ -59,6 +117,33 @@
           renderMarketingTemplateEditor();
         });
       });
+      Array.from(list.querySelectorAll(".marketing-entry-gen-check")).forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var row = cb.closest(".schedule-milestone-row");
+          var docTypeSel = row.querySelector(".marketing-entry-doc-type");
+          var promptSel = row.querySelector(".marketing-entry-prompt-key");
+          if (docTypeSel) docTypeSel.disabled = !cb.checked;
+          if (promptSel) promptSel.disabled = !cb.checked;
+        });
+      });
+      Array.from(list.querySelectorAll(".marketing-entry-channel")).forEach(function (inp) {
+        inp._lastChannel = inp.value.trim();
+        inp.addEventListener("change", function () {
+          var channel = inp.value.trim();
+          if (channel === inp._lastChannel) return;
+          inp._lastChannel = channel;
+          var row = inp.closest(".schedule-milestone-row");
+          var promptSel = row.querySelector(".marketing-entry-prompt-key");
+          if (!promptSel) return;
+          var opts = "<option value=''>—</option>";
+          if (typeof generationPromptOptions !== 'undefined' && Array.isArray(generationPromptOptions)) {
+            generationPromptOptions.forEach(function(p) {
+              opts += "<option value='" + p.task_name + "'>" + p.task_name + "</option>";
+            });
+          }
+          promptSel.innerHTML = opts;
+        });
+      });
     }
 
     function addMarketingEntry() {
@@ -66,7 +151,7 @@
       var tmpl = MARKETING_TEMPLATES[name];
       if (!tmpl) return;
       var lastOffset = tmpl.entries.length ? tmpl.entries[tmpl.entries.length - 1].dayOffset : 0;
-      tmpl.entries.push({ taskName: "", channel: "", dayOffset: lastOffset + 7 });
+      tmpl.entries.push({ taskName: "", channel: "", dayOffset: lastOffset + 7, generatesDoc: false, docType: '', promptKey: '' });
       renderMarketingTemplateEditor();
       var rows = el.marketingEntryList.querySelectorAll(".schedule-milestone-row");
       if (rows.length) {
@@ -94,13 +179,24 @@
         var nameInput = row.querySelector(".schedule-milestone-name");
         var channelInput = row.querySelector(".marketing-entry-channel");
         var offsetInput = row.querySelector(".schedule-milestone-offset");
+        var docTypeSelect = row.querySelector(".marketing-entry-doc-type");
+        var promptKeySelect = row.querySelector(".marketing-entry-prompt-key");
+        var genCheck = row.querySelector(".marketing-entry-gen-check");
         return {
           taskName: nameInput ? nameInput.value.trim() : "",
           channel: channelInput ? channelInput.value.trim() : "",
-          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0
+          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0,
+          generatesDoc: genCheck ? genCheck.checked : false,
+          docType: docTypeSelect ? docTypeSelect.value.trim() : "",
+          promptKey: promptKeySelect ? promptKeySelect.value.trim() : ""
         };
       }).filter(function (e) { return !!e.taskName; });
       renderMarketingTemplateSelector();
+      if (typeof refreshMarketingTemplateOptions === "function") refreshMarketingTemplateOptions();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to save to Supabase: " + (error && error.message || error), "error"); })
+        .saveSupabaseMarketingTemplatesJsonFromClient(JSON.stringify(MARKETING_TEMPLATES));
       setStatus("Marketing templates saved.", "ok");
     }
 
@@ -112,6 +208,11 @@
       var idx = MARKETING_TEMPLATE_OPTIONS.indexOf(name);
       if (idx !== -1) MARKETING_TEMPLATE_OPTIONS.splice(idx, 1);
       renderMarketingTemplateSelector();
+      if (typeof refreshMarketingTemplateOptions === "function") refreshMarketingTemplateOptions();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to delete from Supabase: " + (error && error.message || error), "error"); })
+        .deleteSupabaseMarketingTemplateJsonFromClient(name);
       setStatus("Template deleted.", "ok");
     }
 

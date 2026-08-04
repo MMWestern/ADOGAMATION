@@ -1,0 +1,141 @@
+    function loadGenerationPrompts() {
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && Array.isArray(data.rows) && data.rows.length) {
+                generationPromptOptions = data.rows.map(function (r) {
+                  return {
+                    channel: r.channel || '',
+                    task_name: r.task_name || '',
+                    doc_type: r.doc_type || '',
+                    system_prompt: r.system_prompt || '',
+                    prompt_template: r.prompt_template || '',
+                    model: r.model || 'gpt-4o'
+                  };
+                });
+              }
+            } catch (err) { console.error("load generation prompts error", err); }
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseGenerationPromptsJsonFromClient();
+      });
+    }
+
+    function openGenerationPromptsModal() {
+      if (!el.generationPromptsModal) return;
+      el.generationPromptsModal.classList.add("is-open");
+      el.generationPromptsModal.setAttribute("aria-hidden", "false");
+      renderGenerationPromptChannelSelect();
+      renderGenerationPromptDocTypeSelect();
+      renderGenerationPromptList();
+    }
+
+    function closeGenerationPromptsModal() {
+      if (!el.generationPromptsModal) return;
+      el.generationPromptsModal.classList.remove("is-open");
+      el.generationPromptsModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderGenerationPromptChannelSelect() {
+      var sel = el.generationPromptChannelSelect;
+      if (!sel) return;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">All Channels</option>';
+      GENERATION_CHANNELS.forEach(function (ch) { sel.appendChild(createOption(ch)); });
+      sel.value = GENERATION_CHANNELS.indexOf(cur) !== -1 ? cur : "";
+    }
+
+    function renderGenerationPromptDocTypeSelect() {
+      var sel = el.generationPromptDocTypeSelect;
+      if (!sel) return;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">All Types</option>';
+      documentTypeOptions.forEach(function (t) { sel.appendChild(createOption(t.type_key, (t.icon ? t.icon + " " : "") + t.label)); });
+      sel.value = documentTypeOptions.some(function (t) { return t.type_key === cur; }) ? cur : "";
+    }
+
+    function getFilteredPrompts() {
+      var ch = el.generationPromptChannelSelect ? el.generationPromptChannelSelect.value : "";
+      var dt = el.generationPromptDocTypeSelect ? el.generationPromptDocTypeSelect.value : "";
+      return generationPromptOptions.filter(function (p) {
+        return (!ch || p.channel === ch) && (!dt || p.doc_type === dt);
+      });
+    }
+
+    function renderGenerationPromptList() {
+      var list = el.generationPromptList;
+      if (!list) return;
+      var filtered = getFilteredPrompts();
+      list.innerHTML = "";
+      filtered.forEach(function (p) {
+        var docTypeInfo = documentTypeOptions.find(function (t) { return t.type_key === p.doc_type; });
+        var docLabel = docTypeInfo ? (docTypeInfo.icon ? docTypeInfo.icon + " " + docTypeInfo.label : docTypeInfo.label) : (p.doc_type || "—");
+        var row = document.createElement("div");
+        row.className = "schedule-milestone-row";
+        row.style.cursor = "pointer";
+        row.innerHTML =
+          "<div style='min-width:0'>" +
+            "<div style='font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + escapeHtml(p.task_name || "") + "</div>" +
+            "<div class='tiny muted'>" + escapeHtml(p.channel || "") + " &rsaquo; " + escapeHtml(docLabel) + "</div>" +
+          "</div>";
+        row.addEventListener("click", function () {
+          if (el.generationPromptSystemInput) el.generationPromptSystemInput.value = p.system_prompt || "";
+          if (el.generationPromptTemplateInput) el.generationPromptTemplateInput.value = p.prompt_template || "";
+          if (el.generationPromptModelInput) el.generationPromptModelInput.value = p.model || "gpt-4o";
+          if (el.generationPromptChannelSelect) el.generationPromptChannelSelect.value = p.channel || "";
+          if (el.generationPromptDocTypeSelect) el.generationPromptDocTypeSelect.value = p.doc_type || "";
+          row._p = p;
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function newGenerationPrompt() {
+      var ch = el.generationPromptChannelSelect && el.generationPromptChannelSelect.value ? el.generationPromptChannelSelect.value : GENERATION_CHANNELS[0] || "";
+      var dt = el.generationPromptDocTypeSelect && el.generationPromptDocTypeSelect.value ? el.generationPromptDocTypeSelect.value : "";
+      var task = "New " + (ch || "Task");
+      generationPromptOptions.push({ channel: ch, task_name: task, doc_type: dt, system_prompt: "", prompt_template: "", model: "gpt-4o" });
+      renderGenerationPromptList();
+      if (el.generationPromptSystemInput) el.generationPromptSystemInput.value = "";
+      if (el.generationPromptTemplateInput) el.generationPromptTemplateInput.value = "";
+      if (el.generationPromptModelInput) el.generationPromptModelInput.value = "gpt-4o";
+    }
+
+    function deleteGenerationPrompt() {
+      var filtered = getFilteredPrompts();
+      if (!filtered.length) return;
+      var last = filtered[filtered.length - 1];
+      generationPromptOptions = generationPromptOptions.filter(function (p) {
+        return !(p.channel === last.channel && p.task_name === last.task_name && p.doc_type === last.doc_type);
+      });
+      renderGenerationPromptList();
+    }
+
+    function saveGenerationPrompts() {
+      var ch = el.generationPromptChannelSelect ? el.generationPromptChannelSelect.value : GENERATION_CHANNELS[0] || "";
+      var dt = el.generationPromptDocTypeSelect ? el.generationPromptDocTypeSelect.value : "";
+      var task = "New Task";
+      var sp = el.generationPromptSystemInput ? el.generationPromptSystemInput.value.trim() : "";
+      var pt = el.generationPromptTemplateInput ? el.generationPromptTemplateInput.value.trim() : "";
+      var model = el.generationPromptModelInput ? el.generationPromptModelInput.value.trim() : "gpt-4o";
+      if (!pt) { setStatus("Prompt template is required.", "error"); return; }
+      var exists = generationPromptOptions.some(function (p) { return p.channel === ch && p.task_name === task && p.doc_type === dt; });
+      if (!exists) {
+        generationPromptOptions.push({ channel: ch, task_name: task, doc_type: dt, system_prompt: sp, prompt_template: pt, model: model });
+      } else {
+        generationPromptOptions.forEach(function (p) {
+          if (p.channel === ch && p.task_name === task && p.doc_type === dt) {
+            p.system_prompt = sp; p.prompt_template = pt; p.model = model;
+          }
+        });
+      }
+      renderGenerationPromptList();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to save: " + (error && error.message || error), "error"); })
+        .saveSupabaseGenerationPromptsJsonFromClient(JSON.stringify(generationPromptOptions));
+      setStatus("Prompts saved.", "ok");
+    }

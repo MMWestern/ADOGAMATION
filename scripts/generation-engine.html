@@ -1,0 +1,274 @@
+    var _generationContentCache = {};
+
+    function loadGenerationContent(projectId, docType) {
+      return new Promise(function (resolve) {
+        if (!projectId || !docType) { resolve({}); return; }
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && data.content) {
+                var key = projectId + ":" + docType;
+                _generationContentCache[key] = data.content;
+              }
+            } catch (err) { console.error("load generation content error", err); }
+            resolve(_generationContentCache[projectId + ":" + docType] || {});
+          })
+          .withFailureHandler(function () { resolve({}); })
+          .getSupabaseGenerationContentJsonFromClient(projectId, docType);
+      });
+    }
+
+    function getGeneratedContent(projectId, docType, sectionKey) {
+      var key = projectId + ":" + docType;
+      var cache = _generationContentCache[key] || {};
+      return cache[sectionKey] || "";
+    }
+
+    function renderPromptTemplate(template, project, taskName) {
+      return (template || "")
+        .replace(/\{taskName\}/g, taskName || "")
+        .replace(/\{title\}/g, project.title || "Untitled")
+        .replace(/\{genre\}/g, project.genre || "Fiction")
+        .replace(/\{summary\}/g, project.short_summary || "No summary available.")
+        .replace(/\{publish_date\}/g, project.publish_date || "TBD")
+        .replace(/\{pen_name\}/g, project.pen_name || "The author")
+        .replace(/\{series\}/g, project.series || "")
+        .replace(/\{status\}/g, project.status || "Unknown");
+    }
+
+    function generateTaskContent(project, task, docType, promptKey) {
+      return new Promise(function (resolve, reject) {
+        if (!project || !task) { reject(new Error("No project or task.")); return; }
+        var sectionKey = task.name || task.milestoneName || "";
+        if (!sectionKey) { reject(new Error("Task has no name.")); return; }
+        var promptDef = null;
+        if (promptKey) {
+          promptDef = generationPromptOptions.find(function (p) { return p.task_name === promptKey; });
+        }
+        if (!promptDef) {
+          promptDef = generationPromptOptions.find(function (p) { return p.task_name === sectionKey; });
+        }
+        if (!promptDef) {
+          promptDef = {
+            system_prompt: "You are a book marketing assistant. Write clear, engaging marketing content.",
+            prompt_template: "Write marketing content for this task:\n\nTask: " + sectionKey + "\nTitle: {title}\nGenre: {genre}\nSummary: {summary}\nPublish Date: {publish_date}\nPen Name: {pen_name}\n\nWrite appropriate content for this task."
+          };
+        }
+        var systemPrompt = promptDef.system_prompt || "You are a helpful writing assistant.";
+        var userPrompt = renderPromptTemplate(promptDef.prompt_template, project, sectionKey);
+        var aiSettings = {};
+        try { aiSettings = JSON.parse(localStorage.getItem("writing_dashboard_ai_settings_v1") || "{}"); } catch (e) {}
+        var provider = aiSettings.provider || "openrouter";
+        var model = promptDef.model || "";
+        if (!model) {
+          if (provider === "openrouter") model = (aiSettings.openrouter || {}).model || "gpt-4o";
+          else if (provider === "lmstudio") model = (aiSettings.lmstudio || {}).model || "";
+          else if (provider === "ollama") model = (aiSettings.ollama || {}).model || "";
+          else model = "gpt-4o";
+        }
+        var aiPayload = JSON.stringify({
+          provider: provider,
+          request: { system: systemPrompt, prompt: userPrompt, model: model, temperature: 0.7, maxTokens: 2000 }
+        });
+        setStatus("Generating: " + sectionKey + "...", "warn");
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (result.ok && result.text) {
+                var content = result.text;
+                supabaseRunner
+                  .withSuccessHandler(function () {
+                    var key = project.rowNumber + ":" + docType;
+                    if (!_generationContentCache[key]) _generationContentCache[key] = {};
+                    _generationContentCache[key][sectionKey] = content;
+                    setStatus("Generated: " + sectionKey, "ok");
+                    resolve(content);
+                  })
+                  .withFailureHandler(function (err) { reject(err); })
+                  .saveSupabaseProjectSectionDocumentJsonFromClient(
+                    project.rowNumber, docType, sectionKey,
+                    JSON.stringify([{ sectionKey: sectionKey, key: sectionKey, title: sectionKey, text: content, sortOrder: 0 }])
+                  );
+              } else {
+                reject(new Error(result.error || "AI returned no content."));
+              }
+            } catch (err) { reject(err); }
+          })
+          .withFailureHandler(function (err) { reject(err); })
+          .callAICompletionJsonFromClient(aiPayload);
+      });
+    }
+
+    function generateAllTasks(project, tasks, docType) {
+      if (!project || !Array.isArray(tasks) || !tasks.length) return Promise.resolve(0);
+      var generatable = tasks.filter(function (t) {
+        return t.generatesDoc && !t.locked && !getGeneratedContent(project.rowNumber, docType, t.name);
+      });
+      if (!generatable.length) {
+        setStatus("No tasks to generate (all locked or already generated).", "warn");
+        return Promise.resolve(0);
+      }
+      var count = 0;
+      var total = generatable.length;
+      setStatus("Generating " + total + " items...", "warn");
+      return generatable.reduce(function (chain, task) {
+        return chain.then(function () {
+          return generateTaskContent(project, task, docType, task.promptKey).then(function () {
+            count++;
+            setStatus("Generated " + count + "/" + total + ": " + task.name, "warn");
+          }).catch(function (err) {
+            console.error("Generate failed for " + task.name + ":", err);
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        setStatus("Bulk generation complete: " + count + "/" + total, "ok");
+        renderTimeline();
+        return count;
+      });
+    }
+
+    function toggleTaskLock(project, task, docType) {
+      task.locked = !task.locked;
+      scheduleAutosave();
+      renderTimeline();
+      setStatus(task.name + (task.locked ? " locked" : " unlocked"), "ok");
+    }
+
+    function lockAllTasks(project, locked) {
+      if (!project) { setStatus("Select a project first.", "warn"); return; }
+      var count = 0;
+      (project.campaigns || []).forEach(function (c) {
+        (c.tasks || []).forEach(function (t) {
+          if (t.generatesDoc) { t.locked = locked; count++; }
+        });
+      });
+      (project.schedule_milestones || []).forEach(function (m) {
+        if (m.generatesDoc) { m.locked = locked; count++; }
+      });
+      if (!count) { setStatus("No generatable items found.", "warn"); return; }
+      try {
+        sbClient.from('projects').update({ campaigns: JSON.stringify(project.campaigns || []), schedule_milestones: JSON.stringify(project.schedule_milestones || []) }).eq('id', project.rowNumber).then(function () {}).catch(function () {});
+      } catch (e) {}
+      renderTimeline();
+      setStatus((locked ? "Locked" : "Unlocked") + " " + count + " items.", "ok");
+    }
+
+    function deleteGeneratedContent(projectId, docType, sectionKey) {
+      var key = projectId + ":" + docType;
+      if (_generationContentCache[key]) {
+        delete _generationContentCache[key][sectionKey];
+      }
+      supabaseRunner
+        .withSuccessHandler(function () { setStatus("Deleted: " + sectionKey, "ok"); renderTimeline(); })
+        .withFailureHandler(function (err) { setStatus("Delete failed: " + (err.message || err), "error"); })
+        .deleteSupabaseProjectSectionsByKeysFromClient(projectId, docType, JSON.stringify([sectionKey]));
+    }
+
+    function deleteAllGeneratedContent(projectId) {
+      var keys = Object.keys(_generationContentCache).filter(function (k) { return k.indexOf(projectId + ":") === 0; });
+      if (!keys.length) { setStatus("No generated content to delete.", "warn"); return; }
+      var totalDeleted = 0;
+      keys.forEach(function (key) {
+        var docType = key.split(":")[1];
+        var sectionKeys = Object.keys(_generationContentCache[key] || {});
+        if (!sectionKeys.length) return;
+        totalDeleted += sectionKeys.length;
+        delete _generationContentCache[key];
+        supabaseRunner
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function () {})
+          .deleteSupabaseProjectSectionsByKeysFromClient(projectId, docType, JSON.stringify(sectionKeys));
+      });
+      setStatus("Deleted " + totalDeleted + " generated items.", "ok");
+      renderTimeline();
+    }
+
+    function generateAllForProject(project) {
+      if (!project) { setStatus("Select a project first.", "warn"); return; }
+      var allTasks = [];
+      (project.campaigns || []).forEach(function (c) {
+        (c.tasks || []).forEach(function (t) {
+          if (t.generatesDoc) allTasks.push({ task: t, docType: t.docType || "marketing_gen" });
+        });
+      });
+      (project.schedule_milestones || []).forEach(function (m) {
+        if (m.generatesDoc) allTasks.push({ task: m, docType: m.docType || "schedule_gen" });
+      });
+      if (!allTasks.length) { setStatus("No generatable items found.", "warn"); return; }
+      var generatable = allTasks.filter(function (item) {
+        return !item.task.locked && !getGeneratedContent(project.rowNumber, item.docType, item.task.name);
+      });
+      if (!generatable.length) { setStatus("All items already generated or locked.", "warn"); return; }
+      var count = 0;
+      var failed = 0;
+      var total = generatable.length;
+      setStatus("Generating " + total + " items...", "warn");
+
+      var progressEls = document.querySelectorAll(".landing-section-heading");
+      var progressEl = null;
+      progressEls.forEach(function (el) {
+        if (el.textContent.indexOf("Marketing Timeline") !== -1 || el.textContent.indexOf("Publication Timeline") !== -1) {
+          var existing = el.querySelector(".gen-progress");
+          if (!existing) {
+            progressEl = document.createElement("span");
+            progressEl.className = "gen-progress";
+            progressEl.style.cssText = "margin-left:8px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#3b82f6;color:#fff;";
+            el.appendChild(progressEl);
+          } else {
+            progressEl = existing;
+          }
+        }
+      });
+      if (progressEl) progressEl.textContent = "0/" + total;
+
+      generatable.reduce(function (chain, item) {
+        return chain.then(function () {
+          var pill = null;
+          document.querySelectorAll(".timeline-gen-pill").forEach(function (p) {
+            if (p.getAttribute("data-section-key") === item.task.name && p.getAttribute("data-project-id") === String(project.rowNumber)) pill = p;
+          });
+          if (pill) { pill.textContent = "Generating..."; pill.disabled = true; pill.classList.add("is-generating-pill"); }
+          return generateTaskContent(project, item.task, item.docType, item.task.promptKey).then(function () {
+            count++;
+            if (progressEl) progressEl.textContent = count + "/" + total;
+            if (pill) { pill.textContent = "Done ✓"; pill.className = "timeline-gen-pill generated"; pill.disabled = false; }
+            setStatus("Generated " + count + "/" + total + (failed ? " (" + failed + " failed)" : "") + ": " + item.task.name, "warn");
+          }).catch(function (err) {
+            failed++;
+            if (progressEl) progressEl.textContent = count + "/" + total + " (" + failed + " failed)";
+            if (pill) { pill.textContent = "Failed"; pill.classList.remove("is-generating-pill"); pill.disabled = false; }
+            console.error("Generate failed for " + item.task.name + ":", err);
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        if (progressEl) {
+          progressEl.textContent = count + "/" + total + " done" + (failed ? ", " + failed + " failed" : "");
+          progressEl.style.background = failed ? "#ef4444" : "#22c55e";
+          setTimeout(function () { if (progressEl && progressEl.parentNode) progressEl.parentNode.removeChild(progressEl); }, 3000);
+        }
+        setStatus("Bulk generation complete: " + count + "/" + total + (failed ? ", " + failed + " failed" : ""), failed ? "error" : "ok");
+        renderTimeline();
+      });
+    }
+
+    function preloadGenerationContent() {
+      var pairs = {};
+      (appState.projects || []).forEach(function (p) {
+        (p.campaigns || []).forEach(function (c) {
+          (c.tasks || []).forEach(function (t) {
+            if (t.generatesDoc && t.docType) pairs[p.rowNumber + ":" + t.docType] = true;
+          });
+        });
+        (p.schedule_milestones || []).forEach(function (m) {
+          if (m.generatesDoc && m.docType) pairs[p.rowNumber + ":" + m.docType] = true;
+        });
+      });
+      var keys = Object.keys(pairs);
+      if (!keys.length) return Promise.resolve();
+      return Promise.all(keys.map(function (k) {
+        var parts = k.split(":");
+        return loadGenerationContent(parts[0], parts[1]);
+      }));
+    }

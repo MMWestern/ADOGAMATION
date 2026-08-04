@@ -54,7 +54,11 @@
           name: m.name,
           dayOffset: offset,
           date: d.toISOString().split("T")[0],
-          completed: false
+          completed: false,
+          generatesDoc: !!m.generatesDoc,
+          docType: m.docType || '',
+          promptKey: m.promptKey || '',
+          locked: false
         };
       });
     }
@@ -619,6 +623,15 @@
         el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(curMkt) !== -1 ? curMkt : "";
       }
 
+      if (el.detailScheduleTemplate) {
+        var curSched = el.detailScheduleTemplate.value;
+        el.detailScheduleTemplate.innerHTML = "";
+        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
+          el.detailScheduleTemplate.appendChild(createOption(name));
+        });
+        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(curSched) !== -1 ? curSched : getDefaultScheduleTemplateName();
+      }
+
       var activeSeries = {};
       var activeProjectRows = {};
       appState.projects.forEach(function (p) {
@@ -641,6 +654,28 @@
       });
 
       populateTimelineProjectFilter();
+    }
+
+    function refreshMarketingTemplateOptions() {
+      if (el.detailMarketingTemplate) {
+        var curMkt = el.detailMarketingTemplate.value;
+        el.detailMarketingTemplate.innerHTML = "<option value=''>— None —</option>";
+        MARKETING_TEMPLATE_OPTIONS.forEach(function (name) {
+          el.detailMarketingTemplate.appendChild(createOption(name));
+        });
+        el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(curMkt) !== -1 ? curMkt : "";
+      }
+    }
+
+    function refreshScheduleTemplateOptions() {
+      if (el.detailScheduleTemplate) {
+        var curSched = el.detailScheduleTemplate.value;
+        el.detailScheduleTemplate.innerHTML = "";
+        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
+          el.detailScheduleTemplate.appendChild(createOption(name));
+        });
+        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(curSched) !== -1 ? curSched : getDefaultScheduleTemplateName();
+      }
     }
 
     function populateTimelineProjectFilter() {
@@ -3014,6 +3049,9 @@
           restoreCodexLastSelection(seriesId);
         });
       }
+      if (activeMainTab === "lifecycle" && typeof renderLifecycleDashboard === "function") {
+        renderLifecycleDashboard();
+      }
       if (activeMainTab === "workspace" && !isSameProject) {
         openWritingWorkspace();
       }
@@ -4796,6 +4834,7 @@
           }
           getPlanOutline();
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
+          snapshotOutlineChapterStates();
           populatePlanTextareas();
           var syncedSections = syncOutlineChaptersToSections(sections, project);
           if (syncedSections.length !== sections.length) {
@@ -5380,6 +5419,17 @@
       if (el.planWorldBuildEditor) outline.worldBuilding = String(el.planWorldBuildEditor.value || "").trim();
     }
 
+    function snapshotOutlineChapterStates() {
+      var states = {};
+      var outline = appState.writingWorkspace.outline || {};
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (chapter) {
+          if (chapter.id) states[chapter.id] = JSON.stringify(chapter);
+        });
+      });
+      appState.writingWorkspace.savedOutlineChapterStates = states;
+    }
+
     function savePlanOutline() {
       var project = getSelectedProject();
       if (!project || !Number(project.project_id || 0)) return Promise.resolve(null);
@@ -5394,6 +5444,11 @@
         snapshot
       ]).then(function () {
         appState.writingWorkspace.outlineSnapshot = snapshot;
+        snapshotOutlineChapterStates();
+        if (typeof updateAllPlanChapterDots === "function") updateAllPlanChapterDots();
+        appState.writingWorkspace.lastSavedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        if (typeof refreshWritingWorkspaceSaveState === "function") refreshWritingWorkspaceSaveState();
+        if (typeof updateSidebarSaveBadge === "function") updateSidebarSaveBadge();
         var ot = String(project && project.title || "").trim();
         setStatus("Plan outline saved" + (ot ? ": " + ot : "") + ".", "ok");
         return true;
@@ -6126,16 +6181,14 @@
 
     function renderLandingDashboard() {
       renderLandingHeroStats();
-      renderLandingTaskList(el.landingTodayList, getDashboardTopTasks(appState.filteredProjects.length ? appState.filteredProjects : appState.projects), "Nothing urgent is queued right now.");
-      renderLandingTaskList(el.landingWritingList, appState.projects.filter(function (project) { return isStatusInGroup(project, DASHBOARD_WRITING_STATUSES); }), "No books are currently in active writing or editing.");
-      renderLandingTaskList(el.landingDevelopmentList, appState.projects.filter(function (project) { return isStatusInGroup(project, DASHBOARD_DEVELOPMENT_STATUSES); }), "No projects are sitting in concept or planning.");
+
       renderLandingSeriesDeck();
       renderLandingSelectedProject();
     }
 
     function switchMainTab(tabName) {
       var safeTab = String(tabName || "writing").trim().toLowerCase();
-      if (["writing", "plan", "workspace", "publishing", "marketing", "resources", "codex", "chat"].indexOf(safeTab) === -1) safeTab = "writing";
+      if (["writing", "lifecycle", "plan", "workspace", "publishing", "marketing", "resources", "codex", "chat"].indexOf(safeTab) === -1) safeTab = "writing";
       refreshWorkspaceTabDisabledState();
       if (safeTab === "workspace" && el.mainTabWorkspace && el.mainTabWorkspace.classList.contains("is-disabled")) {
         safeTab = "plan";
@@ -6143,11 +6196,11 @@
       activeMainTab = safeTab;
       if (!appState.hubState) appState.hubState = {};
       appState.hubState.studioLastTab = safeTab;
-      [el.mainTabWriting, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         btn.classList.toggle("is-active", btn.getAttribute("data-main-tab") === safeTab);
       });
-      [el.mainTabContentWriting, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex, el.mainTabContentChat].forEach(function (content) {
+      [el.mainTabContentWriting, el.mainTabContentLifecycle, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex, el.mainTabContentChat].forEach(function (content) {
         if (!content) return;
         content.hidden = content.id !== "mainTabContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
         if (!content.hidden) content.scrollTop = 0;
@@ -6249,6 +6302,9 @@
           renderCodexDashboard(codexSeriesId);
           restoreCodexLastSelection(codexSeriesId);
         });
+      }
+      if (safeTab === "lifecycle" && typeof renderLifecycleDashboard === "function") {
+        renderLifecycleDashboard();
       }
     }
 
@@ -7844,7 +7900,11 @@
             type: m.name === "PUBLISH" ? "release" : "milestone",
             projectRow: p.rowNumber,
             completed: !!m.completed,
-            ghost: ghostMode && !matchesFilter
+            ghost: ghostMode && !matchesFilter,
+            generatesDoc: !!m.generatesDoc,
+            docType: m.docType || 'schedule_gen',
+            locked: !!m.locked,
+            taskRef: m
           });
         });
         var campaigns = Array.isArray(p.campaigns) ? p.campaigns : [];
@@ -7874,7 +7934,11 @@
               type: "task",
               projectRow: p.rowNumber,
               completed: t.status === "done",
-              ghost: ghostMode && !matchesFilter
+              ghost: ghostMode && !matchesFilter,
+              generatesDoc: !!t.generatesDoc,
+              docType: t.docType || '',
+              locked: !!t.locked,
+              taskRef: t
             });
           });
         });
@@ -7895,18 +7959,51 @@
         var year = parts[0], month = parts[1];
         var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         var label = monthNames[Number(month) - 1] + " " + year;
+        var lastDay = "";
         var eventsHtml = grouped[mk].map(function (e) {
           var cls = "timeline-event is-" + e.type + (e.completed ? " is-completed" : "") + (e.ghost ? " is-ghost" : "");
           var day = e.date.slice(8);
+          var showDay = day !== lastDay;
+          lastDay = day;
           if (e.ghost) {
             return "<div class='" + cls + "' data-row='" + e.projectRow + "'>" +
               "<div class='timeline-event-ghost-line'>" + escapeHtml(e.milestoneName) + " - " + escapeHtml(e.projectTitle) + " - " + day + " " + label + "</div>" +
             "</div>";
           }
-          return "<div class='" + cls + "' data-row='" + e.projectRow + "'>" +
-            "<div class='timeline-event-title'>" + escapeHtml(e.milestoneName) + "</div>" +
-            "<div class='timeline-event-date'>" + escapeHtml(e.projectTitle) + " — " + day + " " + label + "</div>" +
-          "</div>";
+          var genPill = "";
+          if (e.generatesDoc) {
+            var hasContent = !!getGeneratedContent(e.projectRow, e.docType, e.milestoneName.replace(/^Task: /, ""));
+            if (e.locked) {
+              genPill = "<button class='timeline-gen-pill locked' data-project-id='" + e.projectRow + "' data-section-key='" + escapeHtml(e.milestoneName.replace(/^Task: /, "")) + "' data-doc-type='" + escapeHtml(e.docType) + "'>Locked</button>";
+            } else if (hasContent) {
+              genPill = "<button class='timeline-gen-pill generated' data-project-id='" + e.projectRow + "' data-section-key='" + escapeHtml(e.milestoneName.replace(/^Task: /, "")) + "' data-doc-type='" + escapeHtml(e.docType) + "'>Review</button>";
+            } else {
+              genPill = "<button class='timeline-gen-pill' data-project-id='" + e.projectRow + "' data-section-key='" + escapeHtml(e.milestoneName.replace(/^Task: /, "")) + "' data-doc-type='" + escapeHtml(e.docType) + "'>Generate</button>";
+            }
+          }
+          if (showDay) {
+            var d = new Date(e.date + "T00:00:00");
+            var dayNames = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+            var dayName = dayNames[d.getDay()];
+            return "<div class='" + cls + "' data-row='" + e.projectRow + "'>" +
+              "<div class='timeline-event-day'>" +
+                "<div class='timeline-event-dayname'>" + dayName + "</div>" +
+                "<div>" + day + "</div>" +
+              "</div>" +
+              "<div class='timeline-event-body'>" +
+                "<div class='timeline-event-title'><span class='timeline-event-title-text'>" + escapeHtml(e.milestoneName) + "</span>" + genPill + "</div>" +
+                "<div class='timeline-event-date'>" + escapeHtml(e.projectTitle) + " — " + label + "</div>" +
+              "</div>" +
+            "</div>";
+          } else {
+            return "<div class='" + cls + " timeline-event-continuation' data-row='" + e.projectRow + "'>" +
+              "<div class='timeline-event-day' style='opacity:0.12'>" + day + "</div>" +
+              "<div class='timeline-event-body'>" +
+                "<div class='timeline-event-title'><span class='timeline-event-title-text'>" + escapeHtml(e.milestoneName) + "</span>" + genPill + "</div>" +
+                "<div class='timeline-event-date'>" + escapeHtml(e.projectTitle) + " — " + label + "</div>" +
+              "</div>" +
+            "</div>";
+          }
         }).join("");
         return "<div class='timeline-month-card' data-month='" + mk + "'>" +
           "<div class='timeline-month-label'>" + escapeHtml(label) + "</div>" +
@@ -7916,6 +8013,44 @@
 
       [document.querySelector("#publishingTimeline .timeline-card-list"), document.querySelector("#marketingTimeline .timeline-card-list")].forEach(function (list) {
         if (list) list.innerHTML = html || "<div class='landing-empty'>No scheduled events yet. Change a project status to Publish Ready to generate a timeline.</div>";
+        if (!list) return;
+        list.querySelectorAll(".timeline-gen-pill").forEach(function (pill) {
+          pill.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var projectId = pill.getAttribute("data-project-id");
+            var sectionKey = pill.getAttribute("data-section-key");
+            var docType = pill.getAttribute("data-doc-type");
+            var content = getGeneratedContent(projectId, docType, sectionKey);
+            if (content || pill.classList.contains("locked")) {
+              openGenerationReview(projectId, sectionKey, docType);
+            } else {
+              var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(projectId); });
+              var task = null;
+              var actualDocType = docType;
+              if (project) {
+                (project.campaigns || []).forEach(function (c) {
+                  (c.tasks || []).forEach(function (t) { if (t.name === sectionKey) { task = t; actualDocType = actualDocType || "marketing_gen"; } });
+                });
+                (project.schedule_milestones || []).forEach(function (m) { if (m.name === sectionKey) { task = m; actualDocType = actualDocType || "schedule_gen"; } });
+              }
+              if (project && task) {
+                pill.textContent = "Generating...";
+                pill.disabled = true;
+                pill.classList.add("is-generating-pill");
+                generateTaskContent(project, task, actualDocType, task.promptKey).then(function () {
+                  renderTimeline();
+                }).catch(function (err) {
+                  setStatus("Generation failed: " + (err.message || err), "error");
+                  pill.textContent = "Generate";
+                  pill.disabled = false;
+                  pill.classList.remove("is-generating-pill");
+                });
+              } else {
+                setStatus("Could not find task: " + sectionKey, "error");
+              }
+            }
+          });
+        });
       });
     }
 
@@ -8130,6 +8265,7 @@
       if (!stillVisible && appState.filteredProjects.length) {
         selectProject(appState.filteredProjects[0].rowNumber, { syncSeriesFilter: false });
       }
+
     }
 
     function collectDetailFormData(options) {
@@ -8487,7 +8623,7 @@
           var tasks = mktTmpl.entries.map(function (e) {
             var d = new Date(pubDate);
             d.setDate(d.getDate() + e.dayOffset);
-            return { name: e.taskName, dueDate: d.toISOString().split("T")[0], status: "pending" };
+            return { name: e.taskName, dueDate: d.toISOString().split("T")[0], status: "pending", generatesDoc: !!e.generatesDoc, docType: e.docType || '', promptKey: e.promptKey || '', locked: false };
           });
           if (existingCampaign) {
             existingCampaign.tasks = tasks;
@@ -8542,10 +8678,20 @@
           .map(function (v) { return String(v || "").trim(); })
           .filter(function (v) { return !!v; });
 
-        populateFilters();
-        populateImagePickerMetaDatalists();
-        loadInspectorOptions();
-        applyFilters();
+        loadDocumentTypes().then(function () {
+          return loadGenerationPrompts();
+        }).then(function () {
+          return loadMarketingTemplates();
+        }).then(function () {
+          return loadScheduleTemplates();
+        }).then(function () {
+          return preloadGenerationContent();
+        }).then(function () {
+          populateFilters();
+          populateImagePickerMetaDatalists();
+          loadInspectorOptions();
+          applyFilters();
+        });
 
         if (appState.projects.length) {
           selectProject(appState.projects[0].rowNumber, { syncSeriesFilter: false });
@@ -8599,6 +8745,16 @@
               : [];
 
             loadSeriesMeta().then(function () {
+              return loadDocumentTypes();
+            }).then(function () {
+              return loadGenerationPrompts();
+            }).then(function () {
+              return loadMarketingTemplates();
+            }).then(function () {
+              return loadScheduleTemplates();
+            }).then(function () {
+              return preloadGenerationContent();
+            }).then(function () {
               persistProjectsToCache();
               populateFilters();
               populateImagePickerMetaDatalists();
@@ -9294,7 +9450,19 @@
 
     <?!= include('scripts/marketing-templates'); ?>
 
+    <?!= include('scripts/document-types'); ?>
+
+    <?!= include('scripts/generation-prompts'); ?>
+
+    <?!= include('scripts/generation-engine'); ?>
+
+    <?!= include('scripts/generation-review'); ?>
+
     <?!= include('scripts/campaigns'); ?>
+
+    <?!= include('scripts/lifecycle-operations'); ?>
+
+    <?!= include('scripts/lifecycle'); ?>
 
     <?!= include('scripts/resources-editor'); ?>
 

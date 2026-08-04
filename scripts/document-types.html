@@ -1,0 +1,107 @@
+function loadDocumentTypes() {
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && Array.isArray(data.rows) && data.rows.length) {
+                documentTypeOptions = data.rows.map(function (r) {
+                  return { type_key: r.type_key, label: r.label || r.type_key, icon: r.icon || '' };
+                });
+              }
+            } catch (err) { console.error("load document types error", err); }
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseDocumentTypesJsonFromClient();
+      });
+    }
+
+    function openDocumentTypesModal() {
+      if (!el.documentTypesModal) return;
+      el.documentTypesModal.classList.add("is-open");
+      el.documentTypesModal.setAttribute("aria-hidden", "false");
+      renderDocumentTypeSelector();
+    }
+
+    function closeDocumentTypesModal() {
+      if (!el.documentTypesModal) return;
+      el.documentTypesModal.classList.remove("is-open");
+      el.documentTypesModal.setAttribute("aria-hidden", "true");
+    }
+
+    function getActiveDocumentTypeKey() {
+      return el.documentTypeSelector ? el.documentTypeSelector.value : "";
+    }
+
+    function renderDocumentTypeSelector() {
+      var sel = el.documentTypeSelector;
+      if (!sel) return;
+      var current = sel.value;
+      sel.innerHTML = "";
+      documentTypeOptions.forEach(function (t) {
+        var opt = document.createElement("option");
+        opt.value = t.type_key;
+        opt.textContent = (t.icon ? t.icon + " " : "") + t.label;
+        sel.appendChild(opt);
+      });
+      sel.value = documentTypeOptions.some(function (t) { return t.type_key === current; }) ? current : (documentTypeOptions[0] && documentTypeOptions[0].type_key || "");
+      renderDocumentTypeEditor();
+    }
+
+    function renderDocumentTypeEditor() {
+      var key = getActiveDocumentTypeKey();
+      var docType = documentTypeOptions.find(function (t) { return t.type_key === key; });
+      if (el.documentTypeKeyInput) el.documentTypeKeyInput.value = key || "";
+      if (el.documentTypeNameInput) el.documentTypeNameInput.value = docType ? (docType.label || key) : "";
+      if (el.documentTypeIconInput) el.documentTypeIconInput.value = docType ? (docType.icon || "") : "";
+      if (el.documentTypeKeyInput) el.documentTypeKeyInput.disabled = !!docType;
+    }
+
+    function newDocumentType() {
+      var baseName = "new_type";
+      var counter = 1;
+      while (documentTypeOptions.some(function (t) { return t.type_key === baseName + (counter > 1 ? "_" + counter : ""); })) { counter++; }
+      var key = baseName + (counter > 1 ? "_" + counter : "");
+      documentTypeOptions.push({ type_key: key, label: key, icon: "📄" });
+      renderDocumentTypeSelector();
+      if (el.documentTypeSelector) el.documentTypeSelector.value = key;
+      renderDocumentTypeEditor();
+      if (el.documentTypeKeyInput) { el.documentTypeKeyInput.value = key; el.documentTypeKeyInput.disabled = false; el.documentTypeKeyInput.focus(); }
+    }
+
+    function saveDocumentTypes() {
+      var key = el.documentTypeKeyInput ? el.documentTypeKeyInput.value.trim() : "";
+      var label = el.documentTypeNameInput ? el.documentTypeNameInput.value.trim() : key;
+      var icon = el.documentTypeIconInput ? el.documentTypeIconInput.value.trim() : "";
+      var oldKey = getActiveDocumentTypeKey();
+      if (!key) { setStatus("Type key is required.", "error"); return; }
+      if (!/^[a-z_0-9]+$/.test(key)) { setStatus("Type key must be lowercase letters, numbers, underscores only.", "error"); return; }
+      var existing = documentTypeOptions.find(function (t) { return t.type_key === oldKey; });
+      if (existing) {
+        existing.type_key = key;
+        existing.label = label;
+        existing.icon = icon;
+      } else {
+        documentTypeOptions.push({ type_key: key, label: label, icon: icon });
+      }
+      renderDocumentTypeSelector();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to save to Supabase: " + (error && error.message || error), "error"); })
+        .saveSupabaseDocumentTypesJsonFromClient(JSON.stringify(documentTypeOptions));
+      setStatus("Document types saved.", "ok");
+    }
+
+    function deleteDocumentType() {
+      var key = getActiveDocumentTypeKey();
+      if (!key) return;
+      if (documentTypeOptions.length <= 1) { setStatus("Cannot delete the last type.", "warn"); return; }
+      documentTypeOptions = documentTypeOptions.filter(function (t) { return t.type_key !== key; });
+      renderDocumentTypeSelector();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to delete from Supabase: " + (error && error.message || error), "error"); })
+        .deleteSupabaseDocumentTypeJsonFromClient(key);
+      setStatus("Document type deleted.", "ok");
+    }

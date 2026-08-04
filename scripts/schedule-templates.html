@@ -1,3 +1,29 @@
+    function loadScheduleTemplates() {
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && Array.isArray(data.rows) && data.rows.length) {
+                SCHEDULE_TEMPLATES = {};
+                SCHEDULE_TEMPLATE_OPTIONS = [];
+                data.rows.forEach(function (row) {
+                  var name = String(row.name || "").trim();
+                  if (!name) return;
+                  var milestones = [];
+                  try { milestones = typeof row.milestones === "string" ? JSON.parse(row.milestones) : (row.milestones || []); } catch (e) { milestones = []; }
+                  SCHEDULE_TEMPLATES[name] = { name: name, milestones: milestones };
+                  SCHEDULE_TEMPLATE_OPTIONS.push(name);
+                });
+              }
+            } catch (err) { console.error("load schedule templates error", err); }
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseScheduleTemplatesJsonFromClient();
+      });
+    }
+
     function openScheduleTemplatesModal() {
       if (!el.scheduleTemplatesModal) return;
       el.scheduleTemplatesModal.classList.add("is-open");
@@ -41,9 +67,32 @@
       tmpl.milestones.forEach(function (m, i) {
         var row = document.createElement("div");
         row.className = "schedule-milestone-row";
+        var generatesDoc = m.generatesDoc !== false ? 'checked' : '';
+        var docTypeVal = m.docType || '';
+        var promptKeyVal = m.promptKey || '';
+
+        var docTypeOpts = "<option value=''>—</option>";
+        if (typeof documentTypeOptions !== 'undefined' && Array.isArray(documentTypeOptions)) {
+          documentTypeOptions.forEach(function(t) {
+            var sel = t.type_key === docTypeVal ? ' selected' : '';
+            docTypeOpts += "<option value='" + t.type_key + "'" + sel + ">" + (t.icon ? t.icon + ' ' : '') + t.label + "</option>";
+          });
+        }
+
+        var promptOpts = "<option value=''>—</option>";
+        if (typeof generationPromptOptions !== 'undefined' && Array.isArray(generationPromptOptions)) {
+          generationPromptOptions.forEach(function(p) {
+            var sel = p.task_name === promptKeyVal ? ' selected' : '';
+            promptOpts += "<option value='" + p.task_name + "'" + sel + ">" + p.task_name + "</option>";
+          });
+        }
+
         row.innerHTML =
-          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(m.name) + "' placeholder='Milestone name' />" +
-          "<input type='number' class='schedule-milestone-offset' value='" + Number(m.dayOffset) + "' min='0' placeholder='Days' />" +
+          "<input type='checkbox' class='schedule-entry-gen-check' " + generatesDoc + " title='Generates a document' />" +
+          "<input type='text' class='schedule-milestone-name' value='" + escapeHtml(m.name) + "' placeholder='Milestone name' style='flex:2' />" +
+          "<select class='schedule-entry-doc-type' style='flex:1;min-width:120px'" + (generatesDoc ? '' : ' disabled') + ">" + docTypeOpts + "</select>" +
+          "<select class='schedule-entry-prompt-key' style='flex:1.4;min-width:150px'" + (generatesDoc ? '' : ' disabled') + ">" + promptOpts + "</select>" +
+          "<input type='number' class='schedule-milestone-offset' value='" + Number(m.dayOffset) + "' min='0' placeholder='Days' style='width:50px' />" +
           "<span class='tiny' style='white-space:nowrap;'>days after Publish Ready</span>" +
           "<button type='button' class='schedule-milestone-delete' data-milestone-index='" + i + "'>×</button>";
         list.appendChild(row);
@@ -58,6 +107,15 @@
           renderScheduleTemplateEditor();
         });
       });
+      Array.from(list.querySelectorAll(".schedule-entry-gen-check")).forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          var row = cb.closest(".schedule-milestone-row");
+          var docTypeSel = row.querySelector(".schedule-entry-doc-type");
+          var promptSel = row.querySelector(".schedule-entry-prompt-key");
+          if (docTypeSel) docTypeSel.disabled = !cb.checked;
+          if (promptSel) promptSel.disabled = !cb.checked;
+        });
+      });
     }
 
     function addScheduleMilestone() {
@@ -65,7 +123,7 @@
       var tmpl = SCHEDULE_TEMPLATES[name];
       if (!tmpl) return;
       var lastOffset = tmpl.milestones.length ? tmpl.milestones[tmpl.milestones.length - 1].dayOffset : 0;
-      tmpl.milestones.push({ name: "", dayOffset: lastOffset + 7 });
+      tmpl.milestones.push({ name: "", dayOffset: lastOffset + 7, generatesDoc: false, docType: '', promptKey: '' });
       renderScheduleTemplateEditor();
       var rows = el.scheduleMilestoneList.querySelectorAll(".schedule-milestone-row");
       if (rows.length) {
@@ -92,13 +150,23 @@
       SCHEDULE_TEMPLATES[name].milestones = Array.from(rows).map(function (row) {
         var nameInput = row.querySelector(".schedule-milestone-name");
         var offsetInput = row.querySelector(".schedule-milestone-offset");
+        var genCheck = row.querySelector(".schedule-entry-gen-check");
+        var docTypeSelect = row.querySelector(".schedule-entry-doc-type");
+        var promptKeySelect = row.querySelector(".schedule-entry-prompt-key");
         return {
           name: nameInput ? nameInput.value.trim() : "",
-          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0
+          dayOffset: offsetInput ? Number(offsetInput.value) || 0 : 0,
+          generatesDoc: genCheck ? genCheck.checked : false,
+          docType: docTypeSelect ? docTypeSelect.value.trim() : "",
+          promptKey: promptKeySelect ? promptKeySelect.value.trim() : ""
         };
       }).filter(function (m) { return !!m.name; });
-      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
       renderScheduleTemplateSelector();
+      if (typeof refreshScheduleTemplateOptions === "function") refreshScheduleTemplateOptions();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to save to Supabase: " + (error && error.message || error), "error"); })
+        .saveSupabaseScheduleTemplatesJsonFromClient(JSON.stringify(SCHEDULE_TEMPLATES));
       setStatus("Schedule templates saved.", "ok");
     }
 
@@ -109,8 +177,12 @@
       delete SCHEDULE_TEMPLATES[name];
       var idx = SCHEDULE_TEMPLATE_OPTIONS.indexOf(name);
       if (idx !== -1) SCHEDULE_TEMPLATE_OPTIONS.splice(idx, 1);
-      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
       renderScheduleTemplateSelector();
+      if (typeof refreshScheduleTemplateOptions === "function") refreshScheduleTemplateOptions();
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to delete from Supabase: " + (error && error.message || error), "error"); })
+        .deleteSupabaseScheduleTemplateJsonFromClient(name);
       setStatus("Template deleted.", "ok");
     }
 
@@ -121,7 +193,6 @@
       var name = baseName + (counter > 1 ? " " + counter : "");
       SCHEDULE_TEMPLATES[name] = { name: name, milestones: [{ name: "PUBLISH", dayOffset: 42 }] };
       SCHEDULE_TEMPLATE_OPTIONS.push(name);
-      appState.scheduleTemplates = JSON.parse(JSON.stringify(SCHEDULE_TEMPLATES));
       renderScheduleTemplateSelector();
       if (el.scheduleTemplateSelector) el.scheduleTemplateSelector.value = name;
       renderScheduleTemplateEditor();

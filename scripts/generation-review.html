@@ -1,0 +1,189 @@
+    function openGenerationReview(projectId, sectionKey, docType) {
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(projectId); });
+      if (!project) return;
+      var content = getGeneratedContent(projectId, docType, sectionKey);
+      if (!content) {
+        loadGenerationContent(projectId, docType).then(function () {
+          content = getGeneratedContent(projectId, docType, sectionKey);
+          if (!content) {
+            setStatus("No generated content found for " + sectionKey, "warn");
+            return;
+          }
+          openGenerationReviewWithContent(project, sectionKey, docType, content);
+        });
+        return;
+      }
+      openGenerationReviewWithContent(project, sectionKey, docType, content);
+    }
+
+    function openGenerationReviewWithContent(project, sectionKey, docType, content) {
+      var task = null;
+      (project.campaigns || []).forEach(function (c) {
+        (c.tasks || []).forEach(function (t) { if (t.name === sectionKey) task = t; });
+      });
+      (project.schedule_milestones || []).forEach(function (m) { if (m.name === sectionKey) task = m; });
+      if (el.generationReviewModal) {
+        el.generationReviewModal.classList.add("is-open");
+        el.generationReviewModal.setAttribute("aria-hidden", "false");
+      }
+      if (el.generationReviewTitle) el.generationReviewTitle.textContent = sectionKey;
+      if (el.generationReviewProject) el.generationReviewProject.textContent = project.title || "Untitled";
+      if (el.generationReviewBody) el.generationReviewBody.value = content;
+      function updateWordCount() {
+        if (el.generationReviewWordCount && el.generationReviewBody) {
+          var words = (el.generationReviewBody.value || "").trim().split(/\s+/).filter(function (w) { return w.length > 0; });
+          el.generationReviewWordCount.textContent = words.length + " words";
+        }
+      }
+      updateWordCount();
+      if (el.generationReviewBody) {
+        el.generationReviewBody._wordCountListener = updateWordCount;
+        el.generationReviewBody.addEventListener("input", updateWordCount);
+      }
+      if (el.generationReviewLockButton) {
+        var locked = task && task.locked;
+        el.generationReviewLockButton.textContent = locked ? "🔒 Locked" : "Lock";
+        el.generationReviewLockButton.style.background = locked ? "#ef4444" : "";
+        el.generationReviewLockButton.style.color = locked ? "#fff" : "";
+        el.generationReviewLockButton.style.borderColor = locked ? "#ef4444" : "";
+      }
+      if (el.generationReviewDeleteButton) {
+        el.generationReviewDeleteButton.disabled = !!(task && task.locked);
+        el.generationReviewDeleteButton.style.opacity = (task && task.locked) ? "0.4" : "";
+      }
+      el.generationReviewModal._projectId = project.rowNumber;
+      el.generationReviewModal._sectionKey = sectionKey;
+      el.generationReviewModal._docType = docType;
+    }
+
+    function closeGenerationReview() {
+      if (el.generationReviewBody && el.generationReviewBody._wordCountListener) {
+        el.generationReviewBody.removeEventListener("input", el.generationReviewBody._wordCountListener);
+        el.generationReviewBody._wordCountListener = null;
+      }
+      if (el.generationReviewModal) {
+        el.generationReviewModal.classList.remove("is-open");
+        el.generationReviewModal.setAttribute("aria-hidden", "true");
+      }
+    }
+
+    function saveGenerationReview() {
+      var projectId = el.generationReviewModal._projectId;
+      var sectionKey = el.generationReviewModal._sectionKey;
+      var docType = el.generationReviewModal._docType;
+      var content = el.generationReviewBody ? el.generationReviewBody.value : "";
+      if (!projectId || !sectionKey) return;
+      var key = projectId + ":" + docType;
+      if (!_generationContentCache[key]) _generationContentCache[key] = {};
+      _generationContentCache[key][sectionKey] = content;
+      supabaseRunner
+        .withSuccessHandler(function () { setStatus("Content saved.", "ok"); })
+        .withFailureHandler(function (err) { setStatus("Save failed: " + (err.message || err), "error"); })
+        .saveSupabaseProjectSectionDocumentJsonFromClient(
+          projectId, docType, sectionKey,
+          JSON.stringify([{ sectionKey: sectionKey, key: sectionKey, title: sectionKey, text: content, sortOrder: 0 }])
+        );
+    }
+
+    function regenerateGenerationReview() {
+      var projectId = el.generationReviewModal._projectId;
+      var sectionKey = el.generationReviewModal._sectionKey;
+      var docType = el.generationReviewModal._docType;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(projectId); });
+      if (!project) return;
+      var task = null;
+      var actualDocType = docType;
+      (project.campaigns || []).forEach(function (c) {
+        (c.tasks || []).forEach(function (t) { if (t.name === sectionKey) { task = t; actualDocType = actualDocType || "marketing_gen"; } });
+      });
+      (project.schedule_milestones || []).forEach(function (m) { if (m.name === sectionKey) { task = m; actualDocType = actualDocType || "schedule_gen"; } });
+      if (!task) { setStatus("Could not find task: " + sectionKey, "error"); return; }
+      if (task.locked) { setStatus("Task is locked. Unlock to regenerate.", "warn"); return; }
+
+      var footer = el.generationReviewModal.querySelector(".modal-footer");
+      var buttons = footer ? Array.from(footer.querySelectorAll("button")) : [];
+      buttons.forEach(function (btn) { btn.disabled = true; });
+      var regenBtn = el.generationReviewRegenerateButton;
+      var origText = regenBtn ? regenBtn.textContent : "";
+      if (regenBtn) { regenBtn.textContent = "Regenerating..."; regenBtn.classList.add("is-generating"); }
+
+      generateTaskContent(project, task, actualDocType, task.promptKey).then(function (content) {
+        if (el.generationReviewBody) el.generationReviewBody.value = content;
+        setStatus("Regenerated: " + sectionKey, "ok");
+      }).catch(function (err) {
+        setStatus("Regenerate failed: " + (err.message || err), "error");
+      }).finally(function () {
+        buttons.forEach(function (btn) { btn.disabled = false; });
+        if (regenBtn) { regenBtn.textContent = origText; regenBtn.classList.remove("is-generating"); }
+      });
+    }
+
+    function toggleGenerationReviewLock() {
+      var projectId = el.generationReviewModal._projectId;
+      var sectionKey = el.generationReviewModal._sectionKey;
+      var docType = el.generationReviewModal._docType;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(projectId); });
+      if (!project) return;
+      var task = null;
+      (project.campaigns || []).forEach(function (c) {
+        (c.tasks || []).forEach(function (t) { if (t.name === sectionKey) task = t; });
+      });
+      (project.schedule_milestones || []).forEach(function (m) { if (m.name === sectionKey) task = m; });
+      if (!task) return;
+      task.locked = !task.locked;
+      var locked = task.locked;
+      if (el.generationReviewLockButton) {
+        el.generationReviewLockButton.textContent = locked ? "🔒 Locked" : "Lock";
+        el.generationReviewLockButton.style.background = locked ? "#ef4444" : "";
+        el.generationReviewLockButton.style.color = locked ? "#fff" : "";
+        el.generationReviewLockButton.style.borderColor = locked ? "#ef4444" : "";
+      }
+      var pill = null;
+      document.querySelectorAll(".timeline-gen-pill").forEach(function (p) {
+        if (p.getAttribute("data-section-key") === sectionKey && p.getAttribute("data-project-id") === String(projectId)) pill = p;
+      });
+      if (pill) {
+        if (locked) {
+          pill.className = "timeline-gen-pill locked";
+          pill.textContent = "Locked";
+        } else {
+          var hasContent = !!getGeneratedContent(projectId, docType, sectionKey);
+          pill.className = "timeline-gen-pill" + (hasContent ? " generated" : "");
+          pill.textContent = hasContent ? "Review" : "Generate";
+        }
+      }
+      try {
+        var campaignsJson = JSON.stringify(project.campaigns || []);
+        var milestonesJson = JSON.stringify(project.schedule_milestones || []);
+        sbClient.from('projects').update({ campaigns: campaignsJson, schedule_milestones: milestonesJson }).eq('id', projectId).then(function () {}).catch(function () {});
+      } catch (e) {}
+    }
+
+    function deleteGenerationReview() {
+      var projectId = el.generationReviewModal._projectId;
+      var sectionKey = el.generationReviewModal._sectionKey;
+      var docType = el.generationReviewModal._docType;
+      if (!projectId || !sectionKey) return;
+      if (!confirm("Delete generated content for \"" + sectionKey + "\"?")) return;
+      var project = appState.projects.find(function (p) { return Number(p.rowNumber) === Number(projectId); });
+      if (project) {
+        var task = null;
+        (project.campaigns || []).forEach(function (c) {
+          (c.tasks || []).forEach(function (t) { if (t.name === sectionKey) task = t; });
+        });
+        (project.schedule_milestones || []).forEach(function (m) { if (m.name === sectionKey) task = m; });
+        if (task && task.locked) {
+          task.locked = false;
+          var pill = null;
+          document.querySelectorAll(".timeline-gen-pill").forEach(function (p) {
+            if (p.getAttribute("data-section-key") === sectionKey && p.getAttribute("data-project-id") === String(projectId)) pill = p;
+          });
+          if (pill) { pill.className = "timeline-gen-pill"; pill.textContent = "Generate"; }
+          try {
+            sbClient.from('projects').update({ campaigns: JSON.stringify(project.campaigns || []), schedule_milestones: JSON.stringify(project.schedule_milestones || []) }).eq('id', projectId).then(function () {}).catch(function () {});
+          } catch (e) {}
+        }
+      }
+      deleteGeneratedContent(projectId, docType, sectionKey);
+      closeGenerationReview();
+    }

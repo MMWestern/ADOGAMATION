@@ -300,6 +300,7 @@
             renderWritingGenreGuide();
           }
         }
+        updatePlanChapterDotForNode(nodeId);
         schedulePlanOutlineSave();
       }
     }
@@ -324,6 +325,7 @@
       var node = findPlanNodeById(outline, sceneId);
       if (node && node.type === "scene") {
         node[field] = value;
+        updatePlanChapterDotForNode(sceneId);
         schedulePlanOutlineSave();
       }
     }
@@ -342,6 +344,50 @@
         }
       }
       return null;
+    }
+
+    function findParentChapterId(outline, nodeId) {
+      var acts = outline.acts || [];
+      for (var i = 0; i < acts.length; i++) {
+        var chapters = acts[i].children || [];
+        for (var j = 0; j < chapters.length; j++) {
+          if (chapters[j].id === nodeId) return chapters[j].id;
+          var scenes = chapters[j].children || [];
+          for (var k = 0; k < scenes.length; k++) {
+            if (scenes[k].id === nodeId) return chapters[j].id;
+          }
+        }
+      }
+      return null;
+    }
+
+    function updatePlanChapterDot(chapterId) {
+      var el = document.querySelector('.plan-chapter[data-chapter-id="' + chapterId + '"] .writing-chapter-status-dot');
+      if (!el) return;
+      var outline = getPlanOutline();
+      var chapter = findPlanNodeById(outline, chapterId);
+      if (!chapter) return;
+      var savedStates = appState.writingWorkspace.savedOutlineChapterStates || {};
+      var savedJson = savedStates[chapterId];
+      var chapterJson = JSON.stringify(chapter);
+      var isDirty = !savedJson || chapterJson !== savedJson;
+      el.className = "writing-chapter-status-dot" + (isDirty ? " is-dirty" : " is-saved");
+      el.title = isDirty ? (savedJson ? "Unsaved changes" : "Unsaved") : "Saved";
+    }
+
+    function updatePlanChapterDotForNode(nodeId) {
+      var outline = getPlanOutline();
+      var chapterId = findParentChapterId(outline, nodeId);
+      if (chapterId) updatePlanChapterDot(chapterId);
+    }
+
+    function updateAllPlanChapterDots() {
+      var outline = getPlanOutline();
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (chapter) {
+          if (chapter.id) updatePlanChapterDot(chapter.id);
+        });
+      });
     }
 
     function getOutlineScenesForChapterHtml(chapterKey) {
@@ -543,9 +589,16 @@
               globalChapterNum += 1;
               var chNum = globalChapterNum;
               var sceneNum = 0;
+              var savedStates = appState.writingWorkspace.savedOutlineChapterStates || {};
+              var savedJson = savedStates[chapter.id];
+              var chapterJson = JSON.stringify(chapter);
+              var isChapterDirty = !savedJson || chapterJson !== savedJson;
+              var chapterDotClass = isChapterDirty ? " is-dirty" : " is-saved";
+              var chapterDotTitle = isChapterDirty ? (savedJson ? "Unsaved changes" : "Unsaved") : "Saved";
               return '<div class="plan-chapter" draggable="true" data-chapter-id="' + escapeHtml(chapter.id) + '">' +
                 '<div class="plan-chapter-header">' +
                   '<span class="plan-chapter-drag-handle" title="Drag to reorder">⠿</span>' +
+                  '<div class="writing-chapter-status-dot' + chapterDotClass + '" title="' + chapterDotTitle + '"></div>' +
                   '<span class="plan-chapter-number">CHAPTER ' + chNum + '</span>' +
                   (outline.genreGuide && outline.genreGuide.byChapterId && outline.genreGuide.byChapterId[chapter.id] ? '<span class="plan-genre-indicator" data-chapter-id="' + escapeHtml(chapter.id) + '" title="Show genre guide for this chapter">GG</span>' : '') +
                   '<span class="plan-chapter-title" contenteditable="true" spellcheck="false" data-node-id="' + escapeHtml(chapter.id) + '">' + escapeHtml(chapter.title || "") + '</span>' +

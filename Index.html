@@ -372,6 +372,14 @@
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/></svg>
               <span>Marketing Templates</span>
             </button>
+            <button id="documentTypesButton" class="sidebar-popover-item" type="button">
+              <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span>Document Types</span>
+            </button>
+            <button id="generationPromptsButton" class="sidebar-popover-item" type="button">
+              <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>Generation Prompts</span>
+            </button>
           </div>
         </div>
 
@@ -439,6 +447,7 @@
         <div id="hubContentStudio" class="hub-tab-content">
         <div class="main-tab-bar">
           <button id="mainTabWriting" class="main-tab is-active" type="button" data-main-tab="writing">PROJECTS</button>
+          <button id="mainTabLifecycle" class="main-tab" type="button" data-main-tab="lifecycle" hidden>LIFECYCLE</button>
           <button id="mainTabChat" class="main-tab" type="button" data-main-tab="chat">CHAT</button>
           <button id="mainTabPlan" class="main-tab" type="button" data-main-tab="plan">PLAN</button>
           <button id="mainTabWorkspace" class="main-tab" type="button" data-main-tab="workspace">WRITING</button>
@@ -493,42 +502,21 @@
             </div>
           </section>
 
-          <section class="landing-board">
-            <div class="landing-board-column">
-              <div class="landing-section-heading">
-                <strong>Today</strong>
-                <span class="tiny">Most urgent next steps</span>
-              </div>
-              <div id="landingTodayList" class="landing-task-list"></div>
-            </div>
-            <div class="landing-board-column">
-              <div class="landing-section-heading">
-                <strong>Writing Now</strong>
-                <span class="tiny">Drafts and active manuscripts</span>
-              </div>
-              <div id="landingWritingList" class="landing-task-list"></div>
-            </div>
-            <div class="landing-board-column">
-              <div class="landing-section-heading">
-                <strong>In Development</strong>
-                <span class="tiny">Projects being shaped and prepared</span>
-              </div>
-              <div id="landingDevelopmentList" class="landing-task-list"></div>
-            </div>
-          </section>
+
         </div>
 
-        <div class="projects-header">
+         <div class="projects-header">
           <div>
             <h2>Projects</h2>
             <div class="muted" id="resultCount">0 visible results</div>
           </div>
            <div class="projects-header-actions">
-            <div class="tiny">Click a row to edit</div>
-          </div>
-        </div>
+             <button id="toggleProjectsTableButton" class="toggle-button" type="button">Hide Projects</button>
+             <div class="tiny">Click a row to edit</div>
+           </div>
+         </div>
 
-        <div class="table-wrap">
+        <div id="projectsTableWrap" class="table-wrap collapsed">
           <table>
             <thead>
               <tr>
@@ -547,6 +535,10 @@
           </table>
           <div id="emptyState" class="empty-state" hidden>No projects match the current filters.</div>
         </div>
+      </div>
+
+      <div id="mainTabContentLifecycle" class="main-tab-content" hidden>
+        <div id="lifecycleContainer" class="lifecycle-container"></div>
       </div>
 
       <div id="mainTabContentWorkspace" class="main-tab-content" hidden>
@@ -636,6 +628,7 @@
                     <button type="button" class="plan-toolbar-btn" id="planOutlineAddAct">+ New Act</button>
                     <button type="button" class="plan-toolbar-btn" id="planOutlineCreateFromOutline">Create from Outline</button>
                     <button type="button" class="plan-toolbar-btn plan-toolbar-btn-ghost" id="planOutlineCleanupOrphans">&#9888; Clean Orphans</button>
+                    <button type="button" class="plan-toolbar-btn plan-toolbar-btn-primary" id="planOutlineSaveButton">Save</button>
                     <button type="button" class="plan-toolbar-btn plan-toolbar-btn-danger" id="planOutlineDeleteAll">Delete All</button>
                   </div>
                   <div id="planOutlineGrid" class="plan-outline-grid"></div>
@@ -856,6 +849,12 @@
             <div class="landing-section-heading">
               <strong>Publication Timeline</strong>
               <span class="tiny">Milestones and marketing events across all projects</span>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button id="publishingLockAllButton" type="button" class="timeline-action-btn">Lock All</button>
+                <button id="publishingUnlockAllButton" type="button" class="timeline-action-btn">Unlock All</button>
+                <button id="publishingGenerateAllButton" type="button" class="timeline-action-btn">Generate All</button>
+                <button id="publishingDeleteAllButton" type="button" class="timeline-action-btn" style="color:#ef4444">Delete All</button>
+              </div>
             </div>
             <div class="timeline-filters">
               <select id="timelineSeriesFilter"><option value="All">All Series</option></select>
@@ -928,6 +927,12 @@
             <div class="landing-section-heading">
               <strong>Marketing Timeline</strong>
               <span class="tiny">Campaigns, launches, and promotional events</span>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <button id="marketingLockAllButton" type="button" class="timeline-action-btn">Lock All</button>
+                <button id="marketingUnlockAllButton" type="button" class="timeline-action-btn">Unlock All</button>
+                <button id="marketingGenerateAllButton" type="button" class="timeline-action-btn">Generate All</button>
+                <button id="marketingDeleteAllButton" type="button" class="timeline-action-btn" style="color:#ef4444">Delete All</button>
+              </div>
             </div>
             <div class="timeline-filters">
               <select id="marketingTimelineSeriesFilter"><option value="All">All Series</option></select>
@@ -1696,7 +1701,7 @@
               </div>
             </div>
 
-            <div>
+            <div hidden>
               <div class="label-row">
                 <label class="label">Campaigns</label>
                 <button id="addCampaignButton" class="detail-inline-button" type="button">+ Add</button>
@@ -3313,6 +3318,102 @@
     </div>
   </div>
 
+  <div id="documentTypesModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card">
+      <div class="modal-header">
+        <h3>Document Types</h3>
+        <div class="muted">Define the types of documents that can be generated from marketing and schedule templates.</div>
+      </div>
+      <div class="modal-body schedule-templates-body">
+        <div class="schedule-templates-toolbar">
+          <select id="documentTypeSelector" class="schedule-template-select"></select>
+          <button id="documentTypeNewButton" type="button">New Type</button>
+          <button id="documentTypeDeleteButton" type="button">Delete</button>
+        </div>
+        <div id="documentTypeEditor" class="schedule-template-editor">
+          <div>
+            <label class="label" for="documentTypeKeyInput">Type Key</label>
+            <input id="documentTypeKeyInput" type="text" placeholder="e.g. email, social_post" />
+          </div>
+          <div>
+            <label class="label" for="documentTypeNameInput">Display Label</label>
+            <input id="documentTypeNameInput" type="text" placeholder="e.g. Email" />
+          </div>
+          <div>
+            <label class="label" for="documentTypeIconInput">Icon (emoji)</label>
+            <input id="documentTypeIconInput" type="text" placeholder="e.g. ✉" style="width:60px" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="documentTypesCloseButton" type="button">Close</button>
+        <button id="documentTypesSaveButton" class="primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="generationPromptsModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-templates-card" style="max-width:700px">
+      <div class="modal-header">
+        <h3>Generation Prompts</h3>
+        <div class="muted">Manage AI prompts used to generate content from marketing and schedule template entries. Templates use these prompts to generate content when "Generate" is clicked.</div>
+      </div>
+      <div class="modal-body schedule-templates-body">
+        <div class="schedule-templates-toolbar">
+          <select id="generationPromptChannelSelect" class="schedule-template-select" style="width:140px">
+            <option value="">All Channels</option>
+          </select>
+          <select id="generationPromptDocTypeSelect" class="schedule-template-select" style="width:140px">
+            <option value="">All Types</option>
+          </select>
+          <button id="generationPromptNewButton" type="button">+ New Prompt</button>
+          <button id="generationPromptDeleteButton" type="button">Delete</button>
+        </div>
+        <div id="generationPromptList" class="schedule-milestone-list" style="max-height:300px;overflow-y:auto"></div>
+        <div id="generationPromptEditor" class="schedule-template-editor" style="margin-top:12px">
+          <div>
+            <label class="label" for="generationPromptSystemInput">System Prompt</label>
+            <textarea id="generationPromptSystemInput" rows="3" style="width:100%;font-size:12px" placeholder="Instructions for the AI model..."></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <label class="label" for="generationPromptTemplateInput">User Prompt Template</label>
+            <textarea id="generationPromptTemplateInput" rows="6" style="width:100%;font-size:12px" placeholder="Use {title}, {genre}, {summary}, {publish_date}, {pen_name}, {series} as placeholders..."></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <label class="label" for="generationPromptModelInput">Model</label>
+            <input id="generationPromptModelInput" type="text" value="gpt-4o" style="width:150px" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="generationPromptsCloseButton" type="button">Close</button>
+        <button id="generationPromptsSaveButton" class="primary" type="button">Save Prompts</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="generationReviewModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:650px">
+      <div class="modal-header">
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+          <h3>Generated Content: <span id="generationReviewTitle"></span></h3>
+          <span id="generationReviewWordCount" class="tiny muted" style="white-space:nowrap"></span>
+        </div>
+        <div class="tiny muted">Project: <span id="generationReviewProject"></span></div>
+      </div>
+      <div class="modal-body">
+        <textarea id="generationReviewBody" rows="18" style="width:100%;font-family:monospace;font-size:13px;line-height:1.5"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="generationReviewDeleteButton" type="button" style="color:#ef4444;margin-right:auto">Delete</button>
+        <button id="generationReviewLockButton" type="button">Lock</button>
+        <button id="generationReviewRegenerateButton" type="button">Regenerate</button>
+        <button id="generationReviewCloseButton" type="button">Close</button>
+        <button id="generationReviewSaveButton" class="primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div id="campaignTasksModal" class="modal" aria-hidden="true">
     <div class="modal-card schedule-templates-card" style="max-width:680px;">
       <div class="modal-header">
@@ -3398,6 +3499,66 @@
       </div>
     </div>
 
+  </div>
+
+  <div id="lifecycleTemplateModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:700px;">
+      <div class="modal-header">
+        <h3>Lifecycle Templates</h3>
+        <div class="muted">Manage workflow templates that define the stages a project goes through.</div>
+      </div>
+      <div class="modal-body">
+        <div id="lifecycleTemplateList" class="lifecycle-template-list"></div>
+        <div id="lifecycleTemplateEditor" hidden>
+          <div class="lifecycle-template-editor-fields">
+            <div class="field-row">
+              <label>Template Name</label>
+              <input id="lifecycleTemplateName" type="text" placeholder="e.g. Novel, Short Story, Serial" />
+            </div>
+            <div class="field-row">
+              <label>Description</label>
+              <input id="lifecycleTemplateDesc" type="text" placeholder="Brief description of this workflow" />
+            </div>
+            <div class="field-row">
+              <label><input id="lifecycleTemplateDefault" type="checkbox" /> Set as default</label>
+            </div>
+          </div>
+          <div class="lifecycle-template-stages-editor">
+            <div class="lifecycle-template-stages-header">
+              <span>Stages</span>
+              <button id="lifecycleAddStageBtn" type="button" class="tiny">+ Add Stage</button>
+            </div>
+            <div id="lifecycleTemplateStagesList" class="lifecycle-template-stages-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="lifecycleTemplateNewBtn" type="button">New Template</button>
+        <div style="flex:1;"></div>
+        <button id="lifecycleTemplateCancelBtn" type="button">Cancel</button>
+        <button id="lifecycleTemplateSaveBtn" class="primary" type="button">Save</button>
+        <button id="lifecycleTemplateDeleteBtn" type="button" style="color:#ef4444;">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="lifecycleDraftModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:700px;">
+      <div class="modal-header">
+        <h3 id="lifecycleDraftTitle">Draft</h3>
+        <div id="lifecycleDraftMeta" class="muted"></div>
+      </div>
+      <div class="modal-body">
+        <textarea id="lifecycleDraftContent" class="lifecycle-draft-textarea" rows="16" placeholder="Draft content..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="lifecycleDraftDeleteBtn" type="button" style="color:#ef4444;">Delete</button>
+        <div style="flex:1;"></div>
+        <button id="lifecycleDraftPushBtn" type="button">Push to Marketing</button>
+        <button id="lifecycleDraftSaveBtn" type="button">Save Edit</button>
+        <button id="lifecycleDraftCloseBtn" class="primary" type="button">Close</button>
+      </div>
+    </div>
   </div>
 
   <div id="markdownContextMenu" class="markdown-context-menu" role="menu" aria-label="Markdown formatting menu">

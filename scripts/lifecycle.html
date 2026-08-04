@@ -1,0 +1,1416 @@
+    // ============================================================
+    // LIFECYCLE ENGINE — Phase 2: Templates + Tracking + Approvals
+    // ============================================================
+
+    var LIFECYCLE_STAGES = [
+      { key: "story_seed",      label: "Story Seed",         phase: "Pre-Production" },
+      { key: "project",         label: "Project",            phase: "Pre-Production" },
+      { key: "validation",      label: "Validation",         phase: "Pre-Production" },
+      { key: "research",        label: "Research",           phase: "Pre-Production" },
+      { key: "codex",           label: "Codex",              phase: "Pre-Production" },
+      { key: "planning",        label: "Planning",           phase: "Production" },
+      { key: "draft_prep",      label: "Draft Preparation",  phase: "Production" },
+      { key: "first_draft",     label: "First Draft",        phase: "Production" },
+      { key: "revision",        label: "Revision",           phase: "Production" },
+      { key: "development_edit",label: "Development Edit",   phase: "Production" },
+      { key: "serial_prep",     label: "Serial Preparation", phase: "Post-Production" },
+      { key: "publication",     label: "Publication",        phase: "Post-Production" },
+      { key: "evergreen",       label: "Evergreen",          phase: "Evergreen" }
+    ];
+
+    var STATUS_STAGE_MAP = {
+      "idea":        "story_seed",
+      "writing":     "first_draft",
+      "draft":       "first_draft",
+      "editing":     "revision",
+      "publish ready": "publication",
+      "published":   "evergreen",
+      "complete":    "evergreen",
+      "shelved":     "story_seed",
+      "paused":      null
+    };
+
+    var LIFECYCLE_STATUS_LABELS = {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "blocked": "Blocked",
+      "complete": "Complete",
+      "skipped": "Skipped"
+    };
+
+    // ---- Phase 1 Fallback Calculations ----
+
+    function lcGetSelectedProject() {
+      if (typeof getSelectedProject === "function") return getSelectedProject();
+      return null;
+    }
+
+    function lcHasOutline(project) {
+      if (appState.writingWorkspace && appState.writingWorkspace.outline) {
+        var outline = appState.writingWorkspace.outline;
+        if (outline.acts && outline.acts.length > 0) return true;
+      }
+      if (project && project.outline) {
+        try {
+          var o = typeof project.outline === "string" ? JSON.parse(project.outline) : project.outline;
+          if (o && o.acts && o.acts.length > 0) return true;
+        } catch (e) {}
+      }
+      return false;
+    }
+
+    function lcHasCodexEntries(project) {
+      if (!project) return false;
+      var seriesId = Number(project.series_id || 0);
+      if (!seriesId) return false;
+      if (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) {
+        return codexCache.entitiesBySeries[seriesId].length > 0;
+      }
+      if (typeof skCache !== "undefined") {
+        var types = ["characters", "locations", "objects", "lore", "continuity"];
+        for (var i = 0; i < types.length; i++) {
+          var cache = skCache[types[i]];
+          if (cache && cache[seriesId] && cache[seriesId].length > 0) return true;
+        }
+      }
+      return false;
+    }
+
+    function lcHasChapters(project) {
+      if (appState.writingWorkspace && appState.writingWorkspace.segments) {
+        return appState.writingWorkspace.segments.length > 0;
+      }
+      return false;
+    }
+
+    function lcGetWordCount() {
+      if (appState.writingWorkspace && appState.writingWorkspace.segments) {
+        var total = 0;
+        for (var i = 0; i < appState.writingWorkspace.segments.length; i++) {
+          var text = appState.writingWorkspace.segments[i].text || "";
+          total += text.split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+        }
+        return total;
+      }
+      return 0;
+    }
+
+    function lcGetTargetWordCount(project) {
+      if (appState.writingWorkspace && appState.writingWorkspace.outline) {
+        var outline = appState.writingWorkspace.outline;
+        var total = 0;
+        if (outline.acts) {
+          for (var a = 0; a < outline.acts.length; a++) {
+            var chapters = outline.acts[a].children || [];
+            for (var c = 0; c < chapters.length; c++) {
+              total += Number(chapters[c].wordsPerChapter || chapters[c].words || 2500);
+            }
+          }
+        }
+        if (total > 0) return total;
+      }
+      return 60000;
+    }
+
+    function lcHasPublishDate(project) {
+      return !!(project && (project.publish_date || project.publish_ready_date));
+    }
+
+    function lcHasCampaigns(project) {
+      if (!project) return false;
+      var c = project.campaigns;
+      if (Array.isArray(c)) return c.length > 0;
+      if (typeof c === "string") {
+        try { var parsed = JSON.parse(c); return Array.isArray(parsed) && parsed.length > 0; } catch (e) {}
+      }
+      return false;
+    }
+
+    function lcHasCoverImage(project) {
+      return !!(project && (project.image || project.project_image_url));
+    }
+
+    function lcHasSummary(project) {
+      return !!(project && project.short_summary && project.short_summary.trim().length > 0);
+    }
+
+    function lcHasMilestones(project) {
+      if (!project) return false;
+      var m = project.schedule_milestones;
+      if (Array.isArray(m)) return m.length > 0;
+      if (typeof m === "string") {
+        try { var parsed = JSON.parse(m); return Array.isArray(parsed) && parsed.length > 0; } catch (e) {}
+      }
+      return false;
+    }
+
+    // ---- Phase 1 Derived Calculation (fallback) ----
+
+    function lcCalculateDerivedStage(project) {
+      if (!project) return { currentIndex: 0, stageKey: "story_seed", phase: "Pre-Production" };
+      var status = String(project.status || "").toLowerCase().trim();
+      var mappedStage = STATUS_STAGE_MAP[status] || "story_seed";
+      var mappedIndex = -1;
+      for (var i = 0; i < LIFECYCLE_STAGES.length; i++) {
+        if (LIFECYCLE_STAGES[i].key === mappedStage) { mappedIndex = i; break; }
+      }
+      var furthestIndex = mappedIndex;
+      if (lcHasSummary(project) && furthestIndex < 2) furthestIndex = 2;
+      if (lcHasCodexEntries(project) && furthestIndex < 4) furthestIndex = 4;
+      if (lcHasOutline(project) && furthestIndex < 6) furthestIndex = 6;
+      if (lcHasChapters(project) && furthestIndex < 7) furthestIndex = 7;
+      if (lcHasPublishDate(project) && furthestIndex < 10) furthestIndex = 10;
+      var stage = LIFECYCLE_STAGES[furthestIndex] || LIFECYCLE_STAGES[0];
+      return { currentIndex: furthestIndex, stageKey: stage.key, stageLabel: stage.label, phase: stage.phase };
+    }
+
+    function lcCalculateDerivedBlockers(project, stageInfo) {
+      var blockers = [];
+      if (!project) return blockers;
+      var idx = stageInfo ? stageInfo.currentIndex : 0;
+      if (idx >= 6 && !lcHasOutline(project)) blockers.push({ reason: "No outline created", source: "plan", severity: "high" });
+      if (idx >= 7) {
+        var wc = lcGetWordCount();
+        var target = lcGetTargetWordCount(project);
+        if (wc < target * 0.1) blockers.push({ reason: "Draft barely started", detail: wc + " / " + target.toLocaleString() + " words", source: "writing", severity: "high" });
+        else if (wc < target) blockers.push({ reason: "Draft incomplete", detail: wc.toLocaleString() + " / " + target.toLocaleString() + " words", source: "writing", severity: "medium" });
+      }
+      if (idx >= 10 && !lcHasPublishDate(project)) blockers.push({ reason: "No publish date set", source: "publishing", severity: "medium" });
+      if (idx >= 10 && !lcHasCoverImage(project)) blockers.push({ reason: "No cover image", source: "projects", severity: "medium" });
+      if (idx >= 11 && !lcHasCampaigns(project)) blockers.push({ reason: "No marketing campaigns configured", source: "marketing", severity: "low" });
+      if (idx >= 11 && !lcHasMilestones(project)) blockers.push({ reason: "No schedule milestones set", source: "publishing", severity: "low" });
+      return blockers;
+    }
+
+    function lcCalculateDerivedNextActions(project, stageInfo) {
+      var actions = [];
+      if (!project) return actions;
+      var idx = stageInfo ? stageInfo.currentIndex : 0;
+      if (idx <= 0) actions.push({ action: "Define the story concept", module: "projects", urgency: "high" });
+      if (idx <= 1 && !lcHasSummary(project)) actions.push({ action: "Write a project summary", module: "projects", urgency: "high" });
+      if (idx <= 3 && !lcHasCodexEntries(project)) actions.push({ action: "Create codex entries for characters and locations", module: "codex", urgency: "medium" });
+      if (idx <= 5 && !lcHasOutline(project)) actions.push({ action: "Build the story outline", module: "plan", urgency: "high" });
+      if (idx <= 6 && lcHasOutline(project) && !lcHasChapters(project)) actions.push({ action: "Prepare draft chapters from outline", module: "writing", urgency: "high" });
+      if (idx >= 6 && idx <= 7) {
+        var wc = lcGetWordCount();
+        var target = lcGetTargetWordCount(project);
+        if (wc < target) actions.push({ action: "Write " + (target - wc).toLocaleString() + " more words to reach draft target", module: "writing", urgency: "high" });
+      }
+      if (idx >= 7 && idx <= 8) actions.push({ action: "Review and revise the manuscript", module: "writing", urgency: "medium" });
+      if (idx >= 9 && !lcHasPublishDate(project)) actions.push({ action: "Set a publish date", module: "publishing", urgency: "medium" });
+      if (idx >= 9 && !lcHasCoverImage(project)) actions.push({ action: "Create or upload a cover image", module: "projects", urgency: "medium" });
+      if (idx >= 10 && !lcHasCampaigns(project)) actions.push({ action: "Set up marketing campaigns", module: "marketing", urgency: "medium" });
+      if (idx >= 10 && !lcHasMilestones(project)) actions.push({ action: "Create a publishing schedule with milestones", module: "publishing", urgency: "low" });
+      return actions;
+    }
+
+    function lcCalculateDerivedComms(project, stageInfo) {
+      var queue = [];
+      if (!project) return queue;
+      var idx = stageInfo ? stageInfo.currentIndex : 0;
+      if (idx >= 7) queue.push({ type: "newsletter", label: "Draft Newsletter", status: "pending" });
+      if (idx >= 8) queue.push({ type: "social", label: "Draft Social Campaign", status: "pending" });
+      if (idx >= 9) { queue.push({ type: "launch_email", label: "Draft Launch Email", status: "pending" }); queue.push({ type: "patreon", label: "Draft Patreon Post", status: "pending" }); }
+      if (idx >= 10) { queue.push({ type: "royalroad", label: "Draft Royal Road Announcement", status: "pending" }); queue.push({ type: "website", label: "Draft Website Update", status: "pending" }); queue.push({ type: "arc", label: "Draft ARC Email", status: "pending" }); }
+      if (idx >= 11) queue.push({ type: "release_summary", label: "Draft Release Summary", status: "pending" });
+      return queue;
+    }
+
+    // ---- Phase 2: Supabase Loading ----
+
+    function lcLoadProjectLifecycle(projectId) {
+      if (typeof callAppsScriptJson !== "function") return Promise.resolve(null);
+      return callAppsScriptJson("getProjectLifecycle", [projectId]).then(function (result) {
+        if (!result || !result.ok) return null;
+        return result;
+      }).catch(function () { return null; });
+    }
+
+    function lcAssignLifecycle(projectId, templateId) {
+      if (typeof callAppsScriptJson !== "function") return Promise.reject(new Error("Supabase not available"));
+      return callAppsScriptJson("assignProjectLifecycle", [projectId, templateId]).then(function (result) {
+        if (!result || !result.ok) throw new Error("Assignment failed");
+        return result;
+      });
+    }
+
+    function lcUnassignLifecycle(container, project) {
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) return;
+      if (!confirm("Unassign this lifecycle? This will delete all stage tracking, approvals, and communication drafts for this project.")) return;
+      if (typeof callAppsScriptJson !== "function") return;
+      if (typeof setStatus === "function") setStatus("Unassigning lifecycle...", "warn");
+      callAppsScriptJson("unassignProjectLifecycle", [projectId]).then(function (result) {
+        if (result && result.ok) {
+          appState.lifecycle.isAssigned = false;
+          appState.lifecycle.lifecycleId = null;
+          appState.lifecycle.templateId = null;
+          appState.lifecycle.stageStatuses = [];
+          appState.lifecycle.approvals = [];
+          appState.lifecycle.templateStages = [];
+          _lcCommsDrafts = [];
+          if (typeof setStatus === "function") setStatus("Lifecycle unassigned.", "ok");
+          lcRenderDashboardContent(container, project);
+        }
+      }).catch(function (err) {
+        if (typeof setStatus === "function") setStatus("Unassign failed: " + (err && err.message ? err.message : err), "error");
+      });
+    }
+
+    function lcUpdateStageStatus(projectId, stageKey, status, blockedReason, notes) {
+      if (typeof callAppsScriptJson !== "function") return Promise.reject(new Error("Supabase not available"));
+      return callAppsScriptJson("updateProjectStageStatus", [projectId, stageKey, status, blockedReason || "", notes || ""]).then(function (result) {
+        if (!result || !result.ok) throw new Error("Update failed");
+        return result;
+      });
+    }
+
+    function lcRequestApproval(projectId, stageKey) {
+      if (typeof callAppsScriptJson !== "function") return Promise.reject(new Error("Supabase not available"));
+      return callAppsScriptJson("requestLifecycleApproval", [projectId, stageKey, ""]);
+    }
+
+    function lcDecideApproval(approvalId, decision, notes) {
+      if (typeof callAppsScriptJson !== "function") return Promise.reject(new Error("Supabase not available"));
+      return callAppsScriptJson("decideLifecycleApproval", [approvalId, decision, notes || ""]);
+    }
+
+    // ---- Phase 3: Communication Drafting ----
+
+    var LC_COMM_PROMPTS = {
+      newsletter: {
+        label: "Newsletter",
+        systemPrompt: "You are a book marketing assistant. Write an engaging newsletter for subscribers about an upcoming book release. Be warm, personal, and exciting. Include a compelling hook and a clear call to action.",
+        buildPrompt: function (p) { return "Write a newsletter (300-500 words) for subscribers about this upcoming book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\nPublish Date: " + (p.publish_date || "TBD") + "\nPen Name: " + (p.pen_name || "The author") + "\n\nInclude a personal note from the author, a book teaser, and a call to action (pre-order, follow, etc.)."; }
+      },
+      social: {
+        label: "Social Campaign",
+        systemPrompt: "You are a social media marketing expert for authors. Write short, punchy social media posts that generate excitement and engagement. Use appropriate hashtags and emojis sparingly.",
+        buildPrompt: function (p) { return "Write 3 social media posts (each under 280 characters) for this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\n\nMake each post different in tone: one excited/announcing, one mysterious/teasing, one personal/behind-the-scenes. Include relevant hashtags."; }
+      },
+      launch_email: {
+        label: "Launch Email",
+        systemPrompt: "You are a book launch specialist. Write a launch day email that creates urgency and excitement. Be professional but passionate.",
+        buildPrompt: function (p) { return "Write a launch day email (400-600 words) for this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\nPublish Date: " + (p.publish_date || "Today") + "\nPen Name: " + (p.pen_name || "The author") + "\n\nInclude: announcement, what makes this book special, early reviews if available, purchase links placeholder, and a thank you to readers."; }
+      },
+      patreon: {
+        label: "Patreon Post",
+        systemPrompt: "You are a Patreon community manager for an author. Write an exclusive, behind-the-scenes update that makes patrons feel valued and insider knowledge.",
+        buildPrompt: function (p) { return "Write a Patreon update (300-400 words) for patrons about this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\n\nInclude: behind-the-scenes writing process, what inspired this book, a teaser or excerpt placeholder, and a thank you to patrons for their support."; }
+      },
+      royalroad: {
+        label: "Royal Road Announcement",
+        systemPrompt: "You are a web fiction platform specialist. Write an announcement post for Royal Road readers. Be casual, community-focused, and include relevant details for web novel readers.",
+        buildPrompt: function (p) { return "Write a Royal Road announcement (200-400 words) for this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\n\nInclude: what readers can expect, update schedule if applicable, how it compares to the author's previous work, and a call to follow/bookmark."; }
+      },
+      website: {
+        label: "Website Article",
+        systemPrompt: "You are a content writer for an author's website. Write an informative, SEO-friendly article about an upcoming book. Professional tone with engaging storytelling.",
+        buildPrompt: function (p) { return "Write a website article (500-700 words) about this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\nPen Name: " + (p.pen_name || "The author") + "\n\nInclude: book overview, author's inspiration, what makes it unique, who will enjoy it, and a call to action."; }
+      },
+      arc: {
+        label: "ARC Email",
+        systemPrompt: "You are an ARC (Advance Review Copy) coordinator for an author. Write a professional, friendly email requesting honest reviews from ARC readers.",
+        buildPrompt: function (p) { return "Write an ARC request email (200-350 words) for this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\nPublish Date: " + (p.publish_date || "TBD") + "\n\nInclude: what the book is about, what's expected of ARC readers (honest review, timeline), how to get their copy, and a thank you."; }
+      },
+      release_summary: {
+        label: "Release Summary",
+        systemPrompt: "You are a publishing analyst. Write a concise release summary report covering the book's journey from concept to publication.",
+        buildPrompt: function (p) { return "Write a release summary report (300-500 words) for this book:\n\nTitle: " + (p.title || "Untitled") + "\nGenre: " + (p.genre || "Fiction") + "\nSummary: " + (p.short_summary || "No summary available.") + "\nPublish Date: " + (p.publish_date || "TBD") + "\nStatus: " + (p.status || "Unknown") + "\n\nInclude: project overview, key milestones reached, current status, next steps, and any notable achievements during production."; }
+      }
+    };
+
+    var LC_STAGE_COMMS = {
+      "first_draft":     [{ type: "newsletter", label: "Newsletter" }],
+      "revision":        [{ type: "social", label: "Social Campaign" }],
+      "development_edit":[{ type: "launch_email", label: "Launch Email" }, { type: "patreon", label: "Patreon Post" }],
+      "serial_prep":     [{ type: "royalroad", label: "Royal Road Announcement" }, { type: "website", label: "Website Update" }, { type: "arc", label: "ARC Email" }],
+      "publication":     [{ type: "release_summary", label: "Release Summary" }]
+    };
+
+    var _lcCommsDrafts = [];
+    var _lcGeneratingComm = null;
+
+    function lcLoadCommsDrafts(projectId) {
+      if (typeof callAppsScriptJson !== "function") return Promise.resolve([]);
+      return callAppsScriptJson("listLifecycleCommsDrafts", [projectId]).then(function (result) {
+        if (result && result.ok) return result.drafts || [];
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function lcGetDraftForType(commType) {
+      for (var i = 0; i < _lcCommsDrafts.length; i++) {
+        if (_lcCommsDrafts[i].commType === commType) return _lcCommsDrafts[i];
+      }
+      return null;
+    }
+
+    function lcBuildCommContext(project) {
+      var parts = [];
+      parts.push("Project: " + (project.title || "Untitled"));
+      if (project.series) parts.push("Series: " + project.series);
+      if (project.genre) parts.push("Genre: " + project.genre);
+      if (project.pen_name) parts.push("Pen Name: " + project.pen_name);
+      if (project.short_summary) parts.push("Summary: " + project.short_summary);
+      if (project.publish_date) parts.push("Publish Date: " + project.publish_date);
+      if (project.status) parts.push("Status: " + project.status);
+
+      if (appState.writingWorkspace && appState.writingWorkspace.outline) {
+        var outline = appState.writingWorkspace.outline;
+        if (outline.acts) {
+          var chapterCount = 0;
+          outline.acts.forEach(function (a) { chapterCount += (a.children || []).length; });
+          parts.push("Structure: " + outline.acts.length + " acts, " + chapterCount + " chapters");
+        }
+      }
+
+      var wordCount = lcGetWordCount();
+      if (wordCount > 0) parts.push("Word Count: " + wordCount.toLocaleString());
+
+      return parts.join("\n");
+    }
+
+    function lcGenerateDraft(project, commType) {
+      var config = LC_COMM_PROMPTS[commType];
+      if (!config) return Promise.reject(new Error("Unknown comm type: " + commType));
+
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) return Promise.reject(new Error("No project id"));
+
+      _lcGeneratingComm = commType;
+      if (typeof setStatus === "function") setStatus("Generating " + config.label + " draft...", "warn");
+
+      // Get AI settings
+      var aiSettings = {};
+      try { aiSettings = JSON.parse(localStorage.getItem("writing_dashboard_ai_settings_v1") || "{}"); } catch (e) {}
+      var provider = aiSettings.provider || "openrouter";
+      var model = "";
+      if (provider === "openrouter") model = (aiSettings.openrouter || {}).model || "";
+      else if (provider === "lmstudio") model = (aiSettings.lmstudio || {}).model || "";
+      else if (provider === "ollama") model = (aiSettings.ollama || {}).model || "";
+      else if (provider === "opencode") model = (aiSettings.opencode || {}).model || "";
+
+      if (!model) {
+        _lcGeneratingComm = null;
+        return Promise.reject(new Error("No AI model selected. Open Settings and configure an AI provider."));
+      }
+
+      var context = lcBuildCommContext(project);
+      var userPrompt = config.buildPrompt(project);
+      var systemPrompt = config.systemPrompt + "\n\nProject Context:\n" + context;
+
+      var messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ];
+
+      return callEditorAI({
+        provider: provider,
+        model: model,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1024
+      }).then(function (result) {
+        _lcGeneratingComm = null;
+        var draftText = (result && result.text) ? result.text.trim() : "";
+        if (!draftText) throw new Error("AI returned empty response.");
+
+        // Save to Supabase
+        return callAppsScriptJson("saveLifecycleCommsDraft", [projectId, commType, config.label + " Draft", draftText]).then(function (saveResult) {
+          if (saveResult && saveResult.ok) {
+            _lcCommsDrafts.unshift({
+              id: saveResult.draft.id,
+              commType: commType,
+              sectionKey: saveResult.draft.section_key,
+              title: saveResult.draft.title,
+              content: draftText,
+              wordCount: draftText.split(/\s+/).filter(function (w) { return w.length > 0; }).length,
+              createdAt: saveResult.draft.created_at,
+              updatedAt: saveResult.draft.updated_at
+            });
+          }
+          if (typeof setStatus === "function") setStatus(config.label + " draft generated.", "ok");
+          return draftText;
+        });
+      }).catch(function (err) {
+        _lcGeneratingComm = null;
+        if (typeof setStatus === "function") setStatus("Draft generation failed: " + (err && err.message ? err.message : err), "error");
+        throw err;
+      });
+    }
+
+    // ---- Phase 3: Draft Review Modal ----
+
+    var _lcReviewingDraft = null;
+
+    function lcOpenDraftReview(draft) {
+      _lcReviewingDraft = draft;
+      if (el.lifecycleDraftModal) {
+        el.lifecycleDraftModal.setAttribute("aria-hidden", "false");
+        el.lifecycleDraftModal.classList.add("is-open");
+      }
+      if (el.lifecycleDraftTitle) el.lifecycleDraftTitle.textContent = (LC_COMM_PROMPTS[draft.commType] || {}).label || draft.commType || "Draft";
+      if (el.lifecycleDraftContent) el.lifecycleDraftContent.value = draft.content || "";
+      if (el.lifecycleDraftMeta) el.lifecycleDraftMeta.textContent = "Generated: " + (draft.createdAt ? new Date(draft.createdAt).toLocaleString() : "Unknown") + " • " + (draft.wordCount || 0) + " words";
+    }
+
+    function lcCloseDraftReview() {
+      _lcReviewingDraft = null;
+      if (el.lifecycleDraftModal) {
+        el.lifecycleDraftModal.setAttribute("aria-hidden", "true");
+        el.lifecycleDraftModal.classList.remove("is-open");
+      }
+    }
+
+    function lcSaveDraftEdit() {
+      if (!_lcReviewingDraft) return;
+      var newContent = el.lifecycleDraftContent ? el.lifecycleDraftContent.value : "";
+      if (typeof callAppsScriptJson !== "function") return;
+      if (typeof setStatus === "function") setStatus("Saving draft...", "warn");
+      callAppsScriptJson("updateLifecycleCommsDraft", [_lcReviewingDraft.id, "", newContent]).then(function (result) {
+        if (result && result.ok) {
+          _lcReviewingDraft.content = newContent;
+          _lcReviewingDraft.wordCount = newContent.split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+          // Update in local cache
+          for (var i = 0; i < _lcCommsDrafts.length; i++) {
+            if (_lcCommsDrafts[i].id === _lcReviewingDraft.id) {
+              _lcCommsDrafts[i].content = newContent;
+              _lcCommsDrafts[i].wordCount = _lcReviewingDraft.wordCount;
+              break;
+            }
+          }
+          if (typeof setStatus === "function") setStatus("Draft saved.", "ok");
+        }
+      }).catch(function () {});
+    }
+
+    function lcDeleteDraft() {
+      if (!_lcReviewingDraft) return;
+      if (!confirm("Delete this draft? This cannot be undone.")) return;
+      if (typeof callAppsScriptJson !== "function") return;
+      if (typeof setStatus === "function") setStatus("Deleting draft...", "warn");
+      callAppsScriptJson("deleteLifecycleCommsDraft", [_lcReviewingDraft.id]).then(function (result) {
+        if (result && result.ok) {
+          _lcCommsDrafts = _lcCommsDrafts.filter(function (d) { return d.id !== _lcReviewingDraft.id; });
+          if (typeof setStatus === "function") setStatus("Draft deleted.", "ok");
+          lcCloseDraftReview();
+          // Re-render dashboard
+          var project = lcGetSelectedProject();
+          var container = document.getElementById("lifecycleContainer");
+          if (project && container) lcRenderDashboardContent(container, project);
+        }
+      }).catch(function () {});
+    }
+
+    function lcGenerateAllDrafts(container, project) {
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) return;
+
+      // Get all comm types for completed stages
+      var stages = lcGetCurrentStages();
+      var allComms = [];
+      for (var i = 0; i < stages.length; i++) {
+        var key = stages[i].stage_key || stages[i].key;
+        var ss = lcGetStageStatus(key);
+        if (ss && ss.status === "complete") {
+          var stageComms = LC_STAGE_COMMS[key];
+          if (stageComms) {
+            for (var c = 0; c < stageComms.length; c++) {
+              if (!lcGetDraftForType(stageComms[c].type)) {
+                allComms.push(stageComms[c].type);
+              }
+            }
+          }
+        }
+      }
+
+      if (!allComms.length) {
+        alert("No drafts to generate. All available comms already have drafts.");
+        return;
+      }
+
+      var btn = container.querySelector("#lcGenerateAllBtn");
+      if (btn) { btn.textContent = "Generating..."; btn.disabled = true; }
+
+      // Generate sequentially to avoid rate limits
+      var total = allComms.length;
+      var idx = 0;
+      function next() {
+        if (idx >= allComms.length) {
+          _lcGeneratingComm = null;
+          if (btn) { btn.textContent = "Generate All"; btn.disabled = false; }
+          if (typeof setStatus === "function") setStatus("All " + total + " drafts generated.", "ok");
+          lcRenderDashboardContent(container, project);
+          return;
+        }
+        var commType = allComms[idx++];
+        var label = (LC_COMM_PROMPTS[commType] || {}).label || commType;
+        _lcGeneratingComm = commType;
+        if (btn) btn.textContent = "Generating " + idx + "/" + total + "...";
+        if (typeof setStatus === "function") setStatus("Generating " + label + " (" + idx + " of " + total + ")...", "warn");
+        // Re-render to show spinner on current item
+        lcRenderDashboardContent(container, project);
+        lcGenerateDraft(project, commType).then(function () {
+          _lcGeneratingComm = null;
+          // Re-render to show completed state
+          lcRenderDashboardContent(container, project);
+          // Brief pause before next item so user can see the completed state
+          setTimeout(next, 400);
+        }).catch(function () {
+          _lcGeneratingComm = null;
+          lcRenderDashboardContent(container, project);
+          setTimeout(next, 400);
+        });
+      }
+      next();
+    }
+
+    function lcDeleteAllDrafts(container, project) {
+      if (!_lcCommsDrafts.length) {
+        alert("No drafts to delete.");
+        return;
+      }
+      if (!confirm("Delete all " + _lcCommsDrafts.length + " communication drafts? This cannot be undone.")) return;
+
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) return;
+
+      var drafts = _lcCommsDrafts.slice();
+      var total = drafts.length;
+      if (typeof setStatus === "function") setStatus("Deleting " + total + " drafts...", "warn");
+      var idx = 0;
+      function next() {
+        if (idx >= drafts.length) {
+          _lcCommsDrafts = [];
+          if (typeof setStatus === "function") setStatus("All " + total + " drafts deleted.", "ok");
+          lcRenderDashboardContent(container, project);
+          return;
+        }
+        var draft = drafts[idx++];
+        // Remove from local cache immediately for visual feedback
+        _lcCommsDrafts = _lcCommsDrafts.filter(function (d) { return d.id !== draft.id; });
+        lcRenderDashboardContent(container, project);
+        if (typeof setStatus === "function") setStatus("Deleting draft " + idx + " of " + total + "...", "warn");
+        if (typeof callAppsScriptJson === "function") {
+          callAppsScriptJson("deleteLifecycleCommsDraft", [draft.id]).then(function () {
+            setTimeout(next, 200);
+          }).catch(function () {
+            setTimeout(next, 200);
+          });
+        } else {
+          setTimeout(next, 200);
+        }
+      }
+      next();
+    }
+
+    function lcPushToMarketing() {
+      if (!_lcReviewingDraft) return;
+      var project = lcGetSelectedProject();
+      if (!project) return;
+      var campaigns = Array.isArray(project.campaigns) ? project.campaigns : [];
+      var commType = _lcReviewingDraft.commType;
+      var label = (LC_COMM_PROMPTS[commType] || {}).label || commType;
+      var content = _lcReviewingDraft.content || "";
+
+      // Find or create a lifecycle campaign
+      var lcCampaign = null;
+      for (var i = 0; i < campaigns.length; i++) {
+        if (campaigns[i]._auto === "lifecycle_comms") { lcCampaign = campaigns[i]; break; }
+      }
+      if (!lcCampaign) {
+        lcCampaign = { name: "Lifecycle Communications", channel: "Newsletter", startDate: "", endDate: "", _auto: "lifecycle_comms", tasks: [] };
+        campaigns.push(lcCampaign);
+      }
+
+      // Add or update task
+      var existingTask = null;
+      for (var t = 0; t < lcCampaign.tasks.length; t++) {
+        if (lcCampaign.tasks[t].name === label) { existingTask = lcCampaign.tasks[t]; break; }
+      }
+      if (existingTask) {
+        existingTask.notes = content.substring(0, 200) + (content.length > 200 ? "..." : "");
+        existingTask.status = "pending";
+      } else {
+        lcCampaign.tasks.push({ name: label, dueDate: project.publish_date || "", status: "pending", notes: content.substring(0, 200) + (content.length > 200 ? "..." : "") });
+      }
+
+      // Save project campaigns
+      project.campaigns = campaigns;
+      if (typeof saveManager !== "undefined") {
+        saveManager.saveImmediate("projectDetails", { isAutosave: false });
+      }
+
+      if (typeof setStatus === "function") setStatus(label + " pushed to Marketing module.", "ok");
+    }
+
+    function lcInitDraftReviewEvents() {
+      if (el.lifecycleDraftCloseBtn) el.lifecycleDraftCloseBtn.addEventListener("click", lcCloseDraftReview);
+      if (el.lifecycleDraftSaveBtn) el.lifecycleDraftSaveBtn.addEventListener("click", lcSaveDraftEdit);
+      if (el.lifecycleDraftDeleteBtn) el.lifecycleDraftDeleteBtn.addEventListener("click", lcDeleteDraft);
+      if (el.lifecycleDraftPushBtn) el.lifecycleDraftPushBtn.addEventListener("click", lcPushToMarketing);
+      if (el.lifecycleDraftModal) {
+        el.lifecycleDraftModal.addEventListener("click", function (e) {
+          if (e.target === el.lifecycleDraftModal) lcCloseDraftReview();
+        });
+      }
+    }
+
+    // ---- Phase 2: Template Manager ----
+
+    var _lcEditingTemplateId = null;
+    var _lcEditingStages = [];
+
+    var _lcAssignMode = false;
+
+    function lcOpenTemplateManager(assignMode) {
+      _lcAssignMode = !!assignMode;
+      if (el.lifecycleTemplateModal) {
+        el.lifecycleTemplateModal.setAttribute("aria-hidden", "false");
+        el.lifecycleTemplateModal.classList.add("is-open");
+      }
+      lcLoadTemplateList();
+    }
+
+    function lcCloseTemplateManager() {
+      if (el.lifecycleTemplateModal) {
+        el.lifecycleTemplateModal.setAttribute("aria-hidden", "true");
+        el.lifecycleTemplateModal.classList.remove("is-open");
+      }
+      _lcEditingTemplateId = null;
+      _lcEditingStages = [];
+    }
+
+    function lcLoadTemplateList() {
+      if (typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("listLifecycleTemplates", []).then(function (result) {
+        if (!result || !result.ok) return;
+        lcRenderTemplateList(result.templates || []);
+      }).catch(function () {});
+    }
+
+    function lcRenderTemplateList(templates) {
+      if (!el.lifecycleTemplateList) return;
+      if (!templates.length) {
+        el.lifecycleTemplateList.innerHTML = '<div class="empty-state tiny">No templates yet. Click "New Template" to create one.</div>';
+        return;
+      }
+      var html = "";
+      for (var i = 0; i < templates.length; i++) {
+        var t = templates[i];
+        var stageCount = (t.stages || []).length;
+        var defaultBadge = t.is_default ? ' <span class="lc-badge">Default</span>' : "";
+        html += '<div class="lc-template-item" data-template-id="' + t.id + '">';
+        html += '<div class="lc-template-item-top">';
+        html += '<div><div class="lc-template-item-name">' + escapeHtml(t.name) + defaultBadge + '</div>';
+        html += '<div class="lc-template-item-meta">' + stageCount + ' stages</div>';
+        html += '<div class="lc-template-item-desc">' + escapeHtml(t.description || "") + '</div>';
+        html += '</div>';
+        html += '<div class="lc-template-item-actions">';
+        if (_lcAssignMode) {
+          html += '<button class="lc-template-assign-btn primary tiny" data-template-id="' + t.id + '">Assign</button>';
+        }
+        html += '<button class="lc-template-edit-btn tiny" data-template-id="' + t.id + '">Edit</button>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+      }
+      el.lifecycleTemplateList.innerHTML = html;
+
+      // Assign buttons
+      el.lifecycleTemplateList.querySelectorAll(".lc-template-assign-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var tid = Number(btn.getAttribute("data-template-id"));
+          lcAssignTemplateToProject(tid);
+        });
+      });
+
+      // Edit buttons
+      el.lifecycleTemplateList.querySelectorAll(".lc-template-edit-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var tid = Number(btn.getAttribute("data-template-id"));
+          lcEditTemplate(tid, templates);
+        });
+      });
+
+      // Click on item itself
+      el.lifecycleTemplateList.querySelectorAll(".lc-template-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          var tid = Number(item.getAttribute("data-template-id"));
+          if (_lcAssignMode) {
+            lcAssignTemplateToProject(tid);
+          } else {
+            lcEditTemplate(tid, templates);
+          }
+        });
+      });
+    }
+
+    function lcAssignTemplateToProject(templateId) {
+      var project = lcGetSelectedProject();
+      if (!project) return;
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) return;
+
+      lcAssignLifecycle(projectId, templateId).then(function () {
+        lcCloseTemplateManager();
+        // Reload the lifecycle data
+        return lcLoadProjectLifecycle(projectId);
+      }).then(function (data) {
+        if (data && data.lifecycle) {
+          appState.lifecycle.isAssigned = true;
+          appState.lifecycle.lifecycleId = Number(data.lifecycle.id);
+          appState.lifecycle.templateId = Number(data.lifecycle.template_id);
+          appState.lifecycle.stageStatuses = data.stages || [];
+          appState.lifecycle.approvals = data.approvals || [];
+          appState.lifecycle.templateStages = data.templateStages || [];
+        }
+        var container = document.getElementById("lifecycleContainer");
+        if (container) lcRenderDashboardContent(container, project);
+      }).catch(function () {});
+    }
+
+    function lcEditTemplate(templateId, templates) {
+      _lcEditingTemplateId = templateId;
+      var t = null;
+      for (var i = 0; i < templates.length; i++) {
+        if (Number(templates[i].id) === templateId) { t = templates[i]; break; }
+      }
+      if (!t) return;
+      if (el.lifecycleTemplateName) el.lifecycleTemplateName.value = t.name || "";
+      if (el.lifecycleTemplateDesc) el.lifecycleTemplateDesc.value = t.description || "";
+      if (el.lifecycleTemplateDefault) el.lifecycleTemplateDefault.checked = !!t.is_default;
+      _lcEditingStages = (t.stages || []).map(function (s) {
+        return { stage_key: s.stage_key, label: s.label, phase: s.phase, is_required: s.is_required !== false, sort_order: s.sort_order, gate_conditions: s.gate_conditions || {} };
+      });
+      lcRenderTemplateStagesEditor();
+      if (el.lifecycleTemplateEditor) el.lifecycleTemplateEditor.hidden = false;
+      if (el.lifecycleTemplateList) el.lifecycleTemplateList.hidden = true;
+      if (el.lifecycleTemplateDeleteBtn) el.lifecycleTemplateDeleteBtn.style.display = "";
+    }
+
+    function lcNewTemplate() {
+      _lcEditingTemplateId = null;
+      _lcEditingStages = LIFECYCLE_STAGES.map(function (s, i) {
+        return { stage_key: s.key, label: s.label, phase: s.phase, is_required: true, sort_order: i, gate_conditions: {} };
+      });
+      if (el.lifecycleTemplateName) el.lifecycleTemplateName.value = "";
+      if (el.lifecycleTemplateDesc) el.lifecycleTemplateDesc.value = "";
+      if (el.lifecycleTemplateDefault) el.lifecycleTemplateDefault.checked = false;
+      lcRenderTemplateStagesEditor();
+      if (el.lifecycleTemplateEditor) el.lifecycleTemplateEditor.hidden = false;
+      if (el.lifecycleTemplateList) el.lifecycleTemplateList.hidden = true;
+      if (el.lifecycleTemplateDeleteBtn) el.lifecycleTemplateDeleteBtn.style.display = "none";
+    }
+
+    function lcRenderTemplateStagesEditor() {
+      if (!el.lifecycleTemplateStagesList) return;
+      var html = "";
+      for (var i = 0; i < _lcEditingStages.length; i++) {
+        var s = _lcEditingStages[i];
+        html += '<div class="lc-stage-editor-row" data-index="' + i + '">';
+        html += '<span class="lc-stage-editor-order">' + (i + 1) + '</span>';
+        html += '<input class="lc-stage-editor-key" value="' + escapeHtml(s.stage_key) + '" placeholder="key" />';
+        html += '<input class="lc-stage-editor-label" value="' + escapeHtml(s.label) + '" placeholder="Label" />';
+        html += '<select class="lc-stage-editor-phase">';
+        ["Pre-Production", "Production", "Post-Production", "Evergreen"].forEach(function (p) {
+          html += '<option value="' + p + '"' + (s.phase === p ? " selected" : "") + '>' + p + '</option>';
+        });
+        html += '</select>';
+        html += '<label class="lc-stage-editor-req"><input type="checkbox"' + (s.is_required ? " checked" : "") + ' /> Req</label>';
+        html += '<button class="lc-stage-editor-remove tiny" type="button" data-index="' + i + '">\u00D7</button>';
+        html += '</div>';
+      }
+      el.lifecycleTemplateStagesList.innerHTML = html;
+
+      el.lifecycleTemplateStagesList.querySelectorAll(".lc-stage-editor-remove").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-index"));
+          _lcEditingStages.splice(idx, 1);
+          lcRenderTemplateStagesEditor();
+        });
+      });
+    }
+
+    function lcAddStage() {
+      _lcEditingStages.push({ stage_key: "", label: "", phase: "Pre-Production", is_required: true, sort_order: _lcEditingStages.length, gate_conditions: {} });
+      lcRenderTemplateStagesEditor();
+    }
+
+    function lcSaveTemplate() {
+      var name = el.lifecycleTemplateName ? el.lifecycleTemplateName.value.trim() : "";
+      if (!name) { if (el.lifecycleTemplateName) el.lifecycleTemplateName.focus(); return; }
+
+      // Read current values from editor inputs
+      var rows = el.lifecycleTemplateStagesList ? el.lifecycleTemplateStagesList.querySelectorAll(".lc-stage-editor-row") : [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var keyInput = row.querySelector(".lc-stage-editor-key");
+        var labelInput = row.querySelector(".lc-stage-editor-label");
+        var phaseSelect = row.querySelector(".lc-stage-editor-phase");
+        var reqCheck = row.querySelector(".lc-stage-editor-req input");
+        if (_lcEditingStages[i]) {
+          _lcEditingStages[i].stage_key = keyInput ? keyInput.value.trim() : "";
+          _lcEditingStages[i].label = labelInput ? labelInput.value.trim() : "";
+          _lcEditingStages[i].phase = phaseSelect ? phaseSelect.value : "Pre-Production";
+          _lcEditingStages[i].is_required = reqCheck ? reqCheck.checked : true;
+          _lcEditingStages[i].sort_order = i;
+        }
+      }
+
+      var desc = el.lifecycleTemplateDesc ? el.lifecycleTemplateDesc.value.trim() : "";
+      var isDefault = el.lifecycleTemplateDefault ? el.lifecycleTemplateDefault.checked : false;
+
+      if (typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("saveLifecycleTemplate", [_lcEditingTemplateId, name, desc, isDefault, JSON.stringify(_lcEditingStages)]).then(function (result) {
+        if (result && result.ok) {
+          lcLoadTemplateList();
+          _lcEditingTemplateId = null;
+          _lcEditingStages = [];
+          if (el.lifecycleTemplateEditor) el.lifecycleTemplateEditor.hidden = true;
+          if (el.lifecycleTemplateList) el.lifecycleTemplateList.hidden = false;
+        }
+      }).catch(function () {});
+    }
+
+    function lcDeleteTemplate() {
+      if (!_lcEditingTemplateId) return;
+      if (!confirm("Delete this template? This cannot be undone.")) return;
+      if (typeof callAppsScriptJson !== "function") return;
+      callAppsScriptJson("deleteLifecycleTemplate", [_lcEditingTemplateId]).then(function (result) {
+        if (result && result.ok) {
+          lcLoadTemplateList();
+          _lcEditingTemplateId = null;
+          _lcEditingStages = [];
+          if (el.lifecycleTemplateEditor) el.lifecycleTemplateEditor.hidden = true;
+          if (el.lifecycleTemplateList) el.lifecycleTemplateList.hidden = false;
+        }
+      }).catch(function () {});
+    }
+
+    // ---- Phase 2: Rendering ----
+
+    function lcGetCurrentStages() {
+      var lc = appState.lifecycle;
+      if (lc.isAssigned && lc.templateStages && lc.templateStages.length) {
+        return lc.templateStages;
+      }
+      return LIFECYCLE_STAGES;
+    }
+
+    function lcGetCurrentStageStatuses() {
+      return appState.lifecycle.stageStatuses || [];
+    }
+
+    function lcGetStageStatus(stageKey) {
+      var statuses = lcGetCurrentStageStatuses();
+      for (var i = 0; i < statuses.length; i++) {
+        if (statuses[i].stage_key === stageKey) return statuses[i];
+      }
+      return null;
+    }
+
+    function lcGetApprovalForStage(stageKey) {
+      var approvals = appState.lifecycle.approvals || [];
+      for (var i = 0; i < approvals.length; i++) {
+        if (approvals[i].stage_key === stageKey && !approvals[i].decision) return approvals[i];
+      }
+      return null;
+    }
+
+    function lcGetCurrentIndex() {
+      var stages = lcGetCurrentStages();
+      var statuses = lcGetCurrentStageStatuses();
+      if (!statuses.length) return 0;
+      var lastComplete = -1;
+      for (var i = 0; i < stages.length; i++) {
+        var key = stages[i].stage_key || stages[i].key;
+        var ss = lcGetStageStatus(key);
+        if (ss && (ss.status === "complete" || ss.status === "skipped")) lastComplete = i;
+      }
+      return Math.min(lastComplete + 1, stages.length - 1);
+    }
+
+    function lcGetProgress() {
+      var stages = lcGetCurrentStages();
+      var statuses = lcGetCurrentStageStatuses();
+      if (!stages.length) return 0;
+      if (!statuses.length) return 0;
+      var done = 0;
+      for (var i = 0; i < stages.length; i++) {
+        var key = stages[i].stage_key || stages[i].key;
+        var ss = lcGetStageStatus(key);
+        if (ss && (ss.status === "complete" || ss.status === "skipped")) done++;
+      }
+      return Math.round((done / stages.length) * 100);
+    }
+
+    function lcGetCurrentPhase() {
+      var stages = lcGetCurrentStages();
+      var idx = lcGetCurrentIndex();
+      if (stages[idx]) return stages[idx].phase || "";
+      return "";
+    }
+
+    function lcGetCurrentLabel() {
+      var stages = lcGetCurrentStages();
+      var idx = lcGetCurrentIndex();
+      if (stages[idx]) return stages[idx].label || "";
+      return "";
+    }
+
+    function lcGetBlockers(project) {
+      if (appState.lifecycle.isAssigned) {
+        var blockers = [];
+        var statuses = lcGetCurrentStageStatuses();
+        for (var i = 0; i < statuses.length; i++) {
+          if (statuses[i].status === "blocked") {
+            blockers.push({ reason: statuses[i].blocked_reason || "Blocked", source: "lifecycle", severity: "high" });
+          }
+        }
+        return blockers;
+      }
+      return lcCalculateDerivedBlockers(project, lcCalculateDerivedStage(project));
+    }
+
+    function lcGetNextActions(project) {
+      if (appState.lifecycle.isAssigned) {
+        var actions = [];
+        var stages = lcGetCurrentStages();
+        var idx = lcGetCurrentIndex();
+        if (stages[idx]) {
+          actions.push({ action: "Complete: " + stages[idx].label, module: "lifecycle", urgency: "high" });
+        }
+        return actions;
+      }
+      return lcCalculateDerivedNextActions(project, lcCalculateDerivedStage(project));
+    }
+
+    // ---- Validation ----
+
+    function lcCanCompleteStage(stageKey) {
+      var stages = lcGetCurrentStages();
+      for (var i = 0; i < stages.length; i++) {
+        var key = stages[i].stage_key || stages[i].key;
+        if (key === stageKey) break;
+        if (stages[i].is_required === false) continue;
+        var ss = lcGetStageStatus(key);
+        if (!ss || (ss.status !== "complete" && ss.status !== "skipped")) {
+          return { allowed: false, blockingStage: stages[i].label };
+        }
+      }
+      return { allowed: true };
+    }
+
+    // ---- Main Render ----
+
+    function renderLifecycleDashboard() {
+      var container = document.getElementById("lifecycleContainer");
+      if (!container) return;
+
+      var project = lcGetSelectedProject();
+      if (!project) {
+        container.innerHTML = '<div class="lifecycle-empty"><h3>No Project Selected</h3><p>Select a project from the PROJECTS tab to view its lifecycle.</p></div>';
+        return;
+      }
+
+      var projectId = Number(project.project_id || project.id || 0);
+      if (!projectId) {
+        container.innerHTML = '<div class="lifecycle-empty"><h3>No Project ID</h3><p>This project does not have a valid ID.</p></div>';
+        return;
+      }
+
+      if (appState.lifecycle.loading) return;
+
+      appState.lifecycle.loading = true;
+      lcLoadProjectLifecycle(projectId).then(function (data) {
+        appState.lifecycle.loading = false;
+
+        if (data && data.lifecycle) {
+          appState.lifecycle.isAssigned = true;
+          appState.lifecycle.lifecycleId = Number(data.lifecycle.id);
+          appState.lifecycle.templateId = Number(data.lifecycle.template_id);
+          appState.lifecycle.stageStatuses = data.stages || [];
+          appState.lifecycle.approvals = data.approvals || [];
+          appState.lifecycle.templateStages = data.templateStages || [];
+        } else {
+          appState.lifecycle.isAssigned = false;
+          appState.lifecycle.lifecycleId = null;
+          appState.lifecycle.templateId = null;
+          appState.lifecycle.stageStatuses = [];
+          appState.lifecycle.approvals = [];
+          appState.lifecycle.templateStages = [];
+        }
+
+        // Load comms drafts
+        return lcLoadCommsDrafts(projectId).then(function (drafts) {
+          _lcCommsDrafts = drafts || [];
+          lcRenderDashboardContent(container, project);
+        });
+      }).catch(function () {
+        appState.lifecycle.loading = false;
+        appState.lifecycle.isAssigned = false;
+        lcRenderDashboardContent(container, project);
+      });
+    }
+
+    function lcRenderDashboardContent(container, project) {
+      var stages = lcGetCurrentStages();
+      var idx = lcGetCurrentIndex();
+      var progress = lcGetProgress();
+      var phase = lcGetCurrentPhase();
+      var label = lcGetCurrentLabel();
+      var blockers = lcGetBlockers(project);
+      var nextActions = lcGetNextActions(project);
+      var isAssigned = appState.lifecycle.isAssigned;
+      var expandedStage = appState.lifecycle.expandedStage;
+
+      var html = '';
+
+      // Header bar with template info + manage button
+      html += '<div class="lc-header">';
+      html += '<div class="lc-header-info">';
+      if (isAssigned) {
+        html += '<span class="lc-template-badge">Lifecycle Assigned</span>';
+      } else {
+        html += '<span class="lc-template-badge lc-badge-derived">Derived from Status</span>';
+      }
+      html += '</div>';
+      html += '<div class="lc-header-actions">';
+      if (!isAssigned) {
+        html += '<button id="lcAssignBtn" type="button" class="lc-assign-btn">Assign Lifecycle</button>';
+      } else {
+        html += '<button id="lcUnassignBtn" type="button" class="lc-unassign-btn">Unassign</button>';
+      }
+      html += '<button id="lcManageTemplatesBtn" type="button" class="lc-manage-btn">Manage Templates</button>';
+      html += '</div></div>';
+
+      // Section 1: Current Position
+      html += '<div class="lc-section lc-position">';
+      html += '<div class="lc-section-title">Current Position</div>';
+      html += '<div class="lc-position-grid">';
+      html += '<div class="lc-position-item"><span class="lc-label">Project</span><span class="lc-value">' + escapeHtml(project.title || "Untitled") + '</span></div>';
+      html += '<div class="lc-position-item"><span class="lc-label">Phase</span><span class="lc-value lc-phase-badge lc-phase-' + phase.toLowerCase().replace(/[^a-z]/g, '') + '">' + escapeHtml(phase || "Unknown") + '</span></div>';
+      html += '<div class="lc-position-item"><span class="lc-label">Stage</span><span class="lc-value">' + escapeHtml(label || "Unknown") + '</span></div>';
+      html += '<div class="lc-position-item"><span class="lc-label">Status</span><span class="lc-value">' + escapeHtml(project.status || "Unknown") + '</span></div>';
+      html += '</div>';
+      html += '<div class="lc-progress-row"><div class="lc-progress-bar"><div class="lc-progress-fill" style="width:' + progress + '%"></div></div><span class="lc-progress-pct">' + progress + '%</span></div>';
+      if (nextActions.length > 0) {
+        html += '<div class="lc-next-action"><span class="lc-label">Next Action:</span> ' + escapeHtml(nextActions[0].action) + ' <span class="lc-module-tag">' + escapeHtml(nextActions[0].module) + '</span></div>';
+      }
+      html += '</div>';
+
+      // Section 2: Stage Checklist (interactive if assigned)
+      html += '<div class="lc-section lc-checklist">';
+      html += '<div class="lc-section-header">';
+      html += '<div class="lc-section-title">Stage Checklist</div>';
+      html += '<div class="lc-section-actions">';
+      html += '<button id="lcGenerateAllBtn" type="button" class="lc-bulk-btn">Generate All</button>';
+      html += '<button id="lcDeleteAllDraftsBtn" type="button" class="lc-bulk-btn lc-bulk-btn-danger">Delete All Drafts</button>';
+      html += '</div></div>';
+      html += '<div class="lc-checklist-items">';
+      for (var i = 0; i < stages.length; i++) {
+        var s = stages[i];
+        var key = s.stage_key || s.key;
+        var ss = isAssigned ? lcGetStageStatus(key) : null;
+        var stageStatus = ss ? ss.status : (i < idx ? "complete" : (i === idx ? "in_progress" : "pending"));
+        var icon = stageStatus === "complete" ? "\u2713" : (stageStatus === "skipped" ? "\u2014" : (stageStatus === "in_progress" ? "\u25B6" : (stageStatus === "blocked" ? "\u26A0" : "\u25CB")));
+        var stateClass = "lc-checklist-" + stageStatus;
+        var isExpanded = expandedStage === key;
+        var approval = isAssigned ? lcGetApprovalForStage(key) : null;
+
+        html += '<div class="lc-checklist-item ' + stateClass + (isExpanded ? " is-expanded" : "") + '" data-stage-key="' + escapeHtml(key) + '">';
+        html += '<span class="lc-checklist-icon">' + icon + '</span>';
+        html += '<span class="lc-checklist-label">' + escapeHtml(s.label) + '</span>';
+        if (approval) html += '<span class="lc-approval-badge">Approval Pending</span>';
+        html += '<span class="lc-checklist-phase">' + escapeHtml(s.phase || "") + '</span>';
+        html += '</div>';
+
+        // Inline comms for this stage (when stage is complete)
+        var stageComms = LC_STAGE_COMMS[key];
+        if (stageComms && stageComms.length && stageStatus === "complete") {
+          for (var cm = 0; cm < stageComms.length; cm++) {
+            var comm = stageComms[cm];
+            var existingDraft = lcGetDraftForType(comm.type);
+            var isGenerating = _lcGeneratingComm === comm.type;
+            html += '<div class="lc-comm-inline' + (existingDraft ? " lc-comm-has-draft" : "") + '">';
+            html += '<span class="lc-comm-inline-icon">' + (existingDraft ? "\u25CF" : "\u25CB") + '</span>';
+            html += '<span class="lc-comm-inline-label">' + escapeHtml(comm.label) + '</span>';
+            if (existingDraft) {
+              html += '<span class="lc-comms-draft-badge">Draft ready</span>';
+              html += '<button class="lc-comms-review-btn tiny" data-comm-type="' + escapeHtml(comm.type) + '">Review</button>';
+            } else if (isGenerating) {
+              html += '<span class="lc-comms-generating"><span class="lc-spinner"></span> Generating...</span>';
+            } else {
+              html += '<button class="lc-comms-generate-btn tiny" data-comm-type="' + escapeHtml(comm.type) + '">Generate</button>';
+            }
+            html += '</div>';
+          }
+        }
+
+        // Expanded detail
+        if (isExpanded) {
+          html += '<div class="lc-stage-detail" data-stage-key="' + escapeHtml(key) + '">';
+          if (!isAssigned) {
+            html += '<div class="lc-stage-detail-assign-msg">Assign a lifecycle to track and update this stage.</div>';
+          } else {
+          html += '<div class="lc-stage-detail-row">';
+          html += '<label>Status</label>';
+          html += '<select class="lc-stage-status-select" data-stage-key="' + escapeHtml(key) + '">';
+          ["pending", "in_progress", "blocked", "complete", "skipped"].forEach(function (st) {
+            html += '<option value="' + st + '"' + (stageStatus === st ? " selected" : "") + '>' + (LIFECYCLE_STATUS_LABELS[st] || st) + '</option>';
+          });
+          html += '</select>';
+          html += '</div>';
+
+          if (stageStatus === "blocked") {
+            html += '<div class="lc-stage-detail-row">';
+            html += '<label>Blocked Reason</label>';
+            html += '<input class="lc-stage-blocked-input" data-stage-key="' + escapeHtml(key) + '" value="' + escapeHtml((ss && ss.blocked_reason) || "") + '" placeholder="Why is this blocked?" />';
+            html += '</div>';
+          }
+
+          html += '<div class="lc-stage-detail-row">';
+          html += '<label>Notes</label>';
+          html += '<textarea class="lc-stage-notes-input" data-stage-key="' + escapeHtml(key) + '" placeholder="Add notes...">' + escapeHtml((ss && ss.notes) || "") + '</textarea>';
+          html += '</div>';
+
+          html += '<div class="lc-stage-detail-actions">';
+          html += '<button class="lc-stage-save-btn primary tiny" data-stage-key="' + escapeHtml(key) + '">Save</button>';
+          if (!approval) {
+            html += '<button class="lc-stage-approve-btn tiny" data-stage-key="' + escapeHtml(key) + '">Request Approval</button>';
+          } else {
+            html += '<span class="lc-approval-pending">Approval requested</span>';
+            html += '<button class="lc-approval-approve-btn tiny" data-approval-id="' + approval.id + '">Approve</button>';
+            html += '<button class="lc-approval-reject-btn tiny" data-approval-id="' + approval.id + '">Reject</button>';
+          }
+          html += '</div>';
+          }
+          html += '</div>';
+        }
+      }
+      html += '</div></div>';
+
+      // Section 3: Blockers + Next Actions
+      html += '<div class="lc-dual-row">';
+      html += '<div class="lc-section lc-blockers">';
+      html += '<div class="lc-section-title">Blockers</div>';
+      if (blockers.length === 0) {
+        html += '<div class="lc-empty-list">No blockers detected.</div>';
+      } else {
+        for (var b = 0; b < blockers.length; b++) {
+          html += '<div class="lc-blocker-item lc-severity-' + blockers[b].severity + '">';
+          html += '<span class="lc-blocker-icon">\u26A0</span>';
+          html += '<div><div class="lc-blocker-reason">' + escapeHtml(blockers[b].reason) + '</div>';
+          if (blockers[b].detail) html += '<div class="lc-blocker-detail">' + escapeHtml(blockers[b].detail) + '</div>';
+          html += '</div></div>';
+        }
+      }
+      html += '</div>';
+
+      html += '<div class="lc-section lc-actions">';
+      html += '<div class="lc-section-title">Next Actions</div>';
+      if (nextActions.length === 0) {
+        html += '<div class="lc-empty-list">No actions required.</div>';
+      } else {
+        for (var a = 0; a < nextActions.length; a++) {
+          html += '<div class="lc-action-item">';
+          html += '<span class="lc-action-urgency lc-urgency-' + nextActions[a].urgency + '">' + nextActions[a].urgency + '</span>';
+          html += '<span class="lc-action-label">' + escapeHtml(nextActions[a].action) + '</span>';
+          html += '<span class="lc-module-tag">' + escapeHtml(nextActions[a].module) + '</span>';
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      html += '</div>';
+
+      container.innerHTML = html;
+      lcBindDashboardEvents(container, project);
+    }
+
+    function lcBindDashboardEvents(container, project) {
+      var projectId = Number(project.project_id || project.id || 0);
+
+      // Assign button
+      var assignBtn = container.querySelector("#lcAssignBtn");
+      if (assignBtn) {
+        assignBtn.addEventListener("click", function () {
+          lcOpenTemplateManager(true);
+        });
+      }
+
+      // Unassign button
+      var unassignBtn = container.querySelector("#lcUnassignBtn");
+      if (unassignBtn) {
+        unassignBtn.addEventListener("click", function () {
+          lcUnassignLifecycle(container, project);
+        });
+      }
+
+      // Manage templates button
+      var manageBtn = container.querySelector("#lcManageTemplatesBtn");
+      if (manageBtn) {
+        manageBtn.addEventListener("click", function () {
+          lcOpenTemplateManager(false);
+        });
+      }
+
+      // Generate all drafts
+      var generateAllBtn = container.querySelector("#lcGenerateAllBtn");
+      if (generateAllBtn) {
+        generateAllBtn.addEventListener("click", function () {
+          lcGenerateAllDrafts(container, project);
+        });
+      }
+
+      // Delete all drafts
+      var deleteAllBtn = container.querySelector("#lcDeleteAllDraftsBtn");
+      if (deleteAllBtn) {
+        deleteAllBtn.addEventListener("click", function () {
+          lcDeleteAllDrafts(container, project);
+        });
+      }
+
+      // Stage click to expand/collapse
+      container.querySelectorAll(".lc-checklist-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          var key = item.getAttribute("data-stage-key");
+          if (appState.lifecycle.expandedStage === key) {
+            appState.lifecycle.expandedStage = null;
+          } else {
+            appState.lifecycle.expandedStage = key;
+          }
+          lcRenderDashboardContent(container, project);
+        });
+      });
+
+      // Stage status save
+      container.querySelectorAll(".lc-stage-save-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var key = btn.getAttribute("data-stage-key");
+          var statusSelect = container.querySelector('.lc-stage-status-select[data-stage-key="' + key + '"]');
+          var blockedInput = container.querySelector('.lc-stage-blocked-input[data-stage-key="' + key + '"]');
+          var notesInput = container.querySelector('.lc-stage-notes-input[data-stage-key="' + key + '"]');
+          var status = statusSelect ? statusSelect.value : "pending";
+          var blocked = blockedInput ? blockedInput.value : "";
+          var notes = notesInput ? notesInput.value : "";
+
+          // Validate: can only complete if all previous required stages are done
+          if (status === "complete") {
+            var check = lcCanCompleteStage(key);
+            if (!check.allowed) {
+              alert("Cannot complete this stage yet. Complete \"" + check.blockingStage + "\" first.");
+              return;
+            }
+          }
+
+          lcUpdateStageStatus(projectId, key, status, blocked, notes).then(function () {
+            return lcLoadProjectLifecycle(projectId);
+          }).then(function (data) {
+            if (data && data.lifecycle) {
+              appState.lifecycle.stageStatuses = data.stages || [];
+              appState.lifecycle.approvals = data.approvals || [];
+              appState.lifecycle.templateStages = data.templateStages || [];
+            }
+            lcRenderDashboardContent(container, project);
+          }).catch(function () {});
+        });
+      });
+
+      // Request approval
+      container.querySelectorAll(".lc-stage-approve-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var key = btn.getAttribute("data-stage-key");
+          lcRequestApproval(projectId, key).then(function () {
+            return lcLoadProjectLifecycle(projectId);
+          }).then(function (data) {
+            if (data) {
+              appState.lifecycle.approvals = data.approvals || [];
+            }
+            lcRenderDashboardContent(container, project);
+          }).catch(function () {});
+        });
+      });
+
+      // Approve
+      container.querySelectorAll(".lc-approval-approve-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var aid = Number(btn.getAttribute("data-approval-id"));
+          lcDecideApproval(aid, "approved", "").then(function () {
+            return lcLoadProjectLifecycle(projectId);
+          }).then(function (data) {
+            if (data) {
+              appState.lifecycle.stageStatuses = data.stages || [];
+              appState.lifecycle.approvals = data.approvals || [];
+            }
+            lcRenderDashboardContent(container, project);
+          }).catch(function () {});
+        });
+      });
+
+      // Reject
+      container.querySelectorAll(".lc-approval-reject-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var aid = Number(btn.getAttribute("data-approval-id"));
+          lcDecideApproval(aid, "rejected", "").then(function () {
+            return lcLoadProjectLifecycle(projectId);
+          }).then(function (data) {
+            if (data) {
+              appState.lifecycle.approvals = data.approvals || [];
+            }
+            lcRenderDashboardContent(container, project);
+          }).catch(function () {});
+        });
+      });
+
+      // Generate draft buttons
+      container.querySelectorAll(".lc-comms-generate-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var commType = btn.getAttribute("data-comm-type");
+          _lcGeneratingComm = commType;
+          // Re-render to show spinner
+          lcRenderDashboardContent(container, project);
+          lcGenerateDraft(project, commType).then(function () {
+            _lcGeneratingComm = null;
+            lcRenderDashboardContent(container, project);
+          }).catch(function (err) {
+            _lcGeneratingComm = null;
+            alert("Draft generation failed: " + (err && err.message ? err.message : err));
+            lcRenderDashboardContent(container, project);
+          });
+        });
+      });
+
+      // Review draft buttons
+      container.querySelectorAll(".lc-comms-review-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var commType = btn.getAttribute("data-comm-type");
+          var draft = lcGetDraftForType(commType);
+          if (draft) lcOpenDraftReview(draft);
+        });
+      });
+    }
+
+    // ---- Template Manager Events ----
+
+    function lcInitTemplateManagerEvents() {
+      if (el.lifecycleTemplateNewBtn) el.lifecycleTemplateNewBtn.addEventListener("click", lcNewTemplate);
+      if (el.lifecycleTemplateCancelBtn) el.lifecycleTemplateCancelBtn.addEventListener("click", lcCloseTemplateManager);
+      if (el.lifecycleTemplateSaveBtn) el.lifecycleTemplateSaveBtn.addEventListener("click", lcSaveTemplate);
+      if (el.lifecycleTemplateDeleteBtn) el.lifecycleTemplateDeleteBtn.addEventListener("click", lcDeleteTemplate);
+      if (el.lifecycleAddStageBtn) el.lifecycleAddStageBtn.addEventListener("click", lcAddStage);
+      if (el.lifecycleTemplateModal) {
+        el.lifecycleTemplateModal.addEventListener("click", function (e) {
+          if (e.target === el.lifecycleTemplateModal) lcCloseTemplateManager();
+        });
+      }
+    }
+
+    // Init on load
+    if (typeof setTimeout === "function") setTimeout(function () {
+      if (typeof lcInitTemplateManagerEvents === "function") lcInitTemplateManagerEvents();
+      if (typeof lcInitDraftReviewEvents === "function") lcInitDraftReviewEvents();
+    }, 100);
