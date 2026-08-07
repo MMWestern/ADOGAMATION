@@ -8883,6 +8883,7 @@
     }
 
     function openNewProjectModal() {
+      if (typeof populateFilters === "function") populateFilters();
       el.modalProjectTitle.value = "";
       el.modalProjectSeries.value = "";
       el.modalProjectBookNumber.value = "";
