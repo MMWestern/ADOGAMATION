@@ -1546,6 +1546,7 @@
         });
         bindUiOnce(el.resourceInspectorTableBody, "resource-inspector-live-edit", "input", function () {
           syncInspectorOptionsFromTable();
+          if (typeof populateFilters === "function") populateFilters();
           updateResourceInspectorCount(
             INSPECTOR_OPTION_FIELDS.reduce(function (count, field) {
               return count + ((appState.inspectorOptions[field.key] || []).length);
@@ -1555,6 +1556,7 @@
         });
         bindUiOnce(el.resourceInspectorTableBody, "resource-inspector-live-change", "change", function () {
           syncInspectorOptionsFromTable();
+          if (typeof populateFilters === "function") populateFilters();
         });
       }
 
