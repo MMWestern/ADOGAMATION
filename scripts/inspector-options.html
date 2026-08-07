@@ -248,6 +248,7 @@
         populateFilters();
         if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
             setResourceInspectorStatus("Inspector options updated locally.", "ok");
+            if (typeof setStatus === "function") setStatus("Inspector options updated locally.", "ok");
             return;
         }
         if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = true;
@@ -262,13 +263,16 @@
                     renderResourceInspectorPanel();
                     populateFilters();
                     setResourceInspectorStatus("Inspector options saved.", "ok");
+                    if (typeof setStatus === "function") setStatus("Inspector options saved.", "ok");
                 } catch (err) {
                     setResourceInspectorStatus("Inspector options save failed: " + err.message, "error");
+                    if (typeof setStatus === "function") setStatus("Inspector options save failed: " + err.message, "error");
                 }
             })
             .withFailureHandler(function (error) {
                 if (el.resourceInspectorSaveButton) el.resourceInspectorSaveButton.disabled = false;
                 setResourceInspectorStatus("Inspector options save failed: " + (error && error.message ? error.message : error), "error");
+                if (typeof setStatus === "function") setStatus("Inspector options save failed: " + (error && error.message ? error.message : error), "error");
             })
             .saveProjectInspectorOptionsJsonFromClient(JSON.stringify(options));
     }
