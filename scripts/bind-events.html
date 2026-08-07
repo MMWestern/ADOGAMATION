@@ -1571,14 +1571,21 @@
         }
         var targetKey = String(appState.inspectorOptionsFilter || "all").trim();
         if (targetKey === "all") targetKey = "genre";
-        if (!Array.isArray(appState.inspectorOptions[targetKey])) appState.inspectorOptions[targetKey] = [];
-        appState.inspectorOptions[targetKey].push("");
-        renderResourceInspectorPanel();
         if (!el.resourceInspectorTableBody) return;
-        var rows = el.resourceInspectorTableBody.querySelectorAll("tr");
-        var row = rows.length ? rows[rows.length - 1] : null;
-        var input = row ? row.querySelector("[data-inspector-option-value]") : null;
+        var selectOptions = INSPECTOR_OPTION_FIELDS.map(function (field) {
+          return "<option value='" + escapeHtml(field.key) + "'" + (field.key === targetKey ? " selected" : "") + ">" + escapeHtml(field.label) + "</option>";
+        }).join("");
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td><select data-inspector-option-key>" + selectOptions + "</select></td>" +
+          "<td><input type='text' data-inspector-option-value value='' placeholder='Option value' /></td>" +
+          "<td><input type='text' data-inspector-option-desc value='' placeholder='Description (optional)' /></td>" +
+          "<td><button type='button' class='resource-inspector-remove' data-inspector-remove-row>&times;</button></td>";
+        el.resourceInspectorTableBody.appendChild(tr);
+        var input = tr.querySelector("[data-inspector-option-value]");
         if (input) input.focus();
+        var visibleCount = el.resourceInspectorTableBody.querySelectorAll("tr").length;
+        updateResourceInspectorCount(visibleCount, visibleCount);
       });
 
       bindUiOnce(el.resourceInspectorSeedButton, "resource-inspector-seed", "click", function () {
