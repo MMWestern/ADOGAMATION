@@ -137,7 +137,18 @@
 
     function syncInspectorOptionsFromTable() {
         if (!el.resourceInspectorTableBody) return;
-        appState.inspectorOptions = readInspectorOptionsFromTable();
+        var fromTable = readInspectorOptionsFromTable();
+        var existing = appState.inspectorOptions || {};
+        var filterKey = String(appState.inspectorOptionsFilter || "all").trim();
+        if (filterKey === "all") {
+            appState.inspectorOptions = fromTable;
+        } else {
+            var merged = {};
+            INSPECTOR_OPTION_FIELDS.forEach(function (field) {
+                merged[field.key] = field.key === filterKey ? (fromTable[field.key] || []) : (existing[field.key] || []);
+            });
+            appState.inspectorOptions = normalizeInspectorOptionsConfig(merged);
+        }
     }
 
     function renderResourceInspectorPanel() {
