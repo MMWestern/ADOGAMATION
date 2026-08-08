@@ -4265,14 +4265,17 @@
           if (!eid || visited[eid]) return "";
           visited[eid] = true;
           var html = "";
-          var indentStyle = depth > 0 ? " style='margin-left:" + (depth * 16) + "px;'" : "";
+          var indentPx = depth > 0 ? depth * 16 : 0;
           var depthClass = depth > 0 ? " codex-location-nested" : "";
           var active = String(appState.writingWorkspace.selectedCodexKey || "") === String(entry.key || "") ? " is-active" : "";
           var title = String(entry.title || "").trim() || "Untitled";
           var words = title.split(/\s+/).filter(Boolean);
           var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
           var color = String(entry.color || "").trim();
-          var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
+          var inlineStyle = "";
+          if (indentPx) inlineStyle += "padding-left:" + indentPx + "px;";
+          if (color) inlineStyle += "color:" + color + ";";
+          var styleAttr = inlineStyle ? ' style="' + inlineStyle + '"' : "";
           var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
           var imgUrl = String(entry.image_url || "").trim();
           var avatarHtml = imgUrl
@@ -4285,7 +4288,7 @@
           if (role) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(role) + '">' + escapeHtml(role) + '</span>';
           if (archetype) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(archetype) + '">' + escapeHtml(archetype) + '</span>';
           if (!pillsHtml && badge) pillsHtml = '<span class="writing-codex-entry-pill" style="background:#5f6971;color:#f1e6c8">' + escapeHtml(badge) + '</span>';
-          html += "<button type='button' class='writing-codex-entry" + active + depthClass + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "' data-depth='" + depth + "'" + indentStyle + ">" +
+          html += "<button type='button' class='writing-codex-entry" + active + depthClass + "'" + styleAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "' data-depth='" + depth + "'>" +
             avatarHtml +
             "<div class='writing-codex-entry-content'>" +
               "<div class='writing-codex-entry-top'>" +

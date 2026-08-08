@@ -3329,8 +3329,9 @@
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
-      var indentStyle = depth > 0 ? " style='margin-left:" + (depth * 16) + "px;'" : "";
-      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + indentStyle + ">";
+      var indentPx = depth > 0 ? depth * 16 : 0;
+      var styleAttr = indentPx ? " style='padding-left:" + indentPx + "px;'" : "";
+      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
