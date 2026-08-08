@@ -4694,11 +4694,20 @@
           var revId = Number(btn.getAttribute("data-rev-id"));
           if (!revId) return;
           if (!confirm("Delete this revision?")) return;
+          var item = btn.closest(".codex-revision-item");
           callAppsScriptJson("deleteCodexRevision", [revId]).then(function (json) {
             var result = typeof json === 'string' ? JSON.parse(json) : json;
             if (result && result.ok) {
               setStatus("Revision deleted.", "ok");
-              loadCodexRevisions(_codexActiveEntityId);
+              if (item) item.remove();
+              // Update cached revisions
+              if (window._codexRevisionCache) {
+                window._codexRevisionCache = window._codexRevisionCache.filter(function (r) { return Number(r.id) !== revId; });
+              }
+              // Show empty message if no revisions left
+              if (list.children.length === 0) {
+                list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No revision history yet.</div>";
+              }
             } else {
               setStatus("Failed to delete revision.", "error");
             }
