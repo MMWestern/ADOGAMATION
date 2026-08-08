@@ -690,5 +690,18 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
       { key: "deep_worldbuilding", label: "Deep Worldbuilding" }
     ];
 
+    // Stage 4B: World Builder proposal types
+    var WORLD_PROPOSAL_TYPES = [
+      { key: "create_entity", label: "Create Entity" },
+      { key: "update_entity", label: "Update Entity" },
+      { key: "create_connection", label: "Create Connection" },
+      { key: "add_framework_statement", label: "Add Framework Statement" },
+      { key: "add_world_rule", label: "Add World Rule" },
+      { key: "add_event", label: "Add Event" },
+      { key: "create_continuity_finding", label: "Create Continuity Finding" }
+    ];
+
+    var WORLD_PROPOSAL_STATUSES = ["pending", "edited", "accepted_provisional", "accepted_canon", "rejected", "archived", "merged"];
+
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;

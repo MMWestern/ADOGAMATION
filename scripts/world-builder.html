@@ -155,6 +155,41 @@
       }).catch(function () { return null; });
     }
 
+    // --- Proposals (Stage 4D) ---
+
+    function listWorldProposals(seriesId, status) {
+      if (!seriesId) return Promise.resolve([]);
+      return callAppsScriptJson("listWorldProposals", [seriesId, status || null]).then(function (result) {
+        if (result && result.ok && result.proposals) return result.proposals;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveWorldProposal(seriesId, proposal) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("saveWorldProposal", [seriesId, JSON.stringify(proposal || {})]).then(function (result) {
+        if (result && result.ok && result.proposal) return result.proposal;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save proposal: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    function updateWorldProposalStatus(proposalId, status, reason) {
+      if (!proposalId) return Promise.resolve(false);
+      return callAppsScriptJson("updateWorldProposalStatus", [proposalId, status, reason || ""]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
+    function linkProposalToEntity(proposalId, entityId) {
+      if (!proposalId) return Promise.resolve(false);
+      return callAppsScriptJson("linkProposalToEntity", [proposalId, entityId]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
     // --- Initialize Framework (creates framework + default pillars if none exists) ---
 
     function initWorldFramework(seriesId) {

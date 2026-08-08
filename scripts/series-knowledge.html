@@ -5246,6 +5246,9 @@
       if (mode === "world-builder" && seriesId) {
         loadWorldBuilderData(seriesId);
       }
+      if (mode === "review" && seriesId) {
+        loadReviewProposals(seriesId);
+      }
     }
 
     function loadWorldBuilderData(seriesId) {
@@ -5585,14 +5588,204 @@
         return;
       }
       var html = "";
-      _buildMessages.forEach(function (msg) {
+      _buildMessages.forEach(function (msg, idx) {
         var roleLabel = msg.role === "user" ? "You" : "Assistant";
         var roleClass = msg.role === "user" ? "role-user" : "role-assistant";
         html += "<div class='assistant-msg'>";
         html += "<div class='assistant-msg-role " + roleClass + "'>" + roleLabel + "</div>";
         html += "<div class='assistant-msg-content'>" + escapeHtml(msg.content) + "</div>";
+        if (msg.role === "assistant") {
+          html += "<div class='assistant-msg-actions'>";
+          html += "<button type='button' class='assistant-create-proposal-btn' data-msg-index='" + idx + "'>Create Proposal</button>";
+          html += "</div>";
+        }
         html += "</div>";
       });
       container.innerHTML = html;
       container.scrollTop = container.scrollHeight;
+      // Wire create proposal buttons
+      container.querySelectorAll(".assistant-create-proposal-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var msgIdx = Number(btn.getAttribute("data-msg-index"));
+          createProposalFromAssistantMessage(msgIdx);
+        });
+      });
+    }
+
+    function createProposalFromAssistantMessage(msgIdx) {
+      var msg = _buildMessages[msgIdx];
+      if (!msg || msg.role !== "assistant") return;
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) { setStatus("Select a series first.", "error"); return; }
+      // Ask user for proposal type
+      var typeOptions = WORLD_PROPOSAL_TYPES.map(function (t, i) { return (i + 1) + ". " + t.label; }).join("\n");
+      var choice = prompt("Create proposal from this message.\nSelect type:\n" + typeOptions + "\n\nEnter number (1-" + WORLD_PROPOSAL_TYPES.length + "):", "1");
+      if (choice === null) return;
+      var typeIdx = parseInt(choice, 10) - 1;
+      if (typeIdx < 0 || typeIdx >= WORLD_PROPOSAL_TYPES.length) { setStatus("Invalid proposal type.", "error"); return; }
+      var proposalType = WORLD_PROPOSAL_TYPES[typeIdx].key;
+      var summary = prompt("Proposal summary:", msg.content.substring(0, 100));
+      if (summary === null) return;
+      var proposal = {
+        proposal_type: proposalType,
+        summary: summary,
+        proposed_content: { text: msg.content, source: "assistant" },
+        source_passage: msg.content.substring(0, 500),
+        review_status: "pending",
+        settings_snapshot: {
+          session_id: _activeBuildSession ? _activeBuildSession.id : null,
+          message_index: msgIdx
+        }
+      };
+      saveWorldProposal(seriesId, proposal).then(function (saved) {
+        if (saved) {
+          setStatus("Proposal created: " + summary, "ok");
+        }
+      });
+    }
+
+    // ============================================================
+    // WORLD BUILDER — Review Proposals (Stage 4E/4F)
+    // ============================================================
+
+    var _reviewProposals = [];
+
+    function loadReviewProposals(seriesId) {
+      if (!seriesId) return;
+      listWorldProposals(seriesId, "pending").then(function (proposals) {
+        _reviewProposals = proposals || [];
+        renderProposalList();
+      });
+    }
+
+    function renderProposalList() {
+      var container = document.getElementById("codexReviewContent");
+      if (!container) return;
+      if (!_reviewProposals.length) {
+        container.innerHTML = "<div class='codex-review-empty'>No proposals pending review.</div>";
+        return;
+      }
+      var html = "<div class='proposal-list'>";
+      _reviewProposals.forEach(function (proposal) {
+        var typeLabel = proposal.proposal_type || "unknown";
+        var typeInfo = WORLD_PROPOSAL_TYPES.find(function (t) { return t.key === typeLabel; });
+        var label = typeInfo ? typeInfo.label : typeLabel;
+        var summary = proposal.summary || "No summary";
+        var date = proposal.created_at ? new Date(proposal.created_at).toLocaleDateString() : "";
+        html += "<div class='proposal-card' data-proposal-id='" + proposal.id + "'>";
+        html += "<div class='proposal-card-header'>";
+        html += "<span class='proposal-card-type'>" + escapeHtml(label) + "</span>";
+        html += "<span class='proposal-card-date'>" + escapeHtml(date) + "</span>";
+        html += "</div>";
+        html += "<div class='proposal-card-summary'>" + escapeHtml(summary) + "</div>";
+        if (proposal.source_pillar_key) {
+          html += "<div class='proposal-card-source'>Pillar: " + escapeHtml(proposal.source_pillar_key) + "</div>";
+        }
+        html += "<div class='proposal-card-actions'>";
+        html += "<button type='button' class='proposal-accept-btn' data-proposal-id='" + proposal.id + "' data-action='accept'>Accept</button>";
+        html += "<button type='button' class='proposal-accept-btn' data-proposal-id='" + proposal.id + "' data-action='accept_provisional'>Accept Provisional</button>";
+        html += "<button type='button' class='proposal-reject-btn' data-proposal-id='" + proposal.id + "'>Reject</button>";
+        html += "<button type='button' class='proposal-archive-btn' data-proposal-id='" + proposal.id + "'>Archive</button>";
+        html += "</div>";
+        html += "</div>";
+      });
+      html += "</div>";
+      container.innerHTML = html;
+      // Wire action buttons
+      container.querySelectorAll(".proposal-accept-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var proposalId = Number(btn.getAttribute("data-proposal-id"));
+          var action = btn.getAttribute("data-action");
+          handleProposalAction(proposalId, action);
+        });
+      });
+      container.querySelectorAll(".proposal-reject-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var proposalId = Number(btn.getAttribute("data-proposal-id"));
+          var reason = prompt("Rejection reason (optional):", "");
+          if (reason === null) return;
+          handleProposalAction(proposalId, "rejected", reason);
+        });
+      });
+      container.querySelectorAll(".proposal-archive-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var proposalId = Number(btn.getAttribute("data-proposal-id"));
+          handleProposalAction(proposalId, "archived");
+        });
+      });
+    }
+
+    function handleProposalAction(proposalId, action, reason) {
+      var proposal = _reviewProposals.find(function (p) { return Number(p.id) === proposalId; });
+      if (!proposal) return;
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) return;
+      var newStatus = action === "accept" ? "accepted_canon" : action === "accept_provisional" ? "accepted_provisional" : action;
+      // If accepting a create_entity proposal, actually create the entity
+      if ((newStatus === "accepted_canon" || newStatus === "accepted_provisional") && proposal.proposal_type === "create_entity") {
+        var content = proposal.proposed_content || {};
+        var entityTypeKey = proposal.target_entity_type || "lore";
+        var entityTypeId = getCodexEntityTypeId_(seriesId, entityTypeKey);
+        if (!entityTypeId) {
+          setStatus("Unknown entity type: " + entityTypeKey, "error");
+          return;
+        }
+        var entityPayload = {
+          name: content.name || proposal.summary || "Untitled",
+          description: content.description || "",
+          summary: content.summary || "",
+          scope: "series",
+          status: "active",
+          canon_status: newStatus === "accepted_canon" ? "canon" : "provisional",
+          custom_data: content.custom_data || {}
+        };
+        callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(entityPayload)]).then(function (result) {
+          var saved = result && result.entity ? result.entity : {};
+          var savedId = Number(saved.id || 0);
+          if (savedId) {
+            return linkProposalToEntity(proposalId, savedId).then(function () {
+              return updateWorldProposalStatus(proposalId, newStatus, reason);
+            });
+          }
+          return updateWorldProposalStatus(proposalId, newStatus, reason);
+        }).then(function () {
+          setStatus("Proposal accepted: " + proposal.summary, "ok");
+          _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+          renderProposalList();
+          return loadCodexEntities(seriesId);
+        }).then(function () {
+          renderCodexTree(seriesId);
+        });
+      } else if ((newStatus === "accepted_canon" || newStatus === "accepted_provisional") && proposal.proposal_type === "add_framework_statement") {
+        // Add content to the relevant pillar
+        var pillarKey = proposal.source_pillar_key || "";
+        var pillar = _worldPillars.find(function (p) { return p.pillar_key === pillarKey; });
+        if (pillar && _worldFramework) {
+          var newContent = pillar.author_content ? pillar.author_content + "\n\n" + (proposal.proposed_content.text || "") : (proposal.proposed_content.text || "");
+          pillar.author_content = newContent;
+          pillar.state = "captured";
+          saveWorldPillar(_worldFramework.id, pillarKey, pillar).then(function () {
+            return updateWorldProposalStatus(proposalId, newStatus, reason);
+          }).then(function () {
+            setStatus("Framework statement accepted: " + proposal.summary, "ok");
+            _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+            renderProposalList();
+            renderPillarGrid();
+          });
+        } else {
+          updateWorldProposalStatus(proposalId, newStatus, reason).then(function () {
+            _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+            renderProposalList();
+          });
+        }
+      } else {
+        // Just update status (reject, archive)
+        updateWorldProposalStatus(proposalId, newStatus, reason).then(function () {
+          setStatus("Proposal " + newStatus + ": " + proposal.summary, "ok");
+          _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+          renderProposalList();
+        });
+      }
     }

@@ -799,3 +799,62 @@
       return sbClient.from('world_build_messages').insert([payload]).select().single()
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, message: res.data }); });
     });
+
+    // ============================================================
+    // WORLD BUILDER — Stage 4C Proposals CRUD
+    // ============================================================
+
+    _sbDefine('listWorldProposals', function (seriesId, status) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var q = sbClient.from('world_proposals').select('*').eq('series_id', safeSeriesId).order('created_at', { ascending: false }).limit(100);
+      if (status) q = q.eq('review_status', status);
+      return q.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, proposals: res.data || [] }); });
+    });
+
+    _sbDefine('saveWorldProposal', function (seriesId, proposalJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof proposalJson === 'string' ? JSON.parse(proposalJson) : (proposalJson || {});
+      var proposalId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        session_id: Number(parsed.session_id || 0) || null,
+        proposal_type: String(parsed.proposal_type || 'create_entity').trim(),
+        target_entity_type: String(parsed.target_entity_type || '').trim() || null,
+        target_entity_id: Number(parsed.target_entity_id || 0) || null,
+        proposed_content: parsed.proposed_content || {},
+        summary: String(parsed.summary || ''),
+        source_passage: String(parsed.source_passage || ''),
+        source_pillar_key: String(parsed.source_pillar_key || '').trim() || null,
+        contradictions: parsed.contradictions || [],
+        ai_assumptions: parsed.ai_assumptions || [],
+        suggested_connections: parsed.suggested_connections || [],
+        review_status: String(parsed.review_status || 'pending').trim(),
+        settings_snapshot: parsed.settings_snapshot || {}
+      };
+      if (proposalId) payload.id = proposalId;
+      var op = proposalId
+        ? sbClient.from('world_proposals').update(payload).eq('id', proposalId).select().single()
+        : sbClient.from('world_proposals').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, proposal: res.data }); });
+    });
+
+    _sbDefine('updateWorldProposalStatus', function (proposalId, status, reason) {
+      var safeId = Number(proposalId || 0);
+      if (!safeId) throw new Error('Proposal id is required.');
+      var update = {
+        review_status: String(status || 'pending').trim(),
+        updated_at: new Date().toISOString()
+      };
+      if (reason) update.rejection_reason = String(reason);
+      return sbClient.from('world_proposals').update(update).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('linkProposalToEntity', function (proposalId, entityId) {
+      var safeId = Number(proposalId || 0);
+      if (!safeId) throw new Error('Proposal id is required.');
+      return sbClient.from('world_proposals').update({ resulting_entity_id: Number(entityId || 0) || null }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
