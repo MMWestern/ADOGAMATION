@@ -4630,11 +4630,9 @@
         var summary = rev.change_summary || "No summary";
         var revNum = rev.revision_number || (idx + 1);
         var diffHtml = "";
-        // Compare against the next older revision (idx+1), or current entity for the newest
+        // Compare each revision against the next older revision to show what changed
         var compareTo = null;
-        if (idx === 0 && currentEntity) {
-          compareTo = currentEntity;
-        } else if (idx < revisions.length - 1) {
+        if (idx < revisions.length - 1) {
           compareTo = revisions[idx + 1].snapshot || {};
         }
         if (compareTo) {
