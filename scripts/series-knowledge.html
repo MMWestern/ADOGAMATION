@@ -5299,54 +5299,57 @@
     function openPillarDetail(pillarId) {
       var pillar = _worldPillars.find(function (p) { return Number(p.id) === pillarId; });
       if (!pillar) return;
-      // Replace card content with inline editor
-      var card = document.querySelector('.codex-pillar-card[data-pillar-id="' + pillarId + '"]');
-      if (!card) return;
-      var isExpanded = card.classList.contains("is-expanded");
-      // Collapse any other expanded cards
-      document.querySelectorAll(".codex-pillar-card.is-expanded").forEach(function (c) {
-        c.classList.remove("is-expanded");
-        var editor = c.querySelector(".codex-pillar-editor");
-        if (editor) editor.remove();
-      });
-      if (isExpanded) return;
-      card.classList.add("is-expanded");
-      var editorHtml = "<div class='codex-pillar-editor'>";
-      editorHtml += "<label class='codex-pillar-editor-label'>Content</label>";
-      editorHtml += "<textarea class='codex-pillar-editor-textarea' rows='4' placeholder='Enter content for this pillar...'>" + escapeHtml(pillar.author_content || "") + "</textarea>";
-      editorHtml += "<div class='codex-pillar-editor-actions'>";
-      editorHtml += "<button type='button' class='codex-pillar-editor-save' data-pillar-id='" + pillar.id + "'>Save</button>";
-      editorHtml += "<button type='button' class='codex-pillar-editor-cancel'>Cancel</button>";
-      editorHtml += "</div>";
-      editorHtml += "</div>";
-      card.insertAdjacentHTML("beforeend", editorHtml);
-      var textarea = card.querySelector(".codex-pillar-editor-textarea");
-      if (textarea) textarea.focus();
-      // Wire save button
-      var saveBtn = card.querySelector(".codex-pillar-editor-save");
-      if (saveBtn) {
-        saveBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          var ta = card.querySelector(".codex-pillar-editor-textarea");
-          var newContent = ta ? ta.value : "";
-          pillar.author_content = newContent;
-          if (!_worldFramework) return;
-          saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
-            if (saved) {
-              setStatus("Pillar saved: " + pillar.label, "ok");
-              renderPillarGrid();
-            }
-          });
+      var modal = document.getElementById("pillarEditModal");
+      if (!modal) return;
+      // Populate modal
+      var title = document.getElementById("pillarEditTitle");
+      if (title) title.textContent = pillar.label;
+      var stateLabel = document.getElementById("pillarEditState");
+      if (stateLabel) stateLabel.textContent = "Current state: " + (pillar.state || "empty").replace(/_/g, ' ');
+      var stateSelect = document.getElementById("pillarEditStateSelect");
+      if (stateSelect) {
+        stateSelect.innerHTML = "";
+        WORLD_PILLAR_STATES.forEach(function (s) {
+          var opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s.replace(/_/g, ' ');
+          if (s === (pillar.state || "empty")) opt.selected = true;
+          stateSelect.appendChild(opt);
         });
       }
-      // Wire cancel button
-      var cancelBtn = card.querySelector(".codex-pillar-editor-cancel");
-      if (cancelBtn) {
-        cancelBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          renderPillarGrid();
+      var content = document.getElementById("pillarEditContent");
+      if (content) content.value = pillar.author_content || "";
+      // Wire save
+      var saveBtn = document.getElementById("pillarEditSaveBtn");
+      saveBtn.onclick = function () {
+        var newContent = content ? content.value : "";
+        var newState = stateSelect ? stateSelect.value : pillar.state;
+        pillar.author_content = newContent;
+        pillar.state = newState;
+        if (!_worldFramework) return;
+        saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
+          if (saved) {
+            closePillarModal();
+            renderPillarGrid();
+            setStatus("Pillar saved: " + pillar.label, "ok");
+          }
         });
-      }
+      };
+      // Wire cancel
+      var cancelBtn = document.getElementById("pillarEditCancelBtn");
+      cancelBtn.onclick = function () { closePillarModal(); };
+      // Click outside to close
+      modal.onclick = function (e) { if (e.target === modal) closePillarModal(); };
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+      if (content) content.focus();
+    }
+
+    function closePillarModal() {
+      var modal = document.getElementById("pillarEditModal");
+      if (!modal) return;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
     }
 
     function renderBrainstormList() {

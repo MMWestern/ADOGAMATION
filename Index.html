@@ -3635,6 +3635,29 @@
     </div>
   </div>
 
+  <div id="pillarEditModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:600px;">
+      <div class="modal-header">
+        <h3 id="pillarEditTitle">Edit Pillar</h3>
+        <div id="pillarEditState" class="muted"></div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label class="label" for="pillarEditStateSelect">State</label>
+          <select id="pillarEditStateSelect" style="width:100%;"></select>
+        </div>
+        <div>
+          <label class="label" for="pillarEditContent">Content</label>
+          <textarea id="pillarEditContent" rows="10" style="width:100%;min-height:200px;" placeholder="Enter content for this pillar..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="pillarEditCancelBtn" type="button">Cancel</button>
+        <button id="pillarEditSaveBtn" type="button" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <?!= include('Client'); ?>
 </body>
