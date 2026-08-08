@@ -4253,12 +4253,14 @@
           var parentId = parentMap[eid];
           return !parentId || !entityMap[parentId];
         });
-        function renderWithChildren(entry, depth) {
+        function renderWithChildren(entry, depth, visited) {
+          if (depth > 10) return "";
+          var eid = entry.entityId || entry.id;
+          if (visited[eid]) return "";
+          visited[eid] = true;
           var html = "";
           var indentStyle = depth > 0 ? " style='margin-left:" + (depth * 16) + "px;'" : "";
           var depthClass = depth > 0 ? " codex-location-nested" : "";
-          var eid = entry.entityId || entry.id;
-          // Modify the entry button to add indent
           var active = String(appState.writingWorkspace.selectedCodexKey || "") === String(entry.key || "") ? " is-active" : "";
           var title = String(entry.title || "").trim() || "Untitled";
           var words = title.split(/\s+/).filter(Boolean);
@@ -4289,13 +4291,13 @@
           "</button>";
           var children = items.filter(function (e) { return parentMap[e.entityId || e.id] === eid; });
           children.forEach(function (child) {
-            html += renderWithChildren(child, depth + 1);
+            html += renderWithChildren(child, depth + 1, visited);
           });
           return html;
         }
         var result = "";
         roots.forEach(function (entry) {
-          result += renderWithChildren(entry, 0);
+          result += renderWithChildren(entry, 0, {});
         });
         return result;
       }

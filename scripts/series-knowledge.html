@@ -3353,17 +3353,20 @@
         var parentId = parentMap[e.id];
         return !parentId || !entityMap[parentId];
       });
-      // Render recursively
-      function renderEntityAndChildren(entity, depth) {
+      // Render recursively with cycle protection
+      function renderEntityAndChildren(entity, depth, visited) {
+        if (depth > 10) return "";
+        if (visited[entity.id]) return "";
+        visited[entity.id] = true;
         var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
         var children = entities.filter(function (e) { return parentMap[e.id] === entity.id; });
         children.forEach(function (child) {
-          result += renderEntityAndChildren(child, depth + 1);
+          result += renderEntityAndChildren(child, depth + 1, visited);
         });
         return result;
       }
       roots.forEach(function (entity) {
-        html += renderEntityAndChildren(entity, 0);
+        html += renderEntityAndChildren(entity, 0, {});
       });
       return html;
     }
