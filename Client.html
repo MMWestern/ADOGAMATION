@@ -4246,17 +4246,23 @@
             parentMap[Number(c.source_entity_id)] = Number(c.target_entity_id);
           }
         });
+        // Extract entity IDs from keys like "location::123"
+        function getEntryId(entry) {
+          var key = String(entry.key || "");
+          var parts = key.split("::");
+          return Number(parts[1] || 0);
+        }
         var entityMap = {};
-        items.forEach(function (e) { entityMap[e.entityId || e.id] = e; });
+        items.forEach(function (e) { var eid = getEntryId(e); if (eid) entityMap[eid] = e; });
         var roots = items.filter(function (e) {
-          var eid = e.entityId || e.id;
+          var eid = getEntryId(e);
           var parentId = parentMap[eid];
           return !parentId || !entityMap[parentId];
         });
         function renderWithChildren(entry, depth, visited) {
           if (depth > 10) return "";
-          var eid = entry.entityId || entry.id;
-          if (visited[eid]) return "";
+          var eid = getEntryId(entry);
+          if (!eid || visited[eid]) return "";
           visited[eid] = true;
           var html = "";
           var indentStyle = depth > 0 ? " style='margin-left:" + (depth * 16) + "px;'" : "";
@@ -4289,7 +4295,7 @@
               "<div class='writing-codex-entry-body'>" + escapeHtml(entry.body || "No details yet.") + "</div>" +
             "</div>" +
           "</button>";
-          var children = items.filter(function (e) { return parentMap[e.entityId || e.id] === eid; });
+          var children = items.filter(function (e) { return getEntryId(e) && parentMap[getEntryId(e)] === eid; });
           children.forEach(function (child) {
             html += renderWithChildren(child, depth + 1, visited);
           });
