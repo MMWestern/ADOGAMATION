@@ -3329,9 +3329,8 @@
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
-      var indentPx = depth > 0 ? depth * 16 : 0;
-      var styleAttr = indentPx ? " style='padding-left:" + indentPx + "px;'" : "";
-      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
+      var styleAttr = "";
+      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'>";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
@@ -3340,8 +3339,6 @@
       if (desc) entryHtml += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
       entryHtml += "</div>";
       entryHtml += "</button>";
-      // Find children of this entity
-      var children = allLocationIds.filter(function (id) { return parentMap[id] === entity.id; });
       return entryHtml;
     }
 
@@ -3359,11 +3356,15 @@
         if (depth > 10) return "";
         if (visited[entity.id]) return "";
         visited[entity.id] = true;
-        var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
+        var indentPx = depth > 0 ? depth * 16 : 0;
+        var result = "";
+        if (indentPx) result += "<div style='margin-left:" + indentPx + "px;'>";
+        result += renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
         var children = entities.filter(function (e) { return parentMap[e.id] === entity.id; });
         children.forEach(function (child) {
           result += renderEntityAndChildren(child, depth + 1, visited);
         });
+        if (indentPx) result += "</div>";
         return result;
       }
       roots.forEach(function (entity) {
