@@ -4649,13 +4649,14 @@
       list.innerHTML = html;
       // Store revisions for restore/view
       window._codexRevisionCache = revisions;
+      window._codexRevisionCurrentEntity = currentEntity;
       // Bind view buttons
       list.querySelectorAll(".codex-revision-view-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var idx = Number(btn.getAttribute("data-rev-index"));
           var rev = window._codexRevisionCache && window._codexRevisionCache[idx];
           if (rev && rev.snapshot) {
-            alert(JSON.stringify(rev.snapshot, null, 2).substring(0, 2000) + "...");
+            openRevisionSnapshotModal(rev, idx);
           }
         });
       });
@@ -4743,4 +4744,166 @@
       }).catch(function (err) {
         setStatus("Failed to restore revision: " + (err.message || err), "error");
       });
+    }
+
+    // --- Revision Snapshot Modal ---
+
+    function openRevisionSnapshotModal(rev, revIdx) {
+      var modal = document.getElementById("revisionSnapshotModal");
+      if (!modal) return;
+      var snapshot = rev.snapshot || {};
+      var date = rev.created_at ? new Date(rev.created_at).toLocaleString() : "Unknown";
+      var revNum = rev.revision_number || (revIdx + 1);
+
+      // Populate header
+      var title = document.getElementById("revisionSnapshotTitle");
+      if (title) title.textContent = "Revision " + revNum + " — " + (snapshot.name || "Untitled");
+      var meta = document.getElementById("revisionSnapshotMeta");
+      if (meta) meta.textContent = date + (rev.change_summary ? " · " + rev.change_summary : "");
+
+      // Store current rev for restore button
+      window._codexRevisionModalIdx = revIdx;
+
+      // Render default tab (overview)
+      renderRevisionSnapshotTab("overview", snapshot);
+
+      // Wire tab clicks
+      var tabs = modal.querySelectorAll(".revision-snapshot-tab");
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          tabs.forEach(function (t) { t.classList.remove("is-active"); });
+          tab.classList.add("is-active");
+          renderRevisionSnapshotTab(tab.getAttribute("data-tab"), snapshot);
+        });
+      });
+
+      // Wire close button
+      var closeBtn = document.getElementById("revisionSnapshotCloseBtn");
+      if (closeBtn) {
+        closeBtn.onclick = function () { closeRevisionSnapshotModal(); };
+      }
+
+      // Wire restore button
+      var restoreBtn = document.getElementById("revisionSnapshotRestoreBtn");
+      if (restoreBtn) {
+        restoreBtn.onclick = function () {
+          if (!confirm("Restore this revision? This will overwrite the current entity data.")) return;
+          closeRevisionSnapshotModal();
+          if (_codexActiveEntityId) restoreCodexRevision(_codexActiveEntityId, snapshot);
+        };
+      }
+
+      // Click outside to close
+      modal.addEventListener("click", function handler(e) {
+        if (e.target === modal) {
+          closeRevisionSnapshotModal();
+          modal.removeEventListener("click", handler);
+        }
+      });
+
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeRevisionSnapshotModal() {
+      var modal = document.getElementById("revisionSnapshotModal");
+      if (!modal) return;
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderRevisionSnapshotTab(tabKey, snapshot) {
+      var container = document.getElementById("revisionSnapshotContent");
+      if (!container) return;
+
+      if (tabKey === "overview") {
+        var fields = [
+          { label: "Name", value: snapshot.name },
+          { label: "Status", value: snapshot.status },
+          { label: "Canon Status", value: snapshot.canon_status },
+          { label: "Visibility", value: snapshot.visibility },
+          { label: "Spoiler Level", value: snapshot.spoiler_level },
+          { label: "Scope", value: snapshot.scope },
+          { label: "Color", value: snapshot.color },
+          { label: "Featured", value: snapshot.featured ? "Yes" : "No" }
+        ];
+        var html = "<div class='revision-snapshot-overview'>";
+        fields.forEach(function (f) {
+          var val = f.value || "";
+          var cls = val ? "" : " empty";
+          html += "<div class='revision-snapshot-field'>";
+          html += "<span class='revision-snapshot-field-label'>" + escapeHtml(f.label) + "</span>";
+          html += "<span class='revision-snapshot-field-value" + cls + "'>" + escapeHtml(val || "Not set") + "</span>";
+          html += "</div>";
+        });
+        html += "</div>";
+        if (snapshot.summary) {
+          html += "<div style='margin-top:16px'>";
+          html += "<span class='revision-snapshot-field-label'>Summary</span>";
+          html += "<div class='revision-snapshot-field-value' style='margin-top:4px'>" + escapeHtml(snapshot.summary) + "</div>";
+          html += "</div>";
+        }
+        if (snapshot.description) {
+          html += "<div style='margin-top:16px'>";
+          html += "<span class='revision-snapshot-field-label'>Description</span>";
+          html += "<div class='revision-snapshot-field-value' style='margin-top:4px;max-height:200px;overflow-y:auto;white-space:pre-wrap'>" + escapeHtml(snapshot.description) + "</div>";
+          html += "</div>";
+        }
+        container.innerHTML = html;
+
+      } else if (tabKey === "fields") {
+        var allFields = [
+          "name", "slug", "aliases", "summary", "description", "image_url", "color",
+          "scope", "status", "visibility", "canon_status", "public_summary",
+          "marketing_summary", "spoiler_level", "featured", "sort_order"
+        ];
+        var html = "<div class='revision-snapshot-overview'>";
+        allFields.forEach(function (f) {
+          var val = snapshot[f];
+          if (Array.isArray(val)) val = val.join(", ");
+          if (typeof val === "boolean") val = val ? "Yes" : "No";
+          if (val == null) val = "";
+          var cls = val ? "" : " empty";
+          html += "<div class='revision-snapshot-field'>";
+          html += "<span class='revision-snapshot-field-label'>" + escapeHtml(f) + "</span>";
+          html += "<span class='revision-snapshot-field-value" + cls + "'>" + escapeHtml(String(val) || "—") + "</span>";
+          html += "</div>";
+        });
+        html += "</div>";
+        container.innerHTML = html;
+
+      } else if (tabKey === "sections") {
+        var customData = snapshot.custom_data || {};
+        var sections = customData.sections || {};
+        var sectionKeys = Object.keys(sections);
+        if (!sectionKeys.length && !customData.relations_notes && !customData.backstory) {
+          container.innerHTML = "<div class='revision-snapshot-empty'>No sections in this revision.</div>";
+          return;
+        }
+        var html = "<div class='revision-snapshot-sections'>";
+        if (customData.backstory) {
+          html += "<div class='revision-snapshot-section'>";
+          html += "<div class='revision-snapshot-section-header'>Backstory</div>";
+          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(customData.backstory) + "</div>";
+          html += "</div>";
+        }
+        if (customData.relations_notes) {
+          html += "<div class='revision-snapshot-section'>";
+          html += "<div class='revision-snapshot-section-header'>Relations</div>";
+          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(customData.relations_notes) + "</div>";
+          html += "</div>";
+        }
+        sectionKeys.forEach(function (key) {
+          var label = key.replace(/_/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+          html += "<div class='revision-snapshot-section'>";
+          html += "<div class='revision-snapshot-section-header'>" + escapeHtml(label) + "</div>";
+          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(sections[key] || "") + "</div>";
+          html += "</div>";
+        });
+        html += "</div>";
+        container.innerHTML = html;
+
+      } else if (tabKey === "raw") {
+        container.innerHTML = "<pre class='revision-snapshot-raw'>" + escapeHtml(JSON.stringify(snapshot, null, 2)) + "</pre>";
+      }
     }

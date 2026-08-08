@@ -3587,6 +3587,28 @@
     <button type="button" data-md-format="link">Link</button>
   </div>
 
+  <div id="revisionSnapshotModal" class="modal" aria-hidden="true">
+    <div class="modal-card revision-snapshot-card">
+      <div class="modal-header">
+        <h3 id="revisionSnapshotTitle">Revision Snapshot</h3>
+        <div id="revisionSnapshotMeta" class="muted"></div>
+      </div>
+      <div class="modal-body revision-snapshot-body">
+        <div class="revision-snapshot-tabs">
+          <button type="button" class="revision-snapshot-tab is-active" data-tab="overview">Overview</button>
+          <button type="button" class="revision-snapshot-tab" data-tab="fields">Fields</button>
+          <button type="button" class="revision-snapshot-tab" data-tab="sections">Sections</button>
+          <button type="button" class="revision-snapshot-tab" data-tab="raw">Raw JSON</button>
+        </div>
+        <div id="revisionSnapshotContent" class="revision-snapshot-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="revisionSnapshotCloseBtn" type="button">Close</button>
+        <button id="revisionSnapshotRestoreBtn" type="button" class="primary">Restore This Revision</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <?!= include('Client'); ?>
 </body>
