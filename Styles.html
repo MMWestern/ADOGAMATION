@@ -1898,6 +1898,42 @@
       border-radius: 0 6px 6px 0;
     }
 
+    /* Location breadcrumb */
+    .codex-location-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .codex-location-breadcrumb-sep {
+      font-size: 11px;
+      color: #52525b;
+    }
+    .codex-location-breadcrumb-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: #a5b4fc;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .codex-location-breadcrumb-pill:hover {
+      background: rgba(99,102,241,0.15);
+      border-color: #818cf8;
+    }
+    .codex-location-breadcrumb-pill.is-current {
+      cursor: default;
+      background: rgba(99,102,241,0.1);
+      font-weight: 700;
+    }
+    .codex-location-breadcrumb-pill.is-current:hover {
+      background: rgba(99,102,241,0.1);
+    }
+
     .writing-codex-entry-foot {
       font-size: 9px;
       line-height: 1;

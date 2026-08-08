@@ -3302,6 +3302,24 @@
       return parentMap;
     }
 
+    function buildLocationBreadcrumbPath(entityId, seriesId) {
+      var entities = codexCache.entitiesBySeries[seriesId] || [];
+      var entityMap = {};
+      entities.forEach(function (e) { entityMap[e.id] = e; });
+      var parentMap = buildLocationParentMap(seriesId);
+      var path = [];
+      var currentId = entityId;
+      var visited = {};
+      while (currentId && !visited[currentId]) {
+        visited[currentId] = true;
+        var entity = entityMap[currentId];
+        if (!entity) break;
+        path.unshift({ id: entity.id, name: entity.name || "Untitled", color: entity.color || "" });
+        currentId = parentMap[currentId] || 0;
+      }
+      return path;
+    }
+
     function renderLocationTreeEntry(entity, item, depth, parentMap, allLocationIds) {
       var name = entity.name || "Unnamed";
       var desc = entity.summary || entity.description || "";
@@ -3733,6 +3751,25 @@
         html += "<button type='button' class='codex-detail-color-option' data-color='" + c + "' style='background:" + (c || "#3a3a42") + ";'" + (c === color ? " data-selected='1'" : "") + "></button>";
       });
       html += "</div></div>";
+      // Location breadcrumb
+      if (entityTypeKey === "location" && entity.id && skCurrentSeriesId) {
+        var breadcrumbPath = buildLocationBreadcrumbPath(entity.id, skCurrentSeriesId);
+        if (breadcrumbPath.length > 1) {
+          html += "<div class='codex-location-breadcrumb'>";
+          breadcrumbPath.forEach(function (crumb, i) {
+            if (i > 0) html += "<span class='codex-location-breadcrumb-sep'>›</span>";
+            var isLast = i === breadcrumbPath.length - 1;
+            var crumbColor = crumb.color || "";
+            var pillStyle = crumbColor ? " style='border-color:" + crumbColor + ";color:" + crumbColor + ";'" : "";
+            if (isLast) {
+              html += "<span class='codex-location-breadcrumb-pill is-current'" + pillStyle + ">" + escapeHtml(crumb.name) + "</span>";
+            } else {
+              html += "<button type='button' class='codex-location-breadcrumb-pill' data-entity-id='" + crumb.id + "'" + pillStyle + ">" + escapeHtml(crumb.name) + "</button>";
+            }
+          });
+          html += "</div>";
+        }
+      }
       html += "</div>";
       html += "<div class='sk-badges-row' id='codexDetailBadges'>";
       if (roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
@@ -3969,6 +4006,21 @@
       wireCodexDetailColorPicker_();
       wireCodexDetailImage_(entity, entityTypeKey);
       refreshCodexNewSectionDropdown_();
+      // Wire breadcrumb pill clicks for location hierarchy
+      if (entityTypeKey === "location") {
+        var breadcrumbContainer = el.codexEntityPageContent ? el.codexEntityPageContent.querySelector(".codex-location-breadcrumb") : null;
+        if (breadcrumbContainer) {
+          breadcrumbContainer.querySelectorAll(".codex-location-breadcrumb-pill[data-entity-id]").forEach(function (pill) {
+            pill.addEventListener("click", function () {
+              var targetId = Number(pill.getAttribute("data-entity-id"));
+              if (targetId) {
+                var treeEntry = el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + targetId + "']");
+                if (treeEntry) treeEntry.click();
+              }
+            });
+          });
+        }
+      }
     }
 
     function wireCodexDetailImage_(entity, entityTypeKey) {
