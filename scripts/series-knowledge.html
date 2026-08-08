@@ -3680,6 +3680,35 @@
         if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
       });
       html += "</select></div>";
+      // Stage 1C: Status field dropdowns
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Status</label>";
+      html += "<select id='codexDetailStatus' class='codex-detail-field-select'>";
+      CODEX_STATUS_OPTIONS.forEach(function (opt) {
+        html += "<option value='" + opt + "'" + (entity.status === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Canon Status</label>";
+      html += "<select id='codexDetailCanonStatus' class='codex-detail-field-select'>";
+      CODEX_CANON_STATUS_OPTIONS.forEach(function (opt) {
+        html += "<option value='" + opt + "'" + (entity.canon_status === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Visibility</label>";
+      html += "<select id='codexDetailVisibility' class='codex-detail-field-select'>";
+      CODEX_VISIBILITY_OPTIONS.forEach(function (opt) {
+        html += "<option value='" + opt + "'" + (entity.visibility === opt ? " selected" : "") + ">" + opt.replace(/_/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); }) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Spoiler Level</label>";
+      html += "<select id='codexDetailSpoilerLevel' class='codex-detail-field-select'>";
+      CODEX_SPOILER_OPTIONS.forEach(function (opt) {
+        html += "<option value='" + opt + "'" + (entity.spoiler_level === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
+      });
+      html += "</select></div>";
       if (entityTypeKey === "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Motivation / Arc</label>";
@@ -4097,6 +4126,11 @@
           if (roleSelect) mergedCustom.role_archetype = roleSelect.value;
           if (archSelect) mergedCustom.archetype = archSelect.value;
           if (motivationSelect) mergedCustom.motivation_arc = motivationSelect.value;
+          // Stage 1C: Read status field values
+          var statusSelect = document.getElementById("codexDetailStatus");
+          var canonStatusSelect = document.getElementById("codexDetailCanonStatus");
+          var visibilitySelect = document.getElementById("codexDetailVisibility");
+          var spoilerSelect = document.getElementById("codexDetailSpoilerLevel");
           var projectId = Number(project && (project.project_id || project.id) || 0);
           var codexPayload = {
             id: currentEntityId,
@@ -4106,6 +4140,10 @@
             image_url: String(entity.image_url || "").trim(),
             color: color,
             scope: scope,
+            status: statusSelect ? statusSelect.value : (entity.status || "active"),
+            canon_status: canonStatusSelect ? canonStatusSelect.value : (entity.canon_status || "draft"),
+            visibility: visibilitySelect ? visibilitySelect.value : (entity.visibility || "private"),
+            spoiler_level: spoilerSelect ? spoilerSelect.value : (entity.spoiler_level || "author_only"),
             projectLinks: scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [],
             custom_data: mergedCustom
           };

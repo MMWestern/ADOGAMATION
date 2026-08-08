@@ -636,5 +636,11 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
       { key: "workspace_url", label: "Workspace", inputId: "detailWorkspaceUrl" }
     ];
 
+    // Stage 1C: Codex entity status field options
+    var CODEX_STATUS_OPTIONS = ["draft", "active", "archived"];
+    var CODEX_CANON_STATUS_OPTIONS = ["draft", "provisional", "canon", "deprecated"];
+    var CODEX_VISIBILITY_OPTIONS = ["private", "author_only", "public"];
+    var CODEX_SPOILER_OPTIONS = ["none", "mild", "major", "secret"];
+
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;
