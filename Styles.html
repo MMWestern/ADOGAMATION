@@ -145,6 +145,11 @@
       overflow: hidden;
     }
 
+    section.panel.details {
+      display: flex;
+      flex-direction: column;
+    }
+
     main.panel {
       display: flex;
       flex-direction: column;
@@ -13404,7 +13409,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   overflow: hidden;
 }
