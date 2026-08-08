@@ -13319,16 +13319,17 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-brainstorm-panel {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  max-height: 200px;
   min-height: 0;
-  flex: 1;
 }
 .codex-brainstorm-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 .codex-brainstorm-title {
   font-size: 13px;
@@ -13354,7 +13355,6 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
-  flex: 1;
   min-height: 0;
 }
 .codex-brainstorm-item {
