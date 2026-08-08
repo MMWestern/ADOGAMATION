@@ -642,5 +642,31 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
     var CODEX_VISIBILITY_OPTIONS = ["private", "author_only", "public"];
     var CODEX_SPOILER_OPTIONS = ["none", "mild", "major", "secret"];
 
+    // Stage 2B: World Framework default pillars
+    var WORLD_FRAMEWORK_PILLARS = [
+      { key: "core_concept", label: "Core Concept", sort_order: 10 },
+      { key: "world_type", label: "World Type", sort_order: 20 },
+      { key: "scale", label: "Scale", sort_order: 30 },
+      { key: "time_era", label: "Time and Era", sort_order: 40 },
+      { key: "change_point", label: "Change Point", sort_order: 50 },
+      { key: "geography", label: "Geography", sort_order: 60 },
+      { key: "people_cultures", label: "People and Cultures", sort_order: 70 },
+      { key: "politics_power", label: "Politics and Power", sort_order: 80 },
+      { key: "religion_belief", label: "Religion and Belief", sort_order: 90 },
+      { key: "magic_system", label: "Magic or System", sort_order: 100 },
+      { key: "technology", label: "Technology", sort_order: 110 },
+      { key: "economy_resources", label: "Economy and Resources", sort_order: 120 },
+      { key: "everyday_life", label: "Everyday Life", sort_order: 130 },
+      { key: "history", label: "History", sort_order: 140 },
+      { key: "conflict_pressure", label: "Conflict and Pressure", sort_order: 150 },
+      { key: "themes_tone", label: "Themes and Tone", sort_order: 160 },
+      { key: "story_scale", label: "Story Scale", sort_order: 170 },
+      { key: "mysteries_secrets", label: "Mysteries and Secrets", sort_order: 180 },
+      { key: "open_questions", label: "Open Questions", sort_order: 190 },
+      { key: "boundaries", label: "Boundaries", sort_order: 200 }
+    ];
+
+    var WORLD_PILLAR_STATES = ["empty", "captured", "needs_questions", "developing", "provisional", "locked"];
+
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;

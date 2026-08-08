@@ -750,6 +750,11 @@
       </div>
 
       <div id="mainTabContentCodex" class="main-tab-content" hidden>
+        <div class="codex-mode-switch">
+          <button type="button" class="codex-mode-tab is-active" data-codex-mode="overview">OVERVIEW</button>
+          <button type="button" class="codex-mode-tab" data-codex-mode="world-builder">WORLD BUILDER</button>
+          <button type="button" class="codex-mode-tab" data-codex-mode="review">REVIEW</button>
+        </div>
         <div id="codexDashboard" class="codex-dashboard">
           <div class="sk-main-header">
             <div>
@@ -765,6 +770,27 @@
         </div>
         <div id="codexFeaturePage" class="codex-feature-page" hidden>
           <div id="codexFeaturePageContent" class="codex-feature-page-content"></div>
+        </div>
+
+        <!-- World Builder -->
+        <div id="codexWorldBuilder" class="codex-world-builder" hidden>
+          <div id="codexWorldBuilderContent" class="codex-world-builder-content">
+            <div id="codexWorldBuilderPillars" class="codex-pillar-grid"></div>
+            <div id="codexWorldBuilderBrainstorm" class="codex-brainstorm-panel">
+              <div class="codex-brainstorm-header">
+                <span class="codex-brainstorm-title">Brainstorm Sources</span>
+                <button type="button" id="codexBrainstormAddBtn" class="codex-brainstorm-add-btn">+ Add Source</button>
+              </div>
+              <div id="codexBrainstormList" class="codex-brainstorm-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review -->
+        <div id="codexReview" class="codex-review" hidden>
+          <div id="codexReviewContent" class="codex-review-content">
+            <div class="codex-review-empty">No proposals pending review.</div>
+          </div>
         </div>
 
         <!-- hidden legacy panes kept for JS compatibility -->

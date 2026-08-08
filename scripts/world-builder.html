@@ -1,0 +1,134 @@
+    // ============================================================
+    // WORLD BUILDER — Service Functions (Stage 2C)
+    // ============================================================
+
+    // --- Framework ---
+
+    function getWorldFramework(seriesId) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("getWorldFramework", [seriesId]).then(function (result) {
+        if (result && result.ok && result.framework) return result.framework;
+        return null;
+      }).catch(function () { return null; });
+    }
+
+    function saveWorldFramework(seriesId, settings) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("saveWorldFramework", [seriesId, JSON.stringify(settings || {})]).then(function (result) {
+        if (result && result.ok && result.framework) return result.framework;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save framework: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    // --- Pillars ---
+
+    function loadWorldPillars(frameworkId) {
+      if (!frameworkId) return Promise.resolve([]);
+      return callAppsScriptJson("listWorldPillars", [frameworkId]).then(function (result) {
+        if (result && result.ok && result.pillars) return result.pillars;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveWorldPillar(frameworkId, pillarKey, data) {
+      if (!frameworkId || !pillarKey) return Promise.resolve(null);
+      var payload = {
+        framework_id: frameworkId,
+        pillar_key: pillarKey,
+        label: data.label || pillarKey,
+        sort_order: data.sort_order || 0,
+        state: data.state || "empty",
+        author_content: data.author_content || "",
+        ai_content: data.ai_content || "",
+        locked_content: data.locked_content || "",
+        is_visible: data.is_visible !== false,
+        is_custom: !!data.is_custom
+      };
+      if (data.id) payload.id = data.id;
+      return callAppsScriptJson("saveWorldPillar", [frameworkId, JSON.stringify(payload)]).then(function (result) {
+        if (result && result.ok && result.pillar) return result.pillar;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save pillar: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    function deleteWorldPillar(pillarId) {
+      if (!pillarId) return Promise.resolve(false);
+      return callAppsScriptJson("deleteWorldPillar", [pillarId]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
+    // --- Brainstorm Sources ---
+
+    function listBrainstormSources(seriesId) {
+      if (!seriesId) return Promise.resolve([]);
+      return callAppsScriptJson("listBrainstormSources", [seriesId]).then(function (result) {
+        if (result && result.ok && result.sources) return result.sources;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveBrainstormSource(seriesId, payload) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("saveBrainstormSource", [seriesId, JSON.stringify(payload)]).then(function (result) {
+        if (result && result.ok && result.source) return result.source;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save brainstorm source: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    function deleteBrainstormSource(sourceId) {
+      if (!sourceId) return Promise.resolve(false);
+      return callAppsScriptJson("deleteBrainstormSource", [sourceId]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
+    // --- Extractions ---
+
+    function saveExtractions(sourceId, extractions) {
+      if (!sourceId) return Promise.resolve([]);
+      return callAppsScriptJson("saveExtractions", [sourceId, JSON.stringify(extractions || [])]).then(function (result) {
+        if (result && result.ok && result.extractions) return result.extractions;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function updateExtractionAction(extractionId, action) {
+      if (!extractionId) return Promise.resolve(false);
+      return callAppsScriptJson("updateExtractionAction", [extractionId, action]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
+    // --- Initialize Framework (creates framework + default pillars if none exists) ---
+
+    function initWorldFramework(seriesId) {
+      if (!seriesId) return Promise.resolve(null);
+      return getWorldFramework(seriesId).then(function (existing) {
+        if (existing) return existing;
+        return saveWorldFramework(seriesId, {}).then(function (framework) {
+          if (!framework) return null;
+          // Create default pillars
+          var pillarPromises = WORLD_FRAMEWORK_PILLARS.map(function (p) {
+            return saveWorldPillar(framework.id, p.key, {
+              label: p.label,
+              sort_order: p.sort_order,
+              is_visible: true,
+              is_custom: false
+            });
+          });
+          return Promise.all(pillarPromises).then(function () {
+            return framework;
+          });
+        });
+      });
+    }

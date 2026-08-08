@@ -592,3 +592,147 @@
       return sbClient.from('codex_entity_revisions').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
+
+    // ============================================================
+    // WORLD BUILDER — Stage 2C CRUD
+    // ============================================================
+
+    // --- Framework ---
+
+    _sbDefine('getWorldFramework', function (seriesId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return sbClient.from('world_frameworks').select('*').eq('series_id', safeSeriesId).limit(1)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var fw = res.data && res.data[0] ? res.data[0] : null;
+          if (!fw) return JSON.stringify({ ok: true, framework: null });
+          // Load pillars
+          return sbClient.from('world_framework_pillars').select('*').eq('framework_id', fw.id).order('sort_order').limit(100)
+            .then(function (pRes) {
+              if (pRes.error) throw pRes.error;
+              fw.pillars = pRes.data || [];
+              return JSON.stringify({ ok: true, framework: fw });
+            });
+        });
+    });
+
+    _sbDefine('saveWorldFramework', function (seriesId, settingsJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var settings = typeof settingsJson === 'string' ? JSON.parse(settingsJson) : (settingsJson || {});
+      return sbClient.from('world_frameworks').select('id').eq('series_id', safeSeriesId).limit(1)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var existing = res.data && res.data[0] ? res.data[0] : null;
+          if (existing) {
+            return sbClient.from('world_frameworks').update({ settings: settings, updated_at: new Date().toISOString() }).eq('id', existing.id).select().single();
+          }
+          return sbClient.from('world_frameworks').insert([{ series_id: safeSeriesId, settings: settings }]).select().single();
+        })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, framework: res.data });
+        });
+    });
+
+    // --- Pillars ---
+
+    _sbDefine('listWorldPillars', function (frameworkId) {
+      var safeId = Number(frameworkId || 0);
+      if (!safeId) throw new Error('Framework id is required.');
+      return sbClient.from('world_framework_pillars').select('*').eq('framework_id', safeId).order('sort_order').limit(100)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, pillars: res.data || [] }); });
+    });
+
+    _sbDefine('saveWorldPillar', function (frameworkId, pillarJson) {
+      var safeId = Number(frameworkId || 0);
+      if (!safeId) throw new Error('Framework id is required.');
+      var parsed = typeof pillarJson === 'string' ? JSON.parse(pillarJson) : (pillarJson || {});
+      var pillarId = Number(parsed.id || 0);
+      var payload = {
+        framework_id: safeId,
+        pillar_key: String(parsed.pillar_key || '').trim(),
+        label: String(parsed.label || '').trim(),
+        sort_order: Number(parsed.sort_order || 0),
+        state: String(parsed.state || 'empty').trim(),
+        author_content: String(parsed.author_content || ''),
+        ai_content: String(parsed.ai_content || ''),
+        locked_content: String(parsed.locked_content || ''),
+        is_visible: parsed.is_visible !== false,
+        is_custom: !!parsed.is_custom
+      };
+      if (!payload.pillar_key) throw new Error('Pillar key is required.');
+      var op = pillarId
+        ? sbClient.from('world_framework_pillars').update(payload).eq('id', pillarId).select().single()
+        : sbClient.from('world_framework_pillars').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, pillar: res.data }); });
+    });
+
+    _sbDefine('deleteWorldPillar', function (pillarId) {
+      var safeId = Number(pillarId || 0);
+      if (!safeId) throw new Error('Pillar id is required.');
+      return sbClient.from('world_framework_pillars').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Brainstorm Sources ---
+
+    _sbDefine('listBrainstormSources', function (seriesId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return sbClient.from('world_brainstorm_sources').select('*').eq('series_id', safeSeriesId).eq('status', 'active').order('created_at', { ascending: false }).limit(100)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, sources: res.data || [] }); });
+    });
+
+    _sbDefine('saveBrainstormSource', function (seriesId, sourceJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof sourceJson === 'string' ? JSON.parse(sourceJson) : (sourceJson || {});
+      var sourceId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        title: String(parsed.title || '').trim(),
+        content: String(parsed.content || ''),
+        content_html: String(parsed.content_html || ''),
+        source_type: String(parsed.source_type || 'manual').trim(),
+        status: 'active'
+      };
+      var op = sourceId
+        ? sbClient.from('world_brainstorm_sources').update(payload).eq('id', sourceId).select().single()
+        : sbClient.from('world_brainstorm_sources').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, source: res.data }); });
+    });
+
+    _sbDefine('deleteBrainstormSource', function (sourceId) {
+      var safeId = Number(sourceId || 0);
+      if (!safeId) throw new Error('Source id is required.');
+      return sbClient.from('world_brainstorm_sources').update({ status: 'deleted' }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Extractions ---
+
+    _sbDefine('saveExtractions', function (sourceId, extractionsJson) {
+      var safeId = Number(sourceId || 0);
+      if (!safeId) throw new Error('Source id is required.');
+      var extractions = typeof extractionsJson === 'string' ? JSON.parse(extractionsJson) : (extractionsJson || []);
+      var rows = extractions.map(function (e) {
+        return {
+          source_id: safeId,
+          pillar_key: String(e.pillar_key || '').trim(),
+          fragment: String(e.fragment || ''),
+          author_action: String(e.author_action || 'pending').trim()
+        };
+      }).filter(function (r) { return r.pillar_key && r.fragment; });
+      if (!rows.length) return JSON.stringify({ ok: true, extractions: [] });
+      return sbClient.from('world_framework_extractions').insert(rows).select()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, extractions: res.data || [] }); });
+    });
+
+    _sbDefine('updateExtractionAction', function (extractionId, action) {
+      var safeId = Number(extractionId || 0);
+      if (!safeId) throw new Error('Extraction id is required.');
+      return sbClient.from('world_framework_extractions').update({ author_action: String(action || 'pending').trim() }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });

@@ -279,6 +279,9 @@
         var seriesId = Number(project.series_id || 0);
         skCurrentSeriesId = seriesId;
 
+        // Wire codex mode switch on first load
+        if (typeof wireCodexModeSwitch === "function") wireCodexModeSwitch();
+
         if (!forceRefresh && appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId]) {
             renderSeriesKnowledgePanel(project);
             return Promise.all([
@@ -5212,5 +5215,152 @@
 
       } else if (tabKey === "raw") {
         container.innerHTML = "<pre class='revision-snapshot-raw'>" + escapeHtml(JSON.stringify(snapshot, null, 2)) + "</pre>";
+      }
+    }
+
+    // ============================================================
+    // WORLD BUILDER — Mode Switch & Pillar Grid (Stage 2D/2E)
+    // ============================================================
+
+    var _codexMode = "overview";
+    var _worldFramework = null;
+    var _worldPillars = [];
+    var _brainstormSources = [];
+
+    function switchCodexMode(mode) {
+      _codexMode = mode;
+      // Update tab buttons
+      var tabs = document.querySelectorAll(".codex-mode-tab");
+      tabs.forEach(function (tab) {
+        tab.classList.toggle("is-active", tab.getAttribute("data-codex-mode") === mode);
+      });
+      // Toggle content panels
+      if (el.codexDashboard) el.codexDashboard.hidden = mode !== "overview";
+      if (el.codexWorldBuilder) el.codexWorldBuilder.hidden = mode !== "world-builder";
+      if (el.codexReview) el.codexReview.hidden = mode !== "review";
+      if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+      if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+      // Load data for selected mode
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (mode === "world-builder" && seriesId) {
+        loadWorldBuilderData(seriesId);
+      }
+    }
+
+    function loadWorldBuilderData(seriesId) {
+      initWorldFramework(seriesId).then(function (framework) {
+        if (!framework) return;
+        _worldFramework = framework;
+        _worldPillars = framework.pillars || [];
+        renderPillarGrid();
+        return listBrainstormSources(seriesId);
+      }).then(function (sources) {
+        _brainstormSources = sources || [];
+        renderBrainstormList();
+      });
+    }
+
+    function renderPillarGrid() {
+      var container = document.getElementById("codexWorldBuilderPillars");
+      if (!container) return;
+      if (!_worldPillars.length) {
+        container.innerHTML = "<div class='codex-review-empty'>No pillars yet. Open a series to initialize the World Framework.</div>";
+        return;
+      }
+      var visiblePillars = _worldPillars.filter(function (p) { return p.is_visible !== false; });
+      visiblePillars.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      var html = "";
+      visiblePillars.forEach(function (pillar) {
+        var state = pillar.state || "empty";
+        var preview = pillar.author_content || pillar.ai_content || "";
+        var stateLabel = state.replace(/_/g, ' ');
+        html += "<div class='codex-pillar-card' data-pillar-id='" + pillar.id + "' data-pillar-key='" + escapeHtml(pillar.pillar_key) + "'>";
+        html += "<div class='codex-pillar-card-header'>";
+        html += "<span class='codex-pillar-card-label'>" + escapeHtml(pillar.label) + "</span>";
+        html += "<span class='codex-pillar-card-state state-" + state + "'>" + escapeHtml(stateLabel) + "</span>";
+        html += "</div>";
+        if (preview) {
+          html += "<div class='codex-pillar-card-preview'>" + escapeHtml(preview.substring(0, 150)) + "</div>";
+        }
+        html += "</div>";
+      });
+      container.innerHTML = html;
+      // Wire click handlers
+      container.querySelectorAll(".codex-pillar-card").forEach(function (card) {
+        card.addEventListener("click", function () {
+          var pillarId = Number(card.getAttribute("data-pillar-id"));
+          openPillarDetail(pillarId);
+        });
+      });
+    }
+
+    function openPillarDetail(pillarId) {
+      var pillar = _worldPillars.find(function (p) { return Number(p.id) === pillarId; });
+      if (!pillar) return;
+      // For now, show a simple prompt to edit the content
+      var currentContent = pillar.author_content || "";
+      var newContent = prompt("Edit " + pillar.label + ":", currentContent);
+      if (newContent === null) return;
+      pillar.author_content = newContent;
+      pillar.state = newContent.trim() ? "captured" : "empty";
+      if (_worldFramework) {
+        saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
+          if (saved) {
+            pillar.id = saved.id;
+            renderPillarGrid();
+            setStatus("Pillar updated: " + pillar.label, "ok");
+          }
+        });
+      }
+    }
+
+    function renderBrainstormList() {
+      var container = document.getElementById("codexBrainstormList");
+      if (!container) return;
+      if (!_brainstormSources.length) {
+        container.innerHTML = "<div class='codex-review-empty' style='padding:20px 0;'>No brainstorm sources yet.</div>";
+        return;
+      }
+      var html = "";
+      _brainstormSources.forEach(function (source) {
+        var preview = (source.content || "").substring(0, 100);
+        var date = source.created_at ? new Date(source.created_at).toLocaleDateString() : "";
+        html += "<div class='codex-brainstorm-item' data-source-id='" + source.id + "'>";
+        html += "<div class='codex-brainstorm-item-title'>" + escapeHtml(source.title || "Untitled") + "</div>";
+        if (preview) html += "<div class='codex-brainstorm-item-preview'>" + escapeHtml(preview) + "</div>";
+        if (date) html += "<div class='codex-brainstorm-item-date'>" + escapeHtml(date) + "</div>";
+        html += "</div>";
+      });
+      container.innerHTML = html;
+    }
+
+    function wireCodexModeSwitch() {
+      var tabs = document.querySelectorAll(".codex-mode-tab");
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          var mode = tab.getAttribute("data-codex-mode");
+          if (mode) switchCodexMode(mode);
+        });
+      });
+      // Brainstorm add button
+      var addBtn = document.getElementById("codexBrainstormAddBtn");
+      if (addBtn) {
+        addBtn.addEventListener("click", function () {
+          var project = getSelectedProject();
+          var seriesId = project ? Number(project.series_id || 0) : 0;
+          if (!seriesId) { setStatus("Select a series first.", "error"); return; }
+          var title = prompt("Brainstorm source title:", "");
+          if (title === null) return;
+          var content = prompt("Enter brainstorm content:", "");
+          if (content === null) return;
+          saveBrainstormSource(seriesId, { title: title, content: content }).then(function (saved) {
+            if (saved) {
+              _brainstormSources.unshift(saved);
+              renderBrainstormList();
+              setStatus("Brainstorm source added.", "ok");
+            }
+          });
+        });
       }
     }

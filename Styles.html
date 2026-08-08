@@ -13163,6 +13163,213 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   font-size: 14px;
 }
 
+/* -- Codex Mode Switch -- */
+.codex-mode-switch {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.05);
+}
+.codex-mode-tab {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--muted, #6b7280);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.codex-mode-tab:hover {
+  color: #c5c5ce;
+}
+.codex-mode-tab.is-active {
+  color: #818cf8;
+  border-bottom-color: #818cf8;
+}
+
+/* -- World Builder -- */
+.codex-world-builder {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.codex-world-builder[hidden] {
+  display: none;
+}
+.codex-world-builder-content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
+}
+.codex-pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.codex-pillar-card {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.codex-pillar-card:hover {
+  background: rgba(99,102,241,0.1);
+  border-color: #818cf8;
+}
+.codex-pillar-card.is-active {
+  border-color: #818cf8;
+  background: rgba(99,102,241,0.15);
+}
+.codex-pillar-card.is-locked {
+  border-color: #22c55e;
+}
+.codex-pillar-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.codex-pillar-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c5c5ce;
+}
+.codex-pillar-card-state {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+}
+.codex-pillar-card-state.state-empty {
+  background: rgba(82,82,91,0.3);
+  color: #71717a;
+}
+.codex-pillar-card-state.state-captured {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+}
+.codex-pillar-card-state.state-locked {
+  background: rgba(34,197,94,0.3);
+  color: #22c55e;
+}
+.codex-pillar-card-preview {
+  font-size: 11px;
+  color: #71717a;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* -- Brainstorm Panel -- */
+.codex-brainstorm-panel {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+  overflow: hidden;
+}
+.codex-brainstorm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.codex-brainstorm-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #c5c5ce;
+}
+.codex-brainstorm-add-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(129,140,248,0.3);
+  background: rgba(99,102,241,0.1);
+  color: #a5b4fc;
+  cursor: pointer;
+  font-weight: 600;
+}
+.codex-brainstorm-add-btn:hover {
+  background: rgba(99,102,241,0.25);
+  border-color: #818cf8;
+}
+.codex-brainstorm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.codex-brainstorm-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.codex-brainstorm-item:hover {
+  background: rgba(99,102,241,0.1);
+}
+.codex-brainstorm-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c5c5ce;
+  margin-bottom: 2px;
+}
+.codex-brainstorm-item-preview {
+  font-size: 11px;
+  color: #71717a;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.codex-brainstorm-item-date {
+  font-size: 10px;
+  color: #52525b;
+  margin-top: 4px;
+}
+
+/* -- Review -- */
+.codex-review {
+  height: 100%;
+  min-height: 0;
+}
+.codex-review[hidden] {
+  display: none;
+}
+.codex-review-content {
+  padding: 16px;
+}
+.codex-review-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--muted, #6b7280);
+  font-size: 14px;
+}
+
 /* -- Codex Entity Page (center panel) -- */
 .codex-entity-page {
   display: flex;
