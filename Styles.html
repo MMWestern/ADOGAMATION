@@ -1881,6 +1881,23 @@
       overflow: hidden;
     }
 
+    /* Nested location tree styling */
+    .codex-location-nested[data-depth="1"] {
+      border-left: 2px solid #4f46e5;
+    }
+    .codex-location-nested[data-depth="2"] {
+      border-left: 2px solid #7c3aed;
+    }
+    .codex-location-nested[data-depth="3"] {
+      border-left: 2px solid #a78bfa;
+    }
+    .codex-location-nested[data-depth="4"] {
+      border-left: 2px solid #c4b5fd;
+    }
+    .codex-location-nested[data-depth] {
+      border-radius: 0 6px 6px 0;
+    }
+
     .writing-codex-entry-foot {
       font-size: 9px;
       line-height: 1;
