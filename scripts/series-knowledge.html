@@ -3748,7 +3748,8 @@
       html += "<div class='codex-sub-tab-content'>";
       html += "<div class='codex-detail-save-bar'>";
       html += "<button id='codexDetailCancelBtn' type='button'" + (isNew ? "" : " hidden") + ">Cancel</button>";
-      html += "<button id='codexDetailDeleteBtn' type='button' style='color:#991b1b;margin-right:auto;'" + (isNew ? " hidden" : "") + ">Delete</button>";
+      html += "<button id='codexDetailDeleteBtn' type='button' style='color:#991b1b;'" + (isNew ? " hidden" : "") + ">Delete</button>";
+      html += "<button id='codexDetailSaveRevisionBtn' type='button' class='codex-save-revision-btn'" + (isNew ? " hidden" : "") + ">Save Revision</button>";
       html += "<button id='codexDetailSaveBtn' type='button' class='primary' data-saving='0'>" + (isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save") + "</button>";
       html += "</div>";
 
@@ -4232,6 +4233,14 @@
             });
         });
       }
+
+      var saveRevisionBtn = document.getElementById("codexDetailSaveRevisionBtn");
+      if (saveRevisionBtn) {
+        saveRevisionBtn.hidden = isNew;
+        saveRevisionBtn.addEventListener("click", function () {
+          saveManualCodexRevision();
+        });
+      }
     }
 
     function showCodexFeaturePage(featureKey) {
@@ -4707,6 +4716,35 @@
         }
       });
       return diffs;
+    }
+
+    function saveManualCodexRevision() {
+      if (!_codexActiveEntityId) return;
+      var entity = codexCache.entitiesById ? codexCache.entitiesById[_codexActiveEntityId] : null;
+      if (!entity) { setStatus("No entity selected.", "error"); return; }
+      var summary = prompt("Revision note (optional):", "");
+      if (summary === null) return; // user cancelled
+      var snapshot = JSON.parse(JSON.stringify(entity));
+      callAppsScriptJson("listCodexRevisions", [_codexActiveEntityId]).then(function (json) {
+        var result = typeof json === 'string' ? JSON.parse(json) : json;
+        var nextRev = 1;
+        if (result && result.ok && result.revisions && result.revisions.length) {
+          nextRev = Number(result.revisions[0].revision_number || 0) + 1;
+        }
+        return callAppsScriptJson("saveCodexRevision", [_codexActiveEntityId, nextRev, JSON.stringify(snapshot), summary || "Manual revision"]);
+      }).then(function (json) {
+        var result = typeof json === 'string' ? JSON.parse(json) : json;
+        if (result && result.ok) {
+          setStatus("Revision saved.", "ok");
+          // Refresh history if visible
+          var historySection = document.getElementById("codexSectionHistory");
+          if (historySection && !historySection.hidden) loadCodexRevisions(_codexActiveEntityId);
+        } else {
+          setStatus("Failed to save revision.", "error");
+        }
+      }).catch(function (err) {
+        setStatus("Failed to save revision: " + (err.message || err), "error");
+      });
     }
 
     function restoreCodexRevision(entityId, snapshot) {
