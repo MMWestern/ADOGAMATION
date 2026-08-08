@@ -2047,6 +2047,49 @@
             });
     }
 
+    /* ---- Parent Location Connection ---- */
+
+    function saveParentLocationConnection(seriesId, entityId) {
+      var parentLocSelect = document.getElementById("codexDetailParentLocation");
+      var newParentId = parentLocSelect ? Number(parentLocSelect.value || 0) : 0;
+      var connections = skCache.connections[seriesId] || [];
+      // Find existing located_in connection for this entity
+      var existingConn = connections.find(function (c) {
+        var relType = c.codex_relationship_types || {};
+        return Number(c.source_entity_id) === entityId && relType.key === "located_in";
+      });
+      var existingParentId = existingConn ? Number(existingConn.target_entity_id || 0) : 0;
+      // If no change, skip
+      if (newParentId === existingParentId) return Promise.resolve();
+      // If parent removed, delete existing connection
+      if (!newParentId && existingConn) {
+        return callAppsScriptJson("deleteCodexConnection", [existingConn.id]).then(function () {
+          return loadSkConnections(seriesId);
+        });
+      }
+      // If parent changed or new, save connection
+      if (newParentId) {
+        // Find the located_in relationship type
+        return callAppsScriptJson("listCodexRelationshipTypes", []).then(function (result) {
+          var types = result && result.types ? result.types : [];
+          var locatedInType = types.find(function (t) { return t.key === "located_in"; });
+          if (!locatedInType) return Promise.resolve();
+          var connPayload = {
+            id: existingConn ? existingConn.id : 0,
+            source_entity_id: entityId,
+            target_entity_id: newParentId,
+            relationship_type_id: locatedInType.id,
+            label: "Located in",
+            inverse_label: "Contains"
+          };
+          return callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(connPayload)]);
+        }).then(function () {
+          return loadSkConnections(seriesId);
+        });
+      }
+      return Promise.resolve();
+    }
+
     /* ---- Calendars ---- */
 
     var skEditingCalendarId = 0;
@@ -3247,6 +3290,66 @@
       }).length;
     }
 
+    function buildLocationParentMap(seriesId) {
+      var parentMap = {};
+      var connections = skCache.connections[seriesId] || [];
+      connections.forEach(function (c) {
+        var relType = c.codex_relationship_types || {};
+        if (relType.key === "located_in") {
+          parentMap[Number(c.source_entity_id)] = Number(c.target_entity_id);
+        }
+      });
+      return parentMap;
+    }
+
+    function renderLocationTreeEntry(entity, item, depth, parentMap, allLocationIds) {
+      var name = entity.name || "Unnamed";
+      var desc = entity.summary || entity.description || "";
+      var imgUrl = entity.image_url || "";
+      var color = entity.color || "";
+      var scope = entity.scope || "series";
+      var thumbHtml = imgUrl
+        ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
+        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+      var indentStyle = depth > 0 ? " style='padding-left:" + (12 + depth * 16) + "px;'" : "";
+      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'" + indentStyle + ">";
+      entryHtml += thumbHtml;
+      entryHtml += "<div class='writing-codex-entry-content'>";
+      entryHtml += "<div class='writing-codex-entry-top'>";
+      entryHtml += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
+      entryHtml += "</div>";
+      if (desc) entryHtml += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
+      entryHtml += "</div>";
+      entryHtml += "</button>";
+      // Find children of this entity
+      var children = allLocationIds.filter(function (id) { return parentMap[id] === entity.id; });
+      return entryHtml;
+    }
+
+    function renderLocationTreeList(entities, item, parentMap) {
+      var html = "";
+      var entityMap = {};
+      entities.forEach(function (e) { entityMap[e.id] = e; });
+      // Find root locations (no parent or parent not in this filtered set)
+      var roots = entities.filter(function (e) {
+        var parentId = parentMap[e.id];
+        return !parentId || !entityMap[parentId];
+      });
+      // Render recursively
+      function renderEntityAndChildren(entity, depth) {
+        var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
+        var children = entities.filter(function (e) { return parentMap[e.id] === entity.id; });
+        children.forEach(function (child) {
+          result += renderEntityAndChildren(child, depth + 1);
+        });
+        return result;
+      }
+      roots.forEach(function (entity) {
+        html += renderEntityAndChildren(entity, 0);
+      });
+      return html;
+    }
+
     function renderCodexTree(seriesId) {
       if (!el.codexTreeContainer) return;
       var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
@@ -3308,32 +3411,37 @@
             html += "</div>";
             html += "</div>";
             html += "<div class='writing-codex-group-list'" + (count ? "" : " hidden") + ">";
-            entities.forEach(function (entity) {
-              var name = entity.name || "Unnamed";
-              var desc = entity.summary || entity.description || "";
-              var imgUrl = entity.image_url || "";
-              var color = entity.color || "";
-              var custom = entity.custom_data || {};
-              var roleArchetype = String(custom.role_archetype || "").trim();
-              var archetype = String(custom.archetype || "").trim();
-              var thumbHtml = imgUrl
-                ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
-                : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
-              var scope = entity.scope || "series";
-              var pillHtml = "";
-              if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
-              if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
-              html += "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
-              html += thumbHtml;
-              html += "<div class='writing-codex-entry-content'>";
-              html += "<div class='writing-codex-entry-top'>";
-              html += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
-              html += "<div class='writing-codex-entry-badges'>" + pillHtml + "</div>";
-              html += "</div>";
-              html += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
-              html += "</div>";
-              html += "</button>";
-            });
+            if (item.entityTypeKey === "location" && skCurrentSeriesId) {
+              var parentMap = buildLocationParentMap(skCurrentSeriesId);
+              html += renderLocationTreeList(entities, item, parentMap);
+            } else {
+              entities.forEach(function (entity) {
+                var name = entity.name || "Unnamed";
+                var desc = entity.summary || entity.description || "";
+                var imgUrl = entity.image_url || "";
+                var color = entity.color || "";
+                var custom = entity.custom_data || {};
+                var roleArchetype = String(custom.role_archetype || "").trim();
+                var archetype = String(custom.archetype || "").trim();
+                var thumbHtml = imgUrl
+                  ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
+                  : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+                var scope = entity.scope || "series";
+                var pillHtml = "";
+                if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+                if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+                html += "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
+                html += thumbHtml;
+                html += "<div class='writing-codex-entry-content'>";
+                html += "<div class='writing-codex-entry-top'>";
+                html += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
+                html += "<div class='writing-codex-entry-badges'>" + pillHtml + "</div>";
+                html += "</div>";
+                html += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
+                html += "</div>";
+                html += "</button>";
+              });
+            }
             html += "</div>"; // group-list
             html += "</div>"; // type-group
           }
@@ -3709,6 +3817,20 @@
         html += "<option value='" + opt + "'" + (entity.spoiler_level === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
       });
       html += "</select></div>";
+      if (entityTypeKey === "location") {
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Parent Location</label>";
+        html += "<select id='codexDetailParentLocation' class='codex-detail-field-select'>";
+        html += "<option value=''>None (top-level)</option>";
+        var allLocations = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
+          return (e.codex_entity_types || {}).key === "location" && Number(e.id) !== Number(entity.id);
+        }) : [];
+        allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        allLocations.forEach(function (loc) {
+          html += "<option value='" + loc.id + "'>" + escapeHtml(loc.name || "Untitled") + "</option>";
+        });
+        html += "</select></div>";
+      }
       if (entityTypeKey === "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Motivation / Arc</label>";
@@ -3824,6 +3946,21 @@
       var selMap = { character: "characterId", location: "locationId", item: "objectId", lore: "loreId", map: "mapId", magic_system: "magicSystemId" };
       var selField = selMap[entityTypeKey] || "";
       if (selField) skLastSelection[selField] = entity.id;
+
+      // Load parent location from connections for location entities
+      if (entityTypeKey === "location" && entity.id) {
+        var parentLocSelect = document.getElementById("codexDetailParentLocation");
+        if (parentLocSelect) {
+          var connections = skCurrentSeriesId ? (skCache.connections[skCurrentSeriesId] || []) : [];
+          var locatedInConn = connections.find(function (c) {
+            var relType = c.codex_relationship_types || {};
+            return Number(c.source_entity_id) === Number(entity.id) && relType.key === "located_in";
+          });
+          if (locatedInConn) {
+            parentLocSelect.value = String(locatedInConn.target_entity_id || "");
+          }
+        }
+      }
 
       wireCodexSubTabs_();
       wireCodexDetailSave_(entity, entityTypeKey, pluralKey);
@@ -4161,6 +4298,13 @@
                   codexCache.entityDetails[savedId] = { projectLinks: [{ project_id: scopeBookId }] };
                 }
               }
+              // Save parent location connection for location entities
+              if (entityTypeKey === "location" && savedId) {
+                return saveParentLocationConnection(seriesId, savedId);
+              }
+              return Promise.resolve();
+            })
+            .then(function () {
               return loadCodexEntities(seriesId);
             })
             .then(function () {
