@@ -5530,8 +5530,22 @@
           pillarContext + "\n\n" +
           (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "") +
           "Respond helpfully and concisely. Ask one question at a time when in interviewer mode.";
-        // Call AI
-        return callEditorAI(systemPrompt, text).then(function (aiResponse) {
+        // Call AI using the correct payload format
+        var aiConfig = collectAISettingsFormData();
+        var provider = aiConfig.provider || "openrouter";
+        var model = getSelectedAIModel(aiConfig) || "gpt-4o";
+        var messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text }
+        ];
+        return callEditorAI({
+          provider: provider,
+          model: model,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1024
+        }).then(function (result) {
+          var aiResponse = result && result.text ? result.text.trim() : "";
           if (!aiResponse) aiResponse = "I couldn't generate a response. Please try again.";
           _buildMessages.push({ role: "assistant", content: aiResponse, message_type: "text" });
           renderAssistantMessages();
