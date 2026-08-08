@@ -4630,8 +4630,15 @@
         var summary = rev.change_summary || "No summary";
         var revNum = rev.revision_number || (idx + 1);
         var diffHtml = "";
-        if (currentEntity) {
-          var diff = computeEntityFieldDiff(snapshot, currentEntity);
+        // Compare against the next older revision (idx+1), or current entity for the newest
+        var compareTo = null;
+        if (idx === 0 && currentEntity) {
+          compareTo = currentEntity;
+        } else if (idx < revisions.length - 1) {
+          compareTo = revisions[idx + 1].snapshot || {};
+        }
+        if (compareTo) {
+          var diff = computeEntityFieldDiff(snapshot, compareTo);
           if (diff.length) {
             diffHtml = "<div class='codex-revision-diffs'>";
             diff.forEach(function (d) {
