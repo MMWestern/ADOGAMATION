@@ -585,3 +585,10 @@
           return JSON.stringify({ ok: true, revisions: res.data || [] });
         });
     });
+
+    _sbDefine('deleteCodexRevision', function (revisionId) {
+      var safeId = Number(revisionId || 0);
+      if (!safeId) throw new Error('Revision id is required.');
+      return sbClient.from('codex_entity_revisions').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });

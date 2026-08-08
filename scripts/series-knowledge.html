@@ -4658,6 +4658,7 @@
         html += "<div class='codex-revision-actions'>";
         html += "<button type='button' class='codex-revision-view-btn' data-rev-index='" + idx + "'>View Snapshot</button>";
         html += "<button type='button' class='codex-revision-restore-btn' data-rev-id='" + rev.id + "' data-rev-index='" + idx + "'>Restore</button>";
+        html += "<button type='button' class='codex-revision-delete-btn' data-rev-id='" + rev.id + "'>Delete</button>";
         html += "</div>";
         html += "</div>";
       });
@@ -4685,6 +4686,25 @@
             if (!confirm("Restore this revision? This will overwrite the current entity data.")) return;
             restoreCodexRevision(_codexActiveEntityId, rev.snapshot);
           }
+        });
+      });
+      // Bind delete buttons
+      list.querySelectorAll(".codex-revision-delete-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var revId = Number(btn.getAttribute("data-rev-id"));
+          if (!revId) return;
+          if (!confirm("Delete this revision?")) return;
+          callAppsScriptJson("deleteCodexRevision", [revId]).then(function (json) {
+            var result = typeof json === 'string' ? JSON.parse(json) : json;
+            if (result && result.ok) {
+              setStatus("Revision deleted.", "ok");
+              loadCodexRevisions(_codexActiveEntityId);
+            } else {
+              setStatus("Failed to delete revision.", "error");
+            }
+          }).catch(function (err) {
+            setStatus("Failed to delete revision: " + (err.message || err), "error");
+          });
         });
       });
     }
