@@ -5240,6 +5240,8 @@
       if (el.codexReview) el.codexReview.hidden = mode !== "review";
       if (el.codexEntityPage) el.codexEntityPage.hidden = true;
       if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+      // Toggle assistant panel in right column
+      if (el.worldBuilderAssistant) el.worldBuilderAssistant.hidden = mode !== "world-builder";
       // Load data for selected mode
       var project = getSelectedProject();
       var seriesId = project ? Number(project.series_id || 0) : 0;
