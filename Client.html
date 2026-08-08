@@ -4252,6 +4252,7 @@
           var parts = key.split("::");
           return Number(parts[1] || 0);
         }
+        console.log("[Location Nesting] connections:", connections.length, "parentMap:", parentMap, "items:", items.map(function(e) { return e.key; }));
         var entityMap = {};
         items.forEach(function (e) { var eid = getEntryId(e); if (eid) entityMap[eid] = e; });
         var roots = items.filter(function (e) {
@@ -4259,6 +4260,7 @@
           var parentId = parentMap[eid];
           return !parentId || !entityMap[parentId];
         });
+        console.log("[Location Nesting] roots:", roots.map(function(e) { return e.key; }));
         function renderWithChildren(entry, depth, visited) {
           if (depth > 10) return "";
           var eid = getEntryId(entry);
