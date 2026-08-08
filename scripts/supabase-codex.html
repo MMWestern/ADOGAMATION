@@ -101,10 +101,38 @@
       };
       var projectLinks = Array.isArray(parsed.projectLinks) ? parsed.projectLinks : [];
       var tagIds = Array.isArray(parsed.tagIds) ? parsed.tagIds : [];
-      var saveOp = entityId
-        ? sbClient.from('codex_entities').update(payload).eq('id', entityId).select().single()
-        : sbClient.from('codex_entities').insert([payload]).select().single();
-      return saveOp.then(function (res) {
+
+      // Stage 1A: Snapshot current entity before update for revision history
+      var revisionOp = Promise.resolve(null);
+      if (entityId) {
+        revisionOp = sbClient.from('codex_entities').select('*').eq('id', entityId).single().then(function (res) {
+          if (res.error || !res.data) return null;
+          var current = res.data;
+          return sbClient.from('codex_entity_revisions')
+            .select('revision_number')
+            .eq('entity_id', entityId)
+            .order('revision_number', { ascending: false })
+            .limit(1)
+            .then(function (revRes) {
+              var nextRev = 1;
+              if (revRes.data && revRes.data.length) {
+                nextRev = Number(revRes.data[0].revision_number || 0) + 1;
+              }
+              return sbClient.from('codex_entity_revisions').insert([{
+                entity_id: entityId,
+                revision_number: nextRev,
+                snapshot: current,
+                change_summary: 'Auto-saved before update'
+              }]);
+            });
+        });
+      }
+
+      return revisionOp.then(function () {
+        var saveOp = entityId
+          ? sbClient.from('codex_entities').update(payload).eq('id', entityId).select().single()
+          : sbClient.from('codex_entities').insert([payload]).select().single();
+        return saveOp.then(function (res) {
         if (res.error) throw res.error;
         var saved = res.data;
         var savedId = Number(saved.id);
@@ -125,6 +153,7 @@
         return Promise.all([projectOp, tagOp]).then(function () {
           return JSON.stringify({ ok: true, entity: saved });
         });
+      });
       });
     });
 
@@ -553,4 +582,35 @@
       if (!safeId) throw new Error('Embedding id is required.');
       return sbClient.from('codex_embeddings').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Stage 1A: Codex Entity Revisions ---
+
+    _sbDefine('saveCodexRevision', function (entityId, revisionNumber, snapshotJson, changeSummary) {
+      var safeEntityId = Number(entityId || 0);
+      if (!safeEntityId) throw new Error('Entity id is required.');
+      var snapshot = typeof snapshotJson === 'string' ? JSON.parse(snapshotJson) : (snapshotJson || {});
+      return sbClient.from('codex_entity_revisions').insert([{
+        entity_id: safeEntityId,
+        revision_number: Number(revisionNumber || 1),
+        snapshot: snapshot,
+        change_summary: String(changeSummary || '').trim() || null
+      }]).then(function (res) {
+        if (res.error) throw res.error;
+        return JSON.stringify({ ok: true, revision: res.data && res.data[0] ? res.data[0] : null });
+      });
+    });
+
+    _sbDefine('listCodexRevisions', function (entityId) {
+      var safeEntityId = Number(entityId || 0);
+      if (!safeEntityId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_entity_revisions')
+        .select('*')
+        .eq('entity_id', safeEntityId)
+        .order('revision_number', { ascending: false })
+        .limit(100)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, revisions: res.data || [] });
+        });
     });
