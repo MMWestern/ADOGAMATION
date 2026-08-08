@@ -5279,11 +5279,7 @@
         html += "<div class='codex-pillar-card" + (isLocked ? " is-locked" : "") + "' data-pillar-id='" + pillar.id + "' data-pillar-key='" + escapeHtml(pillar.pillar_key) + "'>";
         html += "<div class='codex-pillar-card-header'>";
         html += "<span class='codex-pillar-card-label'>" + escapeHtml(pillar.label) + "</span>";
-        html += "<select class='codex-pillar-state-select' data-pillar-id='" + pillar.id + "'>";
-        WORLD_PILLAR_STATES.forEach(function (s) {
-          html += "<option value='" + s + "'" + (s === state ? " selected" : "") + ">" + s.replace(/_/g, ' ') + "</option>";
-        });
-        html += "</select>";
+        html += "<span class='codex-pillar-card-state state-" + state + "'>" + escapeHtml(stateLabel) + "</span>";
         html += "</div>";
         if (preview) {
           html += "<div class='codex-pillar-card-preview'>" + escapeHtml(preview.substring(0, 150)) + "</div>";
@@ -5291,28 +5287,9 @@
         html += "</div>";
       });
       container.innerHTML = html;
-      // Wire state dropdown changes
-      container.querySelectorAll(".codex-pillar-state-select").forEach(function (sel) {
-        sel.addEventListener("change", function (e) {
-          e.stopPropagation();
-          var pillarId = Number(sel.getAttribute("data-pillar-id"));
-          var newState = sel.value;
-          var pillar = _worldPillars.find(function (p) { return Number(p.id) === pillarId; });
-          if (!pillar || !_worldFramework) return;
-          pillar.state = newState;
-          saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
-            if (saved) {
-              setStatus("Pillar state updated: " + pillar.label + " → " + newState, "ok");
-              renderPillarGrid();
-            }
-          });
-        });
-        sel.addEventListener("click", function (e) { e.stopPropagation(); });
-      });
       // Wire click handlers for editing content
       container.querySelectorAll(".codex-pillar-card").forEach(function (card) {
         card.addEventListener("click", function (e) {
-          if (e.target.closest(".codex-pillar-state-select")) return;
           var pillarId = Number(card.getAttribute("data-pillar-id"));
           openPillarDetail(pillarId);
         });
