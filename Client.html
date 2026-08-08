@@ -4147,6 +4147,11 @@
         renderWritingChapterList(selected);
         return;
       }
+      var seriesId = Number(selected.series_id || 0);
+      // Ensure connections are loaded for location nesting
+      if (!skCache.connections[seriesId] && typeof loadSkConnections === "function") {
+        loadSkConnections(seriesId);
+      }
       var entries = getWritingCodexEntries(selected);
       var filterKey = String(appState.writingWorkspace.filter || "all").trim() || "all";
       var currentBookId = Number(selected && (selected.project_id || selected.id) || 0);
@@ -4231,6 +4236,69 @@
           "</div>" +
         "</button>";
       }
+      function buildLocationTreeEntries(items) {
+        var seriesId = selected ? Number(selected.series_id || 0) : 0;
+        var connections = skCache.connections[seriesId] || [];
+        var parentMap = {};
+        connections.forEach(function (c) {
+          var relType = c.codex_relationship_types || {};
+          if (relType.key === "located_in") {
+            parentMap[Number(c.source_entity_id)] = Number(c.target_entity_id);
+          }
+        });
+        var entityMap = {};
+        items.forEach(function (e) { entityMap[e.entityId || e.id] = e; });
+        var roots = items.filter(function (e) {
+          var eid = e.entityId || e.id;
+          var parentId = parentMap[eid];
+          return !parentId || !entityMap[parentId];
+        });
+        function renderWithChildren(entry, depth) {
+          var html = "";
+          var indentStyle = depth > 0 ? " style='margin-left:" + (depth * 16) + "px;'" : "";
+          var depthClass = depth > 0 ? " codex-location-nested" : "";
+          var eid = entry.entityId || entry.id;
+          // Modify the entry button to add indent
+          var active = String(appState.writingWorkspace.selectedCodexKey || "") === String(entry.key || "") ? " is-active" : "";
+          var title = String(entry.title || "").trim() || "Untitled";
+          var words = title.split(/\s+/).filter(Boolean);
+          var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
+          var color = String(entry.color || "").trim();
+          var colorAttr = color ? ' data-color="' + escapeHtml(color) + '" style="color:' + escapeHtml(color) + '"' : "";
+          var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
+          var imgUrl = String(entry.image_url || "").trim();
+          var avatarHtml = imgUrl
+            ? '<div class="writing-codex-entry-thumb"><img src="' + escapeHtml(imgUrl) + '" alt="" /></div>'
+            : '<div class="writing-codex-entry-avatar">' + dotHtml + escapeHtml(initials) + '</div>';
+          var badge = String(entry.badge || "").trim();
+          var role = String(entry.role || "").trim();
+          var archetype = String(entry.archetype || "").trim();
+          var pillsHtml = "";
+          if (role) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(role) + '">' + escapeHtml(role) + '</span>';
+          if (archetype) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(archetype) + '">' + escapeHtml(archetype) + '</span>';
+          if (!pillsHtml && badge) pillsHtml = '<span class="writing-codex-entry-pill" style="background:#5f6971;color:#f1e6c8">' + escapeHtml(badge) + '</span>';
+          html += "<button type='button' class='writing-codex-entry" + active + depthClass + "'" + colorAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "' data-depth='" + depth + "'" + indentStyle + ">" +
+            avatarHtml +
+            "<div class='writing-codex-entry-content'>" +
+              "<div class='writing-codex-entry-top'>" +
+                "<div class='writing-codex-entry-title' title='" + escapeHtml(title) + "'>" + escapeHtml(title) + "</div>" +
+                (pillsHtml ? "<div class='writing-codex-entry-pills'>" + pillsHtml + "</div>" : "") +
+              "</div>" +
+              "<div class='writing-codex-entry-body'>" + escapeHtml(entry.body || "No details yet.") + "</div>" +
+            "</div>" +
+          "</button>";
+          var children = items.filter(function (e) { return parentMap[e.entityId || e.id] === eid; });
+          children.forEach(function (child) {
+            html += renderWithChildren(child, depth + 1);
+          });
+          return html;
+        }
+        var result = "";
+        roots.forEach(function (entry) {
+          result += renderWithChildren(entry, 0);
+        });
+        return result;
+      }
       var sections = [];
       var collapsed = appState.writingWorkspace.collapsedGroups || {};
       groupOrder.forEach(function (key) {
@@ -4246,7 +4314,9 @@
               "</div>" +
               "<span class='writing-codex-group-chevron'>" + (isCollapsed ? "\u25B6" : "\u25BC") + "</span>" +
             "</div>" +
-            "<div class='writing-codex-group-list'" + (count ? isCollapsed ? " hidden" : "" : " hidden") + ">" + items.map(buildEntry).join("") + "</div>" +
+            "<div class='writing-codex-group-list'" + (count ? isCollapsed ? " hidden" : "" : " hidden") + ">" +
+              (key === "locations" ? buildLocationTreeEntries(items) : items.map(buildEntry).join("")) +
+            "</div>" +
           "</section>"
         );
       });
