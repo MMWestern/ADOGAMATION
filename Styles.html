@@ -1934,6 +1934,39 @@
       background: rgba(99,102,241,0.1);
     }
 
+    /* Location siblings */
+    .codex-location-siblings {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .codex-location-siblings-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #52525b;
+      margin-right: 2px;
+    }
+    .codex-location-sibling-pill {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: #a3a3a3;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .codex-location-sibling-pill:hover {
+      background: rgba(99,102,241,0.15);
+      border-color: #818cf8;
+      color: #c4b5fd;
+    }
+
     .writing-codex-entry-foot {
       font-size: 9px;
       line-height: 1;

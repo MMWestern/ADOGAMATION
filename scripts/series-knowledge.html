@@ -3769,6 +3769,25 @@
           });
           html += "</div>";
         }
+        // Sibling locations (same parent)
+        var parentMap = buildLocationParentMap(skCurrentSeriesId);
+        var parentId = parentMap[entity.id] || 0;
+        if (parentId) {
+          var allLocations = (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
+            return (e.codex_entity_types || {}).key === "location" && parentMap[e.id] === parentId && Number(e.id) !== Number(entity.id);
+          });
+          if (allLocations.length) {
+            html += "<div class='codex-location-siblings'>";
+            html += "<span class='codex-location-siblings-label'>Siblings:</span>";
+            allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+            allLocations.forEach(function (sib) {
+              var sibColor = sib.color || "";
+              var sibStyle = sibColor ? " style='border-color:" + sibColor + ";color:" + sibColor + ";'" : "";
+              html += "<button type='button' class='codex-location-sibling-pill' data-entity-id='" + sib.id + "'" + sibStyle + ">" + escapeHtml(sib.name || "Untitled") + "</button>";
+            });
+            html += "</div>";
+          }
+        }
       }
       html += "</div>";
       html += "<div class='sk-badges-row' id='codexDetailBadges'>";
@@ -4011,6 +4030,19 @@
         var breadcrumbContainer = el.codexEntityPageContent ? el.codexEntityPageContent.querySelector(".codex-location-breadcrumb") : null;
         if (breadcrumbContainer) {
           breadcrumbContainer.querySelectorAll(".codex-location-breadcrumb-pill[data-entity-id]").forEach(function (pill) {
+            pill.addEventListener("click", function () {
+              var targetId = Number(pill.getAttribute("data-entity-id"));
+              if (targetId) {
+                var treeEntry = el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + targetId + "']");
+                if (treeEntry) treeEntry.click();
+              }
+            });
+          });
+        }
+        // Wire sibling pill clicks
+        var siblingsContainer = el.codexEntityPageContent ? el.codexEntityPageContent.querySelector(".codex-location-siblings") : null;
+        if (siblingsContainer) {
+          siblingsContainer.querySelectorAll(".codex-location-sibling-pill").forEach(function (pill) {
             pill.addEventListener("click", function () {
               var targetId = Number(pill.getAttribute("data-entity-id"));
               if (targetId) {
