@@ -13503,6 +13503,84 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   flex: 1;
   min-height: 0;
 }
+
+/* Stage 1A: Revision History Styles */
+.codex-revision-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.codex-revision-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.1);
+}
+.codex-revision-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.codex-revision-number {
+  font-weight: 600;
+  font-size: 12px;
+  color: #818cf8;
+}
+.codex-revision-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+.codex-revision-summary {
+  font-size: 12px;
+  color: #c5c5ce;
+  margin-bottom: 6px;
+}
+.codex-revision-diffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.codex-revision-diff-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(234,179,8,0.15);
+  color: #fbbf24;
+}
+.codex-revision-diff-field {
+  font-weight: 600;
+}
+.codex-revision-diff-path {
+  color: #a3a3a3;
+}
+.codex-revision-actions {
+  display: flex;
+  gap: 6px;
+}
+.codex-revision-view-btn,
+.codex-revision-restore-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: #c5c5ce;
+  cursor: pointer;
+}
+.codex-revision-view-btn:hover {
+  background: rgba(99,102,241,0.2);
+  border-color: #818cf8;
+}
+.codex-revision-restore-btn:hover {
+  background: rgba(34,197,94,0.2);
+  border-color: #22c55e;
+}
+
 .codex-detail-text {
   font-size: 16px;
   line-height: 1.7;

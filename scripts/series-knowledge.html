@@ -3708,6 +3708,7 @@
       html += "<button type='button' class='codex-sub-tab is-active' data-section='description'>Description</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='relations'>Relations</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='backstory'>Backstory</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='history'>History</button>";
       _codexDetailActiveSections.forEach(function (key) {
         var label = getCodexSectionLabel_(key, entityTypeKey);
         html += "<button type='button' class='codex-sub-tab codex-dynamic-tab' data-section='" + key + "'>" + label + "<span class='codex-sub-tab-remove' data-remove='" + key + "'>&times;</span></button>";
@@ -3744,6 +3745,17 @@
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
       html += "<textarea id='codexDetailBackstory' class='codex-detail-text description-field' rows='10' placeholder='Pre-story context, history, and formative events...'>" + escapeHtml(customData.backstory || "") + "</textarea>";
+      html += "</div>";
+      html += "</div>";
+
+      html += "<div class='codex-sub-section' id='codexSectionHistory' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Revision History</span>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexRevisionList' class='codex-revision-list'>";
+      html += "<div class='tiny' style='color:var(--muted);'>Loading history...</div>";
+      html += "</div>";
       html += "</div>";
       html += "</div>";
 
@@ -3869,6 +3881,10 @@
             s.hidden = s.id !== "codexSection" + section.charAt(0).toUpperCase() + section.slice(1);
           }
         });
+        // Stage 1A: Load revision history when History tab is selected
+        if (section === "history" && _codexActiveEntityId) {
+          loadCodexRevisions(_codexActiveEntityId);
+        }
       });
     }
 
@@ -4533,4 +4549,158 @@
           editSkContinuityEntry(0);
         });
       }
+    }
+
+    // --- Stage 1A: Revision History Functions ---
+
+    function loadCodexRevisions(entityId) {
+      var list = document.getElementById("codexRevisionList");
+      if (!list) return;
+      list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading history...</div>";
+      callAppsScriptJson("listCodexRevisions", [entityId]).then(function (json) {
+        var result = typeof json === 'string' ? JSON.parse(json) : json;
+        if (!result || !result.ok || !result.revisions || !result.revisions.length) {
+          list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No revision history yet.</div>";
+          return;
+        }
+        var currentEntity = codexCache.entitiesById ? codexCache.entitiesById[entityId] : null;
+        renderCodexRevisionList(result.revisions, currentEntity);
+      }).catch(function (err) {
+        list.innerHTML = "<div class='tiny' style='color:#ef4444;'>Failed to load history: " + escapeHtml(String(err.message || err)) + "</div>";
+      });
+    }
+
+    function renderCodexRevisionList(revisions, currentEntity) {
+      var list = document.getElementById("codexRevisionList");
+      if (!list) return;
+      var html = "";
+      revisions.forEach(function (rev, idx) {
+        var snapshot = rev.snapshot || {};
+        var date = rev.created_at ? new Date(rev.created_at).toLocaleString() : "Unknown";
+        var summary = rev.change_summary || "No summary";
+        var revNum = rev.revision_number || (idx + 1);
+        var diffHtml = "";
+        if (currentEntity) {
+          var diff = computeEntityFieldDiff(snapshot, currentEntity);
+          if (diff.length) {
+            diffHtml = "<div class='codex-revision-diffs'>";
+            diff.forEach(function (d) {
+              diffHtml += "<div class='codex-revision-diff-item'>";
+              diffHtml += "<span class='codex-revision-diff-field'>" + escapeHtml(d.field) + "</span>";
+              if (d.path) diffHtml += "<span class='codex-revision-diff-path'>" + escapeHtml(d.path) + "</span>";
+              diffHtml += "</div>";
+            });
+            diffHtml += "</div>";
+          }
+        }
+        html += "<div class='codex-revision-item' data-revision-id='" + rev.id + "'>";
+        html += "<div class='codex-revision-header'>";
+        html += "<span class='codex-revision-number'>Rev " + revNum + "</span>";
+        html += "<span class='codex-revision-date'>" + escapeHtml(date) + "</span>";
+        html += "</div>";
+        html += "<div class='codex-revision-summary'>" + escapeHtml(summary) + "</div>";
+        if (diffHtml) html += diffHtml;
+        html += "<div class='codex-revision-actions'>";
+        html += "<button type='button' class='codex-revision-view-btn' data-rev-index='" + idx + "'>View Snapshot</button>";
+        html += "<button type='button' class='codex-revision-restore-btn' data-rev-id='" + rev.id + "' data-rev-index='" + idx + "'>Restore</button>";
+        html += "</div>";
+        html += "</div>";
+      });
+      list.innerHTML = html;
+      // Store revisions for restore/view
+      window._codexRevisionCache = revisions;
+      // Bind view buttons
+      list.querySelectorAll(".codex-revision-view-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-rev-index"));
+          var rev = window._codexRevisionCache && window._codexRevisionCache[idx];
+          if (rev && rev.snapshot) {
+            alert(JSON.stringify(rev.snapshot, null, 2).substring(0, 2000) + "...");
+          }
+        });
+      });
+      // Bind restore buttons
+      list.querySelectorAll(".codex-revision-restore-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var idx = Number(btn.getAttribute("data-rev-index"));
+          var revId = Number(btn.getAttribute("data-rev-id"));
+          var rev = window._codexRevisionCache && window._codexRevisionCache[idx];
+          if (rev && rev.snapshot && _codexActiveEntityId) {
+            if (!confirm("Restore this revision? This will overwrite the current entity data.")) return;
+            restoreCodexRevision(_codexActiveEntityId, rev.snapshot);
+          }
+        });
+      });
+    }
+
+    function computeEntityFieldDiff(oldSnapshot, newSnapshot) {
+      var diffs = [];
+      var fields = ["name", "description", "summary", "image_url", "color", "scope", "status",
+        "visibility", "canon_status", "public_summary", "marketing_summary", "spoiler_level",
+        "featured", "aliases"];
+      fields.forEach(function (f) {
+        var oldVal = oldSnapshot[f];
+        var newVal = newSnapshot[f];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          diffs.push({ field: f, path: "", oldValue: oldVal, newValue: newVal });
+        }
+      });
+      // Compare custom_data
+      var oldCustom = oldSnapshot.custom_data || {};
+      var newCustom = newSnapshot.custom_data || {};
+      var customKeys = Object.keys(oldCustom).concat(Object.keys(newCustom)).filter(function (v, i, a) { return a.indexOf(v) === i; });
+      customKeys.forEach(function (k) {
+        if (k === "sections") {
+          var oldSections = oldCustom.sections || {};
+          var newSections = newCustom.sections || {};
+          var sectionKeys = Object.keys(oldSections).concat(Object.keys(newSections)).filter(function (v, i, a) { return a.indexOf(v) === i; });
+          sectionKeys.forEach(function (sk) {
+            if (JSON.stringify(oldSections[sk]) !== JSON.stringify(newSections[sk])) {
+              diffs.push({ field: "custom_data", path: "sections." + sk, oldValue: oldSections[sk], newValue: newSections[sk] });
+            }
+          });
+        } else {
+          if (JSON.stringify(oldCustom[k]) !== JSON.stringify(newCustom[k])) {
+            diffs.push({ field: "custom_data", path: k, oldValue: oldCustom[k], newValue: newCustom[k] });
+          }
+        }
+      });
+      return diffs;
+    }
+
+    function restoreCodexRevision(entityId, snapshot) {
+      var seriesId = skCurrentSeriesId;
+      var entityTypeId = snapshot.entity_type_id;
+      var payload = {
+        id: entityId,
+        name: snapshot.name,
+        slug: snapshot.slug,
+        aliases: snapshot.aliases,
+        summary: snapshot.summary,
+        description: snapshot.description,
+        image_url: snapshot.image_url,
+        color: snapshot.color,
+        scope: snapshot.scope,
+        status: snapshot.status,
+        visibility: snapshot.visibility,
+        canon_status: snapshot.canon_status,
+        public_summary: snapshot.public_summary,
+        marketing_summary: snapshot.marketing_summary,
+        spoiler_level: snapshot.spoiler_level,
+        featured: snapshot.featured,
+        sort_order: snapshot.sort_order,
+        custom_data: snapshot.custom_data || {}
+      };
+      callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(payload)]).then(function (json) {
+        var result = typeof json === 'string' ? JSON.parse(json) : json;
+        if (result && result.ok) {
+          setStatus("Revision restored successfully.", "ok");
+          // Reload the entity detail
+          if (typeof openCodexEntityPage === "function") openCodexEntityPage(entityId);
+        } else {
+          setStatus("Failed to restore revision.", "error");
+        }
+      }).catch(function (err) {
+        setStatus("Failed to restore revision: " + (err.message || err), "error");
+      });
     }
