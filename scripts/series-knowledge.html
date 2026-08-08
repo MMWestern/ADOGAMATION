@@ -5279,6 +5279,9 @@
         var preview = pillar.author_content || pillar.ai_content || "";
         var stateLabel = state.replace(/_/g, ' ');
         var isLocked = state === "locked";
+        // Find purpose from default pillars
+        var defaultPillar = WORLD_FRAMEWORK_PILLARS.find(function (p) { return p.key === pillar.pillar_key; });
+        var purpose = defaultPillar ? defaultPillar.purpose : "";
         html += "<div class='codex-pillar-card" + (isLocked ? " is-locked" : "") + "' data-pillar-id='" + pillar.id + "' data-pillar-key='" + escapeHtml(pillar.pillar_key) + "'>";
         html += "<div class='codex-pillar-card-header'>";
         html += "<span class='codex-pillar-card-label'>" + escapeHtml(pillar.label) + "</span>";
@@ -5291,6 +5294,9 @@
         html += "<span class='codex-pillar-card-state state-" + state + "'>" + escapeHtml(stateLabel) + "</span>";
         html += "</div>";
         html += "</div>";
+        if (purpose) {
+          html += "<div class='codex-pillar-card-purpose'>" + escapeHtml(purpose) + "</div>";
+        }
         if (preview) {
           html += "<div class='codex-pillar-card-preview'>" + escapeHtml(preview.substring(0, 150)) + "</div>";
         }
@@ -5327,6 +5333,13 @@
     function openPillarDetail(pillarId) {
       var pillar = _worldPillars.find(function (p) { return Number(p.id) === pillarId; });
       if (!pillar) return;
+      _activePillarKey = pillar.pillar_key;
+      // Highlight selected card
+      document.querySelectorAll(".codex-pillar-card").forEach(function (c) { c.classList.remove("is-selected"); });
+      var card = document.querySelector('.codex-pillar-card[data-pillar-id="' + pillarId + '"]');
+      if (card) card.classList.add("is-selected");
+      // Update assistant context
+      updateAssistantPillarContext(pillar);
       var modal = document.getElementById("pillarEditModal");
       if (!modal) return;
       // Populate modal
@@ -5438,6 +5451,7 @@
 
     var _activeBuildSession = null;
     var _buildMessages = [];
+    var _activePillarKey = null;
 
     function wireWorldBuilderAssistant() {
       // Populate mode dropdown
@@ -5505,6 +5519,33 @@
       renderAssistantMessages();
     }
 
+    function updateAssistantPillarContext(pillar) {
+      var defaultPillar = WORLD_FRAMEWORK_PILLARS.find(function (p) { return p.key === pillar.pillar_key; });
+      var purpose = defaultPillar ? defaultPillar.purpose : "";
+      var actionsContainer = document.getElementById("assistantActions");
+      if (!actionsContainer) return;
+      // Add a pillar-specific action button
+      var existingPillarBtn = actionsContainer.querySelector(".assistant-pillar-help-btn");
+      if (existingPillarBtn) existingPillarBtn.remove();
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "assistant-pillar-help-btn";
+      btn.textContent = "Help me with: " + pillar.label;
+      btn.title = purpose;
+      btn.addEventListener("click", function () {
+        var prompt = "Help me develop the \"" + pillar.label + "\" pillar of my world. " +
+          "This pillar is about: " + purpose + ". " +
+          (pillar.author_content ? "Here's what I have so far: " + pillar.author_content : "I haven't started this yet.") +
+          " Ask me focused questions to help me flesh this out.";
+        var input = document.getElementById("assistantInput");
+        if (input) {
+          input.value = prompt;
+          sendAssistantMessage();
+        }
+      });
+      actionsContainer.insertBefore(btn, actionsContainer.firstChild);
+    }
+
     function ensureBuildSession() {
       if (_activeBuildSession) return Promise.resolve(_activeBuildSession);
       var project = getSelectedProject();
@@ -5556,8 +5597,19 @@
         var systemPrompt = "You are a world-building assistant for authors. Your role is: " + mode + ". " +
           "The author is working on a series. Here is the current world framework:\n\n" +
           pillarContext + "\n\n" +
-          (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "") +
-          "Respond helpfully and concisely. Ask one question at a time when in interviewer mode.";
+          (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "");
+        // Add active pillar context if one is selected
+        if (_activePillarKey) {
+          var activePillar = _worldPillars.find(function (p) { return p.pillar_key === _activePillarKey; });
+          if (activePillar) {
+            var activeDefault = WORLD_FRAMEWORK_PILLARS.find(function (p) { return p.key === _activePillarKey; });
+            var activePurpose = activeDefault ? activeDefault.purpose : "";
+            systemPrompt += "The author is currently working on the \"" + activePillar.label + "\" pillar. " +
+              "Purpose: " + activePurpose + ". " +
+              "Current content: " + (activePillar.author_content || "(empty)") + "\n\n";
+          }
+        }
+        systemPrompt += "Respond helpfully and concisely. Ask one question at a time when in interviewer mode.";
         // Call AI using the correct payload format
         var aiConfig = collectAISettingsFormData();
         var provider = aiConfig.provider || "openrouter";

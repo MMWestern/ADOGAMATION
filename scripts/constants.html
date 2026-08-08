@@ -644,26 +644,26 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
 
     // Stage 2B: World Framework default pillars
     var WORLD_FRAMEWORK_PILLARS = [
-      { key: "core_concept", label: "Core Concept", sort_order: 10 },
-      { key: "world_type", label: "World Type", sort_order: 20 },
-      { key: "scale", label: "Scale", sort_order: 30 },
-      { key: "time_era", label: "Time and Era", sort_order: 40 },
-      { key: "change_point", label: "Change Point", sort_order: 50 },
-      { key: "geography", label: "Geography", sort_order: 60 },
-      { key: "people_cultures", label: "People and Cultures", sort_order: 70 },
-      { key: "politics_power", label: "Politics and Power", sort_order: 80 },
-      { key: "religion_belief", label: "Religion and Belief", sort_order: 90 },
-      { key: "magic_system", label: "Magic or System", sort_order: 100 },
-      { key: "technology", label: "Technology", sort_order: 110 },
-      { key: "economy_resources", label: "Economy and Resources", sort_order: 120 },
-      { key: "everyday_life", label: "Everyday Life", sort_order: 130 },
-      { key: "history", label: "History", sort_order: 140 },
-      { key: "conflict_pressure", label: "Conflict and Pressure", sort_order: 150 },
-      { key: "themes_tone", label: "Themes and Tone", sort_order: 160 },
-      { key: "story_scale", label: "Story Scale", sort_order: 170 },
-      { key: "mysteries_secrets", label: "Mysteries and Secrets", sort_order: 180 },
-      { key: "open_questions", label: "Open Questions", sort_order: 190 },
-      { key: "boundaries", label: "Boundaries", sort_order: 200 }
+      { key: "core_concept", label: "Core Concept", purpose: "Central premise and distinctive world promise", sort_order: 10 },
+      { key: "world_type", label: "World Type", purpose: "Contemporary, secondary world, alternate history, portal world or other model", sort_order: 20 },
+      { key: "scale", label: "Scale", purpose: "Local, regional, national, planetary, multi-world or other scale", sort_order: 30 },
+      { key: "time_era", label: "Time and Era", purpose: "Period, time model, calendar assumptions and technology level", sort_order: 40 },
+      { key: "change_point", label: "Change Point", purpose: "What is happening now that was not happening before", sort_order: 50 },
+      { key: "geography", label: "Geography", purpose: "Environments, settlements, regions, borders and travel", sort_order: 60 },
+      { key: "people_cultures", label: "People and Cultures", purpose: "Populations, customs, classes, identities and species", sort_order: 70 },
+      { key: "politics_power", label: "Politics and Power", purpose: "Governments, institutions, factions, law and inequality", sort_order: 80 },
+      { key: "religion_belief", label: "Religion and Belief", purpose: "Faiths, myths, superstitions, gods and competing truths", sort_order: 90 },
+      { key: "magic_system", label: "Magic or System", purpose: "Source, access, rules, cost, limits, exceptions and consequences", sort_order: 100 },
+      { key: "technology", label: "Technology", purpose: "Available technologies and their relationship with the extraordinary", sort_order: 110 },
+      { key: "economy_resources", label: "Economy and Resources", purpose: "Work, trade, wealth, ownership, scarcity and valuable resources", sort_order: 120 },
+      { key: "everyday_life", label: "Everyday Life", purpose: "Homes, food, education, family, entertainment and ordinary routines", sort_order: 130 },
+      { key: "history", label: "History", purpose: "Eras, civilisations, migrations, wars, discoveries and catastrophes", sort_order: 140 },
+      { key: "conflict_pressure", label: "Conflict and Pressure", purpose: "Current tensions, instability and emerging threats", sort_order: 150 },
+      { key: "themes_tone", label: "Themes and Tone", purpose: "Emotional, philosophical and stylistic identity", sort_order: 160 },
+      { key: "story_scale", label: "Story Scale", purpose: "Relationship between local stories and the wider series arc", sort_order: 170 },
+      { key: "mysteries_secrets", label: "Mysteries and Secrets", purpose: "Deliberately concealed truths and controlled revelations", sort_order: 180 },
+      { key: "open_questions", label: "Open Questions", purpose: "Areas consciously left undecided", sort_order: 190 },
+      { key: "boundaries", label: "Boundaries", purpose: "Prohibited ideas, fixed rules and AI restrictions", sort_order: 200 }
     ];
 
     var WORLD_PILLAR_STATES = ["empty", "captured", "needs_questions", "developing", "provisional", "locked"];
