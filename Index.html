@@ -776,12 +776,39 @@
         <div id="codexWorldBuilder" class="codex-world-builder" hidden>
           <div id="codexWorldBuilderContent" class="codex-world-builder-content">
             <div id="codexWorldBuilderPillars" class="codex-pillar-grid"></div>
-            <div id="codexWorldBuilderBrainstorm" class="codex-brainstorm-panel">
-              <div class="codex-brainstorm-header">
-                <span class="codex-brainstorm-title">Brainstorm Sources</span>
-                <button type="button" id="codexBrainstormAddBtn" class="codex-brainstorm-add-btn">+ Add Source</button>
+            <div class="codex-world-builder-sidebar">
+              <!-- Assistant -->
+              <div id="worldBuilderAssistant" class="world-builder-assistant">
+                <div class="assistant-header">
+                  <span class="assistant-title">World Builder Assistant</span>
+                  <select id="assistantModeSelect" class="assistant-mode-select"></select>
+                </div>
+                <div class="assistant-settings">
+                  <select id="assistantCreativitySelect" class="assistant-setting-select"></select>
+                  <select id="assistantDepthSelect" class="assistant-setting-select"></select>
+                </div>
+                <div id="assistantMessages" class="assistant-messages"></div>
+                <div id="assistantActions" class="assistant-actions">
+                  <button type="button" data-action="ask_questions">Ask Me Questions</button>
+                  <button type="button" data-action="offer_possibilities">Offer Possibilities</button>
+                  <button type="button" data-action="explore_consequences">Explore Consequences</button>
+                  <button type="button" data-action="challenge">Challenge</button>
+                  <button type="button" data-action="find_contradictions">Find Contradictions</button>
+                  <button type="button" data-action="leave_unresolved">Leave Unresolved</button>
+                </div>
+                <div class="assistant-input-row">
+                  <textarea id="assistantInput" class="assistant-input" rows="2" placeholder="Type a message or answer a question..."></textarea>
+                  <button type="button" id="assistantSendBtn" class="assistant-send-btn">Send</button>
+                </div>
               </div>
-              <div id="codexBrainstormList" class="codex-brainstorm-list"></div>
+              <!-- Brainstorm Sources -->
+              <div id="codexWorldBuilderBrainstorm" class="codex-brainstorm-panel">
+                <div class="codex-brainstorm-header">
+                  <span class="codex-brainstorm-title">Brainstorm Sources</span>
+                  <button type="button" id="codexBrainstormAddBtn" class="codex-brainstorm-add-btn">+ Add Source</button>
+                </div>
+                <div id="codexBrainstormList" class="codex-brainstorm-list"></div>
+              </div>
             </div>
           </div>
         </div>

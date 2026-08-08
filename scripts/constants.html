@@ -668,5 +668,27 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
 
     var WORLD_PILLAR_STATES = ["empty", "captured", "needs_questions", "developing", "provisional", "locked"];
 
+    // Stage 3B: World Builder AI modes
+    var WORLD_BUILDER_MODES = [
+      { key: "organizer", label: "Organizer", description: "Restructure and summarize without adding new ideas" },
+      { key: "interviewer", label: "Interviewer", description: "Ask focused questions and develop through answers" },
+      { key: "collaborator", label: "Collaborator", description: "Offer clearly labeled possibilities" },
+      { key: "challenger", label: "Challenger", description: "Locate assumptions, contradictions, weaknesses" },
+      { key: "explorer", label: "Explorer", description: "Examine from inside the world" }
+    ];
+
+    var WORLD_BUILDER_CREATIVITY = [
+      { key: "conservative", label: "Conservative" },
+      { key: "balanced", label: "Balanced" },
+      { key: "unexpected", label: "Unexpected" },
+      { key: "experimental", label: "Experimental" }
+    ];
+
+    var WORLD_BUILDER_DEPTH = [
+      { key: "foundation", label: "Foundation" },
+      { key: "working_detail", label: "Working Detail" },
+      { key: "deep_worldbuilding", label: "Deep Worldbuilding" }
+    ];
+
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;

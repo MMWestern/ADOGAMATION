@@ -736,3 +736,66 @@
       return sbClient.from('world_framework_extractions').update({ author_action: String(action || 'pending').trim() }).eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
+
+    // ============================================================
+    // WORLD BUILDER — Stage 3D Sessions & Messages CRUD
+    // ============================================================
+
+    _sbDefine('listWorldBuildSessions', function (seriesId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return sbClient.from('world_build_sessions').select('*').eq('series_id', safeSeriesId).eq('status', 'active').order('created_at', { ascending: false }).limit(50)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, sessions: res.data || [] }); });
+    });
+
+    _sbDefine('saveWorldBuildSession', function (seriesId, sessionJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof sessionJson === 'string' ? JSON.parse(sessionJson) : (sessionJson || {});
+      var sessionId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        pillar_key: String(parsed.pillar_key || '').trim() || null,
+        assistance_mode: String(parsed.assistance_mode || 'organizer').trim(),
+        creativity_level: String(parsed.creativity_level || 'balanced').trim(),
+        depth_level: String(parsed.depth_level || 'foundation').trim(),
+        auto_create_proposals: parsed.auto_create_proposals !== false,
+        settings_snapshot: parsed.settings_snapshot || {},
+        status: 'active'
+      };
+      var op = sessionId
+        ? sbClient.from('world_build_sessions').update(payload).eq('id', sessionId).select().single()
+        : sbClient.from('world_build_sessions').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, session: res.data }); });
+    });
+
+    _sbDefine('deleteWorldBuildSession', function (sessionId) {
+      var safeId = Number(sessionId || 0);
+      if (!safeId) throw new Error('Session id is required.');
+      return sbClient.from('world_build_sessions').update({ status: 'deleted' }).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Messages ---
+
+    _sbDefine('listWorldBuildMessages', function (sessionId) {
+      var safeId = Number(sessionId || 0);
+      if (!safeId) throw new Error('Session id is required.');
+      return sbClient.from('world_build_messages').select('*').eq('session_id', safeId).order('created_at', { ascending: true }).limit(200)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, messages: res.data || [] }); });
+    });
+
+    _sbDefine('saveWorldBuildMessage', function (sessionId, messageJson) {
+      var safeId = Number(sessionId || 0);
+      if (!safeId) throw new Error('Session id is required.');
+      var parsed = typeof messageJson === 'string' ? JSON.parse(messageJson) : (messageJson || {});
+      var payload = {
+        session_id: safeId,
+        role: String(parsed.role || 'user').trim(),
+        content: String(parsed.content || ''),
+        message_type: String(parsed.message_type || 'text').trim(),
+        metadata: parsed.metadata || {}
+      };
+      return sbClient.from('world_build_messages').insert([payload]).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, message: res.data }); });
+    });

@@ -109,6 +109,52 @@
       }).catch(function () { return false; });
     }
 
+    // --- Build Sessions (Stage 3C) ---
+
+    function listWorldBuildSessions(seriesId) {
+      if (!seriesId) return Promise.resolve([]);
+      return callAppsScriptJson("listWorldBuildSessions", [seriesId]).then(function (result) {
+        if (result && result.ok && result.sessions) return result.sessions;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveWorldBuildSession(seriesId, session) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("saveWorldBuildSession", [seriesId, JSON.stringify(session || {})]).then(function (result) {
+        if (result && result.ok && result.session) return result.session;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save session: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    function deleteWorldBuildSession(sessionId) {
+      if (!sessionId) return Promise.resolve(false);
+      return callAppsScriptJson("deleteWorldBuildSession", [sessionId]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
+    // --- Build Messages (Stage 3C) ---
+
+    function listWorldBuildMessages(sessionId) {
+      if (!sessionId) return Promise.resolve([]);
+      return callAppsScriptJson("listWorldBuildMessages", [sessionId]).then(function (result) {
+        if (result && result.ok && result.messages) return result.messages;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveWorldBuildMessage(sessionId, message) {
+      if (!sessionId) return Promise.resolve(null);
+      return callAppsScriptJson("saveWorldBuildMessage", [sessionId, JSON.stringify(message || {})]).then(function (result) {
+        if (result && result.ok && result.message) return result.message;
+        return null;
+      }).catch(function () { return null; });
+    }
+
     // --- Initialize Framework (creates framework + default pillars if none exists) ---
 
     function initWorldFramework(seriesId) {

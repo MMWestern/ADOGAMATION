@@ -5400,4 +5400,185 @@
           });
         });
       }
+      // Wire assistant
+      wireWorldBuilderAssistant();
+    }
+
+    // ============================================================
+    // WORLD BUILDER — Assistant Logic (Stage 3G)
+    // ============================================================
+
+    var _activeBuildSession = null;
+    var _buildMessages = [];
+
+    function wireWorldBuilderAssistant() {
+      // Populate mode dropdown
+      var modeSelect = document.getElementById("assistantModeSelect");
+      if (modeSelect) {
+        modeSelect.innerHTML = "";
+        WORLD_BUILDER_MODES.forEach(function (m) {
+          var opt = document.createElement("option");
+          opt.value = m.key;
+          opt.textContent = m.label;
+          opt.title = m.description;
+          modeSelect.appendChild(opt);
+        });
+      }
+      // Populate creativity dropdown
+      var creativitySelect = document.getElementById("assistantCreativitySelect");
+      if (creativitySelect) {
+        creativitySelect.innerHTML = "";
+        WORLD_BUILDER_CREATIVITY.forEach(function (c) {
+          var opt = document.createElement("option");
+          opt.value = c.key;
+          opt.textContent = c.label;
+          creativitySelect.appendChild(opt);
+        });
+      }
+      // Populate depth dropdown
+      var depthSelect = document.getElementById("assistantDepthSelect");
+      if (depthSelect) {
+        depthSelect.innerHTML = "";
+        WORLD_BUILDER_DEPTH.forEach(function (d) {
+          var opt = document.createElement("option");
+          opt.value = d.key;
+          opt.textContent = d.label;
+          depthSelect.appendChild(opt);
+        });
+      }
+      // Wire action buttons
+      var actionsContainer = document.getElementById("assistantActions");
+      if (actionsContainer) {
+        actionsContainer.querySelectorAll("button[data-action]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var action = btn.getAttribute("data-action");
+            handleAssistantAction(action);
+          });
+        });
+      }
+      // Wire send button
+      var sendBtn = document.getElementById("assistantSendBtn");
+      if (sendBtn) {
+        sendBtn.addEventListener("click", function () {
+          sendAssistantMessage();
+        });
+      }
+      // Wire enter key in input
+      var input = document.getElementById("assistantInput");
+      if (input) {
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendAssistantMessage();
+          }
+        });
+      }
+      // Render empty state
+      renderAssistantMessages();
+    }
+
+    function ensureBuildSession() {
+      if (_activeBuildSession) return Promise.resolve(_activeBuildSession);
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) return Promise.resolve(null);
+      var modeSelect = document.getElementById("assistantModeSelect");
+      var creativitySelect = document.getElementById("assistantCreativitySelect");
+      var depthSelect = document.getElementById("assistantDepthSelect");
+      var session = {
+        pillar_key: null,
+        assistance_mode: modeSelect ? modeSelect.value : "organizer",
+        creativity_level: creativitySelect ? creativitySelect.value : "balanced",
+        depth_level: depthSelect ? depthSelect.value : "foundation",
+        auto_create_proposals: true
+      };
+      return saveWorldBuildSession(seriesId, session).then(function (saved) {
+        if (saved) {
+          _activeBuildSession = saved;
+          return saved;
+        }
+        return null;
+      });
+    }
+
+    function sendAssistantMessage() {
+      var input = document.getElementById("assistantInput");
+      var text = input ? input.value.trim() : "";
+      if (!text) return;
+      if (input) input.value = "";
+      // Add user message to UI immediately
+      _buildMessages.push({ role: "user", content: text, message_type: "text" });
+      renderAssistantMessages();
+      // Save to Supabase and get AI response
+      ensureBuildSession().then(function (session) {
+        if (!session) { setStatus("Failed to create session.", "error"); return; }
+        return saveWorldBuildMessage(session.id, { role: "user", content: text });
+      }).then(function () {
+        // Build context for AI
+        var project = getSelectedProject();
+        var seriesId = project ? Number(project.series_id || 0) : 0;
+        var pillarContext = _worldPillars.map(function (p) {
+          return p.label + " (" + (p.state || "empty") + "): " + (p.author_content || "(empty)");
+        }).join("\n");
+        var brainstormContext = _brainstormSources.map(function (s) {
+          return s.title + ": " + (s.content || "").substring(0, 200);
+        }).join("\n");
+        var modeSelect = document.getElementById("assistantModeSelect");
+        var mode = modeSelect ? modeSelect.value : "organizer";
+        var systemPrompt = "You are a world-building assistant for authors. Your role is: " + mode + ". " +
+          "The author is working on a series. Here is the current world framework:\n\n" +
+          pillarContext + "\n\n" +
+          (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "") +
+          "Respond helpfully and concisely. Ask one question at a time when in interviewer mode.";
+        // Call AI
+        return callEditorAI(systemPrompt, text).then(function (aiResponse) {
+          if (!aiResponse) aiResponse = "I couldn't generate a response. Please try again.";
+          _buildMessages.push({ role: "assistant", content: aiResponse, message_type: "text" });
+          renderAssistantMessages();
+          // Save assistant message
+          if (_activeBuildSession) {
+            saveWorldBuildMessage(_activeBuildSession.id, { role: "assistant", content: aiResponse });
+          }
+        });
+      }).catch(function (err) {
+        _buildMessages.push({ role: "assistant", content: "Error: " + (err.message || err), message_type: "error" });
+        renderAssistantMessages();
+      });
+    }
+
+    function handleAssistantAction(action) {
+      var actionLabels = {
+        ask_questions: "Ask me questions about this world",
+        offer_possibilities: "Offer three possibilities for this area",
+        explore_consequences: "Explore the consequences of what we have so far",
+        challenge: "Challenge my assumptions about this world",
+        find_contradictions: "Find contradictions in the world framework",
+        leave_unresolved: "Leave this area unresolved for now"
+      };
+      var prompt = actionLabels[action] || action;
+      var input = document.getElementById("assistantInput");
+      if (input) {
+        input.value = prompt;
+        sendAssistantMessage();
+      }
+    }
+
+    function renderAssistantMessages() {
+      var container = document.getElementById("assistantMessages");
+      if (!container) return;
+      if (!_buildMessages.length) {
+        container.innerHTML = "<div class='assistant-empty'>Start a conversation with the World Builder Assistant. Choose an action below or type a message.</div>";
+        return;
+      }
+      var html = "";
+      _buildMessages.forEach(function (msg) {
+        var roleLabel = msg.role === "user" ? "You" : "Assistant";
+        var roleClass = msg.role === "user" ? "role-user" : "role-assistant";
+        html += "<div class='assistant-msg'>";
+        html += "<div class='assistant-msg-role " + roleClass + "'>" + roleLabel + "</div>";
+        html += "<div class='assistant-msg-content'>" + escapeHtml(msg.content) + "</div>";
+        html += "</div>";
+      });
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
     }
