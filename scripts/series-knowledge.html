@@ -4612,7 +4612,8 @@
           list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No revision history yet.</div>";
           return;
         }
-        var currentEntity = codexCache.entitiesById ? codexCache.entitiesById[entityId] : null;
+        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+        var currentEntity = entities.find(function (e) { return Number(e.id) === entityId; }) || null;
         renderCodexRevisionList(result.revisions, currentEntity);
       }).catch(function (err) {
         list.innerHTML = "<div class='tiny' style='color:#ef4444;'>Failed to load history: " + escapeHtml(String(err.message || err)) + "</div>";
@@ -4719,8 +4720,9 @@
     }
 
     function saveManualCodexRevision() {
-      if (!_codexActiveEntityId) return;
-      var entity = codexCache.entitiesById ? codexCache.entitiesById[_codexActiveEntityId] : null;
+      if (!_codexActiveEntityId) { setStatus("No entity selected.", "error"); return; }
+      var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
+      var entity = entities.find(function (e) { return Number(e.id) === _codexActiveEntityId; });
       if (!entity) { setStatus("No entity selected.", "error"); return; }
       var summary = prompt("Revision note (optional):", "");
       if (summary === null) return; // user cancelled
