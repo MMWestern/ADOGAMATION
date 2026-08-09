@@ -858,3 +858,39 @@
       return sbClient.from('world_proposals').update({ resulting_entity_id: Number(entityId || 0) || null }).eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
+
+    // ============================================================
+    // WORLD BUILDER — Snippets CRUD
+    // ============================================================
+
+    _sbDefine('listWorldSnippets', function (seriesId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return sbClient.from('world_snippets').select('*').eq('series_id', safeSeriesId).order('created_at', { ascending: false }).limit(100)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, snippets: res.data || [] }); });
+    });
+
+    _sbDefine('saveWorldSnippet', function (seriesId, snippetJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof snippetJson === 'string' ? JSON.parse(snippetJson) : (snippetJson || {});
+      var snippetId = Number(parsed.id || 0);
+      var payload = {
+        series_id: safeSeriesId,
+        title: String(parsed.title || '').trim(),
+        content: String(parsed.content || ''),
+        category: String(parsed.category || 'general').trim()
+      };
+      if (snippetId) payload.id = snippetId;
+      var op = snippetId
+        ? sbClient.from('world_snippets').update(payload).eq('id', snippetId).select().single()
+        : sbClient.from('world_snippets').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, snippet: res.data }); });
+    });
+
+    _sbDefine('deleteWorldSnippet', function (snippetId) {
+      var safeId = Number(snippetId || 0);
+      if (!safeId) throw new Error('Snippet id is required.');
+      return sbClient.from('world_snippets').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });

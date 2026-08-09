@@ -190,6 +190,34 @@
       }).catch(function () { return false; });
     }
 
+    // --- Snippets ---
+
+    function listWorldSnippets(seriesId) {
+      if (!seriesId) return Promise.resolve([]);
+      return callAppsScriptJson("listWorldSnippets", [seriesId]).then(function (result) {
+        if (result && result.ok && result.snippets) return result.snippets;
+        return [];
+      }).catch(function () { return []; });
+    }
+
+    function saveWorldSnippet(seriesId, snippet) {
+      if (!seriesId) return Promise.resolve(null);
+      return callAppsScriptJson("saveWorldSnippet", [seriesId, JSON.stringify(snippet || {})]).then(function (result) {
+        if (result && result.ok && result.snippet) return result.snippet;
+        return null;
+      }).catch(function (err) {
+        setStatus("Failed to save snippet: " + (err.message || err), "error");
+        return null;
+      });
+    }
+
+    function deleteWorldSnippet(snippetId) {
+      if (!snippetId) return Promise.resolve(false);
+      return callAppsScriptJson("deleteWorldSnippet", [snippetId]).then(function (result) {
+        return !!(result && result.ok);
+      }).catch(function () { return false; });
+    }
+
     // --- Initialize Framework (creates framework + default pillars if none exists) ---
 
     function initWorldFramework(seriesId) {

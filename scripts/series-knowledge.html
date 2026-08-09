@@ -5244,6 +5244,8 @@
       if (el.worldBuilderAssistant) el.worldBuilderAssistant.hidden = mode !== "world-builder";
       // Hide legacy entity form when in world-builder mode
       if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = mode === "world-builder";
+      // Toggle body class for wider right panel
+      document.body.classList.toggle("world-builder-active", mode === "world-builder");
       // Load data for selected mode
       var project = getSelectedProject();
       var seriesId = project ? Number(project.series_id || 0) : 0;
@@ -5270,6 +5272,8 @@
       }).then(function (sources) {
         _brainstormSources = sources || [];
         renderBrainstormList();
+        // Load sessions and snippets
+        loadSessionsAndSnippets();
       });
     }
 
@@ -5627,10 +5631,161 @@
           }
         });
       }
+      // Wire session selector
+      var sessionSelect = document.getElementById("assistantSessionSelect");
+      if (sessionSelect) {
+        sessionSelect.addEventListener("change", function () {
+          var sessionId = Number(sessionSelect.value || 0);
+          if (sessionId) loadChatSession(sessionId);
+        });
+      }
+      // Wire new chat button
+      var newChatBtn = document.getElementById("assistantNewChatBtn");
+      if (newChatBtn) {
+        newChatBtn.addEventListener("click", function () {
+          _activeBuildSession = null;
+          _buildMessages = [];
+          renderAssistantMessages();
+          renderSessionSelector();
+        });
+      }
+      // Wire delete chat button
+      var deleteChatBtn = document.getElementById("assistantDeleteChatBtn");
+      if (deleteChatBtn) {
+        deleteChatBtn.addEventListener("click", function () {
+          if (!_activeBuildSession) { setStatus("No chat selected.", "error"); return; }
+          if (!confirm("Delete this chat? This cannot be undone.")) return;
+          deleteWorldBuildSession(_activeBuildSession.id).then(function (ok) {
+            if (ok) {
+              _activeBuildSession = null;
+              _buildMessages = [];
+              renderAssistantMessages();
+              renderSessionSelector();
+              setStatus("Chat deleted.", "ok");
+            }
+          });
+        });
+      }
+      // Wire snippet add button
+      var snippetAddBtn = document.getElementById("snippetAddBtn");
+      if (snippetAddBtn) {
+        snippetAddBtn.addEventListener("click", function () {
+          var project = getSelectedProject();
+          var seriesId = project ? Number(project.series_id || 0) : 0;
+          if (!seriesId) { setStatus("Select a series first.", "error"); return; }
+          var title = prompt("Snippet title:", "");
+          if (title === null) return;
+          var content = prompt("Snippet content:", "");
+          if (content === null) return;
+          saveWorldSnippet(seriesId, { title: title, content: content }).then(function (saved) {
+            if (saved) {
+              _worldSnippets.push(saved);
+              renderSnippetList();
+              setStatus("Snippet added.", "ok");
+            }
+          });
+        });
+      }
       // Render empty state
       renderAssistantMessages();
       // Wire pillar inspector
       wirePillarInspector();
+      // Load sessions and snippets
+      loadSessionsAndSnippets();
+    }
+
+    var _worldSnippets = [];
+
+    function loadSessionsAndSnippets() {
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) return;
+      listWorldBuildSessions(seriesId).then(function (sessions) {
+        _buildSessions = sessions || [];
+        renderSessionSelector();
+      });
+      listWorldSnippets(seriesId).then(function (snippets) {
+        _worldSnippets = snippets || [];
+        renderSnippetList();
+      });
+    }
+
+    var _buildSessions = [];
+
+    function renderSessionSelector() {
+      var select = document.getElementById("assistantSessionSelect");
+      if (!select) return;
+      select.innerHTML = "";
+      var defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = _activeBuildSession ? "Current Chat" : "New Chat";
+      select.appendChild(defaultOpt);
+      _buildSessions.forEach(function (s) {
+        var opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = s.pillar_key ? s.pillar_key.replace(/_/g, ' ') : ("Chat " + s.id);
+        if (_activeBuildSession && _activeBuildSession.id === s.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function loadChatSession(sessionId) {
+      _activeBuildSession = _buildSessions.find(function (s) { return s.id === sessionId; }) || null;
+      if (!_activeBuildSession) return;
+      listWorldBuildMessages(sessionId).then(function (messages) {
+        _buildMessages = (messages || []).map(function (m) {
+          return { role: m.role, content: m.content, message_type: m.message_type || "text" };
+        });
+        renderAssistantMessages();
+        renderSessionSelector();
+      });
+    }
+
+    function renderSnippetList() {
+      var container = document.getElementById("snippetList");
+      if (!container) return;
+      if (!_worldSnippets.length) {
+        container.innerHTML = "<div class='tiny' style='color:#52525b;padding:4px 0;'>No snippets yet.</div>";
+        return;
+      }
+      var html = "";
+      _worldSnippets.forEach(function (snippet) {
+        html += "<div class='snippet-item' data-snippet-id='" + snippet.id + "'>";
+        html += "<span class='snippet-item-title'>" + escapeHtml(snippet.title || "Untitled") + "</span>";
+        html += "<button type='button' class='snippet-item-delete' data-snippet-id='" + snippet.id + "'>&#10005;</button>";
+        html += "</div>";
+      });
+      container.innerHTML = html;
+      // Wire clicks to insert snippet into input
+      container.querySelectorAll(".snippet-item").forEach(function (item) {
+        item.addEventListener("click", function (e) {
+          if (e.target.closest(".snippet-item-delete")) return;
+          var snippetId = Number(item.getAttribute("data-snippet-id"));
+          var snippet = _worldSnippets.find(function (s) { return s.id === snippetId; });
+          if (snippet) {
+            var input = document.getElementById("assistantInput");
+            if (input) {
+              input.value += (input.value ? "\n" : "") + snippet.content;
+              input.focus();
+            }
+          }
+        });
+      });
+      // Wire delete buttons
+      container.querySelectorAll(".snippet-item-delete").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var snippetId = Number(btn.getAttribute("data-snippet-id"));
+          if (!confirm("Delete this snippet?")) return;
+          deleteWorldSnippet(snippetId).then(function (ok) {
+            if (ok) {
+              _worldSnippets = _worldSnippets.filter(function (s) { return s.id !== snippetId; });
+              renderSnippetList();
+              setStatus("Snippet deleted.", "ok");
+            }
+          });
+        });
+      });
     }
 
     function updateAssistantPillarContext(pillar) {
@@ -5669,7 +5824,7 @@
       var creativitySelect = document.getElementById("assistantCreativitySelect");
       var depthSelect = document.getElementById("assistantDepthSelect");
       var session = {
-        pillar_key: null,
+        pillar_key: _activePillarKey || null,
         assistance_mode: modeSelect ? modeSelect.value : "organizer",
         creativity_level: creativitySelect ? creativitySelect.value : "balanced",
         depth_level: depthSelect ? depthSelect.value : "foundation",
@@ -5678,6 +5833,8 @@
       return saveWorldBuildSession(seriesId, session).then(function (saved) {
         if (saved) {
           _activeBuildSession = saved;
+          _buildSessions.unshift(saved);
+          renderSessionSelector();
           return saved;
         }
         return null;

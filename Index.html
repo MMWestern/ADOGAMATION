@@ -1617,27 +1617,42 @@
             </div>
             <div id="codexBrainstormList" class="codex-brainstorm-list"></div>
           </div>
-          <!-- Assistant -->
-          <div class="assistant-header">
-            <span class="assistant-title">World Builder Assistant</span>
-            <select id="assistantModeSelect" class="assistant-mode-select"></select>
+          <!-- Snippets -->
+          <div id="worldBuilderSnippets" class="world-builder-snippets">
+            <div class="snippets-header">
+              <span class="snippets-title">Snippets</span>
+              <button type="button" id="snippetAddBtn" class="snippets-add-btn">+ Add</button>
+            </div>
+            <div id="snippetList" class="snippet-list"></div>
           </div>
-          <div class="assistant-settings">
-            <select id="assistantCreativitySelect" class="assistant-setting-select"></select>
-            <select id="assistantDepthSelect" class="assistant-setting-select"></select>
-          </div>
-          <div id="assistantMessages" class="assistant-messages"></div>
-          <div id="assistantActions" class="assistant-actions">
-            <button type="button" data-action="ask_questions">Ask Me Questions</button>
-            <button type="button" data-action="offer_possibilities">Offer Possibilities</button>
-            <button type="button" data-action="explore_consequences">Explore Consequences</button>
-            <button type="button" data-action="challenge">Challenge</button>
-            <button type="button" data-action="find_contradictions">Find Contradictions</button>
-            <button type="button" data-action="leave_unresolved">Leave Unresolved</button>
-          </div>
-          <div class="assistant-input-row">
-            <textarea id="assistantInput" class="assistant-input" rows="2" placeholder="Type a message or answer a question..."></textarea>
-            <button type="button" id="assistantSendBtn" class="assistant-send-btn">Send</button>
+          <!-- Assistant Chat -->
+          <div class="assistant-chat-section">
+            <div class="assistant-header">
+              <span class="assistant-title">World Builder Assistant</span>
+              <div class="assistant-session-controls">
+                <select id="assistantSessionSelect" class="assistant-session-select"></select>
+                <button type="button" id="assistantNewChatBtn" class="assistant-new-chat-btn" title="New Chat">+</button>
+                <button type="button" id="assistantDeleteChatBtn" class="assistant-delete-chat-btn" title="Delete Chat">&#10005;</button>
+              </div>
+            </div>
+            <div class="assistant-settings">
+              <select id="assistantModeSelect" class="assistant-mode-select"></select>
+              <select id="assistantCreativitySelect" class="assistant-setting-select"></select>
+              <select id="assistantDepthSelect" class="assistant-setting-select"></select>
+            </div>
+            <div id="assistantMessages" class="assistant-messages"></div>
+            <div id="assistantActions" class="assistant-actions">
+              <button type="button" data-action="ask_questions">Ask Me Questions</button>
+              <button type="button" data-action="offer_possibilities">Offer Possibilities</button>
+              <button type="button" data-action="explore_consequences">Explore Consequences</button>
+              <button type="button" data-action="challenge">Challenge</button>
+              <button type="button" data-action="find_contradictions">Find Contradictions</button>
+              <button type="button" data-action="leave_unresolved">Leave Unresolved</button>
+            </div>
+            <div class="assistant-input-row">
+              <textarea id="assistantInput" class="assistant-input" rows="2" placeholder="Type a message or answer a question..."></textarea>
+              <button type="button" id="assistantSendBtn" class="assistant-send-btn">Send</button>
+            </div>
           </div>
         </div>
 
