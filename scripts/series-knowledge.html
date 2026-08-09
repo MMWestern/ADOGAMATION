@@ -5395,6 +5395,43 @@
           });
         });
       }
+      // Wire Reset All button
+      var resetAllBtn = document.getElementById("codexPillarResetAllBtn");
+      if (resetAllBtn && !resetAllBtn._wired) {
+        resetAllBtn._wired = true;
+        resetAllBtn.addEventListener("click", function () {
+          if (!_worldFramework || !_worldPillars.length) return;
+          if (!confirm("Reset all pillars to empty? This will clear all pillar content and set all states to empty.")) return;
+          resetAllBtn.disabled = true;
+          resetAllBtn.textContent = "Resetting...";
+          var project = getSelectedProject();
+          var seriesId = project ? Number(project.series_id || 0) : 0;
+          if (!seriesId) { resetAllBtn.disabled = false; resetAllBtn.textContent = "Reset All to Empty"; return; }
+          var savePromises = _worldPillars.map(function (pillar) {
+            pillar.author_content = "";
+            pillar.ai_content = "";
+            pillar.locked_content = "";
+            pillar.state = "empty";
+            return saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar);
+          });
+          Promise.all(savePromises).then(function () {
+            resetAllBtn.disabled = false;
+            resetAllBtn.textContent = "Reset All to Empty";
+            renderPillarGrid();
+            // Clear the pillar inspector
+            var titleEl = document.getElementById("pillarInspectorTitle");
+            if (titleEl) titleEl.textContent = "Select a pillar";
+            var purposeEl = document.getElementById("pillarInspectorPurpose");
+            if (purposeEl) purposeEl.textContent = "Click a pillar card to view and edit its content.";
+            var editor = document.getElementById("pillarInspectorEditor");
+            if (editor) editor.hidden = true;
+            var stateSelect = document.getElementById("pillarInspectorStateSelect");
+            if (stateSelect) stateSelect.hidden = true;
+            _activePillarKey = null;
+            setStatus("All pillars reset to empty.", "ok");
+          });
+        });
+      }
     }
 
     function renderBrainstormList() {

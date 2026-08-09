@@ -13229,6 +13229,31 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   overflow-y: auto;
   padding-right: 4px;
 }
+.codex-pillar-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.codex-pillar-reset-btn {
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(239,68,68,0.3);
+  background: rgba(239,68,68,0.1);
+  color: #fca5a5;
+  cursor: pointer;
+  font-weight: 600;
+}
+.codex-pillar-reset-btn:hover {
+  background: rgba(239,68,68,0.25);
+  border-color: #ef4444;
+}
+.codex-pillar-reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .codex-pillar-card {
   padding: 10px 12px;
   border: 1px solid var(--border);
