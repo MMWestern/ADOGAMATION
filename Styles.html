@@ -13549,6 +13549,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   font-size: 13px;
   font-weight: 700;
   color: #c5c5ce;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .assistant-mode-select {
   font-size: 11px;
@@ -13558,6 +13560,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   background: rgba(99,102,241,0.1);
   color: #a5b4fc;
   cursor: pointer;
+  min-width: 0;
+  max-width: 120px;
 }
 .assistant-settings {
   display: flex;
@@ -13653,6 +13657,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   font-size: 12px;
   font-family: inherit;
   resize: none;
+  min-height: 0;
+  height: 36px;
 }
 .assistant-input:focus {
   outline: none;
