@@ -5289,14 +5289,7 @@
         html += "<div class='codex-pillar-card" + (isLocked ? " is-locked" : "") + "' data-pillar-id='" + pillar.id + "' data-pillar-key='" + escapeHtml(pillar.pillar_key) + "'>";
         html += "<div class='codex-pillar-card-header'>";
         html += "<span class='codex-pillar-card-label'>" + escapeHtml(pillar.label) + "</span>";
-        html += "<div class='codex-pillar-card-controls'>";
-        html += "<select class='codex-pillar-state-select' data-pillar-id='" + pillar.id + "'>";
-        WORLD_PILLAR_STATES.forEach(function (s) {
-          html += "<option value='" + s + "'" + (s === state ? " selected" : "") + ">" + s.replace(/_/g, ' ') + "</option>";
-        });
-        html += "</select>";
         html += "<span class='codex-pillar-card-state state-" + state + "'>" + escapeHtml(stateLabel) + "</span>";
-        html += "</div>";
         html += "</div>";
         if (purpose) {
           html += "<div class='codex-pillar-card-purpose'>" + escapeHtml(purpose) + "</div>";
@@ -5307,29 +5300,6 @@
         html += "</div>";
       });
       container.innerHTML = html;
-      // Wire state dropdown changes
-      container.querySelectorAll(".codex-pillar-state-select").forEach(function (sel) {
-        sel.addEventListener("change", function (e) {
-          e.stopPropagation();
-          var pillarId = Number(sel.getAttribute("data-pillar-id"));
-          var newState = sel.value;
-          var pillar = _worldPillars.find(function (p) { return Number(p.id) === pillarId; });
-          if (!pillar || !_worldFramework) return;
-          pillar.state = newState;
-          saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
-            if (saved) {
-              setStatus("Pillar state: " + pillar.label + " → " + newState, "ok");
-              renderPillarGrid();
-              // Update inspector if this pillar is selected
-              if (_activePillarKey === pillar.pillar_key) {
-                var inspectorState = document.getElementById("pillarInspectorStateSelect");
-                if (inspectorState) inspectorState.value = newState;
-              }
-            }
-          });
-        });
-        sel.addEventListener("click", function (e) { e.stopPropagation(); });
-      });
       // Wire click handlers for editing content
       container.querySelectorAll(".codex-pillar-card").forEach(function (card) {
         card.addEventListener("click", function (e) {

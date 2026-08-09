@@ -13212,7 +13212,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 }
 .codex-world-builder-content {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr;
   gap: 16px;
   height: 100%;
   min-height: 0;
@@ -13338,6 +13338,17 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   font-size: 14px;
   font-weight: 700;
   color: #c5c5ce;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.pillar-inspector-panel .codex-pillar-state-select {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 80px;
+  font-size: 9px;
+  padding: 1px 4px;
 }
 .pillar-inspector-purpose {
   font-size: 11px;
