@@ -6402,6 +6402,7 @@
           if (e) e.innerHTML = "";
         });
         closeSkCodexInspector();
+        if (typeof switchCodexMode === "function") switchCodexMode("overview");
         if (el.codexEntityPage) el.codexEntityPage.hidden = true;
         if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
         if (el.codexDashboard) el.codexDashboard.hidden = false;
