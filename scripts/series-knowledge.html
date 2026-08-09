@@ -5461,7 +5461,9 @@
 
     function extractBrainstormToPillars(source, btn) {
       if (!source || !source.content) { setStatus("No content to extract.", "error"); return; }
-      if (btn) { btn.disabled = true; btn.textContent = "Extracting..."; }
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-dot"></span> Extracting'; }
+      var item = btn ? btn.closest(".codex-brainstorm-item") : null;
+      if (item) item.classList.add("is-extracting");
       var project = getSelectedProject();
       var seriesId = project ? Number(project.series_id || 0) : 0;
       if (!seriesId) { if (btn) { btn.disabled = false; btn.textContent = "Extract"; } return; }
@@ -5515,6 +5517,7 @@
         return Promise.all(proposalPromises.filter(Boolean));
       }).then(function (results) {
         if (btn) { btn.disabled = false; btn.textContent = "Extract"; }
+        if (item) item.classList.remove("is-extracting");
         var count = results ? results.filter(Boolean).length : 0;
         if (count) {
           setStatus("Extracted " + count + " elements. Review them in the Review tab.", "ok");
@@ -5528,6 +5531,7 @@
         }
       }).catch(function (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Extract"; }
+        if (item) item.classList.remove("is-extracting");
         setStatus("Extraction failed: " + (err.message || err), "error");
       });
     }
