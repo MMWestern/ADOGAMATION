@@ -4183,20 +4183,6 @@
       if (!visible.some(function (entry) { return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || ""); })) {
         appState.writingWorkspace.selectedCodexKey = String(visible[0] && visible[0].key || "");
       }
-      var groupOrder = ["characters", "locations", "objects", "organisations", "families", "subplots", "lore", "magic_systems", "maps", "continuity", "other"];
-      var groupLabels = {
-        characters: "Characters",
-        locations: "Locations",
-        objects: "Objects",
-        organisations: "Organisations",
-        families: "Families",
-        subplots: "Subplots",
-        lore: "Lore",
-        magic_systems: "Magic Systems",
-        maps: "Maps",
-        continuity: "Continuity",
-        other: "Other"
-      };
       var grouped = {};
       visible.forEach(function (entry) {
         var key = String(entry.type || "other").trim() || "other";
@@ -4319,24 +4305,37 @@
       }
       var sections = [];
       var collapsed = appState.writingWorkspace.collapsedGroups || {};
-      groupOrder.forEach(function (key) {
-        var items = grouped[key] || [];
-        var count = items.length;
-        var isCollapsed = !!collapsed[key];
-        sections.push(
-          "<section class='writing-codex-group" + (count ? "" : " is-empty") + (isCollapsed ? " is-collapsed" : "") + "' data-group-key='" + escapeHtml(key) + "'>" +
-            "<div class='writing-codex-group-header'>" +
-              "<div class='writing-codex-group-header-left'>" +
-                "<span class='writing-codex-group-title'>" + escapeHtml(groupLabels[key] || key) + "</span>" +
-                "<span class='writing-codex-group-count'>" + count + " entr" + (count === 1 ? "y" : "ies") + "</span>" +
+      CODEX_TREE_DEF.forEach(function (cat) {
+        sections.push("<div class='writing-codex-group codex-tree-category'>");
+        sections.push("<div class='writing-codex-group-header codex-tree-category-header'>");
+        sections.push("<span class='writing-codex-group-title'>" + escapeHtml(cat.category) + "</span>");
+        sections.push("<span class='writing-codex-group-chevron'>&#9660;</span>");
+        sections.push("</div>");
+        sections.push("<div class='writing-codex-group-list codex-tree-category-children'>");
+        cat.items.forEach(function (item) {
+          if (item.isFeature) return; // Skip feature items in writing tab
+          var key = item.key;
+          var items = grouped[key] || [];
+          var count = items.length;
+          var isCollapsed = !!collapsed[key];
+          sections.push(
+            "<section class='writing-codex-group" + (count ? "" : " is-empty") + (isCollapsed ? " is-collapsed" : "") + "' data-group-key='" + escapeHtml(key) + "'>" +
+              "<div class='writing-codex-group-header'>" +
+                "<div class='writing-codex-group-header-left'>" +
+                  "<span class='codex-type-header-icon'>" + item.icon + "</span>" +
+                  "<span class='writing-codex-group-title'>" + escapeHtml(item.label) + "</span>" +
+                  "<span class='writing-codex-group-count'>" + count + "</span>" +
+                "</div>" +
+                "<span class='writing-codex-group-chevron'>" + (isCollapsed ? "\u25B6" : "\u25BC") + "</span>" +
               "</div>" +
-              "<span class='writing-codex-group-chevron'>" + (isCollapsed ? "\u25B6" : "\u25BC") + "</span>" +
-            "</div>" +
-            "<div class='writing-codex-group-list'" + (count ? isCollapsed ? " hidden" : "" : " hidden") + ">" +
-              (key === "locations" ? buildLocationTreeEntries(items) : items.map(buildEntry).join("")) +
-            "</div>" +
-          "</section>"
-        );
+              "<div class='writing-codex-group-list'" + (count ? isCollapsed ? " hidden" : "" : " hidden") + ">" +
+                (key === "locations" ? buildLocationTreeEntries(items) : items.map(buildEntry).join("")) +
+              "</div>" +
+            "</section>"
+          );
+        });
+        sections.push("</div>");
+        sections.push("</div>");
       });
       el.writingCodexList.innerHTML = sections.join("");
       renderWritingChapterList(selected);
