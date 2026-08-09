@@ -3488,7 +3488,10 @@
           var entityType = btn.getAttribute("data-entity-type") || "";
           var entities = allEntities.filter(function (e) { return (e.codex_entity_types || {}).key === entityType; });
           var entity = entities.find(function (e) { return Number(e.id) === id; });
-          if (entity) showCodexEntityDetail(entity, entityType);
+          if (entity) {
+            if (_codexMode !== "overview") switchCodexMode("overview");
+            showCodexEntityDetail(entity, entityType);
+          }
         });
       });
 
