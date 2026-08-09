@@ -13869,6 +13869,23 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 }
 
 /* -- Proposal Cards -- */
+.proposal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.proposal-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+}
+.proposal-bulk-actions {
+  display: flex;
+  gap: 6px;
+}
 .proposal-list {
   display: flex;
   flex-direction: column;
@@ -13879,6 +13896,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   border-radius: 8px;
   padding: 12px 14px;
   background: rgba(0,0,0,0.1);
+  max-height: 200px;
+  overflow-y: auto;
 }
 .proposal-card-header {
   display: flex;

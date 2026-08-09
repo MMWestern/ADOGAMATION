@@ -6206,7 +6206,14 @@
         container.innerHTML = "<div class='codex-review-empty'>No proposals pending review.</div>";
         return;
       }
-      var html = "<div class='proposal-list'>";
+      var html = "<div class='proposal-toolbar'>";
+      html += "<span class='proposal-count'>" + _reviewProposals.length + " proposal" + (_reviewProposals.length !== 1 ? "s" : "") + " pending</span>";
+      html += "<div class='proposal-bulk-actions'>";
+      html += "<button type='button' id='proposalAcceptAllBtn' class='proposal-accept-btn'>Accept All</button>";
+      html += "<button type='button' id='proposalRejectAllBtn' class='proposal-reject-btn'>Reject All</button>";
+      html += "</div>";
+      html += "</div>";
+      html += "<div class='proposal-list'>";
       _reviewProposals.forEach(function (proposal) {
         var typeLabel = proposal.proposal_type || "unknown";
         var typeInfo = WORLD_PROPOSAL_TYPES.find(function (t) { return t.key === typeLabel; });
@@ -6253,6 +6260,108 @@
           var proposalId = Number(btn.getAttribute("data-proposal-id"));
           handleProposalAction(proposalId, "archived");
         });
+      });
+      // Wire bulk actions
+      var acceptAllBtn = document.getElementById("proposalAcceptAllBtn");
+      if (acceptAllBtn) {
+        acceptAllBtn.addEventListener("click", function () {
+          if (!confirm("Accept all " + _reviewProposals.length + " proposals?")) return;
+          var project = getSelectedProject();
+          var seriesId = project ? Number(project.series_id || 0) : 0;
+          if (!seriesId) return;
+          var proposalsToProcess = _reviewProposals.slice();
+          acceptAllBtn.disabled = true;
+          acceptAllBtn.textContent = "Accepting...";
+          var chain = Promise.resolve();
+          proposalsToProcess.forEach(function (proposal) {
+            chain = chain.then(function () {
+              return handleProposalActionAsync(proposal.id, "accepted_canon");
+            });
+          });
+          chain.then(function () {
+            acceptAllBtn.disabled = false;
+            acceptAllBtn.textContent = "Accept All";
+            setStatus("All proposals accepted.", "ok");
+            _reviewProposals = [];
+            renderProposalList();
+          });
+        });
+      }
+      var rejectAllBtn = document.getElementById("proposalRejectAllBtn");
+      if (rejectAllBtn) {
+        rejectAllBtn.addEventListener("click", function () {
+          if (!confirm("Reject all " + _reviewProposals.length + " proposals?")) return;
+          var proposalsToProcess = _reviewProposals.slice();
+          rejectAllBtn.disabled = true;
+          rejectAllBtn.textContent = "Rejecting...";
+          var chain = Promise.resolve();
+          proposalsToProcess.forEach(function (proposal) {
+            chain = chain.then(function () {
+              return updateWorldProposalStatus(proposal.id, "rejected", "Bulk rejected");
+            });
+          });
+          chain.then(function () {
+            rejectAllBtn.disabled = false;
+            rejectAllBtn.textContent = "Reject All";
+            setStatus("All proposals rejected.", "ok");
+            _reviewProposals = [];
+            renderProposalList();
+          });
+        });
+      }
+    }
+
+    function handleProposalActionAsync(proposalId, action, reason) {
+      var proposal = _reviewProposals.find(function (p) { return Number(p.id) === proposalId; });
+      if (!proposal) return Promise.resolve();
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) return Promise.resolve();
+      // For add_framework_statement, append to pillar
+      if (proposal.proposal_type === "add_framework_statement") {
+        var pillarKey = proposal.source_pillar_key || "";
+        var pillar = _worldPillars.find(function (p) { return p.pillar_key === pillarKey; });
+        if (pillar && _worldFramework) {
+          var newContent = pillar.author_content ? pillar.author_content + "\n\n" + (proposal.proposed_content.text || "") : (proposal.proposed_content.text || "");
+          pillar.author_content = newContent;
+          pillar.state = "captured";
+          return saveWorldPillar(_worldFramework.id, pillarKey, pillar).then(function () {
+            return updateWorldProposalStatus(proposalId, action, reason);
+          }).then(function () {
+            _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+            renderPillarGrid();
+          });
+        }
+      }
+      // For create_entity, create the entity
+      if (proposal.proposal_type === "create_entity") {
+        var content = proposal.proposed_content || {};
+        var entityTypeKey = proposal.target_entity_type || "lore";
+        var entityTypeId = getCodexEntityTypeId_(seriesId, entityTypeKey);
+        if (!entityTypeId) return Promise.resolve();
+        var entityPayload = {
+          name: content.name || proposal.summary || "Untitled",
+          description: content.description || "",
+          summary: content.summary || "",
+          scope: "series",
+          status: "active",
+          canon_status: action === "accepted_canon" ? "canon" : "provisional",
+          custom_data: content.custom_data || {}
+        };
+        return callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(entityPayload)]).then(function (result) {
+          var saved = result && result.entity ? result.entity : {};
+          var savedId = Number(saved.id || 0);
+          if (savedId) return linkProposalToEntity(proposalId, savedId);
+        }).then(function () {
+          return updateWorldProposalStatus(proposalId, action, reason);
+        }).then(function () {
+          _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
+          return loadCodexEntities(seriesId);
+        });
+      }
+      // Default: just update status
+      return updateWorldProposalStatus(proposalId, action, reason).then(function () {
+        _reviewProposals = _reviewProposals.filter(function (p) { return Number(p.id) !== proposalId; });
       });
     }
 
