@@ -3698,6 +3698,34 @@
     </div>
   </div>
 
+  <div id="brainstormSourceModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>Add Brainstorm Source</h3>
+        <div class="muted">Paste text, type notes, or upload a file from your computer.</div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label class="label" for="brainstormSourceTitle">Title</label>
+          <input id="brainstormSourceTitle" type="text" placeholder="Source title..." style="width:100%;" />
+        </div>
+        <div>
+          <label class="label" for="brainstormSourceContent">Content</label>
+          <textarea id="brainstormSourceContent" rows="8" style="width:100%;min-height:150px;" placeholder="Paste or type your brainstorm content here..."></textarea>
+        </div>
+        <div>
+          <label class="label">Or upload a file</label>
+          <input id="brainstormSourceFileInput" type="file" accept=".txt,.md,.doc,.docx,.rtf,.pdf" style="font-size:12px;" />
+          <div class="tiny" style="margin-top:4px;color:var(--muted);">Supported: .txt, .md, .doc, .docx, .rtf</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="brainstormSourceCancelBtn" type="button">Cancel</button>
+        <button id="brainstormSourceSaveBtn" type="button" class="primary">Add Source</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <?!= include('Client'); ?>
 </body>

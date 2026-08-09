@@ -7075,6 +7075,10 @@
       z-index: 1100;
     }
 
+    #brainstormSourceModal {
+      z-index: 1100;
+    }
+
     #imageCropModal {
       z-index: 1200;
     }
@@ -13447,11 +13451,30 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-brainstorm-item:hover {
   background: rgba(99,102,241,0.1);
 }
+.codex-brainstorm-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .codex-brainstorm-item-title {
   font-size: 12px;
   font-weight: 600;
   color: #c5c5ce;
   margin-bottom: 2px;
+}
+.codex-brainstorm-item-delete {
+  font-size: 12px;
+  color: #71717a;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.codex-brainstorm-item-delete:hover {
+  color: #ef4444;
 }
 .codex-brainstorm-item-preview {
   font-size: 11px;
