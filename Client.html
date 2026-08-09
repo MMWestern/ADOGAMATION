@@ -4307,13 +4307,21 @@
       var collapsed = appState.writingWorkspace.collapsedGroups || {};
       CODEX_TREE_DEF.forEach(function (cat) {
         sections.push("<div class='writing-codex-group codex-tree-category'>");
-        sections.push("<div class='writing-codex-group-header codex-tree-category-header'>");
+        sections.push("<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + escapeHtml(cat.category) + "'>");
         sections.push("<span class='writing-codex-group-title'>" + escapeHtml(cat.category) + "</span>");
         sections.push("<span class='writing-codex-group-chevron'>&#9660;</span>");
         sections.push("</div>");
         sections.push("<div class='writing-codex-group-list codex-tree-category-children'>");
         cat.items.forEach(function (item) {
-          if (item.isFeature) return; // Skip feature items in writing tab
+          if (item.isFeature) {
+            // Feature items (timelines, connections, etc.)
+            sections.push("<button type='button' class='writing-codex-entry codex-feature-entry' data-tree-key='" + item.key + "' data-tree-feature='1'>");
+            sections.push("<div class='writing-codex-entry-content'>");
+            sections.push("<div class='writing-codex-entry-title'>" + item.icon + " " + item.label + "</div>");
+            sections.push("</div>");
+            sections.push("</button>");
+            return;
+          }
           var key = item.key;
           var items = grouped[key] || [];
           var count = items.length;
@@ -4338,6 +4346,17 @@
         sections.push("</div>");
       });
       el.writingCodexList.innerHTML = sections.join("");
+      // Wire accordion for category headers
+      el.writingCodexList.querySelectorAll(".codex-tree-category-header").forEach(function (header) {
+        header.addEventListener("click", function () {
+          var children = header.nextElementSibling;
+          if (!children) return;
+          var chevron = header.querySelector(".writing-codex-group-chevron");
+          var isHidden = children.hidden;
+          children.hidden = !isHidden;
+          if (chevron) chevron.textContent = isHidden ? "\u25BC" : "\u25B6";
+        });
+      });
       renderWritingChapterList(selected);
     }
 
