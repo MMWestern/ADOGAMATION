@@ -5389,15 +5389,17 @@
       }
       var html = "";
       _brainstormSources.forEach(function (source) {
-        var preview = (source.content || "").substring(0, 100);
+        var preview = (source.content || "").substring(0, 80);
         var date = source.created_at ? new Date(source.created_at).toLocaleDateString() : "";
         html += "<div class='codex-brainstorm-item' data-source-id='" + source.id + "'>";
-        html += "<div class='codex-brainstorm-item-header'>";
+        html += "<div class='codex-brainstorm-item-top'>";
         html += "<div class='codex-brainstorm-item-title'>" + escapeHtml(source.title || "Untitled") + "</div>";
+        html += "<div class='codex-brainstorm-item-meta'>";
+        if (date) html += "<span class='codex-brainstorm-item-date'>" + escapeHtml(date) + "</span>";
         html += "<button type='button' class='codex-brainstorm-item-delete' data-source-id='" + source.id + "' title='Delete'>&#10005;</button>";
         html += "</div>";
+        html += "</div>";
         if (preview) html += "<div class='codex-brainstorm-item-preview'>" + escapeHtml(preview) + "</div>";
-        if (date) html += "<div class='codex-brainstorm-item-date'>" + escapeHtml(date) + "</div>";
         html += "</div>";
       });
       container.innerHTML = html;
@@ -5465,7 +5467,8 @@
         });
       }
       var saveBtn = document.getElementById("brainstormSourceSaveBtn");
-      if (saveBtn) {
+      if (saveBtn && !saveBtn._wired) {
+        saveBtn._wired = true;
         saveBtn.addEventListener("click", function () {
           var project = getSelectedProject();
           var seriesId = project ? Number(project.series_id || 0) : 0;
@@ -5475,7 +5478,9 @@
           var title = titleInput ? titleInput.value.trim() : "";
           var content = contentInput ? contentInput.value : "";
           if (!content.trim()) { setStatus("Content is required.", "error"); return; }
+          saveBtn.disabled = true;
           saveBrainstormSource(seriesId, { title: title || "Untitled", content: content }).then(function (saved) {
+            saveBtn.disabled = false;
             if (saved) {
               _brainstormSources.unshift(saved);
               renderBrainstormList();

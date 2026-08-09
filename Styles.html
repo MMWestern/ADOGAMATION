@@ -13451,7 +13451,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-brainstorm-item:hover {
   background: rgba(99,102,241,0.1);
 }
-.codex-brainstorm-item-header {
+.codex-brainstorm-item-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13461,7 +13461,30 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   font-size: 12px;
   font-weight: 600;
   color: #c5c5ce;
-  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.codex-brainstorm-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.codex-brainstorm-item-date {
+  font-size: 10px;
+  color: #52525b;
+  white-space: nowrap;
+}
+.codex-brainstorm-item-preview {
+  font-size: 11px;
+  color: #71717a;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
 }
 .codex-brainstorm-item-delete {
   font-size: 12px;
