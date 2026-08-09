@@ -13221,7 +13221,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 }
 .codex-pillar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
   overflow-y: auto;
   padding-right: 4px;
@@ -13318,6 +13318,69 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* -- Pillar Inspector (right panel) -- */
+.pillar-inspector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.pillar-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pillar-inspector-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c5c5ce;
+}
+.pillar-inspector-purpose {
+  font-size: 11px;
+  color: #71717a;
+  font-style: italic;
+  line-height: 1.4;
+}
+.pillar-inspector-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pillar-inspector-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+  color: #c5c5ce;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+}
+.pillar-inspector-textarea:focus {
+  outline: none;
+  border-color: #818cf8;
+}
+.pillar-inspector-save {
+  align-self: flex-end;
+  font-size: 11px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(34,197,94,0.3);
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  cursor: pointer;
+  font-weight: 600;
+}
+.pillar-inspector-save:hover {
+  background: rgba(34,197,94,0.3);
+  border-color: #22c55e;
 }
 
 /* -- Brainstorm Panel -- */

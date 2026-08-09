@@ -5320,6 +5320,11 @@
             if (saved) {
               setStatus("Pillar state: " + pillar.label + " → " + newState, "ok");
               renderPillarGrid();
+              // Update inspector if this pillar is selected
+              if (_activePillarKey === pillar.pillar_key) {
+                var inspectorState = document.getElementById("pillarInspectorStateSelect");
+                if (inspectorState) inspectorState.value = newState;
+              }
             }
           });
         });
@@ -5344,15 +5349,16 @@
       if (card) card.classList.add("is-selected");
       // Update assistant context
       updateAssistantPillarContext(pillar);
-      var modal = document.getElementById("pillarEditModal");
-      if (!modal) return;
-      // Populate modal
-      var title = document.getElementById("pillarEditTitle");
-      if (title) title.textContent = pillar.label;
-      var stateLabel = document.getElementById("pillarEditState");
-      if (stateLabel) stateLabel.textContent = "Current state: " + (pillar.state || "empty").replace(/_/g, ' ');
-      var stateSelect = document.getElementById("pillarEditStateSelect");
+      // Populate pillar inspector
+      var defaultPillar = WORLD_FRAMEWORK_PILLARS.find(function (p) { return p.key === pillar.pillar_key; });
+      var purpose = defaultPillar ? defaultPillar.purpose : "";
+      var titleEl = document.getElementById("pillarInspectorTitle");
+      if (titleEl) titleEl.textContent = pillar.label;
+      var purposeEl = document.getElementById("pillarInspectorPurpose");
+      if (purposeEl) purposeEl.textContent = purpose;
+      var stateSelect = document.getElementById("pillarInspectorStateSelect");
       if (stateSelect) {
+        stateSelect.hidden = false;
         stateSelect.innerHTML = "";
         WORLD_PILLAR_STATES.forEach(function (s) {
           var opt = document.createElement("option");
@@ -5362,39 +5368,46 @@
           stateSelect.appendChild(opt);
         });
       }
-      var content = document.getElementById("pillarEditContent");
+      var editor = document.getElementById("pillarInspectorEditor");
+      if (editor) editor.hidden = false;
+      var content = document.getElementById("pillarInspectorContent");
       if (content) content.value = pillar.author_content || "";
-      // Wire save
-      var saveBtn = document.getElementById("pillarEditSaveBtn");
-      saveBtn.onclick = function () {
-        var newContent = content ? content.value : "";
-        var newState = stateSelect ? stateSelect.value : pillar.state;
-        pillar.author_content = newContent;
-        pillar.state = newState;
-        if (!_worldFramework) return;
-        saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
-          if (saved) {
-            closePillarModal();
-            renderPillarGrid();
-            setStatus("Pillar saved: " + pillar.label, "ok");
-          }
-        });
-      };
-      // Wire cancel
-      var cancelBtn = document.getElementById("pillarEditCancelBtn");
-      cancelBtn.onclick = function () { closePillarModal(); };
-      // Click outside to close
-      modal.onclick = function (e) { if (e.target === modal) closePillarModal(); };
-      modal.classList.add("is-open");
-      modal.setAttribute("aria-hidden", "false");
-      if (content) content.focus();
     }
 
-    function closePillarModal() {
-      var modal = document.getElementById("pillarEditModal");
-      if (!modal) return;
-      modal.classList.remove("is-open");
-      modal.setAttribute("aria-hidden", "true");
+    function wirePillarInspector() {
+      // State dropdown change
+      var stateSelect = document.getElementById("pillarInspectorStateSelect");
+      if (stateSelect) {
+        stateSelect.addEventListener("change", function () {
+          if (!_activePillarKey || !_worldFramework) return;
+          var pillar = _worldPillars.find(function (p) { return p.pillar_key === _activePillarKey; });
+          if (!pillar) return;
+          pillar.state = stateSelect.value;
+          saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
+            if (saved) {
+              setStatus("Pillar state: " + pillar.label + " → " + pillar.state, "ok");
+              renderPillarGrid();
+            }
+          });
+        });
+      }
+      // Save button
+      var saveBtn = document.getElementById("pillarInspectorSaveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          if (!_activePillarKey || !_worldFramework) return;
+          var pillar = _worldPillars.find(function (p) { return p.pillar_key === _activePillarKey; });
+          if (!pillar) return;
+          var content = document.getElementById("pillarInspectorContent");
+          pillar.author_content = content ? content.value : "";
+          saveWorldPillar(_worldFramework.id, pillar.pillar_key, pillar).then(function (saved) {
+            if (saved) {
+              setStatus("Pillar saved: " + pillar.label, "ok");
+              renderPillarGrid();
+            }
+          });
+        });
+      }
     }
 
     function renderBrainstormList() {
@@ -5521,6 +5534,8 @@
       }
       // Render empty state
       renderAssistantMessages();
+      // Wire pillar inspector
+      wirePillarInspector();
     }
 
     function updateAssistantPillarContext(pillar) {

@@ -1597,6 +1597,18 @@
         </div>
 
         <div id="worldBuilderAssistantPanel" class="world-builder-assistant-panel" hidden>
+          <!-- Pillar Inspector -->
+          <div id="pillarInspectorPanel" class="pillar-inspector-panel">
+            <div class="pillar-inspector-header">
+              <span class="pillar-inspector-title" id="pillarInspectorTitle">Select a pillar</span>
+              <select id="pillarInspectorStateSelect" class="codex-pillar-state-select" hidden></select>
+            </div>
+            <div id="pillarInspectorPurpose" class="pillar-inspector-purpose">Click a pillar card to view and edit its content.</div>
+            <div id="pillarInspectorEditor" class="pillar-inspector-editor" hidden>
+              <textarea id="pillarInspectorContent" class="pillar-inspector-textarea" rows="6" placeholder="Enter content for this pillar..."></textarea>
+              <button type="button" id="pillarInspectorSaveBtn" class="pillar-inspector-save">Save</button>
+            </div>
+          </div>
           <!-- Brainstorm Sources -->
           <div id="codexWorldBuilderBrainstorm" class="codex-brainstorm-panel">
             <div class="codex-brainstorm-header">
