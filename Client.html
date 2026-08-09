@@ -4183,14 +4183,18 @@
       if (!visible.some(function (entry) { return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || ""); })) {
         appState.writingWorkspace.selectedCodexKey = String(visible[0] && visible[0].key || "");
       }
-      var groupOrder = ["characters", "locations", "objects", "continuity", "lore", "subplots", "other"];
+      var groupOrder = ["characters", "locations", "objects", "organisations", "families", "subplots", "lore", "magic_systems", "maps", "continuity", "other"];
       var groupLabels = {
         characters: "Characters",
         locations: "Locations",
         objects: "Objects",
-        continuity: "Continuity",
-        lore: "Lore",
+        organisations: "Organisations",
+        families: "Families",
         subplots: "Subplots",
+        lore: "Lore",
+        magic_systems: "Magic Systems",
+        maps: "Maps",
+        continuity: "Continuity",
         other: "Other"
       };
       var grouped = {};
@@ -6293,7 +6297,7 @@
       if (el.resourceInspectorPanel) el.resourceInspectorPanel.hidden = (safeTab !== "resources");
       if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.writingInspectorPanel) el.writingInspectorPanel.hidden = (safeTab !== "workspace");
-      if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "codex");
+      if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "codex" || _codexMode === "world-builder");
       // Assistant panel: show only on CODEX tab when World Builder mode is active
       var assistantPanel = document.getElementById("worldBuilderAssistantPanel");
       if (assistantPanel) assistantPanel.hidden = (safeTab !== "codex" || _codexMode !== "world-builder");
