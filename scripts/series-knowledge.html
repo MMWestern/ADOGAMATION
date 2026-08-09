@@ -5405,6 +5405,15 @@
         html += "</div>";
       });
       container.innerHTML = html;
+      // Wire item clicks to open editor
+      container.querySelectorAll(".codex-brainstorm-item").forEach(function (item) {
+        item.addEventListener("click", function (e) {
+          if (e.target.closest(".codex-brainstorm-item-delete")) return;
+          var sourceId = Number(item.getAttribute("data-source-id"));
+          var source = _brainstormSources.find(function (s) { return Number(s.id) === sourceId; });
+          if (source) openBrainstormSourceModal(source);
+        });
+      });
       // Wire delete buttons
       container.querySelectorAll(".codex-brainstorm-item-delete").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
@@ -5423,15 +5432,22 @@
       });
     }
 
-    function openBrainstormSourceModal() {
+    var _editingBrainstormSourceId = 0;
+
+    function openBrainstormSourceModal(source) {
       var modal = document.getElementById("brainstormSourceModal");
       if (!modal) return;
+      _editingBrainstormSourceId = source ? Number(source.id || 0) : 0;
       var titleInput = document.getElementById("brainstormSourceTitle");
-      if (titleInput) titleInput.value = "";
+      if (titleInput) titleInput.value = source ? (source.title || "") : "";
       var contentInput = document.getElementById("brainstormSourceContent");
-      if (contentInput) contentInput.value = "";
+      if (contentInput) contentInput.value = source ? (source.content || "") : "";
       var fileInput = document.getElementById("brainstormSourceFileInput");
       if (fileInput) fileInput.value = "";
+      var modalTitle = modal.querySelector(".modal-header h3");
+      if (modalTitle) modalTitle.textContent = source ? "Edit Brainstorm Source" : "Add Brainstorm Source";
+      var saveBtn = document.getElementById("brainstormSourceSaveBtn");
+      if (saveBtn) saveBtn.textContent = source ? "Save Changes" : "Add Source";
       modal.classList.add("is-open");
       modal.setAttribute("aria-hidden", "false");
       if (titleInput) titleInput.focus();
@@ -5481,13 +5497,21 @@
           var content = contentInput ? contentInput.value : "";
           if (!content.trim()) { setStatus("Content is required.", "error"); return; }
           saveBtn.disabled = true;
-          saveBrainstormSource(seriesId, { title: title || "Untitled", content: content }).then(function (saved) {
+          var payload = { title: title || "Untitled", content: content };
+          if (_editingBrainstormSourceId) payload.id = _editingBrainstormSourceId;
+          saveBrainstormSource(seriesId, payload).then(function (saved) {
             saveBtn.disabled = false;
             if (saved) {
-              _brainstormSources.unshift(saved);
+              if (_editingBrainstormSourceId) {
+                // Update existing in list
+                var idx = _brainstormSources.findIndex(function (s) { return Number(s.id) === _editingBrainstormSourceId; });
+                if (idx !== -1) _brainstormSources[idx] = saved;
+              } else {
+                _brainstormSources.unshift(saved);
+              }
               renderBrainstormList();
               closeBrainstormSourceModal();
-              setStatus("Brainstorm source added.", "ok");
+              setStatus(_editingBrainstormSourceId ? "Brainstorm source updated." : "Brainstorm source added.", "ok");
             }
           });
         });
