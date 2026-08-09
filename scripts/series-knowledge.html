@@ -5864,7 +5864,15 @@
         }).join("\n");
         var modeSelect = document.getElementById("assistantModeSelect");
         var mode = modeSelect ? modeSelect.value : "organizer";
-        var systemPrompt = "You are a world-building assistant for authors. Your role is: " + mode + ". " +
+        var modeDescriptions = {
+          organizer: "You restructure and summarize the author's material without adding new ideas. You organize their notes into coherent structure.",
+          interviewer: "You ask focused questions one at a time and develop the world through the author's answers. You never invent content - you draw it out.",
+          collaborator: "You offer clearly labeled possibilities for the author to select or rewrite. Always mark your suggestions as suggestions, not facts.",
+          challenger: "You locate assumptions, contradictions, weaknesses, and unintended consequences in the world. You push back respectfully.",
+          explorer: "You examine places, groups, eras, and situations from inside the world, as if you're a visitor or historian."
+        };
+        var modeDesc = modeDescriptions[mode] || modeDescriptions.organizer;
+        var systemPrompt = "You are a world-building assistant for authors. Your role is: " + mode + ". " + modeDesc + "\n\n" +
           "The author is working on a series. Here is the current world framework:\n\n" +
           pillarContext + "\n\n" +
           (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "");
@@ -5922,6 +5930,9 @@
         explore_consequences: "Explore the consequences of what we have so far",
         challenge: "Challenge my assumptions about this world",
         find_contradictions: "Find contradictions in the world framework",
+        explore_everyday: "Explore how the current world elements affect everyday life for ordinary people",
+        add_history: "Suggest historical layers and backstory for this world",
+        suggest_entities: "Based on what we have, suggest connected entities (characters, locations, factions, etc.) that should exist",
         leave_unresolved: "Leave this area unresolved for now"
       };
       var prompt = actionLabels[action] || action;
