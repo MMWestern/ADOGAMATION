@@ -13457,14 +13457,25 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   justify-content: space-between;
   gap: 8px;
 }
+.codex-brainstorm-item-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
 .codex-brainstorm-item-title {
   font-size: 12px;
   font-weight: 600;
   color: #c5c5ce;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  flex-shrink: 0;
+}
+.codex-brainstorm-item-sep {
+  font-size: 11px;
+  color: #52525b;
+  flex-shrink: 0;
 }
 .codex-brainstorm-item-meta {
   display: flex;
@@ -13484,7 +13495,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  min-width: 0;
 }
 .codex-brainstorm-item-delete {
   font-size: 12px;
@@ -13499,14 +13510,6 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-brainstorm-item-delete:hover {
   color: #ef4444;
 }
-.codex-brainstorm-item-preview {
-  font-size: 11px;
-  color: #71717a;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 .codex-brainstorm-item-date {
   font-size: 10px;

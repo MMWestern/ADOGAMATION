@@ -5393,13 +5393,15 @@
         var date = source.created_at ? new Date(source.created_at).toLocaleDateString() : "";
         html += "<div class='codex-brainstorm-item' data-source-id='" + source.id + "'>";
         html += "<div class='codex-brainstorm-item-top'>";
-        html += "<div class='codex-brainstorm-item-title'>" + escapeHtml(source.title || "Untitled") + "</div>";
+        html += "<div class='codex-brainstorm-item-main'>";
+        html += "<span class='codex-brainstorm-item-title'>" + escapeHtml(source.title || "Untitled") + "</span>";
+        if (preview) html += "<span class='codex-brainstorm-item-sep'>—</span><span class='codex-brainstorm-item-preview'>" + escapeHtml(preview) + "</span>";
+        html += "</div>";
         html += "<div class='codex-brainstorm-item-meta'>";
         if (date) html += "<span class='codex-brainstorm-item-date'>" + escapeHtml(date) + "</span>";
         html += "<button type='button' class='codex-brainstorm-item-delete' data-source-id='" + source.id + "' title='Delete'>&#10005;</button>";
         html += "</div>";
         html += "</div>";
-        if (preview) html += "<div class='codex-brainstorm-item-preview'>" + escapeHtml(preview) + "</div>";
         html += "</div>";
       });
       container.innerHTML = html;
