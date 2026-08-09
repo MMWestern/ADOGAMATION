@@ -13182,10 +13182,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   padding: 8px 12px 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
-  position: sticky;
-  top: 0;
-  z-index: 10;
   margin: 0;
+  flex-shrink: 0;
 }
 .codex-mode-tab {
   padding: 8px 16px;
@@ -13906,14 +13904,19 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-review {
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .codex-review[hidden] {
   display: none;
 }
 .codex-review-content {
-  padding: 16px;
-  overflow-y: auto;
-  height: 100%;
+  padding: 0 16px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
 .codex-review-empty {
@@ -13931,10 +13934,7 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   margin: 0;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  position: sticky;
-  top: 36px;
-  z-index: 5;
+  flex-shrink: 0;
 }
 .proposal-count {
   font-size: 12px;
@@ -13949,6 +13949,10 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0;
 }
 .proposal-card {
   border: 1px solid var(--border);
