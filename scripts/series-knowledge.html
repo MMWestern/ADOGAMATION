@@ -5244,8 +5244,7 @@
       if (el.worldBuilderAssistant) el.worldBuilderAssistant.hidden = mode !== "world-builder";
       // Hide legacy entity form when in world-builder mode
       if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = mode === "world-builder";
-      // Toggle body class for wider right panel
-      document.body.classList.toggle("world-builder-active", mode === "world-builder");
+      // Keep wider panel for all CODEX tab modes (removed when leaving CODEX tab)
       // Load data for selected mode
       var project = getSelectedProject();
       var seriesId = project ? Number(project.series_id || 0) : 0;

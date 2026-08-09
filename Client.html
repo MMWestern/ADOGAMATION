@@ -6318,6 +6318,8 @@
       // Assistant panel: show only on CODEX tab when World Builder mode is active
       var assistantPanel = document.getElementById("worldBuilderAssistantPanel");
       if (assistantPanel) assistantPanel.hidden = (safeTab !== "codex" || _codexMode !== "world-builder");
+      // Wider right panel for CODEX tab
+      document.body.classList.toggle("world-builder-active", safeTab === "codex");
 
       if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
