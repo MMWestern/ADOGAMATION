@@ -13925,8 +13925,12 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  padding-bottom: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 .proposal-count {
   font-size: 12px;
