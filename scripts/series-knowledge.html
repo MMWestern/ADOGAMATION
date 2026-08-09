@@ -5573,15 +5573,49 @@
         fileInput.addEventListener("change", function () {
           var file = fileInput.files && fileInput.files[0];
           if (!file) return;
-          var reader = new FileReader();
-          reader.onload = function (e) {
-            var text = e.target ? e.target.result : "";
-            var contentInput = document.getElementById("brainstormSourceContent");
-            if (contentInput) contentInput.value = text;
-            var titleInput = document.getElementById("brainstormSourceTitle");
-            if (titleInput && !titleInput.value) titleInput.value = file.name.replace(/\.[^.]+$/, "");
-          };
-          reader.readAsText(file);
+          var isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+          var titleInput = document.getElementById("brainstormSourceTitle");
+          if (titleInput && !titleInput.value) titleInput.value = file.name.replace(/\.[^.]+$/, "");
+          if (isPdf) {
+            // PDF extraction using pdf.js
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              var typedarray = new Uint8Array(e.target.result);
+              if (typeof pdfjsLib === "undefined") {
+                setStatus("PDF.js library not loaded. Try a text file instead.", "error");
+                return;
+              }
+              pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+              pdfjsLib.getDocument(typedarray).promise.then(function (pdf) {
+                var textParts = [];
+                var pagePromises = [];
+                for (var i = 1; i <= pdf.numPages; i++) {
+                  pagePromises.push(pdf.getPage(i).then(function (page) {
+                    return page.getTextContent().then(function (textContent) {
+                      return textContent.items.map(function (item) { return item.str; }).join(" ");
+                    });
+                  }));
+                }
+                return Promise.all(pagePromises);
+              }).then(function (pageTexts) {
+                var fullText = pageTexts.join("\n\n");
+                var contentInput = document.getElementById("brainstormSourceContent");
+                if (contentInput) contentInput.value = fullText;
+              }).catch(function (err) {
+                setStatus("PDF extraction failed: " + (err.message || err), "error");
+              });
+            };
+            reader.readAsArrayBuffer(file);
+          } else {
+            // Text file - read as text
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              var text = e.target ? e.target.result : "";
+              var contentInput = document.getElementById("brainstormSourceContent");
+              if (contentInput) contentInput.value = text;
+            };
+            reader.readAsText(file);
+          }
         });
       }
       var saveBtn = document.getElementById("brainstormSourceSaveBtn");
