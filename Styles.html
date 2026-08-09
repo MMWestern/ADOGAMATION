@@ -13181,7 +13181,10 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   gap: 2px;
   padding: 8px 12px 0;
   border-bottom: 1px solid var(--border);
-  background: rgba(0,0,0,0.05);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .codex-mode-tab {
   padding: 8px 16px;
