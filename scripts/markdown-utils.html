@@ -674,7 +674,11 @@
         body = { model: model, messages: messages, temperature: temperature, max_tokens: maxTokens };
       }
       var response = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error("HTTP " + response.status);
+      if (!response.ok) {
+        var errorBody = "";
+        try { errorBody = await response.text(); } catch (e) {}
+        throw new Error("HTTP " + response.status + (errorBody ? " - " + errorBody.substring(0, 200) : ""));
+      }
       var data = await response.json();
       var text = "";
       if (provider === "ollama") {

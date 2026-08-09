@@ -5569,6 +5569,9 @@
     var _lastSelectedPillarKey = "core_concept";
 
     function wireWorldBuilderAssistant() {
+      // Guard against double-binding
+      if (el.worldBuilderAssistant && el.worldBuilderAssistant._wired) return;
+      if (el.worldBuilderAssistant) el.worldBuilderAssistant._wired = true;
       // Populate mode dropdown
       var modeSelect = document.getElementById("assistantModeSelect");
       if (modeSelect) {
