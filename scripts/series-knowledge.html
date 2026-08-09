@@ -5740,6 +5740,42 @@
       });
     }
 
+    function getRelatedCodexEntities(pillar) {
+      var seriesId = skCurrentSeriesId || (getSelectedProject() && Number(getSelectedProject().series_id || 0));
+      if (!seriesId || !pillar) return [];
+      var entities = codexCache.entitiesBySeries[seriesId] || [];
+      if (!entities.length) return [];
+      // Extract keywords from pillar content
+      var content = (pillar.author_content || "").toLowerCase();
+      if (!content.trim()) return [];
+      // Score entities by relevance to pillar content
+      var scored = entities.map(function (e) {
+        var name = (e.name || "").toLowerCase();
+        var desc = (e.summary || e.description || "").toLowerCase();
+        var score = 0;
+        if (content.indexOf(name) !== -1) score += 3;
+        if (name.indexOf(content.substring(0, 20)) !== -1) score += 2;
+        if (desc && content.indexOf(desc.substring(0, 50)) !== -1) score += 1;
+        // Check word overlap
+        var contentWords = content.split(/\s+/).filter(function (w) { return w.length > 3; });
+        var entityText = (name + " " + desc).toLowerCase();
+        contentWords.forEach(function (w) {
+          if (entityText.indexOf(w) !== -1) score += 0.5;
+        });
+        return { entity: e, score: score };
+      }).filter(function (s) { return s.score > 0; });
+      scored.sort(function (a, b) { return b.score - a.score; });
+      return scored.slice(0, 8).map(function (s) {
+        var typeKey = (s.entity.codex_entity_types || {}).key || "";
+        return {
+          name: s.entity.name || "Untitled",
+          type: typeKey,
+          summary: s.entity.summary || "",
+          description: s.entity.description || ""
+        };
+      });
+    }
+
     function renderSnippetList() {
       var container = document.getElementById("snippetList");
       if (!container) return;
@@ -5885,6 +5921,15 @@
             systemPrompt += "The author is currently working on the \"" + activePillar.label + "\" pillar. " +
               "Purpose: " + activePurpose + ". " +
               "Current content: " + (activePillar.author_content || "(empty)") + "\n\n";
+            // Stage 5C: Fetch related CODEX entities for context
+            var relatedEntities = getRelatedCodexEntities(activePillar);
+            if (relatedEntities.length) {
+              systemPrompt += "Related CODEX entities the author has already created:\n";
+              relatedEntities.forEach(function (e) {
+                systemPrompt += "- " + e.name + " (" + e.type + "): " + (e.summary || e.description || "").substring(0, 150) + "\n";
+              });
+              systemPrompt += "\n";
+            }
           }
         }
         systemPrompt += "Respond helpfully and concisely. Ask one question at a time when in interviewer mode.";
@@ -5933,9 +5978,21 @@
         explore_everyday: "Explore how the current world elements affect everyday life for ordinary people",
         add_history: "Suggest historical layers and backstory for this world",
         suggest_entities: "Based on what we have, suggest connected entities (characters, locations, factions, etc.) that should exist",
+        check_continuity: "Analyze the current world state and identify potential continuity issues, contradictions, or missing connections",
         leave_unresolved: "Leave this area unresolved for now"
       };
       var prompt = actionLabels[action] || action;
+      // For check_continuity, also gather current world state for analysis
+      if (action === "check_continuity") {
+        var worldSummary = _worldPillars.filter(function (p) {
+          return p.author_content && p.author_content.trim();
+        }).map(function (p) {
+          return p.label + ": " + (p.author_content || "").substring(0, 200);
+        }).join("\n");
+        if (worldSummary) {
+          prompt = "Analyze this world state for continuity issues, contradictions, or missing connections:\n\n" + worldSummary + "\n\nIdentify any issues that need attention and suggest entities or connections that should exist.";
+        }
+      }
       var input = document.getElementById("assistantInput");
       if (input) {
         input.value = prompt;
