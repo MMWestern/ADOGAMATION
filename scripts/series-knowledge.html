@@ -5345,9 +5345,17 @@
     }
 
     function wirePillarInspector() {
-      // State dropdown change
+      // Populate state dropdown options
       var stateSelect = document.getElementById("pillarInspectorStateSelect");
       if (stateSelect) {
+        stateSelect.innerHTML = "";
+        WORLD_PILLAR_STATES.forEach(function (s) {
+          var opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s.replace(/_/g, ' ');
+          stateSelect.appendChild(opt);
+        });
+        // State dropdown change
         stateSelect.addEventListener("change", function () {
           if (!_activePillarKey || !_worldFramework) return;
           var pillar = _worldPillars.find(function (p) { return p.pillar_key === _activePillarKey; });
