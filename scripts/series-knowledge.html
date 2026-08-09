@@ -5728,10 +5728,15 @@
         var aiConfig = collectAISettingsFormData();
         var provider = aiConfig.provider || "openrouter";
         var model = getSelectedAIModel(aiConfig) || "gpt-4o";
+        // Build messages array with conversation history
         var messages = [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: text }
+          { role: "system", content: systemPrompt }
         ];
+        // Include previous conversation messages (limit to last 20 to avoid token limits)
+        var historyMessages = _buildMessages.slice(-20);
+        historyMessages.forEach(function (msg) {
+          messages.push({ role: msg.role === "user" ? "user" : "assistant", content: msg.content });
+        });
         return callEditorAI({
           provider: provider,
           model: model,
