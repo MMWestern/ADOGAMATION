@@ -5415,6 +5415,7 @@
         if (preview) html += "<span class='codex-brainstorm-item-sep'>—</span><span class='codex-brainstorm-item-preview'>" + escapeHtml(preview) + "</span>";
         html += "</div>";
         html += "<div class='codex-brainstorm-item-meta'>";
+        html += "<button type='button' class='codex-brainstorm-item-extract' data-source-id='" + source.id + "' title='Extract to pillars'>Extract</button>";
         if (date) html += "<span class='codex-brainstorm-item-date'>" + escapeHtml(date) + "</span>";
         html += "<button type='button' class='codex-brainstorm-item-delete' data-source-id='" + source.id + "' title='Delete'>&#10005;</button>";
         html += "</div>";
@@ -5422,6 +5423,15 @@
         html += "</div>";
       });
       container.innerHTML = html;
+      // Wire extract buttons
+      container.querySelectorAll(".codex-brainstorm-item-extract").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var sourceId = Number(btn.getAttribute("data-source-id"));
+          var source = _brainstormSources.find(function (s) { return s.id === sourceId; });
+          if (source) extractBrainstormToPillars(source, btn);
+        });
+      });
       // Wire item clicks to open editor
       container.querySelectorAll(".codex-brainstorm-item").forEach(function (item) {
         item.addEventListener("click", function (e) {
@@ -5446,6 +5456,79 @@
             }
           });
         });
+      });
+    }
+
+    function extractBrainstormToPillars(source, btn) {
+      if (!source || !source.content) { setStatus("No content to extract.", "error"); return; }
+      if (btn) { btn.disabled = true; btn.textContent = "Extracting..."; }
+      var project = getSelectedProject();
+      var seriesId = project ? Number(project.series_id || 0) : 0;
+      if (!seriesId) { if (btn) { btn.disabled = false; btn.textContent = "Extract"; } return; }
+      // Build pillar list for the AI
+      var pillarList = WORLD_FRAMEWORK_PILLARS.map(function (p) {
+        return "- " + p.label + " (" + p.key + "): " + p.purpose;
+      }).join("\n");
+      var systemPrompt = "You are a world-building assistant. Extract the following brainstorm dump into the appropriate world framework pillars. " +
+        "For each piece of information, identify which pillar it belongs to and provide the extracted content.\n\n" +
+        "Available pillars:\n" + pillarList + "\n\n" +
+        "Respond ONLY with a JSON array. Each item should have:\n" +
+        "- pillar_key: the pillar key (e.g. 'core_concept', 'geography')\n" +
+        "- content: the extracted text for that pillar\n\n" +
+        "Only include pillars that have relevant content in the dump. Do not invent content.";
+      var aiConfig = collectAISettingsFormData();
+      var provider = aiConfig.provider || "openrouter";
+      var model = getSelectedAIModel(aiConfig) || "gpt-4o";
+      var messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "Extract from this brainstorm dump:\n\n" + source.content }
+      ];
+      callEditorAI({
+        provider: provider,
+        model: model,
+        messages: messages,
+        temperature: 0.3,
+        max_tokens: 2000
+      }).then(function (result) {
+        var text = result && result.text ? result.text.trim() : "";
+        if (!text) throw new Error("AI returned empty response.");
+        // Try to parse JSON from the response
+        var jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error("AI did not return valid JSON array.");
+        var extracted = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(extracted) || !extracted.length) throw new Error("No extractions found.");
+        // Create proposals for each extraction
+        var proposalPromises = extracted.map(function (item) {
+          var pillarKey = item.pillar_key || "";
+          var content = item.content || "";
+          if (!pillarKey || !content) return Promise.resolve(null);
+          var pillarDef = WORLD_FRAMEWORK_PILLARS.find(function (p) { return p.key === pillarKey; });
+          return saveWorldProposal(seriesId, {
+            proposal_type: "add_framework_statement",
+            summary: pillarDef ? pillarDef.label + ": " + content.substring(0, 80) : content.substring(0, 100),
+            proposed_content: { text: content, pillar_key: pillarKey, source: "brainstorm", source_id: source.id },
+            source_passage: content.substring(0, 500),
+            source_pillar_key: pillarKey,
+            review_status: "pending"
+          });
+        });
+        return Promise.all(proposalPromises.filter(Boolean));
+      }).then(function (results) {
+        if (btn) { btn.disabled = false; btn.textContent = "Extract"; }
+        var count = results ? results.filter(Boolean).length : 0;
+        if (count) {
+          setStatus("Extracted " + count + " elements. Review them in the Review tab.", "ok");
+          // Switch to Review mode to show the proposals
+          switchCodexMode("review");
+          var project = getSelectedProject();
+          var seriesId = project ? Number(project.series_id || 0) : 0;
+          if (seriesId) loadReviewProposals(seriesId);
+        } else {
+          setStatus("No extractable elements found.", "warn");
+        }
+      }).catch(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Extract"; }
+        setStatus("Extraction failed: " + (err.message || err), "error");
       });
     }
 
