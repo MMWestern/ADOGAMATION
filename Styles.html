@@ -88,6 +88,10 @@
       height: calc(100vh - 100px);
     }
 
+    body.world-builder-active .layout {
+      grid-template-columns: 400px minmax(820px, 1fr) 700px;
+    }
+
     .sidebar {
       min-width: 400px;
       display: flex;
@@ -148,11 +152,6 @@
     section.panel.details {
       display: flex;
       flex-direction: column;
-      flex: 0 0 auto;
-    }
-
-    body.world-builder-active section.panel.details {
-      flex: 0 0 400px;
     }
 
     main.panel {
