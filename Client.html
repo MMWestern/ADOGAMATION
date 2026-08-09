@@ -4262,7 +4262,9 @@
           var words = title.split(/\s+/).filter(Boolean);
           var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
           var color = String(entry.color || "").trim();
-          var styleAttr = color ? ' style="color:' + color + ';"' : "";
+          var styleAttr = "";
+          if (indentPx) styleAttr = ' style="padding-left:' + indentPx + 'px;' + (color ? 'color:' + color + ';' : '') + '"';
+          else if (color) styleAttr = ' style="color:' + color + ';"';
           var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
           var imgUrl = String(entry.image_url || "").trim();
           var avatarHtml = imgUrl
@@ -4275,7 +4277,6 @@
           if (role) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(role) + '">' + escapeHtml(role) + '</span>';
           if (archetype) pillsHtml += '<span class="writing-codex-entry-pill badge-color-' + badgeColorIndex(archetype) + '">' + escapeHtml(archetype) + '</span>';
           if (!pillsHtml && badge) pillsHtml = '<span class="writing-codex-entry-pill" style="background:#5f6971;color:#f1e6c8">' + escapeHtml(badge) + '</span>';
-          if (indentPx) html += '<div style="margin-left:' + indentPx + 'px;">';
           html += "<button type='button' class='writing-codex-entry" + active + depthClass + "'" + styleAttr + " data-writing-codex-key='" + escapeHtml(entry.key) + "' data-depth='" + depth + "'>" +
             avatarHtml +
             "<div class='writing-codex-entry-content'>" +
@@ -4290,8 +4291,6 @@
           children.forEach(function (child) {
             html += renderWithChildren(child, depth + 1, visited);
           });
-          if (indentPx) html += "</div>";
-          var children = items.filter(function (e) { return getEntryId(e) && parentMap[getEntryId(e)] === eid; });
           children.forEach(function (child) {
             html += renderWithChildren(child, depth + 1, visited);
           });

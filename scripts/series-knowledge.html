@@ -3332,8 +3332,9 @@
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
-      var styleAttr = "";
-      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'>";
+      var indentPx = depth > 0 ? depth * 16 : 0;
+      var styleAttr = indentPx ? " style='padding-left:" + indentPx + "px;'" : "";
+      var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
@@ -3359,15 +3360,11 @@
         if (depth > 10) return "";
         if (visited[entity.id]) return "";
         visited[entity.id] = true;
-        var indentPx = depth > 0 ? depth * 16 : 0;
-        var result = "";
-        if (indentPx) result += "<div style='margin-left:" + indentPx + "px;'>";
-        result += renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
+        var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
         var children = entities.filter(function (e) { return parentMap[e.id] === entity.id; });
         children.forEach(function (child) {
           result += renderEntityAndChildren(child, depth + 1, visited);
         });
-        if (indentPx) result += "</div>";
         return result;
       }
       roots.forEach(function (entity) {
