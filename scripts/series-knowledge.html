@@ -3333,7 +3333,7 @@
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
       var indentPx = depth > 0 ? depth * 16 : 0;
-      var styleAttr = indentPx ? " style='padding-left:" + indentPx + "px;'" : "";
+      var styleAttr = indentPx ? " style='margin-left:" + indentPx + "px;'" : "";
       var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";

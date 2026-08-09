@@ -4263,7 +4263,7 @@
           var initials = words.slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join("") || "C";
           var color = String(entry.color || "").trim();
           var styleAttr = "";
-          if (indentPx) styleAttr = ' style="padding-left:' + indentPx + 'px;' + (color ? 'color:' + color + ';' : '') + '"';
+          if (indentPx) styleAttr = ' style="margin-left:' + indentPx + 'px;' + (color ? 'color:' + color + ';' : '') + '"';
           else if (color) styleAttr = ' style="color:' + color + ';"';
           var dotHtml = color ? '<span class="writing-codex-entry-dot" style="background:' + escapeHtml(color) + '"></span>' : "";
           var imgUrl = String(entry.image_url || "").trim();
