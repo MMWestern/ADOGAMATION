@@ -57,13 +57,6 @@
       return appState.writingWorkspace.outline;
     }
 
-    function populatePlanTextareas() {
-      var outline = appState.writingWorkspace.outline || {};
-      if (el.planBrainstormEditor) el.planBrainstormEditor.value = String(outline.brainstorming || "");
-      if (el.planCharacterArcsEditor) el.planCharacterArcsEditor.value = String(outline.characterArcs || "");
-      if (el.planWorldBuildEditor) el.planWorldBuildEditor.value = String(outline.worldBuilding || "");
-    }
-
     function getOutlineChapterCount() {
       var outline = getPlanOutline();
       return (outline.acts || []).reduce(function (sum, act) {
@@ -1164,54 +1157,6 @@
           closePlanCodexTagModal();
         });
       });
-    }
-
-    function renderPlanBrainstorm() {
-      var project = getSelectedProject();
-      var empty = el.planBrainstormEmpty;
-      var content = el.planBrainstormContent;
-      var editor = el.planBrainstormEditor;
-      if (!empty || !content || !editor) return;
-      if (!project || !Number(project.project_id || 0)) {
-        empty.hidden = false;
-        content.hidden = true;
-        return;
-      }
-      empty.hidden = true;
-      content.hidden = false;
-      editor.value = String((appState.writingWorkspace.outline || {}).brainstorming || "");
-    }
-
-    function renderPlanCharacterArcs() {
-      var project = getSelectedProject();
-      var empty = el.planCharacterArcsEmpty;
-      var content = el.planCharacterArcsContent;
-      var editor = el.planCharacterArcsEditor;
-      if (!empty || !content || !editor) return;
-      if (!project || !Number(project.project_id || 0)) {
-        empty.hidden = false;
-        content.hidden = true;
-        return;
-      }
-      empty.hidden = true;
-      content.hidden = false;
-      editor.value = String((appState.writingWorkspace.outline || {}).characterArcs || "");
-    }
-
-    function renderPlanWorldBuild() {
-      var project = getSelectedProject();
-      var empty = el.planWorldBuildEmpty;
-      var content = el.planWorldBuildContent;
-      var editor = el.planWorldBuildEditor;
-      if (!empty || !content || !editor) return;
-      if (!project || !Number(project.project_id || 0)) {
-        empty.hidden = false;
-        content.hidden = true;
-        return;
-      }
-      empty.hidden = true;
-      content.hidden = false;
-      editor.value = String((appState.writingWorkspace.outline || {}).worldBuilding || "");
     }
 
     function parseGenreGuideMarkdown(text) {

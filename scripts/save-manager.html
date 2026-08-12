@@ -148,6 +148,12 @@
         if (this._queues[areaName]) this._queues[areaName].pending = null;
       },
 
+      cancelAll() {
+        Object.keys(this._queues).forEach((areaName) => {
+          this.cancel(areaName);
+        });
+      },
+
       _flush(areaName) {
         var q = this._queues[areaName];
         var reg = this._registered[areaName];

@@ -3011,6 +3011,12 @@
       });
       if (!project) return;
       const isSameProject = appState.selectedRowNumber === nextRow;
+      const prevSelectedProject = getSelectedProject();
+      if (!isSameProject && prevSelectedProject && Number(prevSelectedProject.project_id || 0)) {
+        flushCurrentWorkspaceEdits(prevSelectedProject);
+        if (typeof saveWritingWorkspaceDraft === "function") saveWritingWorkspaceDraft({ autosave: true });
+        if (typeof savePlanOutline === "function") savePlanOutline();
+      }
       appState.selectedRowNumber = nextRow;
       if (settings.syncSeriesFilter !== false) {
         syncSeriesFilterToSelectedProject(project);
@@ -3056,7 +3062,8 @@
         openWritingWorkspace();
       }
       if (!isSameProject) {
-        flushCurrentWorkspaceEdits();
+        if (typeof saveManager !== "undefined" && typeof saveManager.cancelAll === "function") saveManager.cancelAll();
+        appState.writingWorkspace.version += 1;
         appState.writingWorkspace.segments = [];
         appState.writingWorkspace.outline = null;
         appState.writingWorkspace.outlineSnapshot = "";
@@ -3094,10 +3101,12 @@
       if (appState.writingWorkspace.outline && appState.writingWorkspace.outline.acts && appState.writingWorkspace.outline.acts.length) {
         return Promise.resolve();
       }
+      var loadVersion = appState.writingWorkspace.version;
       return Promise.all([
         callAppsScriptJson("getSupabaseProjectOutlineJsonFromClient", [project.project_id]),
         callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "draft"])
       ]).then(function (results) {
+        if (appState.writingWorkspace.version !== loadVersion) return;
         var outlineResult = results[0];
         var sectionsResult = results[1];
         if (outlineResult && outlineResult.ok && outlineResult.outline) {
@@ -3109,6 +3118,9 @@
           ? buildWritingWorkspaceSegmentsFromSections(sections, project)
           : [];
         appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
+        getPlanOutline();
+        appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
+        snapshotOutlineChapterStates();
         refreshWorkspaceTabDisabledState();
       });
     }
@@ -4764,27 +4776,29 @@
       return scope ? segments.find(function (item) { return item.key === scope; }) || null : null;
     }
 
-    function saveWritingWorkspaceNote() {
+    function saveWritingWorkspaceNote(projectId) {
       var segment = getWritingWorkspaceCurrentSegment();
       if (!segment) return;
       var project = getSelectedProject();
-      if (!project || !Number(project.project_id || 0)) return;
+      var saveProjectId = projectId || (project ? String(project.project_id || "") : "");
+      if (!saveProjectId || !Number(saveProjectId)) return;
       var text = document.getElementById("writingInspectorNoteText").value || "";
       appState.writingWorkspace.chapterNotes[segment.key] = text;
       callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [
-        project.project_id, "notes", segment.key, text
+        saveProjectId, "notes", segment.key, text
       ]).catch(function (err) { console.warn("Failed to save chapter notes:", err); });
     }
 
-    function saveWritingWorkspaceFix() {
+    function saveWritingWorkspaceFix(projectId) {
       var segment = getWritingWorkspaceCurrentSegment();
       if (!segment) return;
       var project = getSelectedProject();
-      if (!project || !Number(project.project_id || 0)) return;
+      var saveProjectId = projectId || (project ? String(project.project_id || "") : "");
+      if (!saveProjectId || !Number(saveProjectId)) return;
       var text = document.getElementById("writingInspectorFixText").value || "";
       appState.writingWorkspace.chapterFixes[segment.key] = text;
       callAppsScriptJson("upsertSupabaseProjectSectionNoteFromClient", [
-        project.project_id, "fixes", segment.key, text
+        saveProjectId, "fixes", segment.key, text
       ]).catch(function (err) { console.warn("Failed to save chapter fixes:", err); });
     }
 
@@ -4940,7 +4954,6 @@
           getPlanOutline();
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
           snapshotOutlineChapterStates();
-          populatePlanTextareas();
           var syncedSections = syncOutlineChaptersToSections(sections, project);
           if (syncedSections.length !== sections.length) {
             sections = syncedSections;
@@ -5365,8 +5378,7 @@
     function scheduleWritingWorkspaceAutoSave() {
       var sm = typeof saveManager !== "undefined" ? saveManager : null;
       if (sm) {
-        sm.schedule("workspace", { autosave: true });
-        return;
+        if (sm.schedule("workspace", { autosave: true })) return;
       }
       if (appState.writingWorkspace.saveTimer) {
         clearTimeout(appState.writingWorkspace.saveTimer);
@@ -5395,21 +5407,29 @@
       renderPlanOutline();
     }
 
-    function flushCurrentWorkspaceEdits() {
+    function flushCurrentWorkspaceEdits(projectForSaves) {
+      var project = projectForSaves || getSelectedProject();
+      var projectId = project ? String(project.project_id || "") : "";
       var scope = String(appState.writingWorkspace.scope || "");
       var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var target = segments.find(function (item) { return item.key === scope; }) || null;
       if (target && el.writingWorkspaceEditor) {
         target.text = String(el.writingWorkspaceEditor.innerHTML || "").replace(/\r\n/g, "\n").trim();
       }
-      if (el.writingInspectorNoteText) saveWritingWorkspaceNote();
-      if (el.writingInspectorFixText) saveWritingWorkspaceFix();
+      if (el.writingInspectorNoteText) saveWritingWorkspaceNote(projectId);
+      if (el.writingInspectorFixText) saveWritingWorkspaceFix(projectId);
     }
 
     function saveWritingWorkspaceDraft(options) {
       var settings = options && typeof options === "object" ? options : {};
       var project = getSelectedProject();
       if (!project || !Number(project.project_id || 0)) return Promise.resolve(null);
+      var saveProjectId = String(project.project_id || "");
+      var stillCurrent = function () {
+        var current = getSelectedProject();
+        return current && String(current.project_id || "") === saveProjectId;
+      };
+      if (!stillCurrent()) return Promise.resolve(null);
       var scope = String(appState.writingWorkspace.scope || "");
       var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var target = segments.find(function (item) { return item.key === scope; }) || null;
@@ -5436,6 +5456,10 @@
       ]);
       var outlinePromise = typeof savePlanOutline === "function" ? savePlanOutline() : Promise.resolve(null);
       return Promise.all([draftPromise, outlinePromise]).then(function () {
+        if (!stillCurrent()) {
+          appState.writingWorkspace.isSaving = false;
+          return null;
+        }
         appState.writingWorkspace.isSaving = false;
         appState.writingWorkspace.draftText = savedSegmentsCapture.map(function (s) { return String(s.text || "").trim(); }).join("\n\n");
         appState.writingWorkspace.lastSavedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -5460,6 +5484,10 @@
         setStatus((settings.autosave ? "Workspace autosaved" : "Workspace saved") + (wsTitle ? ": " + wsTitle : "") + ".", "ok");
         return true;
       }).catch(function (error) {
+        if (!stillCurrent()) {
+          appState.writingWorkspace.isSaving = false;
+          return null;
+        }
         appState.writingWorkspace.isSaving = false;
         setWritingWorkspaceMeta(project, "Save failed");
         refreshWritingWorkspaceSaveState();
@@ -5505,8 +5533,7 @@
     function schedulePlanOutlineSave() {
       var sm = typeof saveManager !== "undefined" ? saveManager : null;
       if (sm) {
-        sm.schedule("planOutline", {});
-        return;
+        if (sm.schedule("planOutline", {})) return;
       }
       if (appState.writingWorkspace.outlineSaveTimer) {
         clearTimeout(appState.writingWorkspace.outlineSaveTimer);
@@ -5515,13 +5542,6 @@
         appState.writingWorkspace.outlineSaveTimer = 0;
         savePlanOutline();
       }, 3000);
-    }
-
-    function syncPlanTextareasToOutline() {
-      var outline = appState.writingWorkspace.outline || {};
-      if (el.planBrainstormEditor) outline.brainstorming = String(el.planBrainstormEditor.value || "").trim();
-      if (el.planCharacterArcsEditor) outline.characterArcs = String(el.planCharacterArcsEditor.value || "").trim();
-      if (el.planWorldBuildEditor) outline.worldBuilding = String(el.planWorldBuildEditor.value || "").trim();
     }
 
     function snapshotOutlineChapterStates() {
@@ -5535,29 +5555,45 @@
       appState.writingWorkspace.savedOutlineChapterStates = states;
     }
 
+    var _outlineSaveChain = Promise.resolve();
+
     function savePlanOutline() {
       var project = getSelectedProject();
       if (!project || !Number(project.project_id || 0)) return Promise.resolve(null);
-      syncPlanTextareasToOutline();
-      var outline = appState.writingWorkspace.outline || {};
-      var snapshot = JSON.stringify(outline);
+      var saveProjectId = String(project.project_id || "");
+      var snapshot = JSON.stringify(appState.writingWorkspace.outline || {});
       if (snapshot === String(appState.writingWorkspace.outlineSnapshot || "")) {
         return Promise.resolve(null);
       }
+      var run = _outlineSaveChain.then(function () {
+        return executePlanOutlineSave(saveProjectId, snapshot);
+      });
+      _outlineSaveChain = run.catch(function () {});
+      return run;
+    }
+
+    function executePlanOutlineSave(saveProjectId, snapshot) {
+      var stillCurrent = function () {
+        var current = getSelectedProject();
+        return current && String(current.project_id || "") === saveProjectId;
+      };
       return callAppsScriptJson("saveSupabaseProjectOutlineJsonFromClient", [
-        project.project_id,
+        saveProjectId,
         snapshot
       ]).then(function () {
+        if (!stillCurrent()) return null;
         appState.writingWorkspace.outlineSnapshot = snapshot;
         snapshotOutlineChapterStates();
         if (typeof updateAllPlanChapterDots === "function") updateAllPlanChapterDots();
         appState.writingWorkspace.lastSavedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         if (typeof refreshWritingWorkspaceSaveState === "function") refreshWritingWorkspaceSaveState();
         if (typeof updateSidebarSaveBadge === "function") updateSidebarSaveBadge();
+        var project = getSelectedProject();
         var ot = String(project && project.title || "").trim();
         setStatus("Plan outline saved" + (ot ? ": " + ot : "") + ".", "ok");
         return true;
       }).catch(function (error) {
+        if (!stillCurrent()) return null;
         backupWorkspaceToLocalStorage();
         setStatus("Outline save failed: " + (error && error.message ? error.message : error), "error");
         return null;
