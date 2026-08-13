@@ -136,9 +136,91 @@
         log('getMarkdownHeadings throws: ' + e.message, false);
       }
 
-      // --- Summary ---
+      // --- Phase 1.5: plan/writing outline sync fix ---
+      section('Plan/Outline Sync (Phase 1.5)');
+      testPlanOutlineSync(win).then(function () {
+        finalizeSummary();
+      }).catch(function (e) {
+        log('plan-outline sync test crashed: ' + e.message, false);
+        finalizeSummary();
+      });
+    }
+
+    function finalizeSummary() {
       summary.className = 'summary ' + (failCount === 0 ? 'all-pass' : 'has-fail');
       summary.textContent = passCount + ' passed, ' + failCount + ' failed';
+    }
+
+    async function testPlanOutlineSync(win) {
+      const ORIG = {
+        getSelectedProject: win.getSelectedProject,
+        saveManager: win.saveManager,
+        executePlanOutlineSave: win.executePlanOutlineSave,
+      };
+      win.getSelectedProject = function () { return { project_id: 777 }; };
+      win.saveManager = { schedule: function () { return true; } };
+      let executeCalls = 0;
+      win.executePlanOutlineSave = function () { executeCalls++; return Promise.resolve({ ok: true }); };
+
+      const resetWorkspace = function () {
+        win.appState._outlineLoadState = {};
+        win.appState._syntheticOutlineFor = "";
+        win.appState.writingWorkspace.outline = { acts: [], brainstorming: "", characterArcs: "", worldBuilding: "" };
+        win.appState.writingWorkspace.outlineSnapshot = "";
+        win.appState.writingWorkspace.savedOutlineChapterStates = {};
+      };
+      const seg = function (key, title, sortOrder) {
+        return { key: key, title: title, sortOrder: sortOrder, text: '<div>body</div>', wordCount: 5 };
+      };
+
+      try {
+        // loaded state never flattens
+        resetWorkspace();
+        win.appState._outlineLoadState['777'] = 'loaded';
+        win.appState.writingWorkspace.segments = [seg('k1', 'A', 0), seg('k2', 'B', 1)];
+        win.initOutlineFromSegments();
+        log('loaded state: no flatten', win.appState.writingWorkspace.outline.acts.length === 0);
+
+        // empty state flattens once, keys preserved
+        resetWorkspace();
+        win.appState._outlineLoadState['777'] = 'empty';
+        win.appState.writingWorkspace.segments = [seg('k1', 'A', 0), seg('k2', 'B', 1)];
+        win.initOutlineFromSegments();
+        const acts = win.appState.writingWorkspace.outline.acts;
+        const ids = acts[0].children.map(function (c) { return c.id; });
+        log('empty state: flattens into 1 Act 1', acts.length === 1 && acts[0].title === 'Act 1');
+        log('empty state: segment keys preserved', ids.length === 2 && ids[0] === 'k1' && ids[1] === 'k2');
+        log('empty state: synthetic flag set', win.appState._syntheticOutlineFor === '777');
+
+        // second call while synthetic is idempotent
+        const before = acts[0];
+        win.initOutlineFromSegments();
+        log('empty + synthetic: no re-flatten (same act object)', win.appState.writingWorkspace.outline.acts[0] === before);
+        log('empty + synthetic: chapter ids stable', win.appState.writingWorkspace.outline.acts[0].children.map(function (c) { return c.id; }).join(',') === ids.join(','));
+
+        // synthetic outline is never written to the DB
+        executeCalls = 0;
+        const res = await win.savePlanOutline();
+        log('synthetic: savePlanOutline resolves', res === null);
+        log('synthetic: no DB write attempted', executeCalls === 0);
+        log('synthetic: outlineSnapshot synced', win.appState.writingWorkspace.outlineSnapshot === JSON.stringify(win.appState.writingWorkspace.outline));
+
+        // first real edit promotes synthetic to a real outline
+        win.schedulePlanOutlineSave();
+        log('first plan edit: synthetic flag cleared', win.appState._syntheticOutlineFor === '');
+        log('first plan edit: state promoted to loaded', win.appState._outlineLoadState['777'] === 'loaded');
+
+        // a subsequent changed snapshot writes to the DB
+        executeCalls = 0;
+        win.appState.writingWorkspace.outlineSnapshot = '{}';
+        win.appState.writingWorkspace.outline.acts[0].children[0].title = 'Edited';
+        await win.savePlanOutline();
+        log('after promotion: changed snapshot writes to DB', executeCalls === 1);
+      } finally {
+        win.getSelectedProject = ORIG.getSelectedProject;
+        win.saveManager = ORIG.saveManager;
+        win.executePlanOutlineSave = ORIG.executePlanOutlineSave;
+      }
     }
 
     const iframe = document.getElementById('appFrame');

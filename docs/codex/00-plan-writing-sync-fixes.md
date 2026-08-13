@@ -85,3 +85,21 @@ The bridge is `syncOutlineToSegments()` (`scripts/plan-outline.html:126`): every
 ## Implementation notes
 
 - Source of truth: `Client.html`, `scripts/*.html`. `build/` is generated via `npm run build` for Vercel; dev server serves source directly.
+
+## Phase 1.5 (2026-08-13): flatten/empty-state jumble fix
+
+Symptom: after deploy, the auto-selected project's plan/writing tabs showed everything collapsed into one empty "Act 1"; writing→plan emptied the plan; refresh restored it, writing→plan emptied again.
+
+Root cause chain (project whose persisted `projects.outline` has no acts — `null`/`{}`/previously-flattened):
+
+1. `initOutlineFromSegments` rebuilt the in-memory outline into a flat "Act 1" (from draft segments) on first render and stamped a one-shot flag `_outlineInitializedForProjectId`.
+2. `loadWritingWorkspaceDraft`/`loadPlanData` overwrote that with the server's truthy-but-empty `{}`, so `getPlanOutline()` produced `acts: []`.
+3. The one-shot flag was already set → the fallback flatten was skipped on later renders → empty plan ("disappear").
+4. `saveWritingWorkspaceDraft` → `savePlanOutline()` could persist the synthetic flat outline over the real one (corruption vector).
+
+Fix (defense in depth):
+
+- Replaced the one-shot flag with per-project load state `appState._outlineLoadState[id]` ∈ `undefined` (not loaded) / `"empty"` (server confirmed no acts) / `"loaded"` (acts present). Set in `loadPlanData`, `loadWritingWorkspaceDraft` (success + backup catch), and the `openWritingWorkspace` cache branch; reset on project switch (`selectProject` `!isSameProject` block).
+- `initOutlineFromSegments` now flattens ONLY when state is `"empty"` and segments exist, once per project (`_syntheticOutlineFor`), never when `"loaded"` or still loading → no race clobber, no disappear, stable chapter ids (derived from section keys).
+- Synthetic outlines are never persisted: `savePlanOutline` skips writes while `_syntheticOutlineFor` matches. First real plan edit promotes the outline (`schedulePlanOutlineSave` clears the flag and sets state `"loaded"`), after which saves work normally.
+- `loadPlanData` early-return is now state-based (skip once fetched this session) instead of content-based, so a synthetic flatten can't mask a real outline.

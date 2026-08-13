@@ -3023,7 +3023,6 @@
       }
       fillDetailForm(project);
       populateChatInfoPanel(project);
-      appState._outlineInitializedForProjectId = null;
       appState.chats = _loadChatsFromStorage();
       appState.activeChatId = appState.chats.length ? appState.chats[0].id : null;
       renderChatList();
@@ -3064,6 +3063,8 @@
       if (!isSameProject) {
         if (typeof saveManager !== "undefined" && typeof saveManager.cancelAll === "function") saveManager.cancelAll();
         appState.writingWorkspace.version += 1;
+        appState._outlineLoadState = {};
+        appState._syntheticOutlineFor = "";
         appState.writingWorkspace.segments = [];
         appState.writingWorkspace.outline = null;
         appState.writingWorkspace.outlineSnapshot = "";
@@ -3098,21 +3099,28 @@
     function loadPlanData() {
       var project = getSelectedProject();
       if (!project || !project.project_id || !sbClient) return Promise.resolve();
-      if (appState.writingWorkspace.outline && appState.writingWorkspace.outline.acts && appState.writingWorkspace.outline.acts.length) {
+      var projectId = String(project.project_id || "");
+      if (!appState._outlineLoadState) appState._outlineLoadState = {};
+      if (appState._outlineLoadState[projectId] != null) {
         return Promise.resolve();
       }
       var loadVersion = appState.writingWorkspace.version;
-      return Promise.all([
+      var chain = Promise.all([
         callAppsScriptJson("getSupabaseProjectOutlineJsonFromClient", [project.project_id]),
         callAppsScriptJson("getSupabaseProjectSectionDocumentJsonFromClient", [project.project_id, "draft"])
       ]).then(function (results) {
         if (appState.writingWorkspace.version !== loadVersion) return;
         var outlineResult = results[0];
         var sectionsResult = results[1];
-        if (outlineResult && outlineResult.ok && outlineResult.outline) {
-          appState.writingWorkspace.outline = outlineResult.outline;
+        var outlineValue = outlineResult && outlineResult.ok ? outlineResult.outline : null;
+        var hasOutlineActs = !!(outlineValue && Array.isArray(outlineValue.acts) && outlineValue.acts.length);
+        if (hasOutlineActs) {
+          appState.writingWorkspace.outline = outlineValue;
           sortOutlineBySortOrder_(appState.writingWorkspace.outline);
+        } else if (outlineValue && appState._syntheticOutlineFor !== projectId) {
+          appState.writingWorkspace.outline = outlineValue;
         }
+        appState._outlineLoadState[projectId] = hasOutlineActs ? "loaded" : "empty";
         var sections = Array.isArray(sectionsResult && sectionsResult.sections) ? sectionsResult.sections : [];
         appState.writingWorkspace.segments = sections.length
           ? buildWritingWorkspaceSegmentsFromSections(sections, project)
@@ -3122,7 +3130,12 @@
         appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
         snapshotOutlineChapterStates();
         refreshWorkspaceTabDisabledState();
+      }).catch(function () {
+        if (appState.writingWorkspace.version !== loadVersion) return;
+        appState._outlineLoadState[projectId] = "empty";
+        refreshWorkspaceTabDisabledState();
       });
+      return chain;
     }
 
     function renderFormatPill(value) {
@@ -4947,10 +4960,16 @@
               title: String(seg.title || "").trim()
             };
           });
-          if (outlineResult && outlineResult.ok && outlineResult.outline) {
-            appState.writingWorkspace.outline = outlineResult.outline;
+          var outlineValue = outlineResult && outlineResult.ok ? outlineResult.outline : null;
+          var hasOutlineActs = !!(outlineValue && Array.isArray(outlineValue.acts) && outlineValue.acts.length);
+          if (hasOutlineActs) {
+            appState.writingWorkspace.outline = outlineValue;
             sortOutlineBySortOrder_(appState.writingWorkspace.outline);
+          } else if (outlineValue && appState._syntheticOutlineFor !== String(project.project_id || "")) {
+            appState.writingWorkspace.outline = outlineValue;
           }
+          if (!appState._outlineLoadState) appState._outlineLoadState = {};
+          appState._outlineLoadState[String(project.project_id || "")] = hasOutlineActs ? "loaded" : "empty";
           getPlanOutline();
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
           snapshotOutlineChapterStates();
@@ -4999,6 +5018,9 @@
             appState.writingWorkspace.savedSnapshot = JSON.stringify(appState.writingWorkspace.segments);
             appState.writingWorkspace.savedSegmentTexts = {};
           }
+          if (!appState._outlineLoadState) appState._outlineLoadState = {};
+          var backupOutlineActs = !!(appState.writingWorkspace.outline && Array.isArray(appState.writingWorkspace.outline.acts) && appState.writingWorkspace.outline.acts.length);
+          appState._outlineLoadState[String(project.project_id || "")] = backupOutlineActs ? "loaded" : "empty";
           refreshWorkspaceTabDisabledState();
           cacheWritingWorkspaceDraft(project);
           renderWritingWorkspaceScopeOptions();
@@ -5060,6 +5082,9 @@
         appState.writingWorkspace.savedSegmentTexts = Object.assign({}, cached.savedSegmentTexts || {});
         appState.writingWorkspace.outline = cached.outline && cached.outline.acts ? cached.outline : null;
         if (appState.writingWorkspace.outline) sortOutlineBySortOrder_(appState.writingWorkspace.outline);
+        if (!appState._outlineLoadState) appState._outlineLoadState = {};
+        appState._outlineLoadState[String(project.project_id || "")] =
+          (appState.writingWorkspace.outline && Array.isArray(appState.writingWorkspace.outline.acts) && appState.writingWorkspace.outline.acts.length) ? "loaded" : "empty";
         appState.writingWorkspace.outlineSnapshot = String(cached.outlineSnapshot || "");
         appState.writingWorkspace.chapterNotes = cached.chapterNotes ? JSON.parse(JSON.stringify(cached.chapterNotes)) : {};
         appState.writingWorkspace.chapterFixes = cached.chapterFixes ? JSON.parse(JSON.stringify(cached.chapterFixes)) : {};
@@ -5531,6 +5556,13 @@
     }
 
     function schedulePlanOutlineSave() {
+      var currentProject = getSelectedProject();
+      var currentProjectId = currentProject ? String(currentProject.project_id || "") : "";
+      if (appState._syntheticOutlineFor === currentProjectId) {
+        appState._syntheticOutlineFor = "";
+        if (!appState._outlineLoadState) appState._outlineLoadState = {};
+        appState._outlineLoadState[currentProjectId] = "loaded";
+      }
       var sm = typeof saveManager !== "undefined" ? saveManager : null;
       if (sm) {
         if (sm.schedule("planOutline", {})) return;
@@ -5561,6 +5593,13 @@
       var project = getSelectedProject();
       if (!project || !Number(project.project_id || 0)) return Promise.resolve(null);
       var saveProjectId = String(project.project_id || "");
+      if (appState._syntheticOutlineFor === saveProjectId) {
+        appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
+        snapshotOutlineChapterStates();
+        if (typeof updateAllPlanChapterDots === "function") updateAllPlanChapterDots();
+        if (typeof refreshWritingWorkspaceSaveState === "function") refreshWritingWorkspaceSaveState();
+        return Promise.resolve(null);
+      }
       var snapshot = JSON.stringify(appState.writingWorkspace.outline || {});
       if (snapshot === String(appState.writingWorkspace.outlineSnapshot || "")) {
         return Promise.resolve(null);
