@@ -428,7 +428,6 @@
       return sbClient.from('marketing_templates').select('*').order('name').limit(500)
         .then(function (res) {
           if (res.error) throw res.error;
-          console.log("[Marketing Templates] Supabase returned:", JSON.stringify(res.data, null, 2));
           return JSON.stringify({ ok: true, rows: res.data || [] });
         });
     });
