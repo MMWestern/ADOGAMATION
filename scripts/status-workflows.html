@@ -51,6 +51,12 @@
     }
 
     function getStatusWorkflowStatuses() {
+      var lowerToConfigured = {};
+      getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS).forEach(function (v) {
+        var value = String(v || "").trim();
+        var lk = value.toLowerCase();
+        if (lk && !lowerToConfigured[lk]) lowerToConfigured[lk] = value;
+      });
       var seen = {};
       var out = [];
       function add(v) {
@@ -61,8 +67,10 @@
         seen[lk] = true;
         out.push(v);
       }
-      DEFAULT_STATUS_OPTIONS.forEach(function (opt) { add(opt.value); });
-      getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS).forEach(add);
+      DEFAULT_STATUS_OPTIONS.forEach(function (opt) {
+        add(lowerToConfigured[String(opt.value).toLowerCase()] || opt.value);
+      });
+      Object.keys(lowerToConfigured).forEach(function (lk) { add(lowerToConfigured[lk]); });
       Object.keys(appState.statusWorkflows || {}).forEach(add);
       return out;
     }
@@ -72,13 +80,13 @@
       if (!list) return;
       list.innerHTML = "";
       getStatusWorkflowStatuses().forEach(function (status) {
-        var nextStep = appState.statusWorkflows && appState.statusWorkflows[status] || "";
+        var nextStep = getNextStepForStatus(status);
         var row = document.createElement("div");
         row.className = "status-workflow-row";
         row.innerHTML =
-          "<span class='status-workflow-status' style='flex:1;font-weight:600;'>" + escapeHtml(status) + "</span>" +
-          "<span style='color:#777884;padding:0 8px;'>→</span>" +
-          "<input type='text' class='status-workflow-next-step' data-status='" + escapeHtml(status) + "' value='" + escapeHtml(nextStep) + "' placeholder='Next step' style='flex:2' />";
+          "<span class='status-workflow-status'>" + escapeHtml(status) + "</span>" +
+          "<span class='status-workflow-arrow'>→</span>" +
+          "<input type='text' class='status-workflow-next-step' data-status='" + escapeHtml(status) + "' value='" + escapeHtml(nextStep) + "' placeholder='Next step' />";
         list.appendChild(row);
       });
     }
