@@ -223,11 +223,13 @@
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
+                    if (typeof renderLandingDashboard === "function") renderLandingDashboard();
                 } catch (err) {
                     appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
+                    if (typeof renderLandingDashboard === "function") renderLandingDashboard();
                     setResourceInspectorStatus("Using project-derived options. " + err.message, "warn");
                 }
             })
@@ -236,6 +238,7 @@
                 appState.inspectorOptionsLoaded = true;
                 renderResourceInspectorPanel();
                 populateFilters();
+                if (typeof renderLandingDashboard === "function") renderLandingDashboard();
                 setResourceInspectorStatus("Using project-derived options. " + (error && error.message ? error.message : error), "warn");
             })
             .getProjectInspectorOptionsJsonFromClient();
@@ -262,6 +265,7 @@
                     appState.inspectorOptions = normalizeInspectorOptionsConfig(payload.options || options);
                     renderResourceInspectorPanel();
                     populateFilters();
+                    if (typeof renderLandingDashboard === "function") renderLandingDashboard();
                     setResourceInspectorStatus("Inspector options saved.", "ok");
                     if (typeof setStatus === "function") setStatus("Inspector options saved.", "ok");
                 } catch (err) {
