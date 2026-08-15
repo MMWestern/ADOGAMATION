@@ -1739,68 +1739,112 @@
 
           <div class="details-header-form">
             <div>
-              <label class="label" for="detailTitleInput">Title</label>
-              <input id="detailTitleInput" type="text" />
+              <label class="label">Title</label>
+              <div class="inline-edit" id="detailTitleEdit">
+                <div class="inline-edit-display is-editable">
+                  <span class="inline-edit-value"></span>
+                  <span class="inline-edit-icon">✎</span>
+                </div>
+                <input class="inline-edit-editor" id="detailTitleInput" type="text" style="display:none" />
+              </div>
             </div>
 
             <div>
               <div class="label-row">
-                <label class="label" for="detailSeries">Series</label>
+                <label class="label">Series</label>
                 <button id="detailSeriesBrowseButton" class="detail-inline-button" type="button">View Series</button>
               </div>
-              <div id="detailSeries" class="detail-readonly-field"></div>
+              <div class="inline-edit" id="detailSeriesEdit">
+                <span class="inline-edit-value" id="detailSeries"></span>
+              </div>
             </div>
 
             <div class="compact-row">
               <div>
-                <label class="label" for="detailBookNumber">B#</label>
-                <input id="detailBookNumber" type="number" min="0" step="1" />
+                <label class="label">B#</label>
+                <div class="inline-edit" id="detailBookNumberEdit">
+                  <div class="inline-edit-display is-editable">
+                    <span class="inline-edit-value" id="detailBookNumberValue"></span>
+                    <span class="inline-edit-icon">✎</span>
+                  </div>
+                  <input class="inline-edit-editor" id="detailBookNumber" type="number" min="0" step="1" style="display:none" />
+                </div>
               </div>
               <div>
                 <label class="label">Pen Name</label>
-                <div id="detailPenName" class="detail-readonly-field"></div>
+                <div class="inline-edit" id="detailPenNameEdit">
+                  <span class="inline-edit-value" id="detailPenName"></span>
+                </div>
               </div>
             </div>
 
             <div class="compact-row compact-row-small">
               <div>
                 <label class="label">Genre</label>
-                <div id="detailGenre" class="detail-readonly-field"></div>
+                <div class="inline-edit" id="detailGenreEdit">
+                  <span class="inline-edit-value" id="detailGenre"></span>
+                </div>
               </div>
               <div>
                 <label class="label">Format</label>
-                <div id="detailFormat" class="detail-readonly-field"></div>
+                <div class="inline-edit" id="detailFormatEdit">
+                  <span class="inline-edit-value" id="detailFormat"></span>
+                </div>
               </div>
             </div>
 
             <div class="compact-row compact-row-small">
               <div>
-                <label class="label" for="detailStatus">Status</label>
-                <select id="detailStatus"></select>
+                <label class="label">Status</label>
+                <div class="inline-edit is-editable" id="detailStatusEdit">
+                  <div class="inline-edit-display">
+                    <span class="inline-edit-value" id="detailStatusValue"></span>
+                    <span class="inline-edit-icon">✎</span>
+                  </div>
+                  <select class="inline-edit-editor" id="detailStatus" style="display:none"></select>
+                </div>
               </div>
               <div>
-                <label class="label" for="detailPriority">Priority</label>
-                <select id="detailPriority"></select>
+                <label class="label">Priority</label>
+                <div class="inline-edit is-editable" id="detailPriorityEdit">
+                  <div class="inline-edit-display">
+                    <span class="inline-edit-value" id="detailPriorityValue"></span>
+                    <span class="inline-edit-icon">✎</span>
+                  </div>
+                  <select class="inline-edit-editor" id="detailPriority" style="display:none"></select>
+                </div>
               </div>
             </div>
 
             <div>
               <label class="label">Next Step</label>
-              <div id="detailNextStep" class="detail-readonly-field"></div>
+              <div class="inline-edit" id="detailNextStepEdit">
+                <span class="inline-edit-value" id="detailNextStep"></span>
+              </div>
             </div>
 
             <div class="compact-row">
               <div>
-                <label class="label" for="detailPublishDate">Publish Date</label>
-                <input id="detailPublishDate" type="date" />
+                <label class="label">Publish Date</label>
+                <div class="inline-edit is-editable" id="detailPublishDateEdit">
+                  <div class="inline-edit-display">
+                    <span class="inline-edit-value" id="detailPublishDateValue"></span>
+                    <span class="inline-edit-icon">✎</span>
+                  </div>
+                  <input class="inline-edit-editor" id="detailPublishDate" type="date" style="display:none" />
+                </div>
               </div>
               <div>
                 <label class="label">Schedule</label>
-                <div id="detailScheduleTemplate" class="detail-readonly-field"></div>
+                <div class="inline-edit" id="detailScheduleTemplateEdit">
+                  <span class="inline-edit-value" id="detailScheduleTemplate"></span>
+                </div>
               </div>
               <div>
                 <label class="label">Marketing Plan</label>
-                <div id="detailMarketingTemplate" class="detail-readonly-field"></div>
+                <div class="inline-edit" id="detailMarketingTemplateEdit">
+                  <span class="inline-edit-value" id="detailMarketingTemplate"></span>
+                </div>
               </div>
             </div>
 

@@ -2834,22 +2834,64 @@
       updateLinksPanelUi();
     }
 
+    function initInlineEdit(container, onChange) {
+      if (!container || container._inlineEditInit) return;
+      container._inlineEditInit = true;
+      var display = container.querySelector(".inline-edit-display");
+      var valueEl = container.querySelector(".inline-edit-value");
+      var editor = container.querySelector(".inline-edit-editor");
+      if (!display || !valueEl || !editor) return;
+      display.addEventListener("click", function () {
+        if (!container.classList.contains("is-editable")) return;
+        display.style.display = "none";
+        editor.style.display = "";
+        editor.focus();
+      });
+      function commit() {
+        var newVal = editor.value;
+        valueEl.textContent = newVal || "\u2014";
+        editor.style.display = "none";
+        display.style.display = "";
+        if (typeof onChange === "function") onChange(newVal, container);
+      }
+      if (editor.tagName === "SELECT") {
+        editor.addEventListener("change", commit);
+      }
+      editor.addEventListener("blur", function () {
+        setTimeout(commit, 100);
+      });
+      editor.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          editor.style.display = "none";
+          display.style.display = "";
+        }
+      });
+    }
+
+    function setInlineEditValue(container, value) {
+      if (!container) return;
+      var valueEl = container.querySelector(".inline-edit-value");
+      var editor = container.querySelector(".inline-edit-editor");
+      if (valueEl) valueEl.textContent = value || "\u2014";
+      if (editor) editor.value = value || "";
+    }
+
     function clearDetails() {
       appState.selectedRowNumber = null;
       appState.isDirty = false;
       appState.hasPendingSave = false;
       setDetailImageMode("project");
-      el.detailTitleInput.value = "";
+      setInlineEditValue(el.detailTitleEdit, "");
       if (el.detailSeries) el.detailSeries.textContent = "\u2014";
       updateSeriesBrowseButton("");
-      el.detailBookNumber.value = "";
+      setInlineEditValue(el.detailBookNumberEdit, "");
       if (el.detailPenName) el.detailPenName.textContent = "\u2014";
       if (el.detailGenre) el.detailGenre.textContent = "\u2014";
       if (el.detailFormat) el.detailFormat.textContent = "\u2014";
-      el.detailStatus.value = "Idea";
-      el.detailPriority.value = "Medium";
+      setInlineEditValue(el.detailStatusEdit, "Idea");
+      setInlineEditValue(el.detailPriorityEdit, "Medium");
       if (el.detailNextStep) el.detailNextStep.textContent = "\u2014";
-      if (el.detailPublishDate) el.detailPublishDate.value = "";
+      setInlineEditValue(el.detailPublishDateEdit, "");
       if (el.detailScheduleTemplate) el.detailScheduleTemplate.textContent = "\u2014";
       if (el.detailMarketingTemplate) el.detailMarketingTemplate.textContent = "\u2014";
       if (el.campaignList) el.campaignList.innerHTML = "";
@@ -2893,17 +2935,30 @@
       var seriesFormat = seriesMeta && seriesMeta.format || "";
       ensureSelectHasValue(el.detailStatus, project.status || "Idea");
       ensureSelectHasValue(el.detailPriority, project.priority || "Medium");
-      el.detailTitleInput.value = project.title || "";
+      setInlineEditValue(el.detailTitleEdit, project.title || "");
+      initInlineEdit(el.detailTitleInput ? el.detailTitleEdit : null, function (val) { scheduleAutoSave(); });
       if (el.detailSeries) el.detailSeries.textContent = project.series || "\u2014";
       updateSeriesBrowseButton(project.series || "");
-      el.detailBookNumber.value = project.b_number || "";
+      setInlineEditValue(el.detailBookNumberEdit, project.b_number || "");
+      initInlineEdit(el.detailBookNumberEdit, function (val) { scheduleAutoSave(); });
       if (el.detailPenName) el.detailPenName.textContent = seriesPenName || project.pen_name || "\u2014";
       if (el.detailGenre) el.detailGenre.textContent = seriesGenre || project.genre || "\u2014";
       if (el.detailFormat) el.detailFormat.textContent = seriesFormat || project.format || "\u2014";
-      el.detailStatus.value = project.status || "Idea";
-      el.detailPriority.value = project.priority || "Medium";
+      setInlineEditValue(el.detailStatusEdit, project.status || "Idea");
+      initInlineEdit(el.detailStatusEdit, function (val) {
+        var newNextStep = getNextStepForStatus(val);
+        if (el.detailNextStep) el.detailNextStep.textContent = newNextStep || "\u2014";
+        renderLivePills(val, el.detailPriority ? el.detailPriority.value : "Medium");
+        scheduleAutoSave();
+      });
+      setInlineEditValue(el.detailPriorityEdit, project.priority || "Medium");
+      initInlineEdit(el.detailPriorityEdit, function (val) {
+        renderLivePills(el.detailStatus ? el.detailStatus.value : "Idea", val);
+        scheduleAutoSave();
+      });
       if (el.detailNextStep) el.detailNextStep.textContent = getNextStepForStatus(project.status || "Idea") || "\u2014";
-      if (el.detailPublishDate)       el.detailPublishDate.value = project.publish_date || "";
+      setInlineEditValue(el.detailPublishDateEdit, project.publish_date || "");
+      initInlineEdit(el.detailPublishDateEdit, function (val) { scheduleAutoSave(); });
       var effectiveFormat = seriesFormat || project.format || "";
       var derivedSchedule = getFormatDefaultScheduleTemplate(effectiveFormat);
       var derivedMarketing = getFormatDefaultMarketingTemplate(effectiveFormat);
