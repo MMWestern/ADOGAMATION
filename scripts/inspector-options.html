@@ -106,7 +106,7 @@
         : null;
       const safeFallback = normalizeInspectorOptionList(fallbackValues);
       const source = configured && configured.length ? configured : safeFallback;
-      return source.map(function (o) { return o.value; });
+      return source.map(function (o) { return typeof o === "string" ? o : (o && o.value || ""); }).filter(Boolean);
     }
 
     function getInspectorOptionDescriptions(key, fallbackValues) {
@@ -115,7 +115,9 @@
         : null;
       if (configured && configured.length) {
         return configured.reduce(function (map, opt) {
-          if (opt.description) map[opt.value] = opt.description;
+          var v = typeof opt === "string" ? opt : (opt && opt.value || "");
+          var d = typeof opt === "string" ? "" : (opt && opt.description || "");
+          if (d) map[v] = d;
           return map;
         }, {});
       }
@@ -241,8 +243,6 @@
                     const payload = parseServerResult(json);
                     if (payload.ok === false) throw new Error(payload.error || "Inspector options load failed.");
                     appState.inspectorOptions = mergeInspectorOptions(payload.options || {}, fallback);
-                    console.log("[InspectorOptions] LOAD from localStorage:", JSON.stringify(payload.options));
-                    console.log("[InspectorOptions] LOAD merged result:", JSON.stringify(appState.inspectorOptions));
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
@@ -269,11 +269,8 @@
 
     function saveInspectorOptions() {
         const options = readInspectorOptionsFromTable();
-        console.log("[InspectorOptions] SAVE readFromTable:", JSON.stringify(options));
         appState.inspectorOptions = options;
-        console.log("[InspectorOptions] SAVE appState set:", JSON.stringify(appState.inspectorOptions));
         renderResourceInspectorPanel();
-        console.log("[InspectorOptions] SAVE after render:", JSON.stringify(appState.inspectorOptions));
         populateFilters();
         if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
             setResourceInspectorStatus("Inspector options updated locally.", "ok");
