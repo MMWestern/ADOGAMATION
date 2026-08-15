@@ -44,12 +44,27 @@
       el.statusWorkflowsModal.setAttribute("aria-hidden", "true");
     }
 
+    function getStatusWorkflowStatuses() {
+      var seen = {};
+      var out = [];
+      function add(v) {
+        v = String(v || "").trim();
+        if (!v) return;
+        var lk = v.toLowerCase();
+        if (seen[lk]) return;
+        seen[lk] = true;
+        out.push(v);
+      }
+      getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS).forEach(add);
+      Object.keys(appState.statusWorkflows || {}).forEach(add);
+      return out;
+    }
+
     function renderStatusWorkflowsEditor() {
       var list = el.statusWorkflowList;
       if (!list) return;
       list.innerHTML = "";
-      DEFAULT_STATUS_OPTIONS.forEach(function (opt) {
-        var status = opt.value;
+      getStatusWorkflowStatuses().forEach(function (status) {
         var nextStep = appState.statusWorkflows && appState.statusWorkflows[status] || "";
         var row = document.createElement("div");
         row.className = "status-workflow-row";
