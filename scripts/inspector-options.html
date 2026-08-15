@@ -81,6 +81,17 @@
       }, {});
     }
 
+    function mergeInspectorOptions(saved, fallback) {
+      const savedSrc = saved && typeof saved === "object" ? saved : {};
+      const fallbackSrc = fallback && typeof fallback === "object" ? fallback : {};
+      return INSPECTOR_OPTION_FIELDS.reduce(function (out, field) {
+        const savedList = normalizeInspectorOptionList(savedSrc[field.key]);
+        const fallbackList = normalizeInspectorOptionList(fallbackSrc[field.key]);
+        out[field.key] = savedList.length ? savedList : fallbackList;
+        return out;
+      }, {});
+    }
+
     function getInspectorOptionValues(key, fallbackValues) {
       const configured = appState.inspectorOptions && Array.isArray(appState.inspectorOptions[key])
         ? appState.inspectorOptions[key]
@@ -154,7 +165,7 @@
     function renderResourceInspectorPanel() {
         if (!el.resourceInspectorTableBody) return;
         renderResourceInspectorFilterOptions();
-        const options = normalizeInspectorOptionsConfig(appState.inspectorOptions);
+        const options = appState.inspectorOptions && typeof appState.inspectorOptions === "object" ? appState.inspectorOptions : {};
         const rows = [];
         INSPECTOR_OPTION_FIELDS.forEach(function (field) {
             (options[field.key] || []).forEach(function (item) {
@@ -201,13 +212,13 @@
             if (!key || !out[key]) return;
             out[key].push(description ? { value: value, description: description } : value);
         });
-        return normalizeInspectorOptionsConfig(out);
+        return out;
     }
 
     function loadInspectorOptions() {
         const fallback = deriveInspectorOptionsFromProjects();
         if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
-            appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+            appState.inspectorOptions = mergeInspectorOptions(fallback, fallback);
             appState.inspectorOptionsLoaded = true;
             renderResourceInspectorPanel();
             populateFilters();
@@ -219,13 +230,13 @@
                 try {
                     const payload = parseServerResult(json);
                     if (payload.ok === false) throw new Error(payload.error || "Inspector options load failed.");
-                    appState.inspectorOptions = normalizeInspectorOptionsConfig(payload.options || fallback);
+                    appState.inspectorOptions = mergeInspectorOptions(payload.options || {}, fallback);
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
                     if (typeof renderLandingDashboard === "function") renderLandingDashboard();
                 } catch (err) {
-                    appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+                    appState.inspectorOptions = mergeInspectorOptions({}, fallback);
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
@@ -234,7 +245,7 @@
                 }
             })
             .withFailureHandler(function (error) {
-                appState.inspectorOptions = normalizeInspectorOptionsConfig(fallback);
+                appState.inspectorOptions = mergeInspectorOptions({}, fallback);
                 appState.inspectorOptionsLoaded = true;
                 renderResourceInspectorPanel();
                 populateFilters();
@@ -262,7 +273,7 @@
                 try {
                     const payload = parseServerResult(json);
                     if (payload.ok === false) throw new Error(payload.error || "Inspector options save failed.");
-                    appState.inspectorOptions = normalizeInspectorOptionsConfig(payload.options || options);
+                    appState.inspectorOptions = mergeInspectorOptions(payload.options || options, deriveInspectorOptionsFromProjects());
                     renderResourceInspectorPanel();
                     populateFilters();
                     if (typeof renderLandingDashboard === "function") renderLandingDashboard();
