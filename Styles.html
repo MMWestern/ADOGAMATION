@@ -7339,6 +7339,10 @@
       color: var(--text);
       border-color: #2a2f37;
     }
+    body.dark-mode input[type="number"]::-webkit-inner-spin-button,
+    body.dark-mode input[type="number"]::-webkit-outer-spin-button {
+      filter: invert(1);
+    }
 
     body.dark-mode .landing-dashboard,
     body.dark-mode .publishing-dashboard,
