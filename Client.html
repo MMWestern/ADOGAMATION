@@ -6459,10 +6459,13 @@
       panelHtml += "<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;'>";
       panelHtml += "<div style='font-size:16px;font-weight:700;'>" + escapeHtml(seriesName) + "</div>";
       panelHtml += "<div style='color:var(--muted);font-size:12px;'>" + seriesBooks.length + " book(s) in series</div>";
-      panelHtml += "<div style='display:flex;gap:10px;'>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesGenre'>Genre</label><select id='landingSeriesGenre'>" + genreOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesPenName'>Pen Name</label><select id='landingSeriesPenName'>" + penOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesFormat'>Format</label><select id='landingSeriesFormat'>" + fmtOpts + "</select></div>";
+      panelHtml += "<div class='compact-row'>";
+      panelHtml += "<div><label class='label' for='landingSeriesGenre'>Genre</label><select id='landingSeriesGenre'>" + genreOpts + "</select></div>";
+      panelHtml += "<div><label class='label' for='landingSeriesPenName'>Pen Name</label><select id='landingSeriesPenName'>" + penOpts + "</select></div>";
+      panelHtml += "</div>";
+      panelHtml += "<div class='compact-row compact-row-small'>";
+      panelHtml += "<div><label class='label' for='landingSeriesFormat'>Format</label><select id='landingSeriesFormat'>" + fmtOpts + "</select></div>";
+      panelHtml += "<div></div>";
       panelHtml += "</div>";
       panelHtml += "<div><label class='label' for='landingSeriesSummary'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
       panelHtml += "<div><button id='landingSaveSeriesButton' class='doc-create-button' type='button'>Save Series</button></div>";
