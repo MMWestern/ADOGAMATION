@@ -6247,7 +6247,7 @@
       const nextImageUrl = String(imageUrl || "").trim();
       if (project.series_id && isSupabaseManagedDocUrlKey("series_outline_doc_url")) {
         setStatus("Saving series image...", "warn");
-        callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [project.series_id, JSON.stringify({ seriesImageUrl: nextImageUrl })])
+        callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [project.series_id, JSON.stringify({ series_image_url: nextImageUrl })])
           .then(function (result) {
             var savedSeries = result && result.series ? result.series : {};
             var seriesId = Number(savedSeries && savedSeries.id || project.series_id || 0);
