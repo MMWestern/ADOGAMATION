@@ -2936,11 +2936,11 @@
       ensureSelectHasValue(el.detailStatus, project.status || "Idea");
       ensureSelectHasValue(el.detailPriority, project.priority || "Medium");
       setInlineEditValue(el.detailTitleEdit, project.title || "");
-      initInlineEdit(el.detailTitleEdit, function (val) { scheduleAutoSave(); });
+      initInlineEdit(el.detailTitleEdit, function (val) { scheduleAutosave(); });
       if (el.detailSeries) el.detailSeries.textContent = project.series || "\u2014";
       updateSeriesBrowseButton(project.series || "");
       setInlineEditValue(el.detailBookNumberEdit, project.b_number || "");
-      initInlineEdit(el.detailBookNumberEdit, function (val) { scheduleAutoSave(); });
+      initInlineEdit(el.detailBookNumberEdit, function (val) { scheduleAutosave(); });
       if (el.detailPenName) el.detailPenName.textContent = seriesPenName || project.pen_name || "\u2014";
       if (el.detailGenre) el.detailGenre.textContent = seriesGenre || project.genre || "\u2014";
       if (el.detailFormat) el.detailFormat.textContent = seriesFormat || project.format || "\u2014";
@@ -2949,16 +2949,16 @@
         var newNextStep = getNextStepForStatus(val);
         if (el.detailNextStep) el.detailNextStep.textContent = newNextStep || "\u2014";
         renderLivePills(val, el.detailPriority ? el.detailPriority.value : "Medium");
-        scheduleAutoSave();
+        scheduleAutosave();
       });
       setInlineEditValue(el.detailPriorityEdit, project.priority || "Medium");
       initInlineEdit(el.detailPriorityEdit, function (val) {
         renderLivePills(el.detailStatus ? el.detailStatus.value : "Idea", val);
-        scheduleAutoSave();
+        scheduleAutosave();
       });
       if (el.detailNextStep) el.detailNextStep.textContent = getNextStepForStatus(project.status || "Idea") || "\u2014";
       setInlineEditValue(el.detailPublishDateEdit, project.publish_date || "");
-      initInlineEdit(el.detailPublishDateEdit, function (val) { scheduleAutoSave(); });
+      initInlineEdit(el.detailPublishDateEdit, function (val) { scheduleAutosave(); });
       var effectiveFormat = seriesFormat || project.format || "";
       var derivedSchedule = getFormatDefaultScheduleTemplate(effectiveFormat);
       var derivedMarketing = getFormatDefaultMarketingTemplate(effectiveFormat);
