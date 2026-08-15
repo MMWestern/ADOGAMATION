@@ -241,6 +241,8 @@
                     const payload = parseServerResult(json);
                     if (payload.ok === false) throw new Error(payload.error || "Inspector options load failed.");
                     appState.inspectorOptions = mergeInspectorOptions(payload.options || {}, fallback);
+                    console.log("[InspectorOptions] LOAD from localStorage:", JSON.stringify(payload.options));
+                    console.log("[InspectorOptions] LOAD merged result:", JSON.stringify(appState.inspectorOptions));
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
@@ -267,8 +269,11 @@
 
     function saveInspectorOptions() {
         const options = readInspectorOptionsFromTable();
+        console.log("[InspectorOptions] SAVE readFromTable:", JSON.stringify(options));
         appState.inspectorOptions = options;
+        console.log("[InspectorOptions] SAVE appState set:", JSON.stringify(appState.inspectorOptions));
         renderResourceInspectorPanel();
+        console.log("[InspectorOptions] SAVE after render:", JSON.stringify(appState.inspectorOptions));
         populateFilters();
         if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
             setResourceInspectorStatus("Inspector options updated locally.", "ok");
