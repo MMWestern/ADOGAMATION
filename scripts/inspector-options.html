@@ -91,8 +91,8 @@
           out[field.key] = savedRaw.map(function (item) {
             if (typeof item === "string") return { value: item.trim(), description: "" };
             if (item && typeof item === "object") return { value: String(item.value || "").trim(), description: String(item.description || "").trim() };
-            return { value: "", description: "" };
-          }).filter(function (o) { return !!o.value; });
+            return null;
+          }).filter(Boolean).filter(function (o) { return !!o.value; });
         } else {
           out[field.key] = normalizeInspectorOptionList(fallbackSrc[field.key]);
         }
@@ -221,8 +221,8 @@
             const key = keyField ? String(keyField.value || "").trim() : "";
             const value = valueField ? String(valueField.value || "").trim() : "";
             const description = descField ? String(descField.value || "").trim() : "";
-            if (!key || !out[key]) return;
-            out[key].push(description ? { value: value, description: description } : value);
+            if (!key || !out[key] || !value) return;
+            out[key].push({ value: value, description: description });
         });
         return out;
     }
