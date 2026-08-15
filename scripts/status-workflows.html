@@ -23,8 +23,14 @@
       var key = String(status || "").trim();
       if (!key) return "";
       var wf = appState.statusWorkflows || {};
-      if (wf[key] !== undefined) return wf[key];
       var lower = key.toLowerCase();
+      for (var k in wf) {
+        if (k === key && wf[k]) return wf[k];
+      }
+      for (var k in wf) {
+        if (k.toLowerCase() === lower && wf[k]) return wf[k];
+      }
+      if (wf[key] !== undefined) return wf[key];
       for (var k in wf) {
         if (k.toLowerCase() === lower) return wf[k];
       }
