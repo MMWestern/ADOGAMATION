@@ -55,6 +55,7 @@
         seen[lk] = true;
         out.push(v);
       }
+      DEFAULT_STATUS_OPTIONS.forEach(function (opt) { add(opt.value); });
       getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS).forEach(add);
       Object.keys(appState.statusWorkflows || {}).forEach(add);
       return out;
