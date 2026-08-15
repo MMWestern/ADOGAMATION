@@ -6105,7 +6105,7 @@
             setStatus("Series legacy link saved.", "ok");
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
-              renderProjectDetails(project.rowNumber);
+              fillDetailForm(getSelectedProject());
             }
           })
           .catch(function (error) {
@@ -6265,7 +6265,7 @@
             setStatus("Series image saved.", "ok");
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
-              renderProjectDetails(project.rowNumber);
+              fillDetailForm(getSelectedProject());
             }
           })
           .catch(function (error) {
@@ -6293,7 +6293,7 @@
             setStatus("Series image saved.", "ok");
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
-              renderProjectDetails(project.rowNumber);
+              fillDetailForm(getSelectedProject());
             }
           } else {
             setStatus("Failed to save series image.", "error");
@@ -6329,7 +6329,7 @@
             setStatus("Series summary saved.", "ok");
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
-              renderProjectDetails(project.rowNumber);
+              fillDetailForm(getSelectedProject());
               renderSeriesSummaryPreview(getSelectedProject());
             }
           })
@@ -6358,7 +6358,7 @@
             setStatus("Series summary saved.", "ok");
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
-              renderProjectDetails(project.rowNumber);
+              fillDetailForm(getSelectedProject());
               renderSeriesSummaryPreview(getSelectedProject());
             }
           } else {
