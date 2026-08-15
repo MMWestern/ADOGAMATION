@@ -6430,11 +6430,11 @@
       var fmtVal = seriesMeta && seriesMeta.format || "";
 
       var genreOpts = "<option value=''>— Select —</option>";
-      DEFAULT_GENRE_OPTIONS.forEach(function (opt) { genreOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === genreVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
+      getInspectorOptionValues("genre", DEFAULT_GENRE_OPTIONS).forEach(function (v) { genreOpts += "<option value='" + escapeHtml(v) + "'" + (v === genreVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
       var penOpts = "<option value=''>— Select —</option>";
-      getUniqueValues("pen_name").forEach(function (v) { penOpts += "<option value='" + escapeHtml(v) + "'" + (v === penVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
+      getInspectorOptionValues("pen_name", getUniqueValues("pen_name")).forEach(function (v) { penOpts += "<option value='" + escapeHtml(v) + "'" + (v === penVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
       var fmtOpts = "<option value=''>— Select —</option>";
-      DEFAULT_FORMAT_OPTIONS.forEach(function (opt) { fmtOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === fmtVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
+      getInspectorOptionValues("format", DEFAULT_FORMAT_OPTIONS).forEach(function (v) { fmtOpts += "<option value='" + escapeHtml(v) + "'" + (v === fmtVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
 
       var panelHtml = "<div class='landing-series-info-panel' style='display:flex;gap:16px;'>";
       panelHtml += "<div style='flex:0 0 180px;'>";
@@ -9489,18 +9489,17 @@
       el.seriesEditImageUrl.value = series && series.series_image_url || "";
       if (el.seriesEditGenre) {
         el.seriesEditGenre.innerHTML = "<option value=''>— Select —</option>";
-        DEFAULT_GENRE_OPTIONS.forEach(function (opt) {
+        getInspectorOptionValues("genre", DEFAULT_GENRE_OPTIONS).forEach(function (v) {
           var o = document.createElement("option");
-          o.value = opt.value; o.textContent = opt.value;
+          o.value = v; o.textContent = v;
           el.seriesEditGenre.appendChild(o);
         });
         ensureSelectHasValue(el.seriesEditGenre, series && series.genre || "");
         el.seriesEditGenre.value = series && series.genre || "";
       }
       if (el.seriesEditPenName) {
-        var penNames = getUniqueValues("pen_name");
         el.seriesEditPenName.innerHTML = "<option value=''>— Select —</option>";
-        penNames.forEach(function (v) {
+        getInspectorOptionValues("pen_name", getUniqueValues("pen_name")).forEach(function (v) {
           var o = document.createElement("option");
           o.value = v; o.textContent = v;
           el.seriesEditPenName.appendChild(o);
@@ -9510,9 +9509,9 @@
       }
       if (el.seriesEditFormat) {
         el.seriesEditFormat.innerHTML = "<option value=''>— Select —</option>";
-        DEFAULT_FORMAT_OPTIONS.forEach(function (opt) {
+        getInspectorOptionValues("format", DEFAULT_FORMAT_OPTIONS).forEach(function (v) {
           var o = document.createElement("option");
-          o.value = opt.value; o.textContent = opt.value;
+          o.value = v; o.textContent = v;
           el.seriesEditFormat.appendChild(o);
         });
         ensureSelectHasValue(el.seriesEditFormat, series && series.format || "");
