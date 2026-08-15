@@ -4471,12 +4471,13 @@
               );
               var dotClass = isDirty ? " is-dirty" : " is-saved";
               var dotTitle = isDirty ? (savedState == null ? "Unsaved" : "Unsaved changes") : "Saved";
+              var subtitle = String(segment.title || "").replace(/^chapter\s+\d+(?:\s*[-:]\s*)?/i, "").trim();
               return divider +
                 "<div class='writing-codex-entry writing-chapter-entry" + active + "' data-writing-chapter-key='" + escapeHtml(segment.key) + "'>" +
                 "<div class='writing-chapter-status-dot" + dotClass + "' title='" + dotTitle + "'></div>" +
                 "<div class='writing-chapter-main'>" +
                   "<div class='writing-chapter-number-label'>CHAPTER " + (idx + 1) + "</div>" +
-                  "<div class='writing-chapter-title-text'>" + escapeHtml(segment.title || "Untitled") + "</div>" +
+                  "<div class='writing-chapter-title-text'>" + escapeHtml(subtitle || segment.title || "Untitled") + "</div>" +
                 "</div>" +
                 "<span class='writing-chapter-wordcount'>" + escapeHtml(String(segment.wordCount || 0) + "w") + "</span>" +
               "</div>";
@@ -4631,30 +4632,26 @@
       });
     }
 
-    function renumberWritingWorkspaceSections(sectionPayloads) {
+    function updateSectionSortOrders(sectionPayloads) {
       return (Array.isArray(sectionPayloads) ? sectionPayloads : []).map(function (section, index) {
-        var chapterNumber = index + 1;
-        var parts = parseDraftChapterTitleParts(String(section && section.title || ""), chapterNumber);
-        var chapterTitle = buildDraftChapterLabel(chapterNumber, parts.customTitle);
-        var nextText = String(section && section.text || "").trim();
-        return Object.assign({}, section, {
-          id: "chapter-" + chapterNumber,
-          sectionKey: "chapter-" + chapterNumber,
-          title: chapterTitle,
-          text: nextText,
-          sortOrder: chapterNumber
-        });
+        return Object.assign({}, section, { sortOrder: index + 1 });
       });
+    }
+
+    function chapterDisplayLabel(positionIndex, rawTitle) {
+      var title = String(rawTitle || "").trim();
+      var chapterMatch = title.match(/^chapter\s+\d+(?:\s*[-:]\s*(.+))?$/i);
+      var subtitle = chapterMatch ? String(chapterMatch[1] || "").trim() : (title && !/^chapter\s+\d+$/i.test(title) ? title : "");
+      return subtitle ? ("CHAPTER " + (positionIndex + 1) + " - " + subtitle) : ("CHAPTER " + (positionIndex + 1));
     }
 
     function renderWritingWorkspaceScopeOptions() {
       if (!el.writingWorkspaceScopeSelect) return;
       var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var options = segments.map(function (segment, idx) {
-        var chNum = idx + 1;
-        var title = String(segment.title || segment.label || "").trim() || "Untitled";
+        var label = chapterDisplayLabel(idx, segment.title || segment.label);
         var wordNote = segment.wordCount ? " - " + segment.wordCount + " words" : "";
-        return "<option value='" + escapeHtml(segment.key) + "'>CHAPTER " + chNum + " - " + escapeHtml(title) + escapeHtml(wordNote) + "</option>";
+        return "<option value='" + escapeHtml(segment.key) + "'>" + escapeHtml(label) + escapeHtml(wordNote) + "</option>";
       });
       el.writingWorkspaceScopeSelect.innerHTML = options.join("");
       var requested = String(appState.writingWorkspace.scope || "");
@@ -4684,7 +4681,12 @@
         el.writingInspectorMeta.textContent = selected ? ((selected.series || "Standalone") + " - " + (selected.title || "Untitled")) : "No manuscript loaded";
       }
       if (el.writingInspectorScopeTitle) {
-        el.writingInspectorScopeTitle.textContent = segment ? segment.title : "No section selected";
+        if (segment) {
+          var titleSub = String(segment.title || "").replace(/^chapter\s+\d+(?:\s*[-:]\s*)?/i, "").trim();
+          el.writingInspectorScopeTitle.textContent = titleSub || segment.title || "Untitled";
+        } else {
+          el.writingInspectorScopeTitle.textContent = "No section selected";
+        }
       }
       if (el.writingInspectorScopeNote) {
         if (segment) {
@@ -4721,6 +4723,64 @@
       switchInspectorTab(appState.writingWorkspace.inspectorTab || "outline");
       renderWritingWorkspaceNotes();
       renderWritingWorkspaceFixes();
+    }
+
+    function reconcileLegacyKeysIfNeeded(project) {
+      if (!project || !Number(project.project_id || 0)) return;
+      var outline = appState.writingWorkspace.outline || {};
+      var acts = Array.isArray(outline.acts) ? outline.acts : [];
+      var outlineChapters = [];
+      acts.forEach(function (act) {
+        (act.children || []).forEach(function (ch) {
+          if (ch && ch.id) outlineChapters.push(ch);
+        });
+      });
+      if (!outlineChapters.length) return;
+      var outlineUsesNewKeys = outlineChapters.some(function (ch) { return /^ol-/.test(ch.id); });
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      if (!segments.length) return;
+      var segUsesOldKeys = segments.every(function (s) { return /^chapter-\d+$/.test(String(s.key || "")); });
+      if (!outlineUsesNewKeys || !segUsesOldKeys) return;
+      if (outlineChapters.length !== segments.length) {
+        appState._legacyKeyWarning = "Outline has " + outlineChapters.length + " chapters but draft has " + segments.length + " sections. Key mismatch — manual review needed.";
+        setStatus(appState._legacyKeyWarning, "warn");
+        return;
+      }
+      var oldKeys = [];
+      var newKeys = [];
+      for (var i = 0; i < segments.length; i++) {
+        oldKeys.push(String(segments[i].key || ""));
+        newKeys.push(String(outlineChapters[i].id || ""));
+      }
+      for (var j = 0; j < segments.length; j++) {
+        segments[j].key = newKeys[j];
+      }
+      appState.writingWorkspace.segments = segments;
+      appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(segments);
+      var oldSavedTexts = appState.writingWorkspace.savedSegmentTexts || {};
+      var newSavedTexts = {};
+      for (var k = 0; k < oldKeys.length; k++) {
+        if (oldSavedTexts[oldKeys[k]]) {
+          newSavedTexts[newKeys[k]] = oldSavedTexts[oldKeys[k]];
+        }
+      }
+      appState.writingWorkspace.savedSegmentTexts = newSavedTexts;
+      appState.writingWorkspace.savedSnapshot = JSON.stringify(segments);
+      if (typeof callAppsScriptJson === "function") {
+        for (var m = 0; m < oldKeys.length; m++) {
+          callAppsScriptJson("renameSupabaseProjectSectionKeyFromClient", [
+            project.project_id, "draft", oldKeys[m], newKeys[m]
+          ]).catch(function () {});
+          callAppsScriptJson("renameSupabaseProjectSectionKeyFromClient", [
+            project.project_id, "notes", oldKeys[m], newKeys[m]
+          ]).catch(function () {});
+          callAppsScriptJson("renameSupabaseProjectSectionKeyFromClient", [
+            project.project_id, "fixes", oldKeys[m], newKeys[m]
+          ]).catch(function () {});
+        }
+      }
+      appState._legacyKeyWarning = "";
+      setStatus("Reconciled legacy chapter keys to outline structure.", "ok");
     }
 
     function syncOutlineChaptersToSections(existingSections, project) {
@@ -4971,6 +5031,7 @@
           if (!appState._outlineLoadState) appState._outlineLoadState = {};
           appState._outlineLoadState[String(project.project_id || "")] = hasOutlineActs ? "loaded" : "empty";
           getPlanOutline();
+          reconcileLegacyKeysIfNeeded(project);
           appState.writingWorkspace.outlineSnapshot = JSON.stringify(appState.writingWorkspace.outline || {});
           snapshotOutlineChapterStates();
           var syncedSections = syncOutlineChaptersToSections(sections, project);
@@ -5021,6 +5082,7 @@
           if (!appState._outlineLoadState) appState._outlineLoadState = {};
           var backupOutlineActs = !!(appState.writingWorkspace.outline && Array.isArray(appState.writingWorkspace.outline.acts) && appState.writingWorkspace.outline.acts.length);
           appState._outlineLoadState[String(project.project_id || "")] = backupOutlineActs ? "loaded" : "empty";
+          reconcileLegacyKeysIfNeeded(project);
           refreshWorkspaceTabDisabledState();
           cacheWritingWorkspaceDraft(project);
           renderWritingWorkspaceScopeOptions();
@@ -5284,7 +5346,6 @@
         text: "<div><br></div>",
         sortOrder: nextIndex
       });
-      sectionPayloads = renumberWritingWorkspaceSections(sectionPayloads);
       appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sectionPayloads);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sectionPayloads, project);
       appState.writingWorkspace.scope = newId;
@@ -5327,7 +5388,7 @@
       sectionPayloads = sectionPayloads.filter(function (item) {
         return String(item.sectionKey || "") !== safeKey;
       });
-      sectionPayloads = renumberWritingWorkspaceSections(sectionPayloads);
+      sectionPayloads = updateSectionSortOrders(sectionPayloads);
       appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sectionPayloads);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sectionPayloads, project);
       if (String(appState.writingWorkspace.scope || "") === safeKey) {
@@ -5353,10 +5414,10 @@
       var temp = sectionPayloads[index];
       sectionPayloads[index] = sectionPayloads[swapIndex];
       sectionPayloads[swapIndex] = temp;
-      sectionPayloads = renumberWritingWorkspaceSections(sectionPayloads);
+      sectionPayloads = updateSectionSortOrders(sectionPayloads);
       appState.writingWorkspace.draftText = buildWritingWorkspaceTextFromSections(sectionPayloads);
       appState.writingWorkspace.segments = buildWritingWorkspaceSegmentsFromSections(sectionPayloads, project);
-      appState.writingWorkspace.scope = "chapter-" + (swapIndex + 1);
+      appState.writingWorkspace.scope = String(sectionPayloads[swapIndex] && sectionPayloads[swapIndex].sectionKey || safeKey);
       renderWritingWorkspaceScopeOptions();
       renderWritingWorkspaceEditor(project);
       renderWritingChapterList(project);

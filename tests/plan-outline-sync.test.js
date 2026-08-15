@@ -35,11 +35,16 @@ const code = [
   extractVar(planSrc, "_outlineIdCounter"),
   extractFunction(planSrc, "generateOutlineNodeId"),
   extractFunction(planSrc, "getPlanOutline"),
+  extractFunction(planSrc, "renumberOutlineChapters"),
   extractFunction(planSrc, "initOutlineFromSegments"),
+  extractFunction(planSrc, "syncOutlineToSegments"),
   extractVar(clientSrc, "_outlineSaveChain"),
   extractFunction(clientSrc, "snapshotOutlineChapterStates"),
   extractFunction(clientSrc, "savePlanOutline"),
   extractFunction(clientSrc, "schedulePlanOutlineSave"),
+  extractFunction(clientSrc, "buildWritingWorkspaceTextFromSections"),
+  extractFunction(clientSrc, "reconcileLegacyKeysIfNeeded"),
+  extractFunction(clientSrc, "chapterDisplayLabel"),
 ].join("\n\n");
 
 let passed = 0;
@@ -52,15 +57,20 @@ function log(name, ok, detail) {
 }
 
 function buildSandbox() {
-  const calls = { executePlanOutlineSave: [], schedule: [] };
+  const calls = { executePlanOutlineSave: [], schedule: [], callAppsScriptJson: [], setStatus: [] };
   const appState = {
     _outlineLoadState: {},
     _syntheticOutlineFor: "",
+    _legacyKeyWarning: "",
     writingWorkspace: {
       outline: { acts: [], brainstorming: "", characterArcs: "", worldBuilding: "" },
       segments: [],
       outlineSnapshot: "",
       savedOutlineChapterStates: {},
+      savedSegmentTexts: {},
+      scope: "",
+      draftText: "",
+      version: 0,
     },
   };
   const sandbox = {
@@ -71,6 +81,14 @@ function buildSandbox() {
     updateAllPlanChapterDots: () => { calls.planDots = (calls.planDots || 0) + 1; },
     refreshWritingWorkspaceSaveState: () => { calls.saveState = (calls.saveState || 0) + 1; },
     executePlanOutlineSave: (projectId, snapshot) => { calls.executePlanOutlineSave.push([projectId, snapshot]); return Promise.resolve({ ok: true }); },
+    flushCurrentWorkspaceEdits: () => {},
+    renderWritingChapterList: () => {},
+    renderWritingWorkspaceScopeOptions: () => {},
+    renderWritingWorkspaceEditor: () => {},
+    renderPlanOutline: () => {},
+    callAppsScriptJson: (fn, args) => { calls.callAppsScriptJson.push([fn, args]); return Promise.resolve({ ok: true }); },
+    setStatus: (msg, mode) => { calls.setStatus.push([msg, mode]); },
+    escapeHtml: (s) => String(s),
   };
   const fn = new Function(
     "appState",
@@ -79,7 +97,15 @@ function buildSandbox() {
     "updateAllPlanChapterDots",
     "refreshWritingWorkspaceSaveState",
     "executePlanOutlineSave",
-    code + "\nreturn { initOutlineFromSegments, savePlanOutline, schedulePlanOutlineSave, getPlanOutline };"
+    "flushCurrentWorkspaceEdits",
+    "renderWritingChapterList",
+    "renderWritingWorkspaceScopeOptions",
+    "renderWritingWorkspaceEditor",
+    "renderPlanOutline",
+    "callAppsScriptJson",
+    "setStatus",
+    "escapeHtml",
+    code + "\nreturn { initOutlineFromSegments, savePlanOutline, schedulePlanOutlineSave, getPlanOutline, renumberOutlineChapters, syncOutlineToSegments, reconcileLegacyKeysIfNeeded, chapterDisplayLabel };"
   );
   sandbox.api = fn(
     appState,
@@ -87,7 +113,15 @@ function buildSandbox() {
     sandbox.saveManager,
     sandbox.updateAllPlanChapterDots,
     sandbox.refreshWritingWorkspaceSaveState,
-    sandbox.executePlanOutlineSave
+    sandbox.executePlanOutlineSave,
+    sandbox.flushCurrentWorkspaceEdits,
+    sandbox.renderWritingChapterList,
+    sandbox.renderWritingWorkspaceScopeOptions,
+    sandbox.renderWritingWorkspaceEditor,
+    sandbox.renderPlanOutline,
+    sandbox.callAppsScriptJson,
+    sandbox.setStatus,
+    sandbox.escapeHtml
   );
   return sandbox;
 }
@@ -187,6 +221,122 @@ async function main() {
   log("synthetic: clears synthetic flag", s.appState._syntheticOutlineFor === "");
   log("synthetic: state promoted to loaded", s.appState._outlineLoadState["12345"] === "loaded");
   log("synthetic: save scheduled via saveManager", s.calls.schedule.length === 1 && s.calls.schedule[0][0] === "planOutline");
+
+  console.log("\n== renumberOutlineChapters (Phase 2d) ==");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 5: The Beginning" },
+      { id: "ol-2", sortOrder: 1, title: "My Custom Title" }
+    ]
+  }];
+  s.api.renumberOutlineChapters();
+  log("renumber: sortOrder updated", s.appState.writingWorkspace.outline.acts[0].children[0].sortOrder === 0 && s.appState.writingWorkspace.outline.acts[0].children[1].sortOrder === 1);
+  log("renumber: title NOT changed", s.appState.writingWorkspace.outline.acts[0].children[0].title === "Chapter 5: The Beginning");
+  log("renumber: custom title preserved", s.appState.writingWorkspace.outline.acts[0].children[1].title === "My Custom Title");
+
+  console.log("\n== syncOutlineToSegments (Phase 2b) ==");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" },
+      { id: "ol-2", sortOrder: 1, title: "Chapter 2" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [
+    seg("ol-1", "Chapter 1", 0),
+    seg("ol-2", "Chapter 2", 1),
+    seg("old-ch-3", "Chapter 3", 2)
+  ];
+  s.api.syncOutlineToSegments();
+  var syncedSegs = s.appState.writingWorkspace.segments;
+  log("sync: outline chapters present", syncedSegs.length === 3 && syncedSegs[0].key === "ol-1" && syncedSegs[1].key === "ol-2");
+  log("sync: unknown segment preserved", syncedSegs[2].key === "old-ch-3" && syncedSegs[2].title === "Chapter 3");
+  log("sync: unknown segment text preserved", syncedSegs[2].text === "<div>body</div>");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [seg("ol-1", "Chapter 1", 0)];
+  s.api.syncOutlineToSegments();
+  log("sync: no unknown segments, length unchanged", s.appState.writingWorkspace.segments.length === 1);
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [seg("ol-1", "Chapter 1", 0), seg("extra-1", "Extra", 1)];
+  s.appState.writingWorkspace.scope = "extra-1";
+  s.api.syncOutlineToSegments();
+  log("sync: scope preserved for unknown segment", s.appState.writingWorkspace.scope === "extra-1");
+
+  console.log("\n== reconcileLegacyKeysIfNeeded (Phase 2c) ==");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1724", sortOrder: 0, title: "Chapter 1" },
+      { id: "ol-1725", sortOrder: 1, title: "Chapter 2" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [
+    seg("chapter-1", "Chapter 1", 0),
+    seg("chapter-2", "Chapter 2", 1)
+  ];
+  s.appState.writingWorkspace.savedSegmentTexts = {
+    "chapter-1": { text: "t1", title: "Chapter 1" },
+    "chapter-2": { text: "t2", title: "Chapter 2" }
+  };
+  s.api.reconcileLegacyKeysIfNeeded({ project_id: 12345 });
+  log("reconcile: keys remapped to ol-*", s.appState.writingWorkspace.segments[0].key === "ol-1724" && s.appState.writingWorkspace.segments[1].key === "ol-1725");
+  log("reconcile: savedSegmentTexts remapped", !!s.appState.writingWorkspace.savedSegmentTexts["ol-1724"] && !!s.appState.writingWorkspace.savedSegmentTexts["ol-1725"]);
+  log("reconcile: old savedSegmentTexts removed", !s.appState.writingWorkspace.savedSegmentTexts["chapter-1"]);
+  log("reconcile: draftText updated", s.appState.writingWorkspace.draftText.length > 0);
+  log("reconcile: rename calls sent (draft+notes+fixes)", s.calls.callAppsScriptJson.length === 6);
+  log("reconcile: warning cleared", s.appState._legacyKeyWarning === "");
+  log("reconcile: status ok", s.calls.setStatus.length === 1 && s.calls.setStatus[0][1] === "ok");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" },
+      { id: "ol-2", sortOrder: 1, title: "Chapter 2" },
+      { id: "ol-3", sortOrder: 2, title: "Chapter 3" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [
+    seg("chapter-1", "Chapter 1", 0),
+    seg("chapter-2", "Chapter 2", 1)
+  ];
+  s.api.reconcileLegacyKeysIfNeeded({ project_id: 12345 });
+  log("reconcile mismatch: keys NOT remapped", s.appState.writingWorkspace.segments[0].key === "chapter-1");
+  log("reconcile mismatch: no rename calls", s.calls.callAppsScriptJson.length === 0);
+  log("reconcile mismatch: warning set", s.appState._legacyKeyWarning.indexOf("mismatch") !== -1);
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [seg("ol-1", "Chapter 1", 0)];
+  s.api.reconcileLegacyKeysIfNeeded({ project_id: 12345 });
+  log("reconcile: no-op when keys already ol-*", s.calls.callAppsScriptJson.length === 0);
+
+  console.log("\n== chapterDisplayLabel (Phase 2d) ==");
+
+  log("display: plain chapter number", s.api.chapterDisplayLabel(0, "Chapter 1") === "CHAPTER 1");
+  log("display: chapter with subtitle", s.api.chapterDisplayLabel(2, "Chapter 5: The Finale") === "CHAPTER 3 - The Finale");
+  log("display: chapter with dash subtitle", s.api.chapterDisplayLabel(0, "Chapter 3 - Intro") === "CHAPTER 1 - Intro");
+  log("display: custom title no prefix", s.api.chapterDisplayLabel(1, "My Title") === "CHAPTER 2 - My Title");
+  log("display: empty title", s.api.chapterDisplayLabel(0, "") === "CHAPTER 1");
 
   console.log("\n" + passed + " passed, " + failed + " failed");
   if (failed > 0) process.exit(1);

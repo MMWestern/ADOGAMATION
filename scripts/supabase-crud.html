@@ -355,6 +355,15 @@
         });
     });
 
+    _sbDefine('renameSupabaseProjectSectionKeyFromClient', function (projectId, docType, oldKey, newKey) {
+      return sbClient.from('document_sections').update({ section_key: newKey })
+        .eq('project_id', projectId).eq('doc_type', docType).eq('section_key', oldKey)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
     _sbDefine('getSupabaseDocumentTypesJsonFromClient', function () {
       return sbClient.from('document_types').select('*').order('sort_order').limit(500)
         .then(function (res) {

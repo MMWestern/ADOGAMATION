@@ -106,13 +106,8 @@
       var chapterIndex = 0;
       (outline.acts || []).forEach(function (act) {
         (act.children || []).forEach(function (chapter) {
-          chapterIndex += 1;
           chapter.sortOrder = chapterIndex;
-          var title = String(chapter.title || "").trim();
-          var match = title.match(/^(Chapter\s+)(\d+)(\s*:\s*.*)?$/i);
-          if (match) {
-            chapter.title = "Chapter " + chapterIndex + (match[3] || "");
-          }
+          chapterIndex += 1;
         });
       });
     }
@@ -123,10 +118,12 @@
       var outline = getPlanOutline();
       var existingSegments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
       var nextSegments = [];
+      var outlineChapterKeys = {};
       var chapterIndex = 0;
       (outline.acts || []).forEach(function (act) {
         (act.children || []).forEach(function (chapter) {
           chapterIndex += 1;
+          outlineChapterKeys[chapter.id] = true;
           var existing = existingSegments.find(function (s) { return s.key === chapter.id; });
           var text = existing ? existing.text : "<div><br></div>";
           var wordCount = existing ? existing.wordCount : 0;
@@ -138,6 +135,17 @@
             sortOrder: chapterIndex
           });
         });
+      });
+      existingSegments.forEach(function (seg) {
+        if (!outlineChapterKeys[seg.key]) {
+          nextSegments.push({
+            key: seg.key,
+            title: String(seg.title || "").trim() || "Untitled",
+            text: seg.text || "<div><br></div>",
+            wordCount: seg.wordCount || 0,
+            sortOrder: nextSegments.length + 1
+          });
+        }
       });
       appState.writingWorkspace.segments = nextSegments;
       renderWritingChapterList(getSelectedProject());

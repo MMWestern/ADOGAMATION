@@ -1,7 +1,7 @@
 # Plan Tab ↔ Writing Tab Chapter Sync — Audit & Fix Plan
 
 Audit date: 2026-08-12
-Status: Phase 1 in progress
+Status: Phase 1 + 1.5 + 2 complete
 
 ## Summary
 
@@ -60,12 +60,12 @@ The bridge is `syncOutlineToSegments()` (`scripts/plan-outline.html:126`): every
 - **P1.3 Disabled-area fallback.** If `sm.schedule(...)` returns `false`, fall through to the `setTimeout` fallback instead of returning silently.
 - **P1.4 Plan textarea autosave.** **Cancelled (N/A, 2026-08-12):** the plan textareas are legacy elements with no DOM presence (see L3); dead wiring removed. The `beforeunload` best-effort `saveImmediate("planOutline")` was still folded into the P1.1/P1.2 verification.
 
-### Phase 2 — Single identity model (deferred)
+### Phase 2 — Single identity model (done, 2026-08-15)
 
-- Remove/deprecate dormant writing-chapter key rewrites (`renumberWritingWorkspaceSections` etc.).
-- One-time legacy key reconciler: `chapter-N` → `ol-*` by position. **Decision: auto-merge when safe, skip when ambiguous** (only when counts match and ordering is consistent; otherwise leave rows and flag).
-- `syncOutlineToSegments` preserves unknown segments instead of dropping.
-- Stop auto-renumbering user titles (display number at render time only).
+- **2a — Removed `renumberWritingWorkspaceSections`** (`Client.html:4634`). Replaced with `updateSectionSortOrders` that only updates `sortOrder`, never overwrites keys. Updated callers: `createWritingWorkspaceNewChapter`, `deleteWritingWorkspaceChapter`, `moveWritingWorkspaceChapter`. `moveWritingWorkspaceChapter` now sets scope to the actual section key at the new position instead of `"chapter-N"`.
+- **2b — `syncOutlineToSegments` preserves unknown segments** (`scripts/plan-outline.html:120`). After building `nextSegments` from outline chapters, any existing segment whose key isn't in the outline is appended at the end with its text/title/wordCount intact. No more silent drops.
+- **2c — One-time legacy key reconciler** (`Client.html: reconcileLegacyKeysIfNeeded`). Runs in `loadWritingWorkspaceDraft` (success + backup catch paths). When outline has `ol-*` keys and segments have `chapter-N` keys with matching counts, auto-remaps segment keys + savedSegmentTexts + DB rows (`draft`, `notes`, `fixes`) via `renameSupabaseProjectSectionKeyFromClient`. When counts don't match, sets `_legacyKeyWarning` and warns the user.
+- **2d — Stop auto-renumbering user titles.** `renumberOutlineChapters` (`scripts/plan-outline.html:104`) now only updates `sortOrder`, never touches `title`. `chapterDisplayLabel` helper extracts the subtitle from stored titles (strips "Chapter N" prefix) and displays "CHAPTER {position}" or "CHAPTER {position} - {subtitle}" at render time. Applied in `renderWritingWorkspaceScopeOptions`, `renderWritingChapterList`, and `renderWritingWorkspaceInspector`.
 
 ### Phase 3 — Conflict detection (deferred)
 
