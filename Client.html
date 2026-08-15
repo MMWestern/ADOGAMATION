@@ -6234,6 +6234,7 @@
         appState.seriesMetaById[Number(project.series_id)] = meta;
         applySeriesMetaToProjects();
         fillDetailForm(getSelectedProject());
+        renderLandingDashboard();
         setStatus("Series metadata saved.", "ok");
       }).catch(function (err) {
         setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
@@ -6503,6 +6504,7 @@
             meta.genre = genre; meta.penName = penName; meta.format = format;
             appState.seriesMetaById[sId] = meta;
             applySeriesMetaToProjects();
+            renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
               fillDetailForm(getSelectedProject());
             }
