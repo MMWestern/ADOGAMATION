@@ -1,7 +1,7 @@
 # Plan Tab ↔ Writing Tab Chapter Sync — Audit & Fix Plan
 
 Audit date: 2026-08-12
-Status: Phase 1 + 1.5 + 2 complete
+Status: Phase 1 + 1.5 + 2 complete; Series Metadata Inheritance complete
 
 ## Summary
 
@@ -103,3 +103,29 @@ Fix (defense in depth):
 - `initOutlineFromSegments` now flattens ONLY when state is `"empty"` and segments exist, once per project (`_syntheticOutlineFor`), never when `"loaded"` or still loading → no race clobber, no disappear, stable chapter ids (derived from section keys).
 - Synthetic outlines are never persisted: `savePlanOutline` skips writes while `_syntheticOutlineFor` matches. First real plan edit promotes the outline (`schedulePlanOutlineSave` clears the flag and sets state `"loaded"`), after which saves work normally.
 - `loadPlanData` early-return is now state-based (skip once fetched this session) instead of content-based, so a synthetic flatten can't mask a real outline.
+
+## Series Metadata Inheritance (2026-08-15)
+
+Publishing metadata (genre, pen_name, format) moved from per-project to series-level. Projects inherit from their series and display as read-only.
+
+### Schema changes
+
+- `series` table: added `genre`, `pen_name`, `format` columns (`migrations/20260815_add_series_metadata_columns.sql`)
+- New `status_workflows` table: maps `status` → `next_step` (`migrations/20260815_create_status_workflows.sql`)
+- New `format_defaults` table: maps `format` → `schedule_template` + `marketing_template` (`migrations/20260815_create_format_defaults.sql`)
+
+### Data migration
+
+- `migrations/20260815_migrate_project_metadata_to_series.sql`: copies genre/pen_name/format from first project per series to the series row
+- `migrations/20260815_migrate_series_doc_urls.sql`: migrates `series.legacy_doc_urls` JSONB to `documents` table
+
+### Frontend changes
+
+- Series edit modal: added genre/pen_name/format selects
+- Series Info Panel: shows genre/pen_name/format as read-only text
+- Project inspector: genre/pen_name/format disabled when project has a series; schedule/marketing template disabled when format has a default; next_step always disabled (derived from status)
+- New project modal: auto-fills genre/pen_name/format from series when series is selected
+- New editor modals: Status Workflow Editor, Format Defaults Editor (accessible from settings popover)
+- `saveSupabaseSeriesLegacyDocUrlJsonFromClient`: added Supabase CRUD (was falling through to GAS)
+- `loadSeriesMeta`: now maps genre/penName/format from series rows
+- `handleDetailFieldInput`: updates next_step on status change, updates templates on format change

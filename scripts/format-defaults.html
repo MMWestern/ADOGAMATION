@@ -1,0 +1,98 @@
+    function loadFormatDefaults() {
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var data = JSON.parse(json);
+              if (data.ok && Array.isArray(data.rows)) {
+                appState.formatDefaults = {};
+                data.rows.forEach(function (row) {
+                  var format = String(row.format || "").trim();
+                  if (format) {
+                    appState.formatDefaults[format] = {
+                      scheduleTemplate: String(row.schedule_template || "").trim(),
+                      marketingTemplate: String(row.marketing_template || "").trim()
+                    };
+                  }
+                });
+              }
+            } catch (err) { console.error("load format defaults error", err); }
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseFormatDefaultsJsonFromClient();
+      });
+    }
+
+    function getFormatDefaultScheduleTemplate(format) {
+      return appState.formatDefaults && appState.formatDefaults[format] && appState.formatDefaults[format].scheduleTemplate || "";
+    }
+
+    function getFormatDefaultMarketingTemplate(format) {
+      return appState.formatDefaults && appState.formatDefaults[format] && appState.formatDefaults[format].marketingTemplate || "";
+    }
+
+    function openFormatDefaultsModal() {
+      if (!el.formatDefaultsModal) return;
+      el.formatDefaultsModal.classList.add("is-open");
+      el.formatDefaultsModal.setAttribute("aria-hidden", "false");
+      renderFormatDefaultsEditor();
+    }
+
+    function closeFormatDefaultsModal() {
+      if (!el.formatDefaultsModal) return;
+      el.formatDefaultsModal.classList.remove("is-open");
+      el.formatDefaultsModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderFormatDefaultsEditor() {
+      var list = el.formatDefaultsList;
+      if (!list) return;
+      list.innerHTML = "";
+      DEFAULT_FORMAT_OPTIONS.forEach(function (opt) {
+        var format = opt.value;
+        var defaults = appState.formatDefaults && appState.formatDefaults[format] || { scheduleTemplate: "", marketingTemplate: "" };
+        var row = document.createElement("div");
+        row.className = "format-default-row";
+
+        var schedOpts = "<option value=''>— None —</option>";
+        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
+          schedOpts += "<option value='" + escapeHtml(name) + "'" + (name === defaults.scheduleTemplate ? " selected" : "") + ">" + escapeHtml(name) + "</option>";
+        });
+
+        var mktOpts = "<option value=''>— None —</option>";
+        MARKETING_TEMPLATE_OPTIONS.forEach(function (name) {
+          mktOpts += "<option value='" + escapeHtml(name) + "'" + (name === defaults.marketingTemplate ? " selected" : "") + ">" + escapeHtml(name) + "</option>";
+        });
+
+        row.innerHTML =
+          "<span class='format-default-format' style='flex:1;font-weight:600;'>" + escapeHtml(format) + "</span>" +
+          "<select class='format-default-schedule' data-format='" + escapeHtml(format) + "' style='flex:1'>" + schedOpts + "</select>" +
+          "<select class='format-default-marketing' data-format='" + escapeHtml(format) + "' style='flex:1'>" + mktOpts + "</select>";
+        list.appendChild(row);
+      });
+    }
+
+    function saveFormatDefaults() {
+      var list = el.formatDefaultsList;
+      if (!list) return;
+      var rows = [];
+      Array.from(list.querySelectorAll(".format-default-format")).forEach(function (span) {
+        var row = span.closest(".format-default-row");
+        var format = span.textContent.trim();
+        var schedSel = row.querySelector(".format-default-schedule");
+        var mktSel = row.querySelector(".format-default-marketing");
+        if (format) {
+          var sched = schedSel ? schedSel.value.trim() : "";
+          var mkt = mktSel ? mktSel.value.trim() : "";
+          appState.formatDefaults[format] = { scheduleTemplate: sched, marketingTemplate: mkt };
+          rows.push({ format: format, schedule_template: sched || null, marketing_template: mkt || null });
+        }
+      });
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (error) { setStatus("Failed to save format defaults: " + (error && error.message || error), "error"); })
+        .saveSupabaseFormatDefaultsJsonFromClient(JSON.stringify(rows));
+      setStatus("Format defaults saved.", "ok");
+      closeFormatDefaultsModal();
+    }

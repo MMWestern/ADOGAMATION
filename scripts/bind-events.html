@@ -960,6 +960,10 @@
       }
       el.confirmNewProjectButton.addEventListener("click", createNewProject);
       el.cancelNewProjectButton.addEventListener("click", closeNewProjectModal);
+      if (el.modalProjectSeries) {
+        el.modalProjectSeries.addEventListener("input", handleNewProjectSeriesInput);
+        el.modalProjectSeries.addEventListener("change", handleNewProjectSeriesInput);
+      }
 
       el.newProjectModal.addEventListener("click", function (event) {
         if (event.target === el.newProjectModal) {
@@ -1072,6 +1076,26 @@
       if (el.marketingTemplateDeleteButton) el.marketingTemplateDeleteButton.addEventListener("click", deleteMarketingTemplate);
       if (el.marketingEntryAddButton) el.marketingEntryAddButton.addEventListener("click", addMarketingEntry);
       if (el.marketingTemplateSelector) el.marketingTemplateSelector.addEventListener("change", renderMarketingTemplateEditor);
+
+      if (el.statusWorkflowsButton) {
+        el.statusWorkflowsButton.addEventListener("click", function () {
+          if (typeof openStatusWorkflowsModal === "function") openStatusWorkflowsModal();
+          if (el.sidebarAiPopover) el.sidebarAiPopover.classList.remove("is-open");
+          if (el.sidebarAiButton) el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+      if (el.statusWorkflowsCloseButton) el.statusWorkflowsCloseButton.addEventListener("click", closeStatusWorkflowsModal);
+      if (el.statusWorkflowsSaveButton) el.statusWorkflowsSaveButton.addEventListener("click", saveStatusWorkflows);
+
+      if (el.formatDefaultsButton) {
+        el.formatDefaultsButton.addEventListener("click", function () {
+          if (typeof openFormatDefaultsModal === "function") openFormatDefaultsModal();
+          if (el.sidebarAiPopover) el.sidebarAiPopover.classList.remove("is-open");
+          if (el.sidebarAiButton) el.sidebarAiButton.setAttribute("aria-expanded", "false");
+        });
+      }
+      if (el.formatDefaultsCloseButton) el.formatDefaultsCloseButton.addEventListener("click", closeFormatDefaultsModal);
+      if (el.formatDefaultsSaveButton) el.formatDefaultsSaveButton.addEventListener("click", saveFormatDefaults);
 
       if (el.documentTypesButton) el.documentTypesButton.addEventListener("click", openDocumentTypesModal);
       if (el.documentTypesCloseButton) el.documentTypesCloseButton.addEventListener("click", closeDocumentTypesModal);

@@ -23,7 +23,7 @@
         });
     });
 
-    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url"];
+    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "genre", "pen_name", "format"];
 
     _sbDefine('getSupabaseSeriesMetaJsonFromClient', function () {
       return sbClient.from('series').select(SUPABASE_SERIES_META_SELECT.join(',')).limit(500)
@@ -232,19 +232,22 @@
     });
 
     _sbDefine('listSeriesJsonFromClient', function () {
-      return sbClient.from('series').select('id,name,summary,series_image_url').limit(500).order('name')
+      return sbClient.from('series').select('id,name,summary,series_image_url,genre,pen_name,format').limit(500).order('name')
         .then(function (res) {
           if (res.error) throw res.error;
           return JSON.stringify({ ok: true, rows: res.data || [] });
         });
     });
 
-    _sbDefine('createSeriesJsonFromClient', function (name, summary, imageUrl) {
+    _sbDefine('createSeriesJsonFromClient', function (name, summary, imageUrl, genre, penName, format) {
       return sbClient.from('series').insert({
         name: name,
         summary: summary || '',
-        series_image_url: imageUrl || ''
-      }).select('id,name,summary,series_image_url').single()
+        series_image_url: imageUrl || '',
+        genre: genre || null,
+        pen_name: penName || null,
+        format: format || null
+      }).select('id,name,summary,series_image_url,genre,pen_name,format').single()
         .then(function (res) {
           if (res.error) throw res.error;
           return JSON.stringify({ ok: true, series: res.data });
@@ -305,6 +308,32 @@
               .then(function (res) {
                 if (res.error) throw res.error;
                 return JSON.stringify({ ok: true, seriesId: seriesId, docType: docType, title: res.data.title, wordCount: res.data.word_count });
+              });
+          }
+        });
+    });
+
+    _sbDefine('saveSupabaseSeriesLegacyDocUrlJsonFromClient', function (seriesId, docType, url) {
+      return sbClient.from('documents').select('id').eq('series_id', seriesId).eq('doc_type', docType).limit(1)
+        .then(function (check) {
+          var payload = {
+            series_id: seriesId,
+            doc_type: docType,
+            title: docType,
+            markdown_content: url || '',
+            word_count: 0
+          };
+          if (check.data && check.data.length) {
+            return sbClient.from('documents').update(payload).eq('id', check.data[0].id).select('id,updated_at').single()
+              .then(function (res) {
+                if (res.error) throw res.error;
+                return JSON.stringify({ ok: true, title: docType, legacyUrl: url || '', savedAt: res.data.updated_at || '' });
+              });
+          } else {
+            return sbClient.from('documents').insert([payload]).select('id,created_at').single()
+              .then(function (res) {
+                if (res.error) throw res.error;
+                return JSON.stringify({ ok: true, title: docType, legacyUrl: url || '', savedAt: res.data.created_at || '' });
               });
           }
         });
@@ -506,6 +535,48 @@
 
     _sbDefine('deleteSupabaseScheduleTemplateJsonFromClient', function (name) {
       return sbClient.from('schedule_templates').delete().eq('name', name)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    // --- Status Workflows ---
+    _sbDefine('getSupabaseStatusWorkflowsJsonFromClient', function () {
+      return sbClient.from('status_workflows').select('*').order('id')
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseStatusWorkflowsJsonFromClient', function (rowsJson) {
+      var rows = JSON.parse(rowsJson);
+      var upsertRows = rows.map(function (r) {
+        return { status: r.status, next_step: r.next_step || '' };
+      });
+      return sbClient.from('status_workflows').upsert(upsertRows, { onConflict: 'status' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    // --- Format Defaults ---
+    _sbDefine('getSupabaseFormatDefaultsJsonFromClient', function () {
+      return sbClient.from('format_defaults').select('*').order('id')
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, rows: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveSupabaseFormatDefaultsJsonFromClient', function (rowsJson) {
+      var rows = JSON.parse(rowsJson);
+      var upsertRows = rows.map(function (r) {
+        return { format: r.format, schedule_template: r.schedule_template || null, marketing_template: r.marketing_template || null };
+      });
+      return sbClient.from('format_defaults').upsert(upsertRows, { onConflict: 'format' })
         .then(function (res) {
           if (res.error) throw res.error;
           return JSON.stringify({ ok: true });
