@@ -2936,7 +2936,7 @@
       ensureSelectHasValue(el.detailStatus, project.status || "Idea");
       ensureSelectHasValue(el.detailPriority, project.priority || "Medium");
       setInlineEditValue(el.detailTitleEdit, project.title || "");
-      initInlineEdit(el.detailTitleInput ? el.detailTitleEdit : null, function (val) { scheduleAutoSave(); });
+      initInlineEdit(el.detailTitleEdit, function (val) { scheduleAutoSave(); });
       if (el.detailSeries) el.detailSeries.textContent = project.series || "\u2014";
       updateSeriesBrowseButton(project.series || "");
       setInlineEditValue(el.detailBookNumberEdit, project.b_number || "");
