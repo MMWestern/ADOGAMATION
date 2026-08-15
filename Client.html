@@ -2848,6 +2848,7 @@
         editor.focus();
       });
       function commit() {
+        if (editor.style.display === "none") return;
         var newVal = editor.value;
         valueEl.textContent = newVal || "\u2014";
         editor.style.display = "none";
@@ -2855,10 +2856,12 @@
         if (typeof onChange === "function") onChange(newVal, container);
       }
       if (editor.tagName === "SELECT") {
-        editor.addEventListener("change", commit);
+        editor.addEventListener("change", function () {
+          commit();
+        });
       }
       editor.addEventListener("blur", function () {
-        setTimeout(commit, 100);
+        setTimeout(commit, 150);
       });
       editor.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
