@@ -137,7 +137,7 @@
         });
       });
       existingSegments.forEach(function (seg) {
-        if (!outlineChapterKeys[seg.key]) {
+        if (!outlineChapterKeys[seg.key] && !/^ol-/.test(String(seg.key || ""))) {
           nextSegments.push({
             key: seg.key,
             title: String(seg.title || "").trim() || "Untitled",

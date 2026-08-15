@@ -277,6 +277,22 @@ async function main() {
   s.api.syncOutlineToSegments();
   log("sync: scope preserved for unknown segment", s.appState.writingWorkspace.scope === "extra-1");
 
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [{
+    id: "a1", sortOrder: 0, children: [
+      { id: "ol-1", sortOrder: 0, title: "Chapter 1" }
+    ]
+  }];
+  s.appState.writingWorkspace.segments = [seg("ol-1", "Chapter 1", 0), seg("ol-99", "Deleted Chapter", 1)];
+  s.api.syncOutlineToSegments();
+  log("sync: ol-* segment not in outline is dropped", s.appState.writingWorkspace.segments.length === 1 && s.appState.writingWorkspace.segments[0].key === "ol-1");
+
+  s = buildSandbox();
+  s.appState.writingWorkspace.outline.acts = [];
+  s.appState.writingWorkspace.segments = [seg("ol-1", "Chapter 1", 0), seg("ol-2", "Chapter 2", 1)];
+  s.api.syncOutlineToSegments();
+  log("sync: delete all drops ol-* segments", s.appState.writingWorkspace.segments.length === 0);
+
   console.log("\n== reconcileLegacyKeysIfNeeded (Phase 2c) ==");
 
   s = buildSandbox();
