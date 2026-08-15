@@ -6453,18 +6453,18 @@
       DEFAULT_FORMAT_OPTIONS.forEach(function (opt) { fmtOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === fmtVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
 
       var panelHtml = "<div class='landing-series-info-panel' style='display:flex;gap:16px;'>";
-      panelHtml += "<div style='flex:0 0 180px;'>";
-      panelHtml += "<img src='" + escapeHtml(seriesImageUrl) + "' alt='" + escapeHtml(seriesName) + " series image' style='width:180px;height:260px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#f1f5f9;' />";
+      panelHtml += "<div style='flex:0 0 144px;'>";
+      panelHtml += "<img src='" + escapeHtml(seriesImageUrl) + "' alt='" + escapeHtml(seriesName) + " series image' style='width:144px;height:216px;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:#f1f5f9;' />";
       panelHtml += "</div>";
       panelHtml += "<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;'>";
       panelHtml += "<div style='font-size:16px;font-weight:700;'>" + escapeHtml(seriesName) + "</div>";
       panelHtml += "<div style='color:var(--muted);font-size:12px;'>" + seriesBooks.length + " book(s) in series</div>";
-      panelHtml += "<div><label class='label' for='landingSeriesSummary'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
       panelHtml += "<div style='display:flex;gap:10px;'>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesGenre'>Genre</label><select id='landingSeriesGenre' style='width:100%;'>" + genreOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesPenName'>Pen Name</label><select id='landingSeriesPenName' style='width:100%;'>" + penOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesFormat'>Format</label><select id='landingSeriesFormat' style='width:100%;'>" + fmtOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesGenre'>Genre</label><select id='landingSeriesGenre'>" + genreOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesPenName'>Pen Name</label><select id='landingSeriesPenName'>" + penOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesFormat'>Format</label><select id='landingSeriesFormat'>" + fmtOpts + "</select></div>";
       panelHtml += "</div>";
+      panelHtml += "<div><label class='label' for='landingSeriesSummary'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
       panelHtml += "<div><button id='landingSaveSeriesButton' class='doc-create-button' type='button'>Save Series</button></div>";
       panelHtml += "</div>";
       panelHtml += "</div>";
