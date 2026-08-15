@@ -6176,9 +6176,68 @@
       el.detailSeriesSummaryPreview.textContent = summary || "No series summary has been written yet.";
       var seriesId = Number(safeProject.series_id || 0);
       var seriesMeta = seriesId ? appState.seriesMetaById[seriesId] : null;
-      if (el.detailSeriesGenre) el.detailSeriesGenre.textContent = seriesMeta && seriesMeta.genre || "—";
-      if (el.detailSeriesPenName) el.detailSeriesPenName.textContent = seriesMeta && seriesMeta.penName || "—";
-      if (el.detailSeriesFormat) el.detailSeriesFormat.textContent = seriesMeta && seriesMeta.format || "—";
+      if (el.detailSeriesGenre) {
+        el.detailSeriesGenre.innerHTML = "<option value=''>— Select —</option>";
+        DEFAULT_GENRE_OPTIONS.forEach(function (opt) {
+          var o = document.createElement("option");
+          o.value = opt.value; o.textContent = opt.value;
+          el.detailSeriesGenre.appendChild(o);
+        });
+        var genreVal = seriesMeta && seriesMeta.genre || "";
+        ensureSelectHasValue(el.detailSeriesGenre, genreVal);
+        el.detailSeriesGenre.value = genreVal;
+      }
+      if (el.detailSeriesPenName) {
+        var penNames = getUniqueValues("pen_name");
+        el.detailSeriesPenName.innerHTML = "<option value=''>— Select —</option>";
+        penNames.forEach(function (v) {
+          var o = document.createElement("option");
+          o.value = v; o.textContent = v;
+          el.detailSeriesPenName.appendChild(o);
+        });
+        var penVal = seriesMeta && seriesMeta.penName || "";
+        ensureSelectHasValue(el.detailSeriesPenName, penVal);
+        el.detailSeriesPenName.value = penVal;
+      }
+      if (el.detailSeriesFormat) {
+        el.detailSeriesFormat.innerHTML = "<option value=''>— Select —</option>";
+        DEFAULT_FORMAT_OPTIONS.forEach(function (opt) {
+          var o = document.createElement("option");
+          o.value = opt.value; o.textContent = opt.value;
+          el.detailSeriesFormat.appendChild(o);
+        });
+        var fmtVal = seriesMeta && seriesMeta.format || "";
+        ensureSelectHasValue(el.detailSeriesFormat, fmtVal);
+        el.detailSeriesFormat.value = fmtVal;
+      }
+    }
+
+    function saveSeriesMetadata() {
+      var project = getSelectedProject();
+      if (!project || !Number(project.series_id || 0)) {
+        setStatus("No series linked to this project.", "error");
+        return;
+      }
+      var genre = el.detailSeriesGenre ? el.detailSeriesGenre.value.trim() : "";
+      var penName = el.detailSeriesPenName ? el.detailSeriesPenName.value.trim() : "";
+      var format = el.detailSeriesFormat ? el.detailSeriesFormat.value.trim() : "";
+      setStatus("Saving series metadata...", "warn");
+      callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [project.series_id, JSON.stringify({
+        genre: genre || null,
+        pen_name: penName || null,
+        format: format || null
+      })]).then(function () {
+        var meta = appState.seriesMetaById[Number(project.series_id)] || {};
+        meta.genre = genre;
+        meta.penName = penName;
+        meta.format = format;
+        appState.seriesMetaById[Number(project.series_id)] = meta;
+        applySeriesMetaToProjects();
+        fillDetailForm(getSelectedProject());
+        setStatus("Series metadata saved.", "ok");
+      }).catch(function (err) {
+        setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
+      });
     }
 
     function saveSeriesImage(imageUrl) {
