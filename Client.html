@@ -488,8 +488,9 @@
       appState.projects.forEach(function (p) {
         const v = String(p[key] || "").trim();
         if (!v) return;
-        if (map[v]) return;
-        map[v] = true;
+        const lk = v.toLowerCase();
+        if (map[lk]) return;
+        map[lk] = true;
         out.push(v);
       });
 
