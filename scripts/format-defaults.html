@@ -66,9 +66,9 @@
         });
 
         row.innerHTML =
-          "<span class='format-default-format' style='flex:1;font-weight:600;'>" + escapeHtml(format) + "</span>" +
-          "<select class='format-default-schedule' data-format='" + escapeHtml(format) + "' style='flex:1'>" + schedOpts + "</select>" +
-          "<select class='format-default-marketing' data-format='" + escapeHtml(format) + "' style='flex:1'>" + mktOpts + "</select>";
+          "<span class='format-default-format' style='flex:0 0 120px;font-weight:600;font-size:12px;line-height:28px;'>" + escapeHtml(format) + "</span>" +
+          "<select class='format-default-schedule' data-format='" + escapeHtml(format) + "' style='flex:1;font-size:12px;padding:4px 6px;'>" + schedOpts + "</select>" +
+          "<select class='format-default-marketing' data-format='" + escapeHtml(format) + "' style='flex:1;font-size:12px;padding:4px 6px;'>" + mktOpts + "</select>";
         list.appendChild(row);
       });
     }

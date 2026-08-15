@@ -6465,7 +6465,10 @@
       panelHtml += "<div><label class='label' for='landingSeriesFormat' style='font-size:10px;margin-bottom:1px;'>Format</label><select id='landingSeriesFormat' style='font-size:12px;padding:4px 6px;'>" + fmtOpts + "</select></div>";
       panelHtml += "</div>";
       panelHtml += "<div><label class='label' for='landingSeriesSummary'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
-      panelHtml += "<div><button id='landingSaveSeriesButton' class='doc-create-button' type='button'>Save Series</button></div>";
+      panelHtml += "<div style='display:flex;gap:8px;align-items:center;'>";
+      panelHtml += "<button id='landingSaveSeriesButton' class='doc-create-button' type='button'>Save Series</button>";
+      panelHtml += "<button id='landingDeleteSeriesButton' type='button' style='margin-left:auto;color:#dc2626;border-color:#dc2626;'>Delete Series</button>";
+      panelHtml += "</div>";
       panelHtml += "</div>";
       panelHtml += "</div>";
 
@@ -6505,6 +6508,41 @@
             setStatus("Series saved.", "ok");
           }).catch(function (err) {
             setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
+          });
+        });
+      }
+
+      var landingDeleteBtn = el.landingQuickAccess.querySelector("#landingDeleteSeriesButton");
+      if (landingDeleteBtn) {
+        landingDeleteBtn.addEventListener("click", function () {
+          var books = getProjectsForSeries(seriesName);
+          var msg = 'DELETE SERIES "' + seriesName + '"?\n\n';
+          if (books.length > 0) {
+            msg += 'This series has ' + books.length + ' book(s). They will lose their series association.\n\n';
+          }
+          msg += 'This action CANNOT be undone.';
+          if (!confirm(msg)) return;
+          var confirmName = prompt('Type the series name to confirm deletion:');
+          if (confirmName === null || String(confirmName).trim() !== seriesName) {
+            if (confirmName !== null) setStatus("Series name did not match. Deletion cancelled.", "warn");
+            return;
+          }
+          callAppsScriptJson("deleteSeriesJsonFromClient", [sId]).then(function (result) {
+            if (result && result.ok === false) {
+              setStatus(result.error || "Delete failed.", "error");
+              return;
+            }
+            setStatus("Series deleted.", "ok");
+            loadSeriesMeta().then(function () {
+              applySeriesMetaToProjects();
+              if (appState.projects.length) {
+                selectProject(appState.projects[0].rowNumber);
+              }
+              renderLandingDashboard();
+              populateFilters();
+            });
+          }).catch(function (err) {
+            setStatus("Delete failed: " + (err && err.message ? err.message : err), "error");
           });
         });
       }
