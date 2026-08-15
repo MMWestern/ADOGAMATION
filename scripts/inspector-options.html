@@ -85,9 +85,17 @@
       const savedSrc = saved && typeof saved === "object" ? saved : {};
       const fallbackSrc = fallback && typeof fallback === "object" ? fallback : {};
       return INSPECTOR_OPTION_FIELDS.reduce(function (out, field) {
-        const savedList = normalizeInspectorOptionList(savedSrc[field.key]);
-        const fallbackList = normalizeInspectorOptionList(fallbackSrc[field.key]);
-        out[field.key] = savedList.length ? savedList : fallbackList;
+        var savedRaw = Array.isArray(savedSrc[field.key]) ? savedSrc[field.key] : [];
+        var hasSaved = savedRaw.length > 0;
+        if (hasSaved) {
+          out[field.key] = savedRaw.map(function (item) {
+            if (typeof item === "string") return { value: item.trim(), description: "" };
+            if (item && typeof item === "object") return { value: String(item.value || "").trim(), description: String(item.description || "").trim() };
+            return { value: "", description: "" };
+          }).filter(function (o) { return !!o.value; });
+        } else {
+          out[field.key] = normalizeInspectorOptionList(fallbackSrc[field.key]);
+        }
         return out;
       }, {});
     }
@@ -169,7 +177,9 @@
         const rows = [];
         INSPECTOR_OPTION_FIELDS.forEach(function (field) {
             (options[field.key] || []).forEach(function (item) {
-                rows.push({ key: field.key, value: String(item.value || ""), description: String(item.description || "") });
+                var val = typeof item === "string" ? item : String(item.value || "");
+                var desc = typeof item === "string" ? "" : String(item.description || "");
+                rows.push({ key: field.key, value: val, description: desc });
             });
         });
         const filterKey = String(appState.inspectorOptionsFilter || "all").trim() || "all";
