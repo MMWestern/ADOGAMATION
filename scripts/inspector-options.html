@@ -268,7 +268,10 @@
     }
 
     function saveInspectorOptions() {
-        const options = readInspectorOptionsFromTable();
+        syncInspectorOptionsFromTable();
+        const options = appState.inspectorOptions && typeof appState.inspectorOptions === "object"
+            ? appState.inspectorOptions
+            : readInspectorOptionsFromTable();
         appState.inspectorOptions = options;
         renderResourceInspectorPanel();
         populateFilters();

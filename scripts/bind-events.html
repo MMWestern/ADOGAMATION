@@ -1568,7 +1568,7 @@
           syncInspectorOptionsFromTable();
           var row = button.closest("tr");
           if (row) row.remove();
-          appState.inspectorOptions = readInspectorOptionsFromTable();
+          syncInspectorOptionsFromTable();
           renderResourceInspectorPanel();
         });
         bindUiOnce(el.resourceInspectorTableBody, "resource-inspector-live-edit", "input", function () {

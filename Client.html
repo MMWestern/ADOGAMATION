@@ -403,6 +403,21 @@
       }
     }
 
+    function restoreSelectValue(select, values, current, fallback) {
+      if (!select) return fallback;
+      if (values.indexOf(current) !== -1) {
+        select.value = current;
+        return current;
+      }
+      if (!current) {
+        select.value = fallback;
+        return fallback;
+      }
+      ensureSelectHasValue(select, current);
+      select.value = current;
+      return current;
+    }
+
     function normalizeBookNumber(value) {
       const text = String(value == null ? "" : value).trim();
       if (!text) return "";
@@ -595,10 +610,10 @@
         el.modalProjectPriority.appendChild(createOption(value));
       });
 
-      el.detailStatus.value = statusValues.indexOf(detailStatusCurrent) !== -1 ? detailStatusCurrent : "Idea";
-      el.detailPriority.value = priorityValues.indexOf(detailPriorityCurrent) !== -1 ? detailPriorityCurrent : "Medium";
-      el.modalProjectStatus.value = statusValues.indexOf(modalStatusCurrent) !== -1 ? modalStatusCurrent : "Idea";
-      el.modalProjectPriority.value = priorityValues.indexOf(modalPriorityCurrent) !== -1 ? modalPriorityCurrent : "Medium";
+      restoreSelectValue(el.detailStatus, statusValues, detailStatusCurrent, "Idea");
+      restoreSelectValue(el.detailPriority, priorityValues, detailPriorityCurrent, "Medium");
+      restoreSelectValue(el.modalProjectStatus, statusValues, modalStatusCurrent, "Idea");
+      restoreSelectValue(el.modalProjectPriority, priorityValues, modalPriorityCurrent, "Medium");
 
       var activeSeries = {};
       var activeProjectRows = {};
