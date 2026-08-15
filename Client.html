@@ -605,33 +605,6 @@
       el.modalProjectStatus.value = statusValues.indexOf(modalStatusCurrent) !== -1 ? modalStatusCurrent : "Idea";
       el.modalProjectPriority.value = priorityValues.indexOf(modalPriorityCurrent) !== -1 ? modalPriorityCurrent : "Medium";
 
-      if (el.detailScheduleTemplate) {
-        var currentTmpl = el.detailScheduleTemplate.value;
-        el.detailScheduleTemplate.innerHTML = "";
-        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
-          el.detailScheduleTemplate.appendChild(createOption(name));
-        });
-        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(currentTmpl) !== -1 ? currentTmpl : getDefaultScheduleTemplateName();
-      }
-
-      if (el.detailMarketingTemplate) {
-        var curMkt = el.detailMarketingTemplate.value;
-        el.detailMarketingTemplate.innerHTML = "<option value=''>— None —</option>";
-        MARKETING_TEMPLATE_OPTIONS.forEach(function (name) {
-          el.detailMarketingTemplate.appendChild(createOption(name));
-        });
-        el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(curMkt) !== -1 ? curMkt : "";
-      }
-
-      if (el.detailScheduleTemplate) {
-        var curSched = el.detailScheduleTemplate.value;
-        el.detailScheduleTemplate.innerHTML = "";
-        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
-          el.detailScheduleTemplate.appendChild(createOption(name));
-        });
-        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(curSched) !== -1 ? curSched : getDefaultScheduleTemplateName();
-      }
-
       var activeSeries = {};
       var activeProjectRows = {};
       appState.projects.forEach(function (p) {
@@ -654,28 +627,6 @@
       });
 
       populateTimelineProjectFilter();
-    }
-
-    function refreshMarketingTemplateOptions() {
-      if (el.detailMarketingTemplate) {
-        var curMkt = el.detailMarketingTemplate.value;
-        el.detailMarketingTemplate.innerHTML = "<option value=''>— None —</option>";
-        MARKETING_TEMPLATE_OPTIONS.forEach(function (name) {
-          el.detailMarketingTemplate.appendChild(createOption(name));
-        });
-        el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(curMkt) !== -1 ? curMkt : "";
-      }
-    }
-
-    function refreshScheduleTemplateOptions() {
-      if (el.detailScheduleTemplate) {
-        var curSched = el.detailScheduleTemplate.value;
-        el.detailScheduleTemplate.innerHTML = "";
-        SCHEDULE_TEMPLATE_OPTIONS.forEach(function (name) {
-          el.detailScheduleTemplate.appendChild(createOption(name));
-        });
-        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(curSched) !== -1 ? curSched : getDefaultScheduleTemplateName();
-      }
     }
 
     function populateTimelineProjectFilter() {
@@ -2186,7 +2137,7 @@
       if (!activeInput) return;
       activeInput.value = imageUrl;
       if (mode === "series") {
-        updateDetailSeriesImage(imageUrl, el.detailSeries.value || el.detailTitleInput.value);
+        updateDetailSeriesImage(imageUrl, (el.detailSeries ? el.detailSeries.textContent : "") || el.detailTitleInput.value);
         handleSeriesOwnedFieldInput();
         closeImagePickerModal();
         saveSeriesImage(imageUrl);
@@ -2895,17 +2846,18 @@
       appState.hasPendingSave = false;
       setDetailImageMode("project");
       el.detailTitleInput.value = "";
-      el.detailSeries.value = "";
+      if (el.detailSeries) el.detailSeries.textContent = "\u2014";
       updateSeriesBrowseButton("");
       el.detailBookNumber.value = "";
-      el.detailPenName.value = "";
-      el.detailGenre.value = "";
-      el.detailFormat.value = "";
+      if (el.detailPenName) el.detailPenName.textContent = "\u2014";
+      if (el.detailGenre) el.detailGenre.textContent = "\u2014";
+      if (el.detailFormat) el.detailFormat.textContent = "\u2014";
       el.detailStatus.value = "Idea";
       el.detailPriority.value = "Medium";
-      el.detailNextStep.value = "";
+      if (el.detailNextStep) el.detailNextStep.textContent = "\u2014";
       if (el.detailPublishDate) el.detailPublishDate.value = "";
-      if (el.detailScheduleTemplate) el.detailScheduleTemplate.value = getDefaultScheduleTemplateName();
+      if (el.detailScheduleTemplate) el.detailScheduleTemplate.textContent = "\u2014";
+      if (el.detailMarketingTemplate) el.detailMarketingTemplate.textContent = "\u2014";
       if (el.campaignList) el.campaignList.innerHTML = "";
       el.detailSummary.value = "";
       el.detailWorkspaceUrl.value = "";
@@ -2945,41 +2897,24 @@
       var seriesGenre = seriesMeta && seriesMeta.genre || "";
       var seriesPenName = seriesMeta && seriesMeta.penName || "";
       var seriesFormat = seriesMeta && seriesMeta.format || "";
-      ensureSelectHasValue(el.detailPenName, hasSeries ? seriesPenName : (project.pen_name || ""));
-      ensureSelectHasValue(el.detailGenre, hasSeries ? seriesGenre : (project.genre || ""));
-      ensureSelectHasValue(el.detailFormat, hasSeries ? seriesFormat : (project.format || ""));
       ensureSelectHasValue(el.detailStatus, project.status || "Idea");
       ensureSelectHasValue(el.detailPriority, project.priority || "Medium");
-      var derivedNextStep = getNextStepForStatus(project.status || "Idea");
-      ensureSelectHasValue(el.detailNextStep, derivedNextStep);
       el.detailTitleInput.value = project.title || "";
-      el.detailSeries.value = project.series || "";
+      if (el.detailSeries) el.detailSeries.textContent = project.series || "\u2014";
       updateSeriesBrowseButton(project.series || "");
       el.detailBookNumber.value = project.b_number || "";
-      el.detailPenName.value = hasSeries ? seriesPenName : (project.pen_name || "");
-      el.detailPenName.disabled = hasSeries;
-      el.detailGenre.value = hasSeries ? seriesGenre : (project.genre || "");
-      el.detailGenre.disabled = hasSeries;
-      el.detailFormat.value = hasSeries ? seriesFormat : (project.format || "");
-      el.detailFormat.disabled = hasSeries;
+      if (el.detailPenName) el.detailPenName.textContent = seriesPenName || project.pen_name || "\u2014";
+      if (el.detailGenre) el.detailGenre.textContent = seriesGenre || project.genre || "\u2014";
+      if (el.detailFormat) el.detailFormat.textContent = seriesFormat || project.format || "\u2014";
       el.detailStatus.value = project.status || "Idea";
       el.detailPriority.value = project.priority || "Medium";
-      el.detailNextStep.value = derivedNextStep;
-      el.detailNextStep.disabled = true;
+      if (el.detailNextStep) el.detailNextStep.textContent = getNextStepForStatus(project.status || "Idea") || "\u2014";
       if (el.detailPublishDate)       el.detailPublishDate.value = project.publish_date || "";
-      var effectiveFormat = hasSeries ? seriesFormat : (project.format || "");
+      var effectiveFormat = seriesFormat || project.format || "";
       var derivedSchedule = getFormatDefaultScheduleTemplate(effectiveFormat);
       var derivedMarketing = getFormatDefaultMarketingTemplate(effectiveFormat);
-      if (el.detailScheduleTemplate) {
-        var schedVal = derivedSchedule || project.schedule_template || getDefaultScheduleTemplateName();
-        el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(schedVal) !== -1 ? schedVal : getDefaultScheduleTemplateName();
-        el.detailScheduleTemplate.disabled = hasSeries && !!derivedSchedule;
-      }
-      if (el.detailMarketingTemplate) {
-        var mktVal = derivedMarketing || project.marketing_template || "";
-        el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(mktVal) !== -1 ? mktVal : "";
-        el.detailMarketingTemplate.disabled = hasSeries && !!derivedMarketing;
-      }
+      if (el.detailScheduleTemplate) el.detailScheduleTemplate.textContent = derivedSchedule || project.schedule_template || getDefaultScheduleTemplateName() || "\u2014";
+      if (el.detailMarketingTemplate) el.detailMarketingTemplate.textContent = derivedMarketing || project.marketing_template || "\u2014";
       renderCampaignList();
       el.detailSummary.value = project.short_summary || "";
       el.detailWorkspaceUrl.value = project.workspace_url || "";
@@ -5929,7 +5864,7 @@
     }
 
     function openSeriesBooksModal(seriesName, triggerEl) {
-      const safeSeries = String(seriesName || el.detailSeries.value || "").trim();
+      const safeSeries = String(seriesName || (el.detailSeries ? el.detailSeries.textContent : "") || "").trim();
       if (!safeSeries) {
         setStatus("This project does not have a series yet.", "warn");
         return;
@@ -8657,17 +8592,17 @@
         series_id: selected.series_id,
         project_id: selected.project_id,
         title: el.detailTitleInput.value.trim() || "Untitled",
-        series: el.detailSeries.value.trim(),
+        series: selected.series || "",
         "b#": el.detailBookNumber.value.trim(),
-        pen_name: el.detailPenName.value.trim(),
-        genre: el.detailGenre.value.trim(),
-        format: el.detailFormat.value.trim(),
+        pen_name: selected.pen_name || "",
+        genre: selected.genre || "",
+        format: selected.format || "",
         status: el.detailStatus.value.trim(),
         priority: el.detailPriority.value.trim(),
-        next_step: el.detailNextStep.value.trim(),
+        next_step: getNextStepForStatus(el.detailStatus.value.trim()) || "",
         publish_date: el.detailPublishDate ? el.detailPublishDate.value.trim() : (selected.publish_date || ""),
-        schedule_template: el.detailScheduleTemplate ? el.detailScheduleTemplate.value : (selected.schedule_template || getDefaultScheduleTemplateName()),
-        marketing_template: el.detailMarketingTemplate ? el.detailMarketingTemplate.value : (selected.marketing_template || ""),
+        schedule_template: getFormatDefaultScheduleTemplate(selected.format || "") || selected.schedule_template || getDefaultScheduleTemplateName(),
+        marketing_template: getFormatDefaultMarketingTemplate(selected.format || "") || selected.marketing_template || "",
         short_summary: el.detailSummary.value.trim(),
         workspace_url: el.detailWorkspaceUrl.value.trim(),
         image: el.detailImageUrl.value.trim(),
@@ -9827,21 +9762,10 @@
       var changedField = event && event.target && event.target.id;
       if (changedField === "detailStatus") {
         var newNextStep = getNextStepForStatus(el.detailStatus.value);
-        ensureSelectHasValue(el.detailNextStep, newNextStep);
-        el.detailNextStep.value = newNextStep;
-      }
-      if (changedField === "detailFormat") {
-        var proj = getSelectedProject();
-        var hasSeries = proj && Number(proj.series_id || 0) > 0;
-        if (!hasSeries) {
-          var newSched = getFormatDefaultScheduleTemplate(el.detailFormat.value);
-          var newMkt = getFormatDefaultMarketingTemplate(el.detailFormat.value);
-          if (el.detailScheduleTemplate && newSched) el.detailScheduleTemplate.value = SCHEDULE_TEMPLATE_OPTIONS.indexOf(newSched) !== -1 ? newSched : el.detailScheduleTemplate.value;
-          if (el.detailMarketingTemplate && newMkt) el.detailMarketingTemplate.value = MARKETING_TEMPLATE_OPTIONS.indexOf(newMkt) !== -1 ? newMkt : el.detailMarketingTemplate.value;
-        }
+        if (el.detailNextStep) el.detailNextStep.textContent = newNextStep || "\u2014";
       }
       renderLivePills(el.detailStatus.value, el.detailPriority.value);
-      updateSeriesBrowseButton(el.detailSeries.value);
+      updateSeriesBrowseButton(el.detailSeries ? el.detailSeries.textContent : "");
 
       el.detailImageUrl.style.borderColor = "";
       el.detailImageUrl.style.boxShadow = "";
@@ -9855,7 +9779,7 @@
         el.detailTitleInput.value,
         el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : ""
       );
-      updateDetailSeriesImage(el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : "", el.detailSeries.value || el.detailTitleInput.value);
+      updateDetailSeriesImage(el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : "", (el.detailSeries ? el.detailSeries.textContent : "") || el.detailTitleInput.value);
       updateDetailImageModeUi();
 
       renderLinkedDocs({
@@ -9905,7 +9829,7 @@
         el.detailTitleInput.value,
         el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : ""
       );
-      updateDetailSeriesImage(el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : "", el.detailSeries.value || el.detailTitleInput.value);
+      updateDetailSeriesImage(el.detailSeriesImageUrl ? el.detailSeriesImageUrl.value : "", (el.detailSeries ? el.detailSeries.textContent : "") || el.detailTitleInput.value);
       updateDetailImageModeUi();
     }
 

@@ -1748,8 +1748,7 @@
                 <label class="label" for="detailSeries">Series</label>
                 <button id="detailSeriesBrowseButton" class="detail-inline-button" type="button">View Series</button>
               </div>
-              <input id="detailSeries" type="text" list="detailSeriesList" placeholder="Type existing or new series" />
-              <datalist id="detailSeriesList"></datalist>
+              <div id="detailSeries" class="detail-readonly-field"></div>
             </div>
 
             <div class="compact-row">
@@ -1758,19 +1757,19 @@
                 <input id="detailBookNumber" type="number" min="0" step="1" />
               </div>
               <div>
-                <label class="label" for="detailPenName">Pen Name</label>
-                <select id="detailPenName"></select>
+                <label class="label">Pen Name</label>
+                <div id="detailPenName" class="detail-readonly-field"></div>
               </div>
             </div>
 
             <div class="compact-row compact-row-small">
               <div>
-                <label class="label" for="detailGenre">Genre</label>
-                <select id="detailGenre"></select>
+                <label class="label">Genre</label>
+                <div id="detailGenre" class="detail-readonly-field"></div>
               </div>
               <div>
-                <label class="label" for="detailFormat">Format</label>
-                <select id="detailFormat"></select>
+                <label class="label">Format</label>
+                <div id="detailFormat" class="detail-readonly-field"></div>
               </div>
             </div>
 
@@ -1786,8 +1785,8 @@
             </div>
 
             <div>
-              <label class="label" for="detailNextStep">Next Step</label>
-              <select id="detailNextStep"></select>
+              <label class="label">Next Step</label>
+              <div id="detailNextStep" class="detail-readonly-field"></div>
             </div>
 
             <div class="compact-row">
@@ -1796,12 +1795,12 @@
                 <input id="detailPublishDate" type="date" />
               </div>
               <div>
-                <label class="label" for="detailScheduleTemplate">Schedule</label>
-                <select id="detailScheduleTemplate"></select>
+                <label class="label">Schedule</label>
+                <div id="detailScheduleTemplate" class="detail-readonly-field"></div>
               </div>
               <div>
-                <label class="label" for="detailMarketingTemplate">Marketing Plan</label>
-                <select id="detailMarketingTemplate"><option value="">— None —</option></select>
+                <label class="label">Marketing Plan</label>
+                <div id="detailMarketingTemplate" class="detail-readonly-field"></div>
               </div>
             </div>
 
