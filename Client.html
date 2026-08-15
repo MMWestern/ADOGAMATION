@@ -2945,6 +2945,13 @@
       updateLinkHealthUi();
     }
 
+    function refreshDetailNextStep() {
+      if (!el.detailNextStep) return;
+      var selected = getSelectedProject();
+      if (!selected) return;
+      el.detailNextStep.textContent = getNextStepForStatus(selected.status || "Idea") || selected.next_step || "\u2014";
+    }
+
     function fillDetailForm(project) {
       setDetailImageMode("project");
       var hasSeries = Number(project.series_id || 0) > 0;
@@ -2975,7 +2982,7 @@
         renderLivePills(el.detailStatus ? el.detailStatus.value : "Idea", val);
         scheduleAutosave();
       });
-      if (el.detailNextStep) el.detailNextStep.textContent = getNextStepForStatus(project.status || "Idea") || "\u2014";
+      if (el.detailNextStep) el.detailNextStep.textContent = getNextStepForStatus(project.status || "Idea") || project.next_step || "\u2014";
       setInlineEditValue(el.detailPublishDateEdit, project.publish_date || "");
       initInlineEdit(el.detailPublishDateEdit, function (val) { scheduleAutosave(); });
       var effectiveFormat = seriesFormat || project.format || "";
@@ -9076,6 +9083,7 @@
           populateImagePickerMetaDatalists();
           loadInspectorOptions();
           applyFilters();
+          refreshDetailNextStep();
         });
 
         if (appState.projects.length) {
@@ -9149,6 +9157,7 @@
               populateImagePickerMetaDatalists();
               loadInspectorOptions();
               applyFilters();
+              refreshDetailNextStep();
               if (activeHubTab === "home" && typeof renderHomeDashboard === "function") renderHomeDashboard();
 
               if (appState.projects.length) {
