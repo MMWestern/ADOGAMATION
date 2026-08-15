@@ -20,7 +20,15 @@
     }
 
     function getNextStepForStatus(status) {
-      return appState.statusWorkflows && appState.statusWorkflows[status] || "";
+      var key = String(status || "").trim();
+      if (!key) return "";
+      var wf = appState.statusWorkflows || {};
+      if (wf[key] !== undefined) return wf[key];
+      var lower = key.toLowerCase();
+      for (var k in wf) {
+        if (k.toLowerCase() === lower) return wf[k];
+      }
+      return "";
     }
 
     function openStatusWorkflowsModal() {
