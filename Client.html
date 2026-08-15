@@ -6436,20 +6436,8 @@
       el.landingResourceButtons.innerHTML = "";
 
       var seriesSummary = String(project.series_summary || "").trim();
-      var seriesSummaryDisplay = seriesSummary || "No series summary has been written yet.";
       var seriesBooks = getProjectsForSeries(seriesName);
       var seriesImageUrl = normalizeImageUrl(project.series_image || "") || getDefaultImageUrl();
-
-      var panelHtml = "<div class='landing-series-info-panel'>";
-      panelHtml += "<div class='landing-series-info-header'>";
-      panelHtml += "<div class='landing-series-info-copy'>";
-      panelHtml += "<div class='landing-series-info-title'>" + escapeHtml(seriesName) + "</div>";
-      panelHtml += "<div class='landing-series-info-count'>" + seriesBooks.length + " book(s) in series</div>";
-      panelHtml += "<div class='landing-series-info-summary'>" + escapeHtml(seriesSummaryDisplay) + "</div>";
-      panelHtml += "<div class='landing-series-info-actions'><button class='landing-series-doc-open' type='button' data-series-summary-edit='1'>Edit Summary</button></div>";
-      panelHtml += "</div>";
-      panelHtml += "<div class='landing-series-info-image'><img src='" + escapeHtml(seriesImageUrl) + "' alt='" + escapeHtml(seriesName) + " series image' /></div>";
-      panelHtml += "</div>";
 
       var seriesId = Number(project.series_id || 0);
       var seriesMeta = seriesId ? appState.seriesMetaById[seriesId] : null;
@@ -6464,51 +6452,57 @@
       var fmtOpts = "<option value=''>— Select —</option>";
       DEFAULT_FORMAT_OPTIONS.forEach(function (opt) { fmtOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === fmtVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
 
-      panelHtml += "<div class='landing-series-metadata-row' style='display:flex;gap:12px;margin-top:8px;'>";
-      panelHtml += "<div style='flex:1;'><label class='label'>Genre</label><select id='landingSeriesGenre' style='width:100%;'>" + genreOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label'>Pen Name</label><select id='landingSeriesPenName' style='width:100%;'>" + penOpts + "</select></div>";
-      panelHtml += "<div style='flex:1;'><label class='label'>Format</label><select id='landingSeriesFormat' style='width:100%;'>" + fmtOpts + "</select></div>";
+      var panelHtml = "<div class='landing-series-info-panel' style='display:flex;gap:16px;'>";
+      panelHtml += "<div style='flex:0 0 180px;'>";
+      panelHtml += "<img src='" + escapeHtml(seriesImageUrl) + "' alt='" + escapeHtml(seriesName) + " series image' style='width:180px;height:260px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#f1f5f9;' />";
       panelHtml += "</div>";
-      panelHtml += "<div style='margin-top:6px;'><button id='landingSaveSeriesMetadataButton' class='doc-create-button' type='button'>Save Series Metadata</button></div>";
+      panelHtml += "<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;'>";
+      panelHtml += "<div style='font-size:16px;font-weight:700;'>" + escapeHtml(seriesName) + "</div>";
+      panelHtml += "<div style='color:var(--muted);font-size:12px;'>" + seriesBooks.length + " book(s) in series</div>";
+      panelHtml += "<div><label class='label' for='landingSeriesSummary'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
+      panelHtml += "<div style='display:flex;gap:10px;'>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesGenre'>Genre</label><select id='landingSeriesGenre' style='width:100%;'>" + genreOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesPenName'>Pen Name</label><select id='landingSeriesPenName' style='width:100%;'>" + penOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label' for='landingSeriesFormat'>Format</label><select id='landingSeriesFormat' style='width:100%;'>" + fmtOpts + "</select></div>";
+      panelHtml += "</div>";
+      panelHtml += "<div><button id='landingSaveSeriesButton' class='doc-create-button' type='button'>Save Series</button></div>";
+      panelHtml += "</div>";
       panelHtml += "</div>";
 
       el.landingQuickAccess.innerHTML = panelHtml;
 
-      Array.from(el.landingQuickAccess.querySelectorAll("[data-series-summary-edit]")).forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var current = String(project.series_summary || "").trim();
-          var next = prompt("Edit the unique series summary for " + seriesName + ":", current);
-          if (next === null) return;
-          next = String(next || "").trim();
-          if (next === current) return;
-          saveSeriesSummary(next);
-        });
-      });
-
-      var landingSaveBtn = el.landingQuickAccess.querySelector("#landingSaveSeriesMetadataButton");
+      var landingSaveBtn = el.landingQuickAccess.querySelector("#landingSaveSeriesButton");
       if (landingSaveBtn) {
         landingSaveBtn.addEventListener("click", function () {
           var sId = Number(project.series_id || 0);
           if (!sId) { setStatus("No series linked.", "error"); return; }
+          var summaryEl = el.landingQuickAccess.querySelector("#landingSeriesSummary");
           var genreEl = el.landingQuickAccess.querySelector("#landingSeriesGenre");
           var penEl = el.landingQuickAccess.querySelector("#landingSeriesPenName");
           var fmtEl = el.landingQuickAccess.querySelector("#landingSeriesFormat");
+          var summary = summaryEl ? summaryEl.value.trim() : "";
           var genre = genreEl ? genreEl.value.trim() : "";
           var penName = penEl ? penEl.value.trim() : "";
           var format = fmtEl ? fmtEl.value.trim() : "";
-          setStatus("Saving series metadata...", "warn");
+          setStatus("Saving series...", "warn");
           callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [sId, JSON.stringify({
-            genre: genre || null, pen_name: penName || null, format: format || null
+            summary: summary,
+            genre: genre || null,
+            pen_name: penName || null,
+            format: format || null
           })]).then(function () {
             var meta = appState.seriesMetaById[sId] || {};
-            meta.genre = genre; meta.penName = penName; meta.format = format;
+            meta.summary = summary;
+            meta.genre = genre;
+            meta.penName = penName;
+            meta.format = format;
             appState.seriesMetaById[sId] = meta;
             applySeriesMetaToProjects();
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
               fillDetailForm(getSelectedProject());
             }
-            setStatus("Series metadata saved.", "ok");
+            setStatus("Series saved.", "ok");
           }).catch(function (err) {
             setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
           });
