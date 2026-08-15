@@ -6471,31 +6471,7 @@
       panelHtml += "<div style='margin-top:6px;'><button id='landingSaveSeriesMetadataButton' class='doc-create-button' type='button'>Save Series Metadata</button></div>";
       panelHtml += "</div>";
 
-      var seriesDocDefs = [
-        { field: "series_outline_doc_url", label: "Outline" },
-        { field: "series_brainstorm_doc_url", label: "Brainstorm" },
-        { field: "series_characters_doc_url", label: "Characters" },
-        { field: "series_world_build_doc_url", label: "World Build" },
-        { field: "series_notes_doc_url", label: "Notes" }
-      ];
-
-      var docHtml = "<div class='label landing-series-docs-label'>Shared Series Documents</div><div class='landing-series-doc-links'>";
-      seriesDocDefs.forEach(function (def) {
-        var legacyUrl = String(project[def.field] || "").trim();
-        var hasLegacyUrl = !!legacyUrl;
-        docHtml +=
-          "<div class='landing-series-doc-row' data-series-doc-field='" + def.field + "'>" +
-            "<div class='landing-series-doc-main'>" +
-              "<span class='landing-series-doc-label'>" + escapeHtml(def.label) + "</span>" +
-            "</div>" +
-               "<div class='landing-series-doc-actions'>" +
-              "<button class='landing-series-doc-create' type='button' data-series-doc-field='" + def.field + "'>" + (hasLegacyUrl ? "Legacy Link" : "Add Link") + "</button>" +
-            "</div>" +
-          "</div>";
-      });
-      docHtml += "</div>";
-
-      el.landingQuickAccess.innerHTML = panelHtml + docHtml;
+      el.landingQuickAccess.innerHTML = panelHtml;
 
       Array.from(el.landingQuickAccess.querySelectorAll("[data-series-summary-edit]")).forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -6536,21 +6512,6 @@
           });
         });
       }
-
-      Array.from(el.landingQuickAccess.querySelectorAll(".landing-series-doc-create")).forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var field = this.getAttribute("data-series-doc-field");
-          if (!field) return;
-          var currentUrl = appState.projects.reduce(function (found, p) {
-            return found || (Number(p.rowNumber) === Number(appState.selectedRowNumber) ? String(p[field] || "").trim() : "");
-          }, "");
-          var newUrl = prompt("Enter or update the optional legacy Google Doc URL for this shared series document:", currentUrl);
-          if (newUrl === null) return;
-          newUrl = String(newUrl || "").trim();
-          if (newUrl === currentUrl) return;
-          saveSeriesDocUrl(field, newUrl);
-        });
-      });
     }
 
     function renderLandingDashboard() {
