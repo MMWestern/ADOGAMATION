@@ -87,15 +87,22 @@
       return INSPECTOR_OPTION_FIELDS.reduce(function (out, field) {
         var savedRaw = Array.isArray(savedSrc[field.key]) ? savedSrc[field.key] : [];
         var hasSaved = savedRaw.length > 0;
-        if (hasSaved) {
-          out[field.key] = savedRaw.map(function (item) {
-            if (typeof item === "string") return { value: item.trim(), description: "" };
-            if (item && typeof item === "object") return { value: String(item.value || "").trim(), description: String(item.description || "").trim() };
-            return null;
-          }).filter(Boolean).filter(function (o) { return !!o.value; });
-        } else {
-          out[field.key] = normalizeInspectorOptionList(fallbackSrc[field.key]);
-        }
+        var list = hasSaved
+          ? savedRaw.map(function (item) {
+              if (typeof item === "string") return { value: item.trim(), description: "" };
+              if (item && typeof item === "object") return { value: String(item.value || "").trim(), description: String(item.description || "").trim() };
+              return null;
+            }).filter(Boolean).filter(function (o) { return !!o.value; })
+          : normalizeInspectorOptionList(fallbackSrc[field.key]);
+        var seen = {};
+        list.forEach(function (o) { if (o && o.value) seen[o.value.toLowerCase()] = true; });
+        getUniqueValues(field.key).forEach(function (v) {
+          if (!seen[v.toLowerCase()]) {
+            list.push({ value: v, description: "" });
+            seen[v.toLowerCase()] = true;
+          }
+        });
+        out[field.key] = list;
         return out;
       }, {});
     }
