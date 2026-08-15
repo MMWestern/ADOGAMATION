@@ -6449,6 +6449,26 @@
       panelHtml += "</div>";
       panelHtml += "<div class='landing-series-info-image'><img src='" + escapeHtml(seriesImageUrl) + "' alt='" + escapeHtml(seriesName) + " series image' /></div>";
       panelHtml += "</div>";
+
+      var seriesId = Number(project.series_id || 0);
+      var seriesMeta = seriesId ? appState.seriesMetaById[seriesId] : null;
+      var genreVal = seriesMeta && seriesMeta.genre || "";
+      var penVal = seriesMeta && seriesMeta.penName || "";
+      var fmtVal = seriesMeta && seriesMeta.format || "";
+
+      var genreOpts = "<option value=''>— Select —</option>";
+      DEFAULT_GENRE_OPTIONS.forEach(function (opt) { genreOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === genreVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
+      var penOpts = "<option value=''>— Select —</option>";
+      getUniqueValues("pen_name").forEach(function (v) { penOpts += "<option value='" + escapeHtml(v) + "'" + (v === penVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
+      var fmtOpts = "<option value=''>— Select —</option>";
+      DEFAULT_FORMAT_OPTIONS.forEach(function (opt) { fmtOpts += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === fmtVal ? " selected" : "") + ">" + escapeHtml(opt.value) + "</option>"; });
+
+      panelHtml += "<div class='landing-series-metadata-row' style='display:flex;gap:12px;margin-top:8px;'>";
+      panelHtml += "<div style='flex:1;'><label class='label'>Genre</label><select id='landingSeriesGenre' style='width:100%;'>" + genreOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label'>Pen Name</label><select id='landingSeriesPenName' style='width:100%;'>" + penOpts + "</select></div>";
+      panelHtml += "<div style='flex:1;'><label class='label'>Format</label><select id='landingSeriesFormat' style='width:100%;'>" + fmtOpts + "</select></div>";
+      panelHtml += "</div>";
+      panelHtml += "<div style='margin-top:6px;'><button id='landingSaveSeriesMetadataButton' class='doc-create-button' type='button'>Save Series Metadata</button></div>";
       panelHtml += "</div>";
 
       var seriesDocDefs = [
@@ -6487,6 +6507,35 @@
           saveSeriesSummary(next);
         });
       });
+
+      var landingSaveBtn = el.landingQuickAccess.querySelector("#landingSaveSeriesMetadataButton");
+      if (landingSaveBtn) {
+        landingSaveBtn.addEventListener("click", function () {
+          var sId = Number(project.series_id || 0);
+          if (!sId) { setStatus("No series linked.", "error"); return; }
+          var genreEl = el.landingQuickAccess.querySelector("#landingSeriesGenre");
+          var penEl = el.landingQuickAccess.querySelector("#landingSeriesPenName");
+          var fmtEl = el.landingQuickAccess.querySelector("#landingSeriesFormat");
+          var genre = genreEl ? genreEl.value.trim() : "";
+          var penName = penEl ? penEl.value.trim() : "";
+          var format = fmtEl ? fmtEl.value.trim() : "";
+          setStatus("Saving series metadata...", "warn");
+          callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [sId, JSON.stringify({
+            genre: genre || null, pen_name: penName || null, format: format || null
+          })]).then(function () {
+            var meta = appState.seriesMetaById[sId] || {};
+            meta.genre = genre; meta.penName = penName; meta.format = format;
+            appState.seriesMetaById[sId] = meta;
+            applySeriesMetaToProjects();
+            if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
+              fillDetailForm(getSelectedProject());
+            }
+            setStatus("Series metadata saved.", "ok");
+          }).catch(function (err) {
+            setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
+          });
+        });
+      }
 
       Array.from(el.landingQuickAccess.querySelectorAll(".landing-series-doc-create")).forEach(function (btn) {
         btn.addEventListener("click", function () {
