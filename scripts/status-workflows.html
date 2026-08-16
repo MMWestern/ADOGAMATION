@@ -51,16 +51,23 @@
     }
 
     function getStatusWorkflowStatuses() {
-      var lowerToConfigured = {};
-      function capture(values) {
+      var label = {};
+      function captureConfigured(values) {
         (values || []).forEach(function (v) {
           var value = String(v || "").trim();
           var lk = value.toLowerCase();
-          if (lk && !lowerToConfigured[lk]) lowerToConfigured[lk] = value;
+          if (lk) label[lk] = value;
         });
       }
-      capture(getUniqueValues("status"));
-      capture(getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))));
+      function captureProjects() {
+        appState.projects.forEach(function (p) {
+          var value = String(p && p.status || "").trim();
+          var lk = value.toLowerCase();
+          if (lk && !(lk in label)) label[lk] = value;
+        });
+      }
+      captureConfigured(getInspectorOptionValues("status", []));
+      captureProjects();
       var seen = {};
       var out = [];
       function add(v) {
@@ -72,9 +79,9 @@
         out.push(v);
       }
       DEFAULT_STATUS_OPTIONS.forEach(function (opt) {
-        add(lowerToConfigured[String(opt.value).toLowerCase()] || opt.value);
+        add(label[String(opt.value).toLowerCase()] || opt.value);
       });
-      Object.keys(lowerToConfigured).forEach(function (lk) { add(lowerToConfigured[lk]); });
+      Object.keys(label).forEach(function (lk) { add(label[lk]); });
       Object.keys(appState.statusWorkflows || {}).forEach(add);
       return out;
     }
