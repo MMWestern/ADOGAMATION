@@ -52,11 +52,15 @@
 
     function getStatusWorkflowStatuses() {
       var lowerToConfigured = {};
-      getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS).forEach(function (v) {
-        var value = String(v || "").trim();
-        var lk = value.toLowerCase();
-        if (lk && !lowerToConfigured[lk]) lowerToConfigured[lk] = value;
-      });
+      function capture(values) {
+        (values || []).forEach(function (v) {
+          var value = String(v || "").trim();
+          var lk = value.toLowerCase();
+          if (lk && !lowerToConfigured[lk]) lowerToConfigured[lk] = value;
+        });
+      }
+      capture(getUniqueValues("status"));
+      capture(getInspectorOptionValues("status", DEFAULT_STATUS_OPTIONS.concat(getUniqueValues("status"))));
       var seen = {};
       var out = [];
       function add(v) {
