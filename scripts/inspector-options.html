@@ -241,6 +241,7 @@
             appState.inspectorOptionsLoaded = true;
             renderResourceInspectorPanel();
             populateFilters();
+            if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
             return;
         }
 
@@ -254,12 +255,14 @@
                     renderResourceInspectorPanel();
                     populateFilters();
                     if (typeof renderLandingDashboard === "function") renderLandingDashboard();
+                    if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
                 } catch (err) {
                     appState.inspectorOptions = mergeInspectorOptions({}, fallback);
                     appState.inspectorOptionsLoaded = true;
                     renderResourceInspectorPanel();
                     populateFilters();
                     if (typeof renderLandingDashboard === "function") renderLandingDashboard();
+                    if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
                     setResourceInspectorStatus("Using project-derived options. " + err.message, "warn");
                 }
             })
@@ -269,6 +272,7 @@
                 renderResourceInspectorPanel();
                 populateFilters();
                 if (typeof renderLandingDashboard === "function") renderLandingDashboard();
+                if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
                 setResourceInspectorStatus("Using project-derived options. " + (error && error.message ? error.message : error), "warn");
             })
             .getProjectInspectorOptionsJsonFromClient();
@@ -282,6 +286,7 @@
         appState.inspectorOptions = options;
         renderResourceInspectorPanel();
         populateFilters();
+        if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
         if ((!sbClient && (typeof google === "undefined" || !google.script || !google.script.run))) {
             setResourceInspectorStatus("Inspector options updated locally.", "ok");
             if (typeof setStatus === "function") setStatus("Inspector options updated locally.", "ok");
@@ -299,6 +304,7 @@
                     renderResourceInspectorPanel();
                     populateFilters();
                     if (typeof renderLandingDashboard === "function") renderLandingDashboard();
+                    if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
                     setResourceInspectorStatus("Inspector options saved.", "ok");
                     if (typeof setStatus === "function") setStatus("Inspector options saved.", "ok");
                 } catch (err) {
