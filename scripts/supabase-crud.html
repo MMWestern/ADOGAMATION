@@ -583,6 +583,25 @@
         });
     });
 
+    // --- Inspector Options (single-row JSON config) ---
+    _sbDefine('getSupabaseInspectorOptionsJsonFromClient', function () {
+      return sbClient.from('inspector_options').select('options').limit(1)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var row = (res.data && res.data[0]) || null;
+          return JSON.stringify({ ok: true, options: row ? row.options || {} : {} });
+        });
+    });
+
+    _sbDefine('saveSupabaseInspectorOptionsJsonFromClient', function (optionsJson) {
+      var options = typeof optionsJson === 'string' ? JSON.parse(optionsJson) : optionsJson;
+      return sbClient.from('inspector_options').upsert({ id: 1, options: options }, { onConflict: 'id' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
     _sbDefine('getSupabaseGenerationContentJsonFromClient', function (projectId, docType) {
       return sbClient.from('document_sections').select('section_key,markdown_content,updated_at')
         .eq('project_id', projectId).eq('doc_type', docType).limit(500)

@@ -275,7 +275,7 @@
                 if (typeof renderSeriesSummaryPreview === "function") renderSeriesSummaryPreview();
                 setResourceInspectorStatus("Using project-derived options. " + (error && error.message ? error.message : error), "warn");
             })
-            .getProjectInspectorOptionsJsonFromClient();
+            .getSupabaseInspectorOptionsJsonFromClient();
     }
 
     function saveInspectorOptions() {
@@ -317,5 +317,5 @@
                 setResourceInspectorStatus("Inspector options save failed: " + (error && error.message ? error.message : error), "error");
                 if (typeof setStatus === "function") setStatus("Inspector options save failed: " + (error && error.message ? error.message : error), "error");
             })
-            .saveProjectInspectorOptionsJsonFromClient(JSON.stringify(options));
+            .saveSupabaseInspectorOptionsJsonFromClient(JSON.stringify(options));
     }
