@@ -6504,20 +6504,31 @@
         localStorage.setItem(STORAGE_KEY_AI_PROMPTS, JSON.stringify(prompts));
       } catch (e) { /* ignore */ }
       // Save to Supabase in background
-      if (typeof getSupabaseAiPromptsJsonFromClient === "function" && typeof saveSupabaseAiPromptsJsonFromClient === "function") {
-        saveSupabaseAiPromptsJsonFromClient(prompts || {}).catch(function () {});
+      if (typeof supabaseRunner !== "undefined") {
+        supabaseRunner
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function (err) { console.warn("AI prompts Supabase save failed:", err); })
+          .saveSupabaseAiPromptsJsonFromClient(prompts || {});
       }
     }
 
     function loadAiPromptsFromSupabase() {
-      if (typeof getSupabaseAiPromptsJsonFromClient !== "function") return Promise.resolve();
-      return getSupabaseAiPromptsJsonFromClient().then(function (json) {
-        var result = JSON.parse(json);
-        if (result.ok && result.prompts && Object.keys(result.prompts).length > 0) {
-          _aiPromptsCache = result.prompts;
-          try { localStorage.setItem(STORAGE_KEY_AI_PROMPTS, JSON.stringify(result.prompts)); } catch (e) {}
-        }
-      }).catch(function () {});
+      if (typeof supabaseRunner === "undefined") return Promise.resolve();
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (result.ok && result.prompts && Object.keys(result.prompts).length > 0) {
+                _aiPromptsCache = result.prompts;
+                try { localStorage.setItem(STORAGE_KEY_AI_PROMPTS, JSON.stringify(result.prompts)); } catch (e) {}
+              }
+            } catch (e) {}
+            resolve();
+          })
+          .withFailureHandler(function () { resolve(); })
+          .getSupabaseAiPromptsJsonFromClient();
+      });
     }
 
     function getWorldBuilderPrompts() {
