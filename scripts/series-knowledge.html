@@ -6513,6 +6513,7 @@
     function openPromptEditorModal() {
       var modal = document.getElementById("promptEditorModal");
       if (!modal) return;
+      modal.classList.add("is-open");
       modal.setAttribute("aria-hidden", "false");
       var prompts = getWorldBuilderPrompts();
       // Render mode prompts
@@ -6556,7 +6557,10 @@
 
     function closePromptEditorModal() {
       var modal = document.getElementById("promptEditorModal");
-      if (modal) modal.setAttribute("aria-hidden", "true");
+      if (modal) {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+      }
     }
 
     function savePromptEditorModal() {
