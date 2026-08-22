@@ -6598,10 +6598,21 @@
       var html = "";
       Object.keys(obj).forEach(function (key) {
         var label = key.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-        html += "<div class='prompt-editor-row'>";
-        html += "<div class='prompt-editor-label'>" + label + "</div>";
-        html += "<textarea class='prompt-editor-textarea' rows='2'>" + escapeHtml(obj[key] || "") + "</textarea>";
-        html += "</div>";
+        var val = obj[key];
+        if (val && typeof val === "object") {
+          html += "<div class='prompt-editor-row'>";
+          html += "<div class='prompt-editor-label'>" + label + "</div>";
+          html += "<div class='tiny muted' style='margin-bottom:2px;'>System Prompt</div>";
+          html += "<textarea class='prompt-editor-textarea' rows='2'>" + escapeHtml(val.system_prompt || "") + "</textarea>";
+          html += "<div class='tiny muted' style='margin:4px 0 2px;'>User Prompt Template</div>";
+          html += "<textarea class='prompt-editor-textarea' rows='3'>" + escapeHtml(val.prompt_template || "") + "</textarea>";
+          html += "</div>";
+        } else {
+          html += "<div class='prompt-editor-row'>";
+          html += "<div class='prompt-editor-label'>" + label + "</div>";
+          html += "<textarea class='prompt-editor-textarea' rows='2'>" + escapeHtml(val || "") + "</textarea>";
+          html += "</div>";
+        }
       });
       container.innerHTML = html;
     }
@@ -6612,6 +6623,21 @@
         modal.classList.remove("is-open");
         modal.setAttribute("aria-hidden", "true");
       }
+    }
+
+    function collectMarketingSection(containerId, target) {
+      var rows = document.querySelectorAll("#" + containerId + " .prompt-editor-row");
+      rows.forEach(function (row) {
+        var label = row.querySelector(".prompt-editor-label");
+        var textareas = row.querySelectorAll(".prompt-editor-textarea");
+        if (!label || !textareas.length) return;
+        var key = label.textContent.trim().toLowerCase().replace(/\s+/g, "_");
+        if (textareas.length >= 2) {
+          target[key] = { system_prompt: textareas[0].value.trim(), prompt_template: textareas[1].value.trim() };
+        } else {
+          target[key] = textareas[0].value.trim();
+        }
+      });
     }
 
     function savePromptEditorModal() {
@@ -6643,24 +6669,12 @@
       // Codex
       var cxSug = document.getElementById("promptEditorCxSuggest");
       allPrompts.codex = { suggest: cxSug ? cxSug.value.trim() : "" };
-      // Marketing - collect from dynamic textareas
+      // Marketing - collect from dynamic textareas (object format with system_prompt + prompt_template)
       allPrompts.marketing = { newsletter: {}, social: {}, ads: {}, other: {} };
-      document.querySelectorAll("#promptEditorMktNewsletterList .prompt-editor-textarea").forEach(function (ta) {
-        var key = ta.parentElement.querySelector(".prompt-editor-label");
-        if (key) allPrompts.marketing.newsletter[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
-      });
-      document.querySelectorAll("#promptEditorMktSocialList .prompt-editor-textarea").forEach(function (ta) {
-        var key = ta.parentElement.querySelector(".prompt-editor-label");
-        if (key) allPrompts.marketing.social[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
-      });
-      document.querySelectorAll("#promptEditorMktAdsList .prompt-editor-textarea").forEach(function (ta) {
-        var key = ta.parentElement.querySelector(".prompt-editor-label");
-        if (key) allPrompts.marketing.ads[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
-      });
-      document.querySelectorAll("#promptEditorMktOtherList .prompt-editor-textarea").forEach(function (ta) {
-        var key = ta.parentElement.querySelector(".prompt-editor-label");
-        if (key) allPrompts.marketing.other[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
-      });
+      collectMarketingSection("promptEditorMktNewsletterList", allPrompts.marketing.newsletter);
+      collectMarketingSection("promptEditorMktSocialList", allPrompts.marketing.social);
+      collectMarketingSection("promptEditorMktAdsList", allPrompts.marketing.ads);
+      collectMarketingSection("promptEditorMktOtherList", allPrompts.marketing.other);
       saveCustomAiPrompts(allPrompts);
       closePromptEditorModal();
     }
