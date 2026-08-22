@@ -5863,6 +5863,8 @@
       }
       // Render empty state
       renderAssistantMessages();
+      // Load AI prompts from Supabase
+      loadAiPromptsFromSupabase();
       // Wire prompt editor button
       var promptEditorBtn = document.getElementById("assistantPromptEditorBtn");
       if (promptEditorBtn) {
@@ -6483,11 +6485,13 @@
       }
     }
 
-    // ── World Builder Prompt Editor ──────────────────────────────────────────────
     // ── AI Prompt Editor ──────────────────────────────────────────────────────────
     var STORAGE_KEY_AI_PROMPTS = "writing_app_ai_prompts";
+    var _aiPromptsCache = null; // cached from Supabase
 
     function loadCustomAiPrompts() {
+      // Prefer Supabase cache, fall back to localStorage
+      if (_aiPromptsCache) return _aiPromptsCache;
       try {
         var raw = localStorage.getItem(STORAGE_KEY_AI_PROMPTS);
         return raw ? JSON.parse(raw) : null;
@@ -6495,9 +6499,25 @@
     }
 
     function saveCustomAiPrompts(prompts) {
+      _aiPromptsCache = prompts;
       try {
         localStorage.setItem(STORAGE_KEY_AI_PROMPTS, JSON.stringify(prompts));
       } catch (e) { /* ignore */ }
+      // Save to Supabase in background
+      if (typeof getSupabaseAiPromptsJsonFromClient === "function" && typeof saveSupabaseAiPromptsJsonFromClient === "function") {
+        saveSupabaseAiPromptsJsonFromClient(prompts || {}).catch(function () {});
+      }
+    }
+
+    function loadAiPromptsFromSupabase() {
+      if (typeof getSupabaseAiPromptsJsonFromClient !== "function") return Promise.resolve();
+      return getSupabaseAiPromptsJsonFromClient().then(function (json) {
+        var result = JSON.parse(json);
+        if (result.ok && result.prompts && Object.keys(result.prompts).length > 0) {
+          _aiPromptsCache = result.prompts;
+          try { localStorage.setItem(STORAGE_KEY_AI_PROMPTS, JSON.stringify(result.prompts)); } catch (e) {}
+        }
+      }).catch(function () {});
     }
 
     function getWorldBuilderPrompts() {

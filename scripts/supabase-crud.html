@@ -602,6 +602,25 @@
         });
     });
 
+    // --- AI Prompts (single-row JSON config) ---
+    _sbDefine('getSupabaseAiPromptsJsonFromClient', function () {
+      return sbClient.from('ai_prompts').select('prompts').limit(1)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var row = (res.data && res.data[0]) || null;
+          return JSON.stringify({ ok: true, prompts: row ? row.prompts || {} : {} });
+        });
+    });
+
+    _sbDefine('saveSupabaseAiPromptsJsonFromClient', function (promptsJson) {
+      var prompts = typeof promptsJson === 'string' ? JSON.parse(promptsJson) : promptsJson;
+      return sbClient.from('ai_prompts').upsert({ id: 1, prompts: prompts }, { onConflict: 'id' })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
     _sbDefine('getSupabaseGenerationContentJsonFromClient', function (projectId, docType) {
       return sbClient.from('document_sections').select('section_key,markdown_content,updated_at')
         .eq('project_id', projectId).eq('doc_type', docType).limit(500)
