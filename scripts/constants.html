@@ -678,16 +678,16 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
     ];
 
     var WORLD_BUILDER_CREATIVITY = [
-      { key: "conservative", label: "Conservative" },
-      { key: "balanced", label: "Balanced" },
-      { key: "unexpected", label: "Unexpected" },
-      { key: "experimental", label: "Experimental" }
+      { key: "conservative", label: "Conservative", description: "Stays close to your input, minimal invention" },
+      { key: "balanced", label: "Balanced", description: "Mixes your input with moderate suggestions" },
+      { key: "unexpected", label: "Unexpected", description: "Introduces surprising connections and ideas" },
+      { key: "experimental", label: "Experimental", description: "Pushes boundaries, explores unusual directions" }
     ];
 
     var WORLD_BUILDER_DEPTH = [
-      { key: "foundation", label: "Foundation" },
-      { key: "working_detail", label: "Working Detail" },
-      { key: "deep_worldbuilding", label: "Deep Worldbuilding" }
+      { key: "foundation", label: "Foundation", description: "High-level overview, broad strokes" },
+      { key: "working_detail", label: "Working Detail", description: "Moderate detail, useful for active development" },
+      { key: "deep_worldbuilding", label: "Deep Worldbuilding", description: "Thorough, granular exploration" }
     ];
 
     // Stage 4B: World Builder proposal types
@@ -702,6 +702,29 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
     ];
 
     var WORLD_PROPOSAL_STATUSES = ["pending", "edited", "accepted_provisional", "accepted_canon", "rejected", "archived", "merged"];
+
+    var DEFAULT_WORLD_BUILDER_PROMPTS = {
+      modes: {
+        organizer: "You restructure and summarize the author's material without adding new ideas. You organize their notes into coherent structure.",
+        interviewer: "You ask focused questions one at a time and develop the world through the author's answers. You never invent content - you draw it out.",
+        collaborator: "You offer clearly labeled possibilities for the author to select or rewrite. Always mark your suggestions as suggestions, not facts.",
+        challenger: "You locate assumptions, contradictions, weaknesses, and unintended consequences in the world. You push back respectfully.",
+        explorer: "You examine places, groups, eras, and situations from inside the world, as if you're a visitor or historian."
+      },
+      actions: {
+        ask_questions: "Ask me questions about this world",
+        offer_possibilities: "Offer three possibilities for this area",
+        explore_consequences: "Explore the consequences of what we have so far",
+        challenge: "Challenge my assumptions about this world",
+        find_contradictions: "Find contradictions in the world framework",
+        explore_everyday: "Explore how the current world elements affect everyday life for ordinary people",
+        add_history: "Suggest historical layers and backstory for this world",
+        suggest_entities: "Based on what we have, suggest connected entities (characters, locations, factions, etc.) that should exist",
+        check_continuity: "Analyze the current world state and identify potential continuity issues, contradictions, or missing connections",
+        leave_unresolved: "Leave this area unresolved for now"
+      },
+      system_template: "You are a world-building assistant for authors."
+    };
 
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;

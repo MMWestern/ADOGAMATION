@@ -1644,25 +1644,27 @@
                 <select id="assistantSessionSelect" class="assistant-session-select"></select>
                 <button type="button" id="assistantNewChatBtn" class="assistant-new-chat-btn" title="New Chat">+</button>
                 <button type="button" id="assistantDeleteChatBtn" class="assistant-delete-chat-btn" title="Delete Chat">&#10005;</button>
+                <button type="button" id="assistantPromptEditorBtn" class="assistant-prompt-editor-btn" title="View and edit prompts">Edit Prompts</button>
               </div>
             </div>
             <div class="assistant-settings">
-              <select id="assistantModeSelect" class="assistant-mode-select"></select>
-              <select id="assistantCreativitySelect" class="assistant-setting-select"></select>
-              <select id="assistantDepthSelect" class="assistant-setting-select"></select>
+              <select id="assistantModeSelect" class="assistant-mode-select" title="How the AI behaves"></select>
+              <select id="assistantCreativitySelect" class="assistant-setting-select" title="How creative the AI gets"></select>
+              <select id="assistantDepthSelect" class="assistant-setting-select" title="How detailed the response is"></select>
             </div>
+            <div id="assistantModeDescription" class="assistant-mode-description tiny muted"></div>
             <div id="assistantMessages" class="assistant-messages"></div>
             <div id="assistantActions" class="assistant-actions">
-              <button type="button" data-action="ask_questions">Ask Me Questions</button>
-              <button type="button" data-action="offer_possibilities">Offer Possibilities</button>
-              <button type="button" data-action="explore_consequences">Explore Consequences</button>
-              <button type="button" data-action="challenge">Challenge</button>
-              <button type="button" data-action="find_contradictions">Find Contradictions</button>
-              <button type="button" data-action="check_continuity">Check Continuity</button>
-              <button type="button" data-action="explore_everyday">Everyday Effects</button>
-              <button type="button" data-action="add_history">Add History</button>
-              <button type="button" data-action="suggest_entities">Suggest Entities</button>
-              <button type="button" data-action="leave_unresolved">Leave Unresolved</button>
+              <button type="button" data-action="ask_questions" title="Have the AI ask you questions about this world area">Ask Me Questions</button>
+              <button type="button" data-action="offer_possibilities" title="Get three possibilities for this area to choose from">Offer Possibilities</button>
+              <button type="button" data-action="explore_consequences" title="See what follows from your current world elements">Explore Consequences</button>
+              <button type="button" data-action="challenge" title="Find assumptions, contradictions, weaknesses">Challenge</button>
+              <button type="button" data-action="find_contradictions" title="Scan the world framework for conflicts">Find Contradictions</button>
+              <button type="button" data-action="check_continuity" title="Analyze for continuity issues and missing connections">Check Continuity</button>
+              <button type="button" data-action="explore_everyday" title="How world elements affect ordinary daily life">Everyday Effects</button>
+              <button type="button" data-action="add_history" title="Suggest historical layers and backstory">Add History</button>
+              <button type="button" data-action="suggest_entities" title="Suggest characters, locations, factions that should exist">Suggest Entities</button>
+              <button type="button" data-action="leave_unresolved" title="Leave this area for later">Leave Unresolved</button>
             </div>
             <div class="assistant-input-row">
               <textarea id="assistantInput" class="assistant-input" rows="2" placeholder="Type a message or answer a question..."></textarea>
@@ -3862,6 +3864,38 @@
       <div class="modal-footer">
         <button id="brainstormSourceCancelBtn" type="button">Cancel</button>
         <button id="brainstormSourceSaveBtn" type="button" class="primary">Add Source</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- World Builder Prompt Editor Modal -->
+  <div id="promptEditorModal" class="modal" aria-hidden="true">
+    <div class="modal-card" style="max-width:700px;max-height:80vh;">
+      <div class="modal-header">
+        <h3>World Builder Prompts</h3>
+        <div class="muted">View and edit the prompts used by the World Builder Assistant. Changes are saved to your browser and applied to new conversations.</div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;overflow-y:auto;max-height:60vh;">
+        <div>
+          <div class="label" style="font-weight:600;">Mode Prompts</div>
+          <div class="tiny muted" style="margin-bottom:6px;">These define how the AI behaves in each mode.</div>
+          <div id="promptEditorModeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div>
+          <div class="label" style="font-weight:600;">Action Button Prompts</div>
+          <div class="tiny muted" style="margin-bottom:6px;">These are the prompts sent when you click the quick-fire buttons.</div>
+          <div id="promptEditorActionList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div>
+          <div class="label" style="font-weight:600;">System Prompt Template</div>
+          <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
+          <textarea id="promptEditorSystemPrompt" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="promptEditorCancelBtn" type="button">Cancel</button>
+        <button id="promptEditorResetBtn" type="button">Reset to Defaults</button>
+        <button id="promptEditorSaveBtn" type="button" class="primary">Save Prompts</button>
       </div>
     </div>
   </div>

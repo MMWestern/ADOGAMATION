@@ -13580,6 +13580,47 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   background: rgba(239,68,68,0.25);
   border-color: #ef4444;
 }
+.assistant-prompt-editor-btn {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.1);
+  color: #a3a3a3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.assistant-prompt-editor-btn:hover {
+  background: rgba(99,102,241,0.15);
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.prompt-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prompt-editor-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.prompt-editor-textarea {
+  width: 100%;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.15);
+  color: var(--text);
+  resize: vertical;
+  min-height: 40px;
+}
+.prompt-editor-textarea:focus {
+  border-color: #6366f1;
+  outline: none;
+}
 
 /* -- Pillar Inspector (right panel) -- */
 .pillar-inspector-panel {
@@ -13866,6 +13907,12 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .assistant-settings {
   display: flex;
   gap: 6px;
+}
+.assistant-mode-description {
+  font-size: 10px;
+  padding: 2px 0;
+  min-height: 14px;
+  color: var(--muted);
 }
 .assistant-setting-select {
   flex: 1;

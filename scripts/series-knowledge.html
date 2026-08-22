@@ -5750,6 +5750,7 @@
           var opt = document.createElement("option");
           opt.value = c.key;
           opt.textContent = c.label;
+          opt.title = c.description || "";
           creativitySelect.appendChild(opt);
         });
       }
@@ -5761,8 +5762,22 @@
           var opt = document.createElement("option");
           opt.value = d.key;
           opt.textContent = d.label;
+          opt.title = d.description || "";
           depthSelect.appendChild(opt);
         });
+      }
+      // Update mode description when mode changes
+      function updateAssistantModeDescription() {
+        var modeDesc = document.getElementById("assistantModeDescription");
+        if (!modeDesc) return;
+        var modeSelect = document.getElementById("assistantModeSelect");
+        var modeKey = modeSelect ? modeSelect.value : "";
+        var mode = WORLD_BUILDER_MODES.find(function (m) { return m.key === modeKey; });
+        modeDesc.textContent = mode ? mode.description : "";
+      }
+      if (modeSelect) {
+        modeSelect.addEventListener("change", updateAssistantModeDescription);
+        updateAssistantModeDescription();
       }
       // Wire action buttons
       var actionsContainer = document.getElementById("assistantActions");
@@ -6061,15 +6076,9 @@
         }).join("\n");
         var modeSelect = document.getElementById("assistantModeSelect");
         var mode = modeSelect ? modeSelect.value : "organizer";
-        var modeDescriptions = {
-          organizer: "You restructure and summarize the author's material without adding new ideas. You organize their notes into coherent structure.",
-          interviewer: "You ask focused questions one at a time and develop the world through the author's answers. You never invent content - you draw it out.",
-          collaborator: "You offer clearly labeled possibilities for the author to select or rewrite. Always mark your suggestions as suggestions, not facts.",
-          challenger: "You locate assumptions, contradictions, weaknesses, and unintended consequences in the world. You push back respectfully.",
-          explorer: "You examine places, groups, eras, and situations from inside the world, as if you're a visitor or historian."
-        };
-        var modeDesc = modeDescriptions[mode] || modeDescriptions.organizer;
-        var systemPrompt = "You are a world-building assistant for authors. Your role is: " + mode + ". " + modeDesc + "\n\n" +
+        var prompts = getWorldBuilderPrompts();
+        var modeDesc = prompts.modes[mode] || prompts.modes.organizer;
+        var systemPrompt = (prompts.system_template || "You are a world-building assistant for authors.") + " Your role is: " + mode + ". " + modeDesc + "\n\n" +
           "The author is working on a series. Here is the current world framework:\n\n" +
           pillarContext + "\n\n" +
           (brainstormContext ? "Brainstorm sources:\n" + brainstormContext + "\n\n" : "");
@@ -6130,19 +6139,8 @@
     }
 
     function handleAssistantAction(action) {
-      var actionLabels = {
-        ask_questions: "Ask me questions about this world",
-        offer_possibilities: "Offer three possibilities for this area",
-        explore_consequences: "Explore the consequences of what we have so far",
-        challenge: "Challenge my assumptions about this world",
-        find_contradictions: "Find contradictions in the world framework",
-        explore_everyday: "Explore how the current world elements affect everyday life for ordinary people",
-        add_history: "Suggest historical layers and backstory for this world",
-        suggest_entities: "Based on what we have, suggest connected entities (characters, locations, factions, etc.) that should exist",
-        check_continuity: "Analyze the current world state and identify potential continuity issues, contradictions, or missing connections",
-        leave_unresolved: "Leave this area unresolved for now"
-      };
-      var prompt = actionLabels[action] || action;
+      var prompts = getWorldBuilderPrompts();
+      var prompt = prompts.actions[action] || action;
       // For check_continuity, also gather current world state for analysis
       if (action === "check_continuity") {
         var worldSummary = _worldPillars.filter(function (p) {
@@ -6478,4 +6476,122 @@
           renderProposalList();
         });
       }
+    }
+
+    // ── World Builder Prompt Editor ──────────────────────────────────────────────
+    var STORAGE_KEY_WB_PROMPTS = "writing_app_world_builder_prompts";
+
+    function loadCustomWorldBuilderPrompts() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY_WB_PROMPTS);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+
+    function saveCustomWorldBuilderPrompts(prompts) {
+      try {
+        localStorage.setItem(STORAGE_KEY_WB_PROMPTS, JSON.stringify(prompts));
+      } catch (e) { /* ignore */ }
+    }
+
+    function getWorldBuilderPrompts() {
+      var custom = loadCustomWorldBuilderPrompts();
+      if (!custom) return JSON.parse(JSON.stringify(DEFAULT_WORLD_BUILDER_PROMPTS));
+      var base = JSON.parse(JSON.stringify(DEFAULT_WORLD_BUILDER_PROMPTS));
+      // Merge custom over defaults
+      if (custom.modes) Object.keys(custom.modes).forEach(function (k) { base.modes[k] = custom.modes[k]; });
+      if (custom.actions) Object.keys(custom.actions).forEach(function (k) { base.actions[k] = custom.actions[k]; });
+      if (custom.system_template) base.system_template = custom.system_template;
+      return base;
+    }
+
+    function openPromptEditorModal() {
+      var modal = document.getElementById("promptEditorModal");
+      if (!modal) return;
+      modal.setAttribute("aria-hidden", "false");
+      var prompts = getWorldBuilderPrompts();
+      // Render mode prompts
+      var modeList = document.getElementById("promptEditorModeList");
+      if (modeList) {
+        var html = "";
+        WORLD_BUILDER_MODES.forEach(function (m) {
+          html += "<div class='prompt-editor-row'>";
+          html += "<div class='prompt-editor-label'>" + m.label + "</div>";
+          html += "<textarea class='prompt-editor-textarea' data-prompt-type='modes' data-key='" + m.key + "' rows='2' placeholder='Mode description...'>" + escapeHtml(prompts.modes[m.key] || "") + "</textarea>";
+          html += "</div>";
+        });
+        modeList.innerHTML = html;
+      }
+      // Render action prompts
+      var actionList = document.getElementById("promptEditorActionList");
+      if (actionList) {
+        var html = "";
+        var actionLabels = {
+          ask_questions: "Ask Me Questions", offer_possibilities: "Offer Possibilities",
+          explore_consequences: "Explore Consequences", challenge: "Challenge",
+          find_contradictions: "Find Contradictions", check_continuity: "Check Continuity",
+          explore_everyday: "Everyday Effects", add_history: "Add History",
+          suggest_entities: "Suggest Entities", leave_unresolved: "Leave Unresolved"
+        };
+        Object.keys(prompts.actions).forEach(function (key) {
+          var label = actionLabels[key] || key;
+          html += "<div class='prompt-editor-row'>";
+          html += "<div class='prompt-editor-label'>" + label + "</div>";
+          html += "<textarea class='prompt-editor-textarea' data-prompt-type='actions' data-key='" + key + "' rows='2' placeholder='Action prompt...'>" + escapeHtml(prompts.actions[key] || "") + "</textarea>";
+          html += "</div>";
+        });
+        actionList.innerHTML = html;
+      }
+      // Render system template
+      var sysPrompt = document.getElementById("promptEditorSystemPrompt");
+      if (sysPrompt) {
+        sysPrompt.value = prompts.system_template || "";
+      }
+    }
+
+    function closePromptEditorModal() {
+      var modal = document.getElementById("promptEditorModal");
+      if (modal) modal.setAttribute("aria-hidden", "true");
+    }
+
+    function savePromptEditorModal() {
+      var prompts = { modes: {}, actions: {}, system_template: "" };
+      // Collect mode prompts
+      document.querySelectorAll("#promptEditorModeList .prompt-editor-textarea").forEach(function (ta) {
+        prompts.modes[ta.getAttribute("data-key")] = ta.value.trim();
+      });
+      // Collect action prompts
+      document.querySelectorAll("#promptEditorActionList .prompt-editor-textarea").forEach(function (ta) {
+        prompts.actions[ta.getAttribute("data-key")] = ta.value.trim();
+      });
+      // Collect system template
+      var sysPrompt = document.getElementById("promptEditorSystemPrompt");
+      prompts.system_template = sysPrompt ? sysPrompt.value.trim() : "";
+      saveCustomWorldBuilderPrompts(prompts);
+      closePromptEditorModal();
+    }
+
+    function resetPromptEditorModal() {
+      saveCustomWorldBuilderPrompts(null);
+      openPromptEditorModal(); // Re-render with defaults
+    }
+
+    // Wire prompt editor button
+    var promptEditorBtn = document.getElementById("assistantPromptEditorBtn");
+    if (promptEditorBtn) {
+      promptEditorBtn.addEventListener("click", openPromptEditorModal);
+    }
+
+    // Wire modal buttons
+    var promptEditorCancelBtn = document.getElementById("promptEditorCancelBtn");
+    if (promptEditorCancelBtn) {
+      promptEditorCancelBtn.addEventListener("click", closePromptEditorModal);
+    }
+    var promptEditorSaveBtn = document.getElementById("promptEditorSaveBtn");
+    if (promptEditorSaveBtn) {
+      promptEditorSaveBtn.addEventListener("click", savePromptEditorModal);
+    }
+    var promptEditorResetBtn = document.getElementById("promptEditorResetBtn");
+    if (promptEditorResetBtn) {
+      promptEditorResetBtn.addEventListener("click", resetPromptEditorModal);
     }
