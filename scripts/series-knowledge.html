@@ -6020,10 +6020,12 @@
       btn.textContent = "Help me with: " + pillar.label;
       btn.title = purpose;
       btn.addEventListener("click", function () {
-        var prompt = "Help me develop the \"" + pillar.label + "\" pillar of my world. " +
-          "This pillar is about: " + purpose + ". " +
-          (pillar.author_content ? "Here's what I have so far: " + pillar.author_content : "I haven't started this yet.") +
-          " Ask me focused questions to help me flesh this out.";
+        var wbPrompts = getWorldBuilderPrompts();
+        var tpl = wbPrompts.pillar_help || "Help me develop the \"{pillar_label}\" pillar of my world. This pillar is about: {pillar_purpose}. {pillar_content} Ask me focused questions to help me flesh this out.";
+        var prompt = tpl
+          .replace(/\{pillar_label\}/g, pillar.label || "")
+          .replace(/\{pillar_purpose\}/g, purpose || "")
+          .replace(/\{pillar_content\}/g, pillar.author_content ? "Here's what I have so far: " + pillar.author_content : "I haven't started this yet.");
         var input = document.getElementById("assistantInput");
         if (input) {
           input.value = prompt;
@@ -6601,6 +6603,8 @@
       // World Builder system template
       var sysPrompt = document.getElementById("promptEditorSystemPrompt");
       if (sysPrompt) sysPrompt.value = wbPrompts.system_template || "";
+      var pillarHelp = document.getElementById("promptEditorPillarHelp");
+      if (pillarHelp) pillarHelp.value = wbPrompts.pillar_help || "";
       // Story Seed
       var ss = allPrompts.story_seed || {};
       var ssSys = document.getElementById("promptEditorSsSystem");
@@ -6686,6 +6690,8 @@
       });
       var sysPrompt = document.getElementById("promptEditorSystemPrompt");
       wb.system_template = sysPrompt ? sysPrompt.value.trim() : "";
+      var pillarHelp = document.getElementById("promptEditorPillarHelp");
+      wb.pillar_help = pillarHelp ? pillarHelp.value.trim() : "";
       allPrompts.world_builder = wb;
       // Story Seed
       var ssSys = document.getElementById("promptEditorSsSystem");
