@@ -3870,26 +3870,33 @@
 
   <!-- World Builder Prompt Editor Modal -->
   <div id="promptEditorModal" class="modal" aria-hidden="true">
-    <div class="modal-card" style="max-width:700px;max-height:80vh;">
+    <div class="modal-card prompt-editor-card">
       <div class="modal-header">
         <h3>World Builder Prompts</h3>
         <div class="muted">View and edit the prompts used by the World Builder Assistant. Changes are saved to your browser and applied to new conversations.</div>
       </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;overflow-y:auto;max-height:60vh;">
-        <div>
-          <div class="label" style="font-weight:600;">Mode Prompts</div>
-          <div class="tiny muted" style="margin-bottom:6px;">These define how the AI behaves in each mode.</div>
-          <div id="promptEditorModeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div class="prompt-editor-layout">
+        <div class="prompt-editor-sidebar">
+          <div class="prompt-editor-sidebar-item is-active" data-section="modes">Mode Prompts</div>
+          <div class="prompt-editor-sidebar-item" data-section="actions">Action Button Prompts</div>
+          <div class="prompt-editor-sidebar-item" data-section="system">System Prompt</div>
         </div>
-        <div>
-          <div class="label" style="font-weight:600;">Action Button Prompts</div>
-          <div class="tiny muted" style="margin-bottom:6px;">These are the prompts sent when you click the quick-fire buttons.</div>
-          <div id="promptEditorActionList" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-        <div>
-          <div class="label" style="font-weight:600;">System Prompt Template</div>
-          <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
-          <textarea id="promptEditorSystemPrompt" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
+        <div class="prompt-editor-content">
+          <div class="prompt-editor-section" data-section="modes">
+            <div class="label" style="font-weight:600;">Mode Prompts</div>
+            <div class="tiny muted" style="margin-bottom:6px;">These define how the AI behaves in each mode.</div>
+            <div id="promptEditorModeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <div class="prompt-editor-section" data-section="actions" hidden>
+            <div class="label" style="font-weight:600;">Action Button Prompts</div>
+            <div class="tiny muted" style="margin-bottom:6px;">These are the prompts sent when you click the quick-fire buttons.</div>
+            <div id="promptEditorActionList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <div class="prompt-editor-section" data-section="system" hidden>
+            <div class="label" style="font-weight:600;">System Prompt Template</div>
+            <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
+            <textarea id="promptEditorSystemPrompt" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

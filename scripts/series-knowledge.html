@@ -6585,6 +6585,26 @@
       openPromptEditorModal(); // Re-render with defaults
     }
 
+    // Wire sidebar navigation for prompt editor
+    (function () {
+      var sidebar = document.querySelector("#promptEditorModal .prompt-editor-sidebar");
+      if (!sidebar) return;
+      sidebar.addEventListener("click", function (e) {
+        var item = e.target.closest(".prompt-editor-sidebar-item");
+        if (!item) return;
+        var section = item.getAttribute("data-section");
+        // Update active state
+        sidebar.querySelectorAll(".prompt-editor-sidebar-item").forEach(function (el) { el.classList.remove("is-active"); });
+        item.classList.add("is-active");
+        // Show/hide sections
+        var modal = document.getElementById("promptEditorModal");
+        if (!modal) return;
+        modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) {
+          sec.hidden = sec.getAttribute("data-section") !== section;
+        });
+      });
+    })();
+
     // Wire modal buttons
     var promptEditorCancelBtn = document.getElementById("promptEditorCancelBtn");
     if (promptEditorCancelBtn) {

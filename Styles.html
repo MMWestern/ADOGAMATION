@@ -13621,6 +13621,56 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   border-color: #6366f1;
   outline: none;
 }
+.prompt-editor-card {
+  max-width: 910px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.prompt-editor-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.prompt-editor-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prompt-editor-sidebar-item {
+  padding: 8px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  border-left: 3px solid transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.prompt-editor-sidebar-item:hover {
+  background: rgba(99,102,241,0.08);
+  color: var(--text);
+}
+.prompt-editor-sidebar-item.is-active {
+  background: rgba(99,102,241,0.12);
+  color: #a5b4fc;
+  border-left-color: #6366f1;
+  font-weight: 600;
+}
+.prompt-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 0;
+}
+.prompt-editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 /* -- Pillar Inspector (right panel) -- */
 .pillar-inspector-panel {
