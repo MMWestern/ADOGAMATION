@@ -6541,6 +6541,7 @@
       if (wb.modes) Object.keys(wb.modes).forEach(function (k) { base.modes[k] = wb.modes[k]; });
       if (wb.actions) Object.keys(wb.actions).forEach(function (k) { base.actions[k] = wb.actions[k]; });
       if (wb.system_template) base.system_template = wb.system_template;
+      if (wb.pillar_help) base.pillar_help = wb.pillar_help;
       return base;
     }
 
