@@ -6589,6 +6589,7 @@
       renderMarketingPromptList("promptEditorMktNewsletterList", mkt.newsletter || {});
       renderMarketingPromptList("promptEditorMktSocialList", mkt.social || {});
       renderMarketingPromptList("promptEditorMktAdsList", mkt.ads || {});
+      renderMarketingPromptList("promptEditorMktOtherList", mkt.other || {});
     }
 
     function renderMarketingPromptList(containerId, obj) {
@@ -6643,7 +6644,7 @@
       var cxSug = document.getElementById("promptEditorCxSuggest");
       allPrompts.codex = { suggest: cxSug ? cxSug.value.trim() : "" };
       // Marketing - collect from dynamic textareas
-      allPrompts.marketing = { newsletter: {}, social: {}, ads: {} };
+      allPrompts.marketing = { newsletter: {}, social: {}, ads: {}, other: {} };
       document.querySelectorAll("#promptEditorMktNewsletterList .prompt-editor-textarea").forEach(function (ta) {
         var key = ta.parentElement.querySelector(".prompt-editor-label");
         if (key) allPrompts.marketing.newsletter[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
@@ -6655,6 +6656,10 @@
       document.querySelectorAll("#promptEditorMktAdsList .prompt-editor-textarea").forEach(function (ta) {
         var key = ta.parentElement.querySelector(".prompt-editor-label");
         if (key) allPrompts.marketing.ads[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
+      });
+      document.querySelectorAll("#promptEditorMktOtherList .prompt-editor-textarea").forEach(function (ta) {
+        var key = ta.parentElement.querySelector(".prompt-editor-label");
+        if (key) allPrompts.marketing.other[key.textContent.trim().toLowerCase().replace(/\s+/g, "_")] = ta.value.trim();
       });
       saveCustomAiPrompts(allPrompts);
       closePromptEditorModal();
