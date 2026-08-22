@@ -5863,6 +5863,11 @@
       }
       // Render empty state
       renderAssistantMessages();
+      // Wire prompt editor button
+      var promptEditorBtn = document.getElementById("assistantPromptEditorBtn");
+      if (promptEditorBtn) {
+        promptEditorBtn.addEventListener("click", openPromptEditorModal);
+      }
       // Wire pillar inspector
       wirePillarInspector();
       // Load sessions and snippets
@@ -6574,12 +6579,6 @@
     function resetPromptEditorModal() {
       saveCustomWorldBuilderPrompts(null);
       openPromptEditorModal(); // Re-render with defaults
-    }
-
-    // Wire prompt editor button
-    var promptEditorBtn = document.getElementById("assistantPromptEditorBtn");
-    if (promptEditorBtn) {
-      promptEditorBtn.addEventListener("click", openPromptEditorModal);
     }
 
     // Wire modal buttons
