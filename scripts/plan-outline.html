@@ -1279,6 +1279,13 @@
       });
       outline.acts = acts;
       outline.genreGuide = { name: "", byChapterId: guideByChapterId };
+      var _applyProj = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      var _applyPid = _applyProj ? String(_applyProj.project_id || "") : "";
+      if (_applyPid) {
+        if (!appState._outlineLoadState) appState._outlineLoadState = {};
+        appState._outlineLoadState[_applyPid] = "loaded";
+        if (appState._syntheticOutlineFor === _applyPid) appState._syntheticOutlineFor = "";
+      }
       var nameMatch = text.match(/^#{1,3}\s+(.+?)(?:\s*Plot\s*Template)?\s*$/m);
       outline.genreGuide.name = nameMatch ? nameMatch[1].trim() : "Imported Genre Guide";
       closePlanOutlinePresetModal();
@@ -2013,6 +2020,13 @@
       if (hasExisting && !confirm("Replace existing outline? This will remove all existing acts, chapters, and scenes.")) return;
       outline.acts = acts;
       delete outline.genreGuide;
+      var _applyProj2 = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      var _applyPid2 = _applyProj2 ? String(_applyProj2.project_id || "") : "";
+      if (_applyPid2) {
+        if (!appState._outlineLoadState) appState._outlineLoadState = {};
+        appState._outlineLoadState[_applyPid2] = "loaded";
+        if (appState._syntheticOutlineFor === _applyPid2) appState._syntheticOutlineFor = "";
+      }
       closePlanGenreGuidePanel();
       closePlanOutlinePresetModal();
       syncOutlineToSegments();
