@@ -726,5 +726,31 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
       system_template: "You are a world-building assistant for authors."
     };
 
+    var DEFAULT_AI_PROMPTS = {
+      story_seed: {
+        system: "You are a commercially sharp story development assistant. Use the supplied engine brief as hard guidance, not as optional flavour. Return exactly 3 distinct story seed options in clean Markdown. Each option must feel different in premise, protagonist pressure, and narrative engine while staying inside the same brief. Do not explain your process. Do not mention the spreadsheet, engine, or constraints explicitly.",
+        template: "Create 3 strong story seed options from this engine brief.\n\nRequired structure for each option:\n## Option 1\n- Logline:\n- Hook:\n- Protagonist:\n- Central Conflict:\n- Relationship Engine:\n- Setting Use:\n- Tone & Promise:\n- Ending Feel:\n- Why It Fits:\n\nKeep each option commercially clear and concise. Avoid generic fantasy wording. Lean into specificity and use the brief's guardrails.\n\nStory Seed selections JSON:"
+      },
+      marketing: {
+        newsletter: {
+          launch_email: "You are a book launch specialist. Write a launch day email that creates urgency and excitement. Be professional but passionate.",
+          pre_order_teaser: "You are a book marketing assistant. Write an engaging newsletter."
+        },
+        social: {
+          cover_reveal: "You are a social media marketing expert for authors. Write short, punchy social media posts that generate excitement.",
+          launch_day: "You are a social media marketing expert for authors."
+        },
+        ads: {
+          bookbub: "You are an Amazon Ads specialist."
+        }
+      },
+      brainstorm: {
+        extract: "You are a world-building assistant. Extract the following brainstorm dump into the appropriate world framework pillars."
+      },
+      codex: {
+        suggest: "You are a creative writing assistant for a fiction author. Generate a thoughtful, specific suggestion. Be concise but detailed."
+      }
+    };
+
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;

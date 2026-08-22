@@ -13634,17 +13634,46 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   overflow: hidden;
 }
 .prompt-editor-sidebar {
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
   padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+  overflow-y: auto;
 }
-.prompt-editor-sidebar-item {
+.prompt-editor-group-header {
   padding: 8px 14px;
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.prompt-editor-group-header:hover {
+  background: rgba(99,102,241,0.08);
+}
+.prompt-editor-chevron {
+  font-size: 8px;
+  transition: transform 0.15s;
+  display: inline-block;
+  width: 10px;
+}
+.prompt-editor-group.is-open > .prompt-editor-group-header .prompt-editor-chevron {
+  transform: rotate(90deg);
+}
+.prompt-editor-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.prompt-editor-sidebar-item {
+  padding: 6px 14px 6px 28px;
+  font-size: 11px;
   cursor: pointer;
   color: var(--muted);
   border-left: 3px solid transparent;
