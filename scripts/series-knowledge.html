@@ -6661,7 +6661,7 @@
     }
 
     function savePromptEditorModal() {
-      var allPrompts = loadCustomAiPrompts() || {};
+      var allPrompts = JSON.parse(JSON.stringify(DEFAULT_AI_PROMPTS));
       // World Builder - read textarea values in sidebar order
       var wb = { modes: {}, actions: {}, system_template: "" };
       var modeTextareas = document.querySelectorAll("#promptEditorModeList .prompt-editor-textarea");
