@@ -6570,46 +6570,37 @@
       modal.setAttribute("aria-hidden", "false");
       var allPrompts = getCustomAiPromptsAll();
       var wbPrompts = getWorldBuilderPrompts();
-      // Build World Builder sidebar items dynamically
+      // Build all sidebar groups dynamically
       buildWbSidebar(wbPrompts);
-      // Populate non-WB sections
+      buildSsSidebar(allPrompts.story_seed || {});
+      buildMktSidebar(allPrompts.marketing || {});
+      buildBrSidebar(allPrompts.brainstorm || {});
+      buildCxSidebar(allPrompts.codex || {});
+      // Populate non-dynamic sections
       var sysPrompt = document.getElementById("promptEditorSystemPrompt");
       if (sysPrompt) sysPrompt.value = wbPrompts.system_template || "";
       var pillarHelp = document.getElementById("promptEditorPillarHelp");
       if (pillarHelp) pillarHelp.value = wbPrompts.pillar_help || "";
-      var ss = allPrompts.story_seed || {};
-      var ssSys = document.getElementById("promptEditorSsSystem");
-      if (ssSys) ssSys.value = ss.system || "";
-      var ssTpl = document.getElementById("promptEditorSsTemplate");
-      if (ssTpl) ssTpl.value = ss.template || "";
-      var br = allPrompts.brainstorm || {};
-      var brExt = document.getElementById("promptEditorBrExtract");
-      if (brExt) brExt.value = br.extract || "";
-      var cx = allPrompts.codex || {};
-      var cxSug = document.getElementById("promptEditorCxSuggest");
-      if (cxSug) cxSug.value = cx.suggest || "";
-      var mkt = allPrompts.marketing || {};
-      renderMarketingPromptList("promptEditorMktNewsletterList", mkt.newsletter || {});
-      renderMarketingPromptList("promptEditorMktSocialList", mkt.social || {});
-      renderMarketingPromptList("promptEditorMktAdsList", mkt.ads || {});
-      renderMarketingPromptList("promptEditorMktOtherList", mkt.other || {});
       // Show first mode prompt by default
       if (WORLD_BUILDER_MODES.length) showWbPromptEditor("mode", WORLD_BUILDER_MODES[0].key);
     }
 
     var _wbPromptCache = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
+    var _mktPromptCache = {};
 
     function buildWbSidebar(wbPrompts) {
       _wbPromptCache = JSON.parse(JSON.stringify(wbPrompts));
       var container = document.getElementById("promptEditorWbSidebar");
       if (!container) return;
       var html = "";
-      // Mode Prompts sub-header + items
-      html += "<div class='prompt-editor-sub-header'>Mode Prompts</div>";
+      // Mode Prompts sub-group
+      html += "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='wb_modes'><span class='prompt-editor-chevron'>&#9654;</span> Mode Prompts</div>";
       WORLD_BUILDER_MODES.forEach(function (m) {
         html += "<div class='prompt-editor-sidebar-item' data-wb-type='mode' data-wb-key='" + m.key + "'>" + m.label + "</div>";
       });
-      // Action Button Prompts sub-header + items
+      html += "</div>";
+      // Action Button Prompts sub-group
       var actionLabels = {
         ask_questions: "Ask Me Questions", offer_possibilities: "Offer Possibilities",
         explore_consequences: "Explore Consequences", challenge: "Challenge",
@@ -6617,14 +6608,73 @@
         explore_everyday: "Everyday Effects", add_history: "Add History",
         suggest_entities: "Suggest Entities", leave_unresolved: "Leave Unresolved"
       };
-      html += "<div class='prompt-editor-sub-header'>Action Button Prompts</div>";
+      html += "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='wb_actions'><span class='prompt-editor-chevron'>&#9654;</span> Action Button Prompts</div>";
       Object.keys(wbPrompts.actions).forEach(function (key) {
         html += "<div class='prompt-editor-sidebar-item' data-wb-type='action' data-wb-key='" + key + "'>" + (actionLabels[key] || key) + "</div>";
       });
-      // System + Pillar Help
-      html += "<div class='prompt-editor-sub-header'>Configuration</div>";
+      html += "</div>";
+      // Configuration sub-group
+      html += "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='wb_config'><span class='prompt-editor-chevron'>&#9654;</span> Configuration</div>";
       html += "<div class='prompt-editor-sidebar-item' data-section='wb_system'>System Prompt</div>";
       html += "<div class='prompt-editor-sidebar-item' data-section='wb_pillarhelp'>Pillar Help Prompt</div>";
+      html += "</div>";
+      container.innerHTML = html;
+    }
+
+    function buildSsSidebar(ss) {
+      var container = document.getElementById("promptEditorSsSidebar");
+      if (!container) return;
+      var html = "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='ss'><span class='prompt-editor-chevron'>&#9654;</span> Prompts</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='ss_system'>System Prompt</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='ss_template'>User Prompt Template</div>";
+      html += "</div>";
+      container.innerHTML = html;
+    }
+
+    function buildMktSidebar(mkt) {
+      _mktPromptCache = JSON.parse(JSON.stringify(mkt));
+      var container = document.getElementById("promptEditorMktSidebar");
+      if (!container) return;
+      var channels = [
+        { key: "newsletter", label: "Newsletter" },
+        { key: "social", label: "Social Media" },
+        { key: "ads", label: "Ads & Copy" },
+        { key: "other", label: "Other Channels" }
+      ];
+      var html = "";
+      channels.forEach(function (ch) {
+        html += "<div class='prompt-editor-sub-group'>";
+        html += "<div class='prompt-editor-sub-header' data-sub-group='mkt_" + ch.key + "'><span class='prompt-editor-chevron'>&#9654;</span> " + ch.label + "</div>";
+        var obj = mkt[ch.key] || {};
+        Object.keys(obj).forEach(function (promptKey) {
+          var label = promptKey.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+          html += "<div class='prompt-editor-sidebar-item' data-mkt-channel='" + ch.key + "' data-mkt-key='" + promptKey + "'>" + label + "</div>";
+        });
+        html += "</div>";
+      });
+      container.innerHTML = html;
+    }
+
+    function buildBrSidebar(br) {
+      var container = document.getElementById("promptEditorBrSidebar");
+      if (!container) return;
+      var html = "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='br'><span class='prompt-editor-chevron'>&#9654;</span> Prompts</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='br_extract'>Extraction Prompt</div>";
+      html += "</div>";
+      container.innerHTML = html;
+    }
+
+    function buildCxSidebar(cx) {
+      var container = document.getElementById("promptEditorCxSidebar");
+      if (!container) return;
+      var html = "<div class='prompt-editor-sub-group'>";
+      html += "<div class='prompt-editor-sub-header' data-sub-group='cx'><span class='prompt-editor-chevron'>&#9654;</span> Prompts</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='cx_suggest'>Entity Suggestions</div>";
+      html += "</div>";
       container.innerHTML = html;
     }
 
@@ -6681,12 +6731,73 @@
       section.setAttribute("data-current-key", key);
     }
 
+    function showMktPromptEditor(channel, key) {
+      // Save current prompt to cache before switching
+      saveCurrentMktPromptToCache();
+      var modal = document.getElementById("promptEditorModal");
+      if (!modal) return;
+      // Hide all sections, show mkt_prompt
+      modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) { sec.hidden = true; });
+      var section = modal.querySelector('.prompt-editor-section[data-section="mkt_prompt"]');
+      if (section) section.hidden = false;
+      // Update sidebar active state
+      var sidebar = document.getElementById("promptEditorSidebar");
+      if (sidebar) {
+        sidebar.querySelectorAll(".prompt-editor-sidebar-item").forEach(function (el) { el.classList.remove("is-active"); });
+        var target = sidebar.querySelector('[data-mkt-channel="' + channel + '"][data-mkt-key="' + key + '"]');
+        if (target) target.classList.add("is-active");
+      }
+      // Populate editor
+      var allPrompts = getCustomAiPromptsAll();
+      var mkt = allPrompts.marketing || {};
+      var channelData = mkt[channel] || {};
+      var promptData = channelData[key];
+      var title = document.getElementById("promptEditorMktTitle");
+      var subtitle = document.getElementById("promptEditorMktSubtitle");
+      var sysArea = document.getElementById("promptEditorMktSystem");
+      var userArea = document.getElementById("promptEditorMktUser");
+      var previewArea = document.getElementById("promptEditorMktPreview");
+      var channelLabels = { newsletter: "Newsletter", social: "Social Media", ads: "Ads & Copy", other: "Other Channels" };
+      var label = key.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      if (title) title.textContent = label + " — " + (channelLabels[channel] || channel);
+      if (subtitle) subtitle.textContent = "Prompt for " + (channelLabels[channel] || channel) + " generation.";
+      if (promptData && typeof promptData === "object") {
+        if (sysArea) sysArea.value = promptData.system_prompt || "";
+        if (userArea) userArea.value = promptData.prompt_template || "";
+      } else {
+        if (sysArea) sysArea.value = "";
+        if (userArea) userArea.value = promptData || "";
+      }
+      // Build preview
+      if (previewArea) {
+        var sys = sysArea ? sysArea.value.trim() : "";
+        var user = userArea ? userArea.value.trim() : "";
+        var preview = sys;
+        if (user) preview += (preview ? "\n\n" : "") + user;
+        previewArea.value = preview || "(empty prompt)";
+      }
+      // Store current selection for save
+      section.setAttribute("data-current-channel", channel);
+      section.setAttribute("data-current-key", key);
+    }
+
     // Live preview update when user edits textareas
     document.addEventListener("input", function (e) {
       if (e.target.id === "promptEditorWbSystem" || e.target.id === "promptEditorWbUser") {
         var sysArea = document.getElementById("promptEditorWbSystem");
         var userArea = document.getElementById("promptEditorWbUser");
         var previewArea = document.getElementById("promptEditorWbPreview");
+        if (previewArea && sysArea && userArea) {
+          var preview = sysArea.value.trim();
+          var user = userArea.value.trim();
+          if (user) preview += (preview ? "\n\n" : "") + user;
+          previewArea.value = preview || "(empty prompt)";
+        }
+      }
+      if (e.target.id === "promptEditorMktSystem" || e.target.id === "promptEditorMktUser") {
+        var sysArea = document.getElementById("promptEditorMktSystem");
+        var userArea = document.getElementById("promptEditorMktUser");
+        var previewArea = document.getElementById("promptEditorMktPreview");
         if (previewArea && sysArea && userArea) {
           var preview = sysArea.value.trim();
           var user = userArea.value.trim();
@@ -6747,6 +6858,7 @@
     function savePromptEditorModal() {
       // Save current editor values back to cache
       saveCurrentWbPromptToCache();
+      saveCurrentMktPromptToCache();
       var allPrompts = JSON.parse(JSON.stringify(DEFAULT_AI_PROMPTS));
       // World Builder - collect from cache
       var wb = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
@@ -6768,12 +6880,14 @@
       // Codex
       var cxSug = document.getElementById("promptEditorCxSuggest");
       allPrompts.codex = { suggest: cxSug ? cxSug.value.trim() : "" };
-      // Marketing - collect from dynamic textareas (object format with system_prompt + prompt_template)
+      // Marketing - collect from cache
       allPrompts.marketing = { newsletter: {}, social: {}, ads: {}, other: {} };
-      collectMarketingSection("promptEditorMktNewsletterList", allPrompts.marketing.newsletter);
-      collectMarketingSection("promptEditorMktSocialList", allPrompts.marketing.social);
-      collectMarketingSection("promptEditorMktAdsList", allPrompts.marketing.ads);
-      collectMarketingSection("promptEditorMktOtherList", allPrompts.marketing.other);
+      Object.keys(_mktPromptCache).forEach(function (channel) {
+        if (!allPrompts.marketing[channel]) allPrompts.marketing[channel] = {};
+        Object.keys(_mktPromptCache[channel]).forEach(function (key) {
+          allPrompts.marketing[channel][key] = _mktPromptCache[channel][key];
+        });
+      });
       saveCustomAiPrompts(allPrompts);
       closePromptEditorModal();
     }
@@ -6793,6 +6907,22 @@
       }
     }
 
+    function saveCurrentMktPromptToCache() {
+      var section = document.querySelector('.prompt-editor-section[data-section="mkt_prompt"]');
+      if (!section || section.hidden) return;
+      var channel = section.getAttribute("data-current-channel");
+      var key = section.getAttribute("data-current-key");
+      if (!channel || !key) return;
+      var sysArea = document.getElementById("promptEditorMktSystem");
+      var userArea = document.getElementById("promptEditorMktUser");
+      if (!sysArea || !userArea) return;
+      if (!_mktPromptCache[channel]) _mktPromptCache[channel] = {};
+      _mktPromptCache[channel][key] = {
+        system_prompt: sysArea.value.trim(),
+        prompt_template: userArea.value.trim()
+      };
+    }
+
     function resetPromptEditorModal() {
       saveCustomAiPrompts(null);
       openPromptEditorModal();
@@ -6803,7 +6933,16 @@
       var sidebar = document.getElementById("promptEditorSidebar");
       if (!sidebar) return;
       sidebar.addEventListener("click", function (e) {
-        // Accordion toggle
+        // Sub-group toggle (collapsible sub-headers)
+        var subHeader = e.target.closest(".prompt-editor-sub-header");
+        if (subHeader) {
+          var subGroup = subHeader.parentElement;
+          if (subGroup && subGroup.classList.contains("prompt-editor-sub-group")) {
+            subGroup.classList.toggle("is-collapsed");
+          }
+          return;
+        }
+        // Accordion toggle (top-level groups)
         var header = e.target.closest(".prompt-editor-group-header");
         if (header) {
           var group = header.parentElement;
@@ -6821,11 +6960,19 @@
         if (!item) return;
         // Save current WB prompt to cache before switching
         saveCurrentWbPromptToCache();
+        saveCurrentMktPromptToCache();
         var wbType = item.getAttribute("data-wb-type");
         var wbKey = item.getAttribute("data-wb-key");
         if (wbType && wbKey) {
           // Individual WB prompt item
           showWbPromptEditor(wbType, wbKey);
+          return;
+        }
+        // Marketing prompt item
+        var mktChannel = item.getAttribute("data-mkt-channel");
+        var mktKey = item.getAttribute("data-mkt-key");
+        if (mktChannel && mktKey) {
+          showMktPromptEditor(mktChannel, mktKey);
           return;
         }
         // Static section item
@@ -6838,6 +6985,25 @@
         modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) {
           sec.hidden = sec.getAttribute("data-section") !== section;
         });
+        // Populate section if needed
+        if (section === "ss_system" || section === "ss_template") {
+          var allPrompts = getCustomAiPromptsAll();
+          var ss = allPrompts.story_seed || {};
+          var ssSys = document.getElementById("promptEditorSsSystem");
+          if (ssSys) ssSys.value = ss.system || "";
+          var ssTpl = document.getElementById("promptEditorSsTemplate");
+          if (ssTpl) ssTpl.value = ss.template || "";
+        } else if (section === "br_extract") {
+          var allPrompts = getCustomAiPromptsAll();
+          var br = allPrompts.brainstorm || {};
+          var brExt = document.getElementById("promptEditorBrExtract");
+          if (brExt) brExt.value = br.extract || "";
+        } else if (section === "cx_suggest") {
+          var allPrompts = getCustomAiPromptsAll();
+          var cx = allPrompts.codex || {};
+          var cxSug = document.getElementById("promptEditorCxSuggest");
+          if (cxSug) cxSug.value = cx.suggest || "";
+        }
       });
     })();
 

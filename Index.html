@@ -3846,40 +3846,28 @@
             <div class="prompt-editor-group-header" data-group="story_seed">
               <span class="prompt-editor-chevron">&#9654;</span> Story Seed
             </div>
-            <div class="prompt-editor-group-items" hidden>
-              <div class="prompt-editor-sidebar-item" data-section="ss_system">System Prompt</div>
-              <div class="prompt-editor-sidebar-item" data-section="ss_template">User Prompt Template</div>
-            </div>
+            <div class="prompt-editor-group-items" id="promptEditorSsSidebar" hidden></div>
           </div>
           <!-- Marketing & Campaign group -->
           <div class="prompt-editor-group" data-group="marketing">
             <div class="prompt-editor-group-header" data-group="marketing">
               <span class="prompt-editor-chevron">&#9654;</span> Marketing &amp; Campaign
             </div>
-            <div class="prompt-editor-group-items" hidden>
-              <div class="prompt-editor-sidebar-item" data-section="mkt_newsletter">Newsletter</div>
-              <div class="prompt-editor-sidebar-item" data-section="mkt_social">Social Media</div>
-              <div class="prompt-editor-sidebar-item" data-section="mkt_ads">Ads &amp; Copy</div>
-              <div class="prompt-editor-sidebar-item" data-section="mkt_other">Other Channels</div>
-            </div>
+            <div class="prompt-editor-group-items" id="promptEditorMktSidebar" hidden></div>
           </div>
           <!-- Brainstorm Extraction group -->
           <div class="prompt-editor-group" data-group="brainstorm">
             <div class="prompt-editor-group-header" data-group="brainstorm">
               <span class="prompt-editor-chevron">&#9654;</span> Brainstorm Extraction
             </div>
-            <div class="prompt-editor-group-items" hidden>
-              <div class="prompt-editor-sidebar-item" data-section="br_extract">Extraction Prompt</div>
-            </div>
+            <div class="prompt-editor-group-items" id="promptEditorBrSidebar" hidden></div>
           </div>
           <!-- Codex Suggestions group -->
           <div class="prompt-editor-group" data-group="codex">
             <div class="prompt-editor-group-header" data-group="codex">
               <span class="prompt-editor-chevron">&#9654;</span> Codex Suggestions
             </div>
-            <div class="prompt-editor-group-items" hidden>
-              <div class="prompt-editor-sidebar-item" data-section="cx_suggest">Entity Suggestions</div>
-            </div>
+            <div class="prompt-editor-group-items" id="promptEditorCxSidebar" hidden></div>
           </div>
         </div>
         <div class="prompt-editor-content">
@@ -3949,6 +3937,25 @@
             <div class="label" style="font-weight:600;">Other Channel Prompts</div>
             <div class="tiny muted" style="margin-bottom:6px;">Patreon, Royal Road, website, ARC, and release summary prompts.</div>
             <div id="promptEditorMktOtherList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <!-- Marketing: Individual prompt editor -->
+          <div class="prompt-editor-section" data-section="mkt_prompt" hidden>
+            <div class="label" style="font-weight:600;" id="promptEditorMktTitle">Prompt</div>
+            <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorMktSubtitle"></div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <label class="label">System Prompt</label>
+                <textarea id="promptEditorMktSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
+              </div>
+              <div>
+                <label class="label">User Prompt</label>
+                <textarea id="promptEditorMktUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
+              </div>
+              <div>
+                <label class="label">LLM Preview</label>
+                <textarea id="promptEditorMktPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
+              </div>
+            </div>
           </div>
           <!-- Brainstorm: Extraction Prompt -->
           <div class="prompt-editor-section" data-section="br_extract" hidden>

@@ -13705,6 +13705,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 .prompt-editor-group-header {
   padding: 8px 14px;
@@ -13763,6 +13765,28 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   letter-spacing: 0.5px;
   color: var(--muted);
   user-select: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prompt-editor-sub-header:hover {
+  color: var(--text);
+}
+.prompt-editor-sub-header .prompt-editor-chevron {
+  font-size: 8px;
+  transition: transform 0.15s;
+  display: inline-block;
+  width: 10px;
+}
+.prompt-editor-sub-group.is-collapsed .prompt-editor-chevron {
+  transform: rotate(0deg);
+}
+.prompt-editor-sub-group .prompt-editor-chevron {
+  transform: rotate(90deg);
+}
+.prompt-editor-sub-group.is-collapsed ~ .prompt-editor-sidebar-item {
+  display: none;
 }
 .prompt-editor-content {
   flex: 1;
