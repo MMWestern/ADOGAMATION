@@ -890,17 +890,9 @@
         });
       }
 
-      if (el.sidebarScheduleTemplatesButton) {
-        el.sidebarScheduleTemplatesButton.addEventListener("click", function () {
+      if (el.sidebarScheduleMarketingButton) {
+        el.sidebarScheduleMarketingButton.addEventListener("click", function () {
           if (typeof openScheduleTemplatesModal === "function") openScheduleTemplatesModal();
-          el.sidebarAiPopover.classList.remove("is-open");
-          el.sidebarAiButton.setAttribute("aria-expanded", "false");
-        });
-      }
-
-      if (el.sidebarMarketingTemplatesButton) {
-        el.sidebarMarketingTemplatesButton.addEventListener("click", function () {
-          if (typeof openMarketingTemplatesModal === "function") openMarketingTemplatesModal();
           el.sidebarAiPopover.classList.remove("is-open");
           el.sidebarAiButton.setAttribute("aria-expanded", "false");
         });
