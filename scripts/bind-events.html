@@ -1051,10 +1051,13 @@
         if (event.key === "Escape" && el.seriesEditModal && el.seriesEditModal.classList.contains("is-open")) {
           closeSeriesEditModal();
         }
+
+        if (event.key === "Escape" && el.scheduleMarketingModal && el.scheduleMarketingModal.classList.contains("is-open")) {
+          closeScheduleTemplatesModal();
+        }
       });
 
       if (el.scheduleTemplatesButton) el.scheduleTemplatesButton.addEventListener("click", openScheduleTemplatesModal);
-      if (el.scheduleTemplatesCloseButton) el.scheduleTemplatesCloseButton.addEventListener("click", closeScheduleTemplatesModal);
       if (el.scheduleTemplatesSaveButton) el.scheduleTemplatesSaveButton.addEventListener("click", saveScheduleTemplates);
       if (el.scheduleTemplateNewButton) el.scheduleTemplateNewButton.addEventListener("click", newScheduleTemplate);
       if (el.scheduleTemplateDeleteButton) el.scheduleTemplateDeleteButton.addEventListener("click", deleteScheduleTemplate);
@@ -1070,7 +1073,6 @@
       }
 
       if (el.marketingTemplatesButton) el.marketingTemplatesButton.addEventListener("click", openMarketingTemplatesModal);
-      if (el.marketingTemplatesCloseButton) el.marketingTemplatesCloseButton.addEventListener("click", closeMarketingTemplatesModal);
       if (el.marketingTemplatesSaveButton) el.marketingTemplatesSaveButton.addEventListener("click", saveMarketingTemplates);
       if (el.marketingTemplateNewButton) el.marketingTemplateNewButton.addEventListener("click", newMarketingTemplate);
       if (el.marketingTemplateDeleteButton) el.marketingTemplateDeleteButton.addEventListener("click", deleteMarketingTemplate);
@@ -1098,11 +1100,29 @@
       if (el.formatDefaultsSaveButton) el.formatDefaultsSaveButton.addEventListener("click", saveFormatDefaults);
 
       if (el.documentTypesButton) el.documentTypesButton.addEventListener("click", openDocumentTypesModal);
-      if (el.documentTypesCloseButton) el.documentTypesCloseButton.addEventListener("click", closeDocumentTypesModal);
       if (el.documentTypesSaveButton) el.documentTypesSaveButton.addEventListener("click", saveDocumentTypes);
       if (el.documentTypeNewButton) el.documentTypeNewButton.addEventListener("click", newDocumentType);
       if (el.documentTypeDeleteButton) el.documentTypeDeleteButton.addEventListener("click", deleteDocumentType);
       if (el.documentTypeSelector) el.documentTypeSelector.addEventListener("change", renderDocumentTypeEditor);
+
+      // Schedule & Marketing combined modal
+      if (el.scheduleMarketingCloseButton) el.scheduleMarketingCloseButton.addEventListener("click", closeScheduleTemplatesModal);
+      if (el.scheduleMarketingSidebar) {
+        el.scheduleMarketingSidebar.addEventListener("click", function (e) {
+          var item = e.target.closest(".schedule-marketing-sidebar-item");
+          if (!item) return;
+          var section = item.getAttribute("data-section");
+          switchScheduleMarketingSection(section);
+          if (section === "sm_schedule") renderScheduleTemplateSelector();
+          else if (section === "sm_marketing") renderMarketingTemplateSelector();
+          else if (section === "sm_doctypes") renderDocumentTypeSelector();
+        });
+      }
+      if (el.scheduleMarketingModal) {
+        el.scheduleMarketingModal.addEventListener("click", function (event) {
+          if (event.target === el.scheduleMarketingModal) closeScheduleTemplatesModal();
+        });
+      }
 
       if (el.generationPromptsButton) el.generationPromptsButton.addEventListener("click", openGenerationPromptsModal);
       if (el.generationPromptsCloseButton) el.generationPromptsCloseButton.addEventListener("click", closeGenerationPromptsModal);

@@ -25,16 +25,17 @@
     }
 
     function openMarketingTemplatesModal() {
-      if (!el.marketingTemplatesModal) return;
-      el.marketingTemplatesModal.classList.add("is-open");
-      el.marketingTemplatesModal.setAttribute("aria-hidden", "false");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_marketing");
       renderMarketingTemplateSelector();
     }
 
     function closeMarketingTemplatesModal() {
-      if (!el.marketingTemplatesModal) return;
-      el.marketingTemplatesModal.classList.remove("is-open");
-      el.marketingTemplatesModal.setAttribute("aria-hidden", "true");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
     }
 
     function getActiveMarketingTemplateName() {

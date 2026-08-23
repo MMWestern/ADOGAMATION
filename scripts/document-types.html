@@ -18,16 +18,17 @@ function loadDocumentTypes() {
     }
 
     function openDocumentTypesModal() {
-      if (!el.documentTypesModal) return;
-      el.documentTypesModal.classList.add("is-open");
-      el.documentTypesModal.setAttribute("aria-hidden", "false");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_doctypes");
       renderDocumentTypeSelector();
     }
 
     function closeDocumentTypesModal() {
-      if (!el.documentTypesModal) return;
-      el.documentTypesModal.classList.remove("is-open");
-      el.documentTypesModal.setAttribute("aria-hidden", "true");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
     }
 
     function getActiveDocumentTypeKey() {

@@ -3435,64 +3435,94 @@
     </div>
   </div>
 
-  <div id="scheduleTemplatesModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card">
+  <div id="scheduleMarketingModal" class="modal" aria-hidden="true">
+    <div class="modal-card schedule-marketing-card">
       <div class="modal-header">
-        <h3>Schedule Templates</h3>
-        <div class="muted">Manage milestone templates used when a book reaches Publish Ready. Changes apply to new schedules only.</div>
+        <h3>Schedule &amp; Marketing</h3>
+        <div class="muted">Manage schedule templates, marketing plan templates, and document types.</div>
       </div>
-      <div class="modal-body schedule-templates-body">
-        <div class="schedule-templates-toolbar">
-          <select id="scheduleTemplateSelector" class="schedule-template-select"></select>
-          <button id="scheduleTemplateNewButton" type="button">New Template</button>
-          <button id="scheduleTemplateDeleteButton" type="button">Delete</button>
-        </div>
-        <div id="scheduleTemplateEditor" class="schedule-template-editor">
-          <div>
-            <label class="label" for="scheduleTemplateNameInput">Template Name</label>
-            <input id="scheduleTemplateNameInput" type="text" />
+      <div class="modal-body schedule-marketing-body">
+        <div class="schedule-marketing-layout">
+          <div class="schedule-marketing-sidebar" id="scheduleMarketingSidebar">
+            <div class="schedule-marketing-sidebar-item is-active" data-section="sm_schedule">Schedule Templates</div>
+            <div class="schedule-marketing-sidebar-item" data-section="sm_marketing">Marketing Templates</div>
+            <div class="schedule-marketing-sidebar-item" data-section="sm_doctypes">Document Types</div>
           </div>
-          <div class="schedule-milestone-list-heading">
-            <strong>Milestones</strong>
-            <button id="scheduleMilestoneAddButton" type="button">+ Add Milestone</button>
+          <div class="schedule-marketing-content">
+            <!-- Schedule Templates Section -->
+            <div class="schedule-marketing-section" data-section="sm_schedule">
+              <div class="schedule-templates-toolbar">
+                <select id="scheduleTemplateSelector" class="schedule-template-select"></select>
+                <button id="scheduleTemplateNewButton" type="button">New Template</button>
+                <button id="scheduleTemplateDeleteButton" type="button">Delete</button>
+              </div>
+              <div id="scheduleTemplateEditor" class="schedule-template-editor">
+                <div>
+                  <label class="label" for="scheduleTemplateNameInput">Template Name</label>
+                  <input id="scheduleTemplateNameInput" type="text" />
+                </div>
+                <div class="schedule-milestone-list-heading">
+                  <strong>Milestones</strong>
+                  <button id="scheduleMilestoneAddButton" type="button">+ Add Milestone</button>
+                </div>
+                <div id="scheduleMilestoneList" class="schedule-milestone-list"></div>
+              </div>
+              <div class="schedule-marketing-section-footer">
+                <button id="scheduleTemplatesSaveButton" class="primary" type="button">Save Schedule Templates</button>
+              </div>
+            </div>
+            <!-- Marketing Templates Section -->
+            <div class="schedule-marketing-section" data-section="sm_marketing" hidden>
+              <div class="schedule-templates-toolbar">
+                <select id="marketingTemplateSelector" class="schedule-template-select"></select>
+                <button id="marketingTemplateNewButton" type="button">New Template</button>
+                <button id="marketingTemplateDeleteButton" type="button">Delete</button>
+              </div>
+              <div id="marketingTemplateEditor" class="schedule-template-editor">
+                <div>
+                  <label class="label" for="marketingTemplateNameInput">Template Name</label>
+                  <input id="marketingTemplateNameInput" type="text" />
+                </div>
+                <div class="schedule-milestone-list-heading">
+                  <strong>Campaign Entries</strong>
+                  <button id="marketingEntryAddButton" type="button">+ Add Entry</button>
+                </div>
+                <div id="marketingEntryList" class="schedule-milestone-list"></div>
+              </div>
+              <div class="schedule-marketing-section-footer">
+                <button id="marketingTemplatesSaveButton" class="primary" type="button">Save Marketing Templates</button>
+              </div>
+            </div>
+            <!-- Document Types Section -->
+            <div class="schedule-marketing-section" data-section="sm_doctypes" hidden>
+              <div class="schedule-templates-toolbar">
+                <select id="documentTypeSelector" class="schedule-template-select"></select>
+                <button id="documentTypeNewButton" type="button">New Type</button>
+                <button id="documentTypeDeleteButton" type="button">Delete</button>
+              </div>
+              <div id="documentTypeEditor" class="schedule-template-editor">
+                <div>
+                  <label class="label" for="documentTypeKeyInput">Type Key</label>
+                  <input id="documentTypeKeyInput" type="text" placeholder="e.g. email, social_post" />
+                </div>
+                <div>
+                  <label class="label" for="documentTypeNameInput">Display Label</label>
+                  <input id="documentTypeNameInput" type="text" placeholder="e.g. Email" />
+                </div>
+                <div>
+                  <label class="label" for="documentTypeIconInput">Icon (emoji)</label>
+                  <input id="documentTypeIconInput" type="text" placeholder="e.g. ✉" style="width:60px" />
+                </div>
+              </div>
+              <div class="schedule-marketing-section-footer">
+                <button id="documentTypesSaveButton" class="primary" type="button">Save Document Types</button>
+              </div>
+            </div>
           </div>
-          <div id="scheduleMilestoneList" class="schedule-milestone-list"></div>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="scheduleTemplatesCloseButton" type="button">Close</button>
-        <button id="scheduleTemplatesSaveButton" class="primary" type="button">Save Templates</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="marketingTemplatesModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card">
-      <div class="modal-header">
-        <h3>Marketing Plan Templates</h3>
-        <div class="muted">Manage marketing campaign templates auto-generated when a book reaches Publish Ready. Each entry becomes a task in the generated campaign.</div>
-      </div>
-      <div class="modal-body schedule-templates-body">
-        <div class="schedule-templates-toolbar">
-          <select id="marketingTemplateSelector" class="schedule-template-select"></select>
-          <button id="marketingTemplateNewButton" type="button">New Template</button>
-          <button id="marketingTemplateDeleteButton" type="button">Delete</button>
-        </div>
-        <div id="marketingTemplateEditor" class="schedule-template-editor">
-          <div>
-            <label class="label" for="marketingTemplateNameInput">Template Name</label>
-            <input id="marketingTemplateNameInput" type="text" />
-          </div>
-          <div class="schedule-milestone-list-heading">
-            <strong>Campaign Entries</strong>
-            <button id="marketingEntryAddButton" type="button">+ Add Entry</button>
-          </div>
-          <div id="marketingEntryList" class="schedule-milestone-list"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="marketingTemplatesCloseButton" type="button">Close</button>
-        <button id="marketingTemplatesSaveButton" class="primary" type="button">Save Templates</button>
+        <button id="scheduleMarketingCloseButton" type="button">Close</button>
       </div>
     </div>
   </div>
@@ -3534,39 +3564,6 @@
     </div>
   </div>
 
-  <div id="documentTypesModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card">
-      <div class="modal-header">
-        <h3>Document Types</h3>
-        <div class="muted">Define the types of documents that can be generated from marketing and schedule templates.</div>
-      </div>
-      <div class="modal-body schedule-templates-body">
-        <div class="schedule-templates-toolbar">
-          <select id="documentTypeSelector" class="schedule-template-select"></select>
-          <button id="documentTypeNewButton" type="button">New Type</button>
-          <button id="documentTypeDeleteButton" type="button">Delete</button>
-        </div>
-        <div id="documentTypeEditor" class="schedule-template-editor">
-          <div>
-            <label class="label" for="documentTypeKeyInput">Type Key</label>
-            <input id="documentTypeKeyInput" type="text" placeholder="e.g. email, social_post" />
-          </div>
-          <div>
-            <label class="label" for="documentTypeNameInput">Display Label</label>
-            <input id="documentTypeNameInput" type="text" placeholder="e.g. Email" />
-          </div>
-          <div>
-            <label class="label" for="documentTypeIconInput">Icon (emoji)</label>
-            <input id="documentTypeIconInput" type="text" placeholder="e.g. ✉" style="width:60px" />
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="documentTypesCloseButton" type="button">Close</button>
-        <button id="documentTypesSaveButton" class="primary" type="button">Save</button>
-      </div>
-    </div>
-  </div>
 
   <div id="generationPromptsModal" class="modal" aria-hidden="true">
     <div class="modal-card schedule-templates-card" style="max-width:700px">

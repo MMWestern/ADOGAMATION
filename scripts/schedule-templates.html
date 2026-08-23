@@ -25,16 +25,29 @@
     }
 
     function openScheduleTemplatesModal() {
-      if (!el.scheduleTemplatesModal) return;
-      el.scheduleTemplatesModal.classList.add("is-open");
-      el.scheduleTemplatesModal.setAttribute("aria-hidden", "false");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_schedule");
       renderScheduleTemplateSelector();
     }
 
     function closeScheduleTemplatesModal() {
-      if (!el.scheduleTemplatesModal) return;
-      el.scheduleTemplatesModal.classList.remove("is-open");
-      el.scheduleTemplatesModal.setAttribute("aria-hidden", "true");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
+    }
+
+    function switchScheduleMarketingSection(section) {
+      if (!el.scheduleMarketingSidebar) return;
+      el.scheduleMarketingSidebar.querySelectorAll(".schedule-marketing-sidebar-item").forEach(function (item) {
+        item.classList.toggle("is-active", item.getAttribute("data-section") === section);
+      });
+      var modal = el.scheduleMarketingModal;
+      if (!modal) return;
+      modal.querySelectorAll(".schedule-marketing-section").forEach(function (sec) {
+        sec.hidden = sec.getAttribute("data-section") !== section;
+      });
     }
 
     function getActiveTemplateName() {

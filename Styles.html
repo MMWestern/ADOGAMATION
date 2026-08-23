@@ -12895,6 +12895,74 @@ body.dark-mode *::-webkit-scrollbar-thumb:hover {
   flex-direction: column;
 }
 
+.schedule-marketing-card {
+  max-width: 910px;
+  height: 740px;
+  display: flex;
+  flex-direction: column;
+}
+.schedule-marketing-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.schedule-marketing-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.schedule-marketing-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+}
+.schedule-marketing-sidebar-item {
+  padding: 8px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  border-left: 3px solid transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.schedule-marketing-sidebar-item:hover {
+  background: rgba(99,102,241,0.08);
+  color: var(--text);
+}
+.schedule-marketing-sidebar-item.is-active {
+  background: rgba(99,102,241,0.12);
+  color: #a5b4fc;
+  border-left-color: #6366f1;
+  font-weight: 600;
+}
+.schedule-marketing-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 0;
+}
+.schedule-marketing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.schedule-marketing-section[hidden] {
+  display: none;
+}
+.schedule-marketing-section-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
 .schedule-templates-body {
   display: grid;
   gap: 12px;
