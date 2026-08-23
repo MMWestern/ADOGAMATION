@@ -3834,16 +3834,14 @@
       </div>
       <div class="prompt-editor-layout">
         <div class="prompt-editor-sidebar" id="promptEditorSidebar">
+          <!-- World Builder group — items populated dynamically -->
           <div class="prompt-editor-group is-open" data-group="world_builder">
             <div class="prompt-editor-group-header" data-group="world_builder">
               <span class="prompt-editor-chevron">&#9654;</span> World Builder
             </div>
-            <div class="prompt-editor-group-items">
-              <div class="prompt-editor-sidebar-item is-active" data-section="wb_modes">Mode Prompts</div>
-              <div class="prompt-editor-sidebar-item" data-section="wb_actions">Action Button Prompts</div>
-              <div class="prompt-editor-sidebar-item" data-section="wb_system">System Prompt</div>
-            </div>
+            <div class="prompt-editor-group-items" id="promptEditorWbSidebar"></div>
           </div>
+          <!-- Story Seed group -->
           <div class="prompt-editor-group" data-group="story_seed">
             <div class="prompt-editor-group-header" data-group="story_seed">
               <span class="prompt-editor-chevron">&#9654;</span> Story Seed
@@ -3853,6 +3851,7 @@
               <div class="prompt-editor-sidebar-item" data-section="ss_template">User Prompt Template</div>
             </div>
           </div>
+          <!-- Marketing & Campaign group -->
           <div class="prompt-editor-group" data-group="marketing">
             <div class="prompt-editor-group-header" data-group="marketing">
               <span class="prompt-editor-chevron">&#9654;</span> Marketing &amp; Campaign
@@ -3864,6 +3863,7 @@
               <div class="prompt-editor-sidebar-item" data-section="mkt_other">Other Channels</div>
             </div>
           </div>
+          <!-- Brainstorm Extraction group -->
           <div class="prompt-editor-group" data-group="brainstorm">
             <div class="prompt-editor-group-header" data-group="brainstorm">
               <span class="prompt-editor-chevron">&#9654;</span> Brainstorm Extraction
@@ -3872,6 +3872,7 @@
               <div class="prompt-editor-sidebar-item" data-section="br_extract">Extraction Prompt</div>
             </div>
           </div>
+          <!-- Codex Suggestions group -->
           <div class="prompt-editor-group" data-group="codex">
             <div class="prompt-editor-group-header" data-group="codex">
               <span class="prompt-editor-chevron">&#9654;</span> Codex Suggestions
@@ -3882,59 +3883,80 @@
           </div>
         </div>
         <div class="prompt-editor-content">
-          <div class="prompt-editor-section" data-section="wb_modes">
-            <div class="label" style="font-weight:600;">Mode Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">These define how the AI behaves in each mode.</div>
-            <div id="promptEditorModeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <!-- World Builder: individual prompt editor (shared template) -->
+          <div class="prompt-editor-section" data-section="wb_prompt">
+            <div class="label" style="font-weight:600;" id="promptEditorWbTitle">Prompt</div>
+            <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorWbSubtitle"></div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <label class="label">System Prompt</label>
+                <textarea id="promptEditorWbSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
+              </div>
+              <div>
+                <label class="label">User Prompt</label>
+                <textarea id="promptEditorWbUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
+              </div>
+              <div>
+                <label class="label">LLM Preview</label>
+                <textarea id="promptEditorWbPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
+              </div>
+            </div>
           </div>
-          <div class="prompt-editor-section" data-section="wb_actions" hidden>
-            <div class="label" style="font-weight:600;">Action Button Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">These are the prompts sent when you click the quick-fire buttons.</div>
-            <div id="promptEditorActionList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
+          <!-- World Builder: System Prompt -->
           <div class="prompt-editor-section" data-section="wb_system" hidden>
             <div class="label" style="font-weight:600;">System Prompt Template</div>
             <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
             <textarea id="promptEditorSystemPrompt" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
-            <div class="label" style="font-weight:600;margin-top:10px;">Pillar Help Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;">Sent when clicking "Help me with" on a pillar. Placeholders: {pillar_label}, {pillar_purpose}, {pillar_content}</div>
-            <textarea id="promptEditorPillarHelp" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Pillar help prompt template..."></textarea>
           </div>
+          <!-- World Builder: Pillar Help -->
+          <div class="prompt-editor-section" data-section="wb_pillarhelp" hidden>
+            <div class="label" style="font-weight:600;">Pillar Help Prompt</div>
+            <div class="tiny muted" style="margin-bottom:6px;">Sent when clicking "Help me with" on a pillar. Placeholders: {pillar_label}, {pillar_purpose}, {pillar_content}</div>
+            <textarea id="promptEditorPillarHelp" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Pillar help prompt template..."></textarea>
+          </div>
+          <!-- Story Seed: System Prompt -->
           <div class="prompt-editor-section" data-section="ss_system" hidden>
             <div class="label" style="font-weight:600;">Story Seed - System Prompt</div>
             <div class="tiny muted" style="margin-bottom:6px;">The role and behaviour of the AI when generating story seeds.</div>
             <textarea id="promptEditorSsSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
           </div>
+          <!-- Story Seed: User Prompt Template -->
           <div class="prompt-editor-section" data-section="ss_template" hidden>
             <div class="label" style="font-weight:600;">Story Seed - User Prompt Template</div>
             <div class="tiny muted" style="margin-bottom:6px;">The user-facing prompt template. Engine brief JSON is appended automatically.</div>
             <textarea id="promptEditorSsTemplate" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Prompt template..."></textarea>
           </div>
+          <!-- Marketing: Newsletter -->
           <div class="prompt-editor-section" data-section="mkt_newsletter" hidden>
             <div class="label" style="font-weight:600;">Newsletter Prompts</div>
             <div class="tiny muted" style="margin-bottom:6px;">System prompts for newsletter and email generation.</div>
             <div id="promptEditorMktNewsletterList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
+          <!-- Marketing: Social Media -->
           <div class="prompt-editor-section" data-section="mkt_social" hidden>
             <div class="label" style="font-weight:600;">Social Media Prompts</div>
             <div class="tiny muted" style="margin-bottom:6px;">System prompts for social media post generation.</div>
             <div id="promptEditorMktSocialList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
+          <!-- Marketing: Ads & Copy -->
           <div class="prompt-editor-section" data-section="mkt_ads" hidden>
             <div class="label" style="font-weight:600;">Ads &amp; Copy Prompts</div>
             <div class="tiny muted" style="margin-bottom:6px;">System prompts for ad copy and marketing text.</div>
             <div id="promptEditorMktAdsList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
+          <!-- Marketing: Other Channels -->
           <div class="prompt-editor-section" data-section="mkt_other" hidden>
             <div class="label" style="font-weight:600;">Other Channel Prompts</div>
             <div class="tiny muted" style="margin-bottom:6px;">Patreon, Royal Road, website, ARC, and release summary prompts.</div>
             <div id="promptEditorMktOtherList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
+          <!-- Brainstorm: Extraction Prompt -->
           <div class="prompt-editor-section" data-section="br_extract" hidden>
             <div class="label" style="font-weight:600;">Brainstorm Extraction Prompt</div>
             <div class="tiny muted" style="margin-bottom:6px;">The system prompt used to extract brainstorm dumps into world framework pillars.</div>
             <textarea id="promptEditorBrExtract" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Extraction prompt..."></textarea>
           </div>
+          <!-- Codex: Entity Suggestions -->
           <div class="prompt-editor-section" data-section="cx_suggest" hidden>
             <div class="label" style="font-weight:600;">Codex Entity Suggestions</div>
             <div class="tiny muted" style="margin-bottom:6px;">The system prompt used when suggesting new entities from the Codex.</div>

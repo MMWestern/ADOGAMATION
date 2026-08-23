@@ -6569,23 +6569,93 @@
       modal.classList.add("is-open");
       modal.setAttribute("aria-hidden", "false");
       var allPrompts = getCustomAiPromptsAll();
-      // World Builder mode prompts
       var wbPrompts = getWorldBuilderPrompts();
-      var modeList = document.getElementById("promptEditorModeList");
-      if (modeList) {
-        var html = "";
-        WORLD_BUILDER_MODES.forEach(function (m) {
-          html += "<div class='prompt-editor-row'>";
-          html += "<div class='prompt-editor-label'>" + m.label + "</div>";
-          html += "<textarea class='prompt-editor-textarea' rows='2'>" + escapeHtml(wbPrompts.modes[m.key] || "") + "</textarea>";
-          html += "</div>";
-        });
-        modeList.innerHTML = html;
+      // Build World Builder sidebar items dynamically
+      buildWbSidebar(wbPrompts);
+      // Populate non-WB sections
+      var sysPrompt = document.getElementById("promptEditorSystemPrompt");
+      if (sysPrompt) sysPrompt.value = wbPrompts.system_template || "";
+      var pillarHelp = document.getElementById("promptEditorPillarHelp");
+      if (pillarHelp) pillarHelp.value = wbPrompts.pillar_help || "";
+      var ss = allPrompts.story_seed || {};
+      var ssSys = document.getElementById("promptEditorSsSystem");
+      if (ssSys) ssSys.value = ss.system || "";
+      var ssTpl = document.getElementById("promptEditorSsTemplate");
+      if (ssTpl) ssTpl.value = ss.template || "";
+      var br = allPrompts.brainstorm || {};
+      var brExt = document.getElementById("promptEditorBrExtract");
+      if (brExt) brExt.value = br.extract || "";
+      var cx = allPrompts.codex || {};
+      var cxSug = document.getElementById("promptEditorCxSuggest");
+      if (cxSug) cxSug.value = cx.suggest || "";
+      var mkt = allPrompts.marketing || {};
+      renderMarketingPromptList("promptEditorMktNewsletterList", mkt.newsletter || {});
+      renderMarketingPromptList("promptEditorMktSocialList", mkt.social || {});
+      renderMarketingPromptList("promptEditorMktAdsList", mkt.ads || {});
+      renderMarketingPromptList("promptEditorMktOtherList", mkt.other || {});
+      // Show first mode prompt by default
+      if (WORLD_BUILDER_MODES.length) showWbPromptEditor("mode", WORLD_BUILDER_MODES[0].key);
+    }
+
+    var _wbPromptCache = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
+
+    function buildWbSidebar(wbPrompts) {
+      _wbPromptCache = JSON.parse(JSON.stringify(wbPrompts));
+      var container = document.getElementById("promptEditorWbSidebar");
+      if (!container) return;
+      var html = "";
+      // Mode Prompts sub-header + items
+      html += "<div class='prompt-editor-sub-header'>Mode Prompts</div>";
+      WORLD_BUILDER_MODES.forEach(function (m) {
+        html += "<div class='prompt-editor-sidebar-item' data-wb-type='mode' data-wb-key='" + m.key + "'>" + m.label + "</div>";
+      });
+      // Action Button Prompts sub-header + items
+      var actionLabels = {
+        ask_questions: "Ask Me Questions", offer_possibilities: "Offer Possibilities",
+        explore_consequences: "Explore Consequences", challenge: "Challenge",
+        find_contradictions: "Find Contradictions", check_continuity: "Check Continuity",
+        explore_everyday: "Everyday Effects", add_history: "Add History",
+        suggest_entities: "Suggest Entities", leave_unresolved: "Leave Unresolved"
+      };
+      html += "<div class='prompt-editor-sub-header'>Action Button Prompts</div>";
+      Object.keys(wbPrompts.actions).forEach(function (key) {
+        html += "<div class='prompt-editor-sidebar-item' data-wb-type='action' data-wb-key='" + key + "'>" + (actionLabels[key] || key) + "</div>";
+      });
+      // System + Pillar Help
+      html += "<div class='prompt-editor-sub-header'>Configuration</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='wb_system'>System Prompt</div>";
+      html += "<div class='prompt-editor-sidebar-item' data-section='wb_pillarhelp'>Pillar Help Prompt</div>";
+      container.innerHTML = html;
+    }
+
+    function showWbPromptEditor(type, key) {
+      var modal = document.getElementById("promptEditorModal");
+      if (!modal) return;
+      // Hide all sections, show wb_prompt
+      modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) { sec.hidden = true; });
+      var section = modal.querySelector('.prompt-editor-section[data-section="wb_prompt"]');
+      if (section) section.hidden = false;
+      // Update sidebar active state
+      var sidebar = document.getElementById("promptEditorSidebar");
+      if (sidebar) {
+        sidebar.querySelectorAll(".prompt-editor-sidebar-item").forEach(function (el) { el.classList.remove("is-active"); });
+        var target = sidebar.querySelector('[data-wb-type="' + type + '"][data-wb-key="' + key + '"]');
+        if (target) target.classList.add("is-active");
       }
-      // World Builder action prompts
-      var actionList = document.getElementById("promptEditorActionList");
-      if (actionList) {
-        var html = "";
+      // Populate editor
+      var title = document.getElementById("promptEditorWbTitle");
+      var subtitle = document.getElementById("promptEditorWbSubtitle");
+      var sysArea = document.getElementById("promptEditorWbSystem");
+      var userArea = document.getElementById("promptEditorWbUser");
+      var previewArea = document.getElementById("promptEditorWbPreview");
+      var systemPrompt = _wbPromptCache.system_template || "";
+      var userPrompt = "";
+      if (type === "mode") {
+        var mode = WORLD_BUILDER_MODES.find(function (m) { return m.key === key; });
+        if (title) title.textContent = (mode ? mode.label : key) + " — Mode Prompt";
+        if (subtitle) subtitle.textContent = "Defines how the AI behaves in " + (mode ? mode.label.toLowerCase() : key) + " mode.";
+        userPrompt = _wbPromptCache.modes[key] || "";
+      } else {
         var actionLabels = {
           ask_questions: "Ask Me Questions", offer_possibilities: "Offer Possibilities",
           explore_consequences: "Explore Consequences", challenge: "Challenge",
@@ -6593,40 +6663,38 @@
           explore_everyday: "Everyday Effects", add_history: "Add History",
           suggest_entities: "Suggest Entities", leave_unresolved: "Leave Unresolved"
         };
-        Object.keys(wbPrompts.actions).forEach(function (key) {
-          html += "<div class='prompt-editor-row'>";
-          html += "<div class='prompt-editor-label'>" + (actionLabels[key] || key) + "</div>";
-          html += "<textarea class='prompt-editor-textarea' rows='2'>" + escapeHtml(wbPrompts.actions[key] || "") + "</textarea>";
-          html += "</div>";
-        });
-        actionList.innerHTML = html;
+        if (title) title.textContent = (actionLabels[key] || key) + " — Action Prompt";
+        if (subtitle) subtitle.textContent = "Sent when clicking this action button in the World Builder assistant.";
+        userPrompt = _wbPromptCache.actions[key] || "";
       }
-      // World Builder system template
-      var sysPrompt = document.getElementById("promptEditorSystemPrompt");
-      if (sysPrompt) sysPrompt.value = wbPrompts.system_template || "";
-      var pillarHelp = document.getElementById("promptEditorPillarHelp");
-      if (pillarHelp) pillarHelp.value = wbPrompts.pillar_help || "";
-      // Story Seed
-      var ss = allPrompts.story_seed || {};
-      var ssSys = document.getElementById("promptEditorSsSystem");
-      if (ssSys) ssSys.value = ss.system || "";
-      var ssTpl = document.getElementById("promptEditorSsTemplate");
-      if (ssTpl) ssTpl.value = ss.template || "";
-      // Brainstorm
-      var br = allPrompts.brainstorm || {};
-      var brExt = document.getElementById("promptEditorBrExtract");
-      if (brExt) brExt.value = br.extract || "";
-      // Codex
-      var cx = allPrompts.codex || {};
-      var cxSug = document.getElementById("promptEditorCxSuggest");
-      if (cxSug) cxSug.value = cx.suggest || "";
-      // Marketing
-      var mkt = allPrompts.marketing || {};
-      renderMarketingPromptList("promptEditorMktNewsletterList", mkt.newsletter || {});
-      renderMarketingPromptList("promptEditorMktSocialList", mkt.social || {});
-      renderMarketingPromptList("promptEditorMktAdsList", mkt.ads || {});
-      renderMarketingPromptList("promptEditorMktOtherList", mkt.other || {});
+      if (sysArea) sysArea.value = systemPrompt;
+      if (userArea) userPrompt = userPrompt;
+      if (userArea) userArea.value = userPrompt;
+      // Build preview
+      if (previewArea) {
+        var preview = systemPrompt;
+        if (userPrompt) preview += (preview ? "\n\n" : "") + userPrompt;
+        previewArea.value = preview || "(empty prompt)";
+      }
+      // Store current selection for save
+      section.setAttribute("data-current-type", type);
+      section.setAttribute("data-current-key", key);
     }
+
+    // Live preview update when user edits textareas
+    document.addEventListener("input", function (e) {
+      if (e.target.id === "promptEditorWbSystem" || e.target.id === "promptEditorWbUser") {
+        var sysArea = document.getElementById("promptEditorWbSystem");
+        var userArea = document.getElementById("promptEditorWbUser");
+        var previewArea = document.getElementById("promptEditorWbPreview");
+        if (previewArea && sysArea && userArea) {
+          var preview = sysArea.value.trim();
+          var user = userArea.value.trim();
+          if (user) preview += (preview ? "\n\n" : "") + user;
+          previewArea.value = preview || "(empty prompt)";
+        }
+      }
+    });
 
     function renderMarketingPromptList(containerId, obj) {
       var container = document.getElementById(containerId);
@@ -6677,22 +6745,15 @@
     }
 
     function savePromptEditorModal() {
+      // Save current editor values back to cache
+      saveCurrentWbPromptToCache();
       var allPrompts = JSON.parse(JSON.stringify(DEFAULT_AI_PROMPTS));
-      // World Builder - read textarea values in sidebar order
-      var wb = { modes: {}, actions: {}, system_template: "" };
-      var modeTextareas = document.querySelectorAll("#promptEditorModeList .prompt-editor-textarea");
-      WORLD_BUILDER_MODES.forEach(function (m, i) {
-        if (modeTextareas[i]) wb.modes[m.key] = modeTextareas[i].value.trim();
-      });
-      var actionKeys = ["ask_questions","offer_possibilities","explore_consequences","challenge","find_contradictions","check_continuity","explore_everyday","add_history","suggest_entities","leave_unresolved"];
-      var actionTextareas = document.querySelectorAll("#promptEditorActionList .prompt-editor-textarea");
-      actionKeys.forEach(function (key, i) {
-        if (actionTextareas[i]) wb.actions[key] = actionTextareas[i].value.trim();
-      });
-      var sysPrompt = document.getElementById("promptEditorSystemPrompt");
-      wb.system_template = sysPrompt ? sysPrompt.value.trim() : "";
-      var pillarHelp = document.getElementById("promptEditorPillarHelp");
-      wb.pillar_help = pillarHelp ? pillarHelp.value.trim() : "";
+      // World Builder - collect from cache
+      var wb = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
+      wb.system_template = _wbPromptCache.system_template || "";
+      wb.pillar_help = _wbPromptCache.pillar_help || "";
+      WORLD_BUILDER_MODES.forEach(function (m) { wb.modes[m.key] = _wbPromptCache.modes[m.key] || ""; });
+      Object.keys(_wbPromptCache.actions).forEach(function (key) { wb.actions[key] = _wbPromptCache.actions[key] || ""; });
       allPrompts.world_builder = wb;
       // Story Seed
       var ssSys = document.getElementById("promptEditorSsSystem");
@@ -6715,6 +6776,21 @@
       collectMarketingSection("promptEditorMktOtherList", allPrompts.marketing.other);
       saveCustomAiPrompts(allPrompts);
       closePromptEditorModal();
+    }
+
+    function saveCurrentWbPromptToCache() {
+      var section = document.querySelector('.prompt-editor-section[data-section="wb_prompt"]');
+      if (!section || section.hidden) return;
+      var type = section.getAttribute("data-current-type");
+      var key = section.getAttribute("data-current-key");
+      if (!type || !key) return;
+      var userArea = document.getElementById("promptEditorWbUser");
+      if (!userArea) return;
+      if (type === "mode") {
+        _wbPromptCache.modes[key] = userArea.value.trim();
+      } else {
+        _wbPromptCache.actions[key] = userArea.value.trim();
+      }
     }
 
     function resetPromptEditorModal() {
@@ -6743,7 +6819,18 @@
         // Section selection
         var item = e.target.closest(".prompt-editor-sidebar-item");
         if (!item) return;
+        // Save current WB prompt to cache before switching
+        saveCurrentWbPromptToCache();
+        var wbType = item.getAttribute("data-wb-type");
+        var wbKey = item.getAttribute("data-wb-key");
+        if (wbType && wbKey) {
+          // Individual WB prompt item
+          showWbPromptEditor(wbType, wbKey);
+          return;
+        }
+        // Static section item
         var section = item.getAttribute("data-section");
+        if (!section) return;
         sidebar.querySelectorAll(".prompt-editor-sidebar-item").forEach(function (el) { el.classList.remove("is-active"); });
         item.classList.add("is-active");
         var modal = document.getElementById("promptEditorModal");
