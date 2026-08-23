@@ -6583,6 +6583,17 @@
       if (pillarHelp) pillarHelp.value = wbPrompts.pillar_help || "";
       // Show first mode prompt by default
       if (WORLD_BUILDER_MODES.length) showWbPromptEditor("mode", WORLD_BUILDER_MODES[0].key);
+      // Ensure sidebar wheel events scroll the sidebar
+      var sidebar = document.getElementById("promptEditorSidebar");
+      if (sidebar && !sidebar._wheelBound) {
+        sidebar._wheelBound = true;
+        sidebar.addEventListener("wheel", function (e) {
+          var maxScroll = sidebar.scrollHeight - sidebar.clientHeight;
+          if (maxScroll <= 0) return;
+          e.preventDefault();
+          sidebar.scrollTop += e.deltaY;
+        }, { passive: false });
+      }
     }
 
     var _wbPromptCache = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
