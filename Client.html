@@ -6587,7 +6587,6 @@
         if (!content.hidden) content.scrollTop = 0;
       });
       document.body.classList.toggle("resources-mode", safeTab === "resources");
-      if (el.resourceInspectorPanel) el.resourceInspectorPanel.hidden = (safeTab !== "resources");
       if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.writingInspectorPanel) el.writingInspectorPanel.hidden = (safeTab !== "workspace");
       if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = (safeTab !== "codex" || _codexMode === "world-builder");
@@ -7445,7 +7444,7 @@
       if (el.hubInboxSidebar) el.hubInboxSidebar.hidden = (safeTab !== "inbox");
       if (el.hubSettingsSidebar) el.hubSettingsSidebar.hidden = (safeTab !== "settings");
 
-      ["planGenreGuidePanel", "resourceInspectorPanel", "projectInspectorPanel", "writingInspectorPanel", "seriesKnowledgeFormsPanel"].forEach(function (id) {
+      ["planGenreGuidePanel", "projectInspectorPanel", "writingInspectorPanel", "seriesKnowledgeFormsPanel"].forEach(function (id) {
         var p = document.getElementById(id);
         if (!p) return;
         if (safeTab !== "studio") p.hidden = true;

@@ -319,3 +319,17 @@
             })
             .saveSupabaseInspectorOptionsJsonFromClient(JSON.stringify(options));
     }
+
+    function openInspectorOptionsModal() {
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_dropdowns");
+      renderResourceInspectorPanel();
+    }
+
+    function closeInspectorOptionsModal() {
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
+    }

@@ -1232,47 +1232,6 @@
             <div class="plan-genre-guide-empty">Select a chapter to view its genre guide content.</div>
           </div>
         </div>
-        <div id="resourceInspectorPanel" class="resource-inspector-panel" hidden>
-          <div class="resource-inspector-header">
-            <div>
-              <div class="muted">Resources Tools</div>
-              <h3>Dropdown Options</h3>
-            </div>
-            <div class="tiny">Shared dropdown values for project fields</div>
-          </div>
-
-          <div id="resourceInspectorOptionsPane" class="resource-inspector-pane">
-            <div class="resource-inspector-toolbar">
-              <div class="resource-inspector-filter-group">
-                <label class="label" for="resourceInspectorTypeFilter">Filter</label>
-                <select id="resourceInspectorTypeFilter">
-                  <option value="all">All Types</option>
-                </select>
-              </div>
-              <div id="resourceInspectorCount" class="tiny resource-inspector-count">0 options</div>
-              <button id="resourceInspectorAddRowButton" type="button">Add Row</button>
-              <button id="resourceInspectorSeedButton" type="button">Seed From Projects</button>
-              <button id="resourceInspectorSaveButton" type="button" class="primary">Save Options</button>
-            </div>
-
-            <div class="resource-inspector-table-wrap">
-              <table class="resource-inspector-table">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Value</th>
-                    <th>Description</th>
-                    <th>Remove</th>
-                  </tr>
-                </thead>
-                <tbody id="resourceInspectorTableBody"></tbody>
-              </table>
-            </div>
-
-            <div id="resourceInspectorStatus" class="status-bar">Inspector options ready.</div>
-          </div>
-
-        </div>
 
         <div id="seriesKnowledgeFormsPanel" class="resource-inspector-panel" hidden>
           <div id="skCharacterForm" class="world-entity-form" hidden>
@@ -3433,6 +3392,7 @@
             <div class="schedule-marketing-sidebar-item" data-section="sm_doctypes">Document Types</div>
             <div class="schedule-marketing-sidebar-item" data-section="sm_workflows">Status Workflows</div>
             <div class="schedule-marketing-sidebar-item" data-section="sm_formatdefaults">Format Defaults</div>
+            <div class="schedule-marketing-sidebar-item" data-section="sm_dropdowns">Dropdown Options</div>
           </div>
           <div class="schedule-marketing-content">
             <!-- Schedule Templates Section -->
@@ -3521,6 +3481,36 @@
               <div id="formatDefaultsList" class="schedule-milestone-list"></div>
               <div class="schedule-marketing-section-footer">
                 <button id="formatDefaultsSaveButton" class="primary" type="button">Save Defaults</button>
+              </div>
+            </div>
+            <!-- Dropdown Options Section -->
+            <div class="schedule-marketing-section" data-section="sm_dropdowns" hidden>
+              <div class="resource-inspector-toolbar">
+                <div class="resource-inspector-filter-group">
+                  <label class="label" for="resourceInspectorTypeFilter">Filter</label>
+                  <select id="resourceInspectorTypeFilter">
+                    <option value="all">All Types</option>
+                  </select>
+                </div>
+                <div id="resourceInspectorCount" class="tiny resource-inspector-count">0 options</div>
+                <button id="resourceInspectorAddRowButton" type="button">Add Row</button>
+                <button id="resourceInspectorSeedButton" type="button">Seed From Projects</button>
+              </div>
+              <div class="resource-inspector-table-wrap">
+                <table class="resource-inspector-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Value</th>
+                      <th>Description</th>
+                      <th>Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resourceInspectorTableBody"></tbody>
+                </table>
+              </div>
+              <div class="schedule-marketing-section-footer">
+                <button id="resourceInspectorSaveButton" class="primary" type="button">Save Options</button>
               </div>
             </div>
           </div>
