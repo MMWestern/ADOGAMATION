@@ -1071,27 +1071,9 @@
       if (el.marketingEntryAddButton) el.marketingEntryAddButton.addEventListener("click", addMarketingEntry);
       if (el.marketingTemplateSelector) el.marketingTemplateSelector.addEventListener("change", renderMarketingTemplateEditor);
 
-      if (el.statusWorkflowsButton) {
-        el.statusWorkflowsButton.addEventListener("click", function () {
-          if (typeof openStatusWorkflowsModal === "function") openStatusWorkflowsModal();
-          if (el.sidebarAiPopover) el.sidebarAiPopover.classList.remove("is-open");
-          if (el.sidebarAiButton) el.sidebarAiButton.setAttribute("aria-expanded", "false");
-        });
-      }
-      if (el.statusWorkflowsCloseButton) el.statusWorkflowsCloseButton.addEventListener("click", closeStatusWorkflowsModal);
       if (el.statusWorkflowsSaveButton) el.statusWorkflowsSaveButton.addEventListener("click", saveStatusWorkflows);
-
-      if (el.formatDefaultsButton) {
-        el.formatDefaultsButton.addEventListener("click", function () {
-          if (typeof openFormatDefaultsModal === "function") openFormatDefaultsModal();
-          if (el.sidebarAiPopover) el.sidebarAiPopover.classList.remove("is-open");
-          if (el.sidebarAiButton) el.sidebarAiButton.setAttribute("aria-expanded", "false");
-        });
-      }
-      if (el.formatDefaultsCloseButton) el.formatDefaultsCloseButton.addEventListener("click", closeFormatDefaultsModal);
       if (el.formatDefaultsSaveButton) el.formatDefaultsSaveButton.addEventListener("click", saveFormatDefaults);
 
-      if (el.documentTypesButton) el.documentTypesButton.addEventListener("click", openDocumentTypesModal);
       if (el.documentTypesSaveButton) el.documentTypesSaveButton.addEventListener("click", saveDocumentTypes);
       if (el.documentTypeNewButton) el.documentTypeNewButton.addEventListener("click", newDocumentType);
       if (el.documentTypeDeleteButton) el.documentTypeDeleteButton.addEventListener("click", deleteDocumentType);
@@ -1108,6 +1090,8 @@
           if (section === "sm_schedule") renderScheduleTemplateSelector();
           else if (section === "sm_marketing") renderMarketingTemplateSelector();
           else if (section === "sm_doctypes") renderDocumentTypeSelector();
+          else if (section === "sm_workflows") renderStatusWorkflowsEditor();
+          else if (section === "sm_formatdefaults") renderFormatDefaultsEditor();
         });
       }
       if (el.scheduleMarketingModal) {

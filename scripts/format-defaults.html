@@ -33,16 +33,17 @@
     }
 
     function openFormatDefaultsModal() {
-      if (!el.formatDefaultsModal) return;
-      el.formatDefaultsModal.classList.add("is-open");
-      el.formatDefaultsModal.setAttribute("aria-hidden", "false");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_formatdefaults");
       renderFormatDefaultsEditor();
     }
 
     function closeFormatDefaultsModal() {
-      if (!el.formatDefaultsModal) return;
-      el.formatDefaultsModal.classList.remove("is-open");
-      el.formatDefaultsModal.setAttribute("aria-hidden", "true");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
     }
 
     function renderFormatDefaultsEditor() {

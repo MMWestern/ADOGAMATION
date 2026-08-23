@@ -374,15 +374,7 @@
           <div class="sidebar-popover-section">
             <button id="sidebarScheduleMarketingButton" class="sidebar-popover-item" type="button">
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
-              <span>Schedule &amp; Marketing</span>
-            </button>
-            <button id="statusWorkflowsButton" class="sidebar-popover-item" type="button">
-              <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-              <span>Status Workflows</span>
-            </button>
-            <button id="formatDefaultsButton" class="sidebar-popover-item" type="button">
-              <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span>Format Defaults</span>
+              <span>Templates &amp; Workflows</span>
             </button>
             <button id="generationPromptsButton" class="sidebar-popover-item" type="button">
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -3430,8 +3422,8 @@
   <div id="scheduleMarketingModal" class="modal" aria-hidden="true">
     <div class="modal-card schedule-marketing-card">
       <div class="modal-header">
-        <h3>Schedule &amp; Marketing</h3>
-        <div class="muted">Manage schedule templates, marketing plan templates, and document types.</div>
+        <h3>Templates &amp; Workflows</h3>
+        <div class="muted">Manage schedule templates, marketing plans, document types, status workflows, and format defaults.</div>
       </div>
       <div class="modal-body schedule-marketing-body">
         <div class="schedule-marketing-layout">
@@ -3439,6 +3431,8 @@
             <div class="schedule-marketing-sidebar-item is-active" data-section="sm_schedule">Schedule Templates</div>
             <div class="schedule-marketing-sidebar-item" data-section="sm_marketing">Marketing Templates</div>
             <div class="schedule-marketing-sidebar-item" data-section="sm_doctypes">Document Types</div>
+            <div class="schedule-marketing-sidebar-item" data-section="sm_workflows">Status Workflows</div>
+            <div class="schedule-marketing-sidebar-item" data-section="sm_formatdefaults">Format Defaults</div>
           </div>
           <div class="schedule-marketing-content">
             <!-- Schedule Templates Section -->
@@ -3510,6 +3504,25 @@
                 <button id="documentTypesSaveButton" class="primary" type="button">Save Document Types</button>
               </div>
             </div>
+            <!-- Status Workflows Section -->
+            <div class="schedule-marketing-section" data-section="sm_workflows" hidden>
+              <div id="statusWorkflowList" class="schedule-milestone-list"></div>
+              <div class="schedule-marketing-section-footer">
+                <button id="statusWorkflowsSaveButton" class="primary" type="button">Save Workflows</button>
+              </div>
+            </div>
+            <!-- Format Defaults Section -->
+            <div class="schedule-marketing-section" data-section="sm_formatdefaults" hidden>
+              <div class="schedule-milestone-list-heading" style="margin-bottom:8px;display:flex;gap:8px;">
+                <span style='flex:0 0 120px;font-weight:600;font-size:12px;'>FORMAT</span>
+                <span style='flex:1;font-weight:600;font-size:12px;'>SCHEDULE TEMPLATE</span>
+                <span style='flex:1;font-weight:600;font-size:12px;'>MARKETING TEMPLATE</span>
+              </div>
+              <div id="formatDefaultsList" class="schedule-milestone-list"></div>
+              <div class="schedule-marketing-section-footer">
+                <button id="formatDefaultsSaveButton" class="primary" type="button">Save Defaults</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3519,42 +3532,7 @@
     </div>
   </div>
 
-  <div id="statusWorkflowsModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card">
-      <div class="modal-header">
-        <h3>Status Workflows</h3>
-        <div class="muted">Configure the automatic next step assigned when a project reaches each status.</div>
-      </div>
-      <div class="modal-body schedule-templates-body">
-        <div id="statusWorkflowList" class="schedule-milestone-list"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="statusWorkflowsCloseButton" type="button">Close</button>
-        <button id="statusWorkflowsSaveButton" class="primary" type="button">Save Workflows</button>
-      </div>
-    </div>
-  </div>
 
-  <div id="formatDefaultsModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-templates-card">
-      <div class="modal-header">
-        <h3>Format Defaults</h3>
-        <div class="muted">Configure which schedule and marketing templates are auto-assigned for each book format.</div>
-      </div>
-      <div class="modal-body schedule-templates-body">
-        <div class="schedule-milestone-list-heading" style="margin-bottom:8px;display:flex;gap:8px;">
-          <span style='flex:0 0 120px;font-weight:600;font-size:12px;'>FORMAT</span>
-          <span style='flex:1;font-weight:600;font-size:12px;'>SCHEDULE TEMPLATE</span>
-          <span style='flex:1;font-weight:600;font-size:12px;'>MARKETING TEMPLATE</span>
-        </div>
-        <div id="formatDefaultsList" class="schedule-milestone-list"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="formatDefaultsCloseButton" type="button">Close</button>
-        <button id="formatDefaultsSaveButton" class="primary" type="button">Save Defaults</button>
-      </div>
-    </div>
-  </div>
 
 
   <div id="generationPromptsModal" class="modal" aria-hidden="true">

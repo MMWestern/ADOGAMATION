@@ -38,16 +38,17 @@
     }
 
     function openStatusWorkflowsModal() {
-      if (!el.statusWorkflowsModal) return;
-      el.statusWorkflowsModal.classList.add("is-open");
-      el.statusWorkflowsModal.setAttribute("aria-hidden", "false");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.add("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      switchScheduleMarketingSection("sm_workflows");
       renderStatusWorkflowsEditor();
     }
 
     function closeStatusWorkflowsModal() {
-      if (!el.statusWorkflowsModal) return;
-      el.statusWorkflowsModal.classList.remove("is-open");
-      el.statusWorkflowsModal.setAttribute("aria-hidden", "true");
+      if (!el.scheduleMarketingModal) return;
+      el.scheduleMarketingModal.classList.remove("is-open");
+      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
     }
 
     function getStatusWorkflowStatuses() {
