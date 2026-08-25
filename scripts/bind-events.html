@@ -858,9 +858,9 @@
         });
       }
 
-      if (el.sidebarAiSettingsButton) {
-        el.sidebarAiSettingsButton.addEventListener("click", function () {
-          if (typeof openAISettingsModal === "function") openAISettingsModal();
+      if (el.sidebarSettingsButton) {
+        el.sidebarSettingsButton.addEventListener("click", function () {
+          if (typeof openSettingsModal === "function") openSettingsModal("tab-ai");
           el.sidebarAiPopover.classList.remove("is-open");
           el.sidebarAiButton.setAttribute("aria-expanded", "false");
         });
@@ -890,14 +890,6 @@
         });
       }
 
-      if (el.sidebarScheduleMarketingButton) {
-        el.sidebarScheduleMarketingButton.addEventListener("click", function () {
-          if (typeof openScheduleTemplatesModal === "function") openScheduleTemplatesModal();
-          el.sidebarAiPopover.classList.remove("is-open");
-          el.sidebarAiButton.setAttribute("aria-expanded", "false");
-        });
-      }
-
       document.addEventListener("click", function (e) {
         if (el.sidebarAccountPopover && el.sidebarAvatarButton) {
           if (el.sidebarAccountPopover.classList.contains("is-open") && !el.sidebarAccountPopover.contains(e.target) && !el.sidebarAvatarButton.contains(e.target)) {
@@ -913,7 +905,6 @@
         }
       });
 
-      if (el.aiSettingsCloseButton) el.aiSettingsCloseButton.addEventListener("click", closeAISettingsModal);
       if (el.aiSettingsSaveButton) el.aiSettingsSaveButton.addEventListener("click", saveAISettings);
       if (el.aiSettingsTestButton) el.aiSettingsTestButton.addEventListener("click", runAIConnectionTest);
       if (el.aiConnectionTestCloseButton) el.aiConnectionTestCloseButton.addEventListener("click", closeAIConnectionTestModal);
@@ -940,11 +931,6 @@
           inp.addEventListener("input", function () { if (typeof updateChatModelDisplay === "function") updateChatModelDisplay(); });
         }
       });
-      if (el.aiSettingsModal) {
-        el.aiSettingsModal.addEventListener("click", function (event) {
-          if (event.target === el.aiSettingsModal) closeAISettingsModal();
-        });
-      }
       if (el.aiConnectionTestModal) {
         el.aiConnectionTestModal.addEventListener("click", function (event) {
           if (event.target === el.aiConnectionTestModal) closeAIConnectionTestModal();
@@ -1001,8 +987,8 @@
           return;
         }
 
-        if (event.key === "Escape" && el.aiSettingsModal && el.aiSettingsModal.classList.contains("is-open")) {
-          closeAISettingsModal();
+        if (event.key === "Escape" && el.settingsModal && el.settingsModal.classList.contains("is-open")) {
+          closeSettingsModal();
           return;
         }
 
@@ -1043,10 +1029,6 @@
         if (event.key === "Escape" && el.seriesEditModal && el.seriesEditModal.classList.contains("is-open")) {
           closeSeriesEditModal();
         }
-
-        if (event.key === "Escape" && el.scheduleMarketingModal && el.scheduleMarketingModal.classList.contains("is-open")) {
-          closeScheduleTemplatesModal();
-        }
       });
 
       if (el.scheduleTemplatesButton) el.scheduleTemplatesButton.addEventListener("click", openScheduleTemplatesModal);
@@ -1079,8 +1061,19 @@
       if (el.documentTypeDeleteButton) el.documentTypeDeleteButton.addEventListener("click", deleteDocumentType);
       if (el.documentTypeSelector) el.documentTypeSelector.addEventListener("change", renderDocumentTypeEditor);
 
+      // Settings modal — tab switching
+      var settingsModal = document.getElementById("settingsModal");
+      if (settingsModal) {
+        settingsModal.addEventListener("click", function (e) {
+          var tab = e.target.closest(".settings-tab");
+          if (!tab) return;
+          var tabId = tab.getAttribute("data-settings-tab");
+          if (tabId) switchSettingsTab(tabId);
+        });
+      }
+
       // Schedule & Marketing combined modal
-      if (el.scheduleMarketingCloseButton) el.scheduleMarketingCloseButton.addEventListener("click", closeScheduleTemplatesModal);
+      if (el.settingsCloseButton) el.settingsCloseButton.addEventListener("click", closeSettingsModal);
       if (el.scheduleMarketingSidebar) {
         el.scheduleMarketingSidebar.addEventListener("click", function (e) {
           var item = e.target.closest(".schedule-marketing-sidebar-item");
@@ -1095,9 +1088,9 @@
           else if (section === "sm_dropdowns") renderResourceInspectorPanel();
         });
       }
-      if (el.scheduleMarketingModal) {
-        el.scheduleMarketingModal.addEventListener("click", function (event) {
-          if (event.target === el.scheduleMarketingModal) closeScheduleTemplatesModal();
+      if (el.settingsModal) {
+        el.settingsModal.addEventListener("click", function (event) {
+          if (event.target === el.settingsModal) closeSettingsModal();
         });
       }
 

@@ -6564,10 +6564,7 @@
     }
 
     function openPromptEditorModal() {
-      var modal = document.getElementById("promptEditorModal");
-      if (!modal) return;
-      modal.classList.add("is-open");
-      modal.setAttribute("aria-hidden", "false");
+      openSettingsModal("tab-prompts");
       var allPrompts = getCustomAiPromptsAll();
       var wbPrompts = getWorldBuilderPrompts();
       // Build all sidebar groups dynamically
@@ -6690,7 +6687,7 @@
     }
 
     function showWbPromptEditor(type, key) {
-      var modal = document.getElementById("promptEditorModal");
+      var modal = document.getElementById("settingsModal");
       if (!modal) return;
       // Hide all sections, show wb_prompt
       modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) { sec.hidden = true; });
@@ -6745,7 +6742,7 @@
     function showMktPromptEditor(channel, key) {
       // Save current prompt to cache before switching
       saveCurrentMktPromptToCache();
-      var modal = document.getElementById("promptEditorModal");
+      var modal = document.getElementById("settingsModal");
       if (!modal) return;
       // Hide all sections, show mkt_prompt
       modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) { sec.hidden = true; });
@@ -6844,11 +6841,7 @@
     }
 
     function closePromptEditorModal() {
-      var modal = document.getElementById("promptEditorModal");
-      if (modal) {
-        modal.classList.remove("is-open");
-        modal.setAttribute("aria-hidden", "true");
-      }
+      closeSettingsModal();
     }
 
     function collectMarketingSection(containerId, target) {
@@ -6991,7 +6984,7 @@
         if (!section) return;
         sidebar.querySelectorAll(".prompt-editor-sidebar-item").forEach(function (el) { el.classList.remove("is-active"); });
         item.classList.add("is-active");
-        var modal = document.getElementById("promptEditorModal");
+        var modal = document.getElementById("settingsModal");
         if (!modal) return;
         modal.querySelectorAll(".prompt-editor-section").forEach(function (sec) {
           sec.hidden = sec.getAttribute("data-section") !== section;

@@ -411,15 +411,32 @@
       } catch (e) {}
     }
 
-    function openAISettingsModal() {
-      var modal = document.getElementById("aiSettingsModal");
-      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+    function switchSettingsTab(tabId) {
+      var modal = document.getElementById("settingsModal");
+      if (!modal) return;
+      modal.querySelectorAll(".settings-tab").forEach(function (t) {
+        t.classList.toggle("is-active", t.getAttribute("data-settings-tab") === tabId);
+      });
+      modal.querySelectorAll(".settings-panel").forEach(function (p) {
+        var isActive = p.id === tabId;
+        p.hidden = !isActive;
+        p.classList.toggle("is-active", isActive);
+      });
     }
 
-    function closeAISettingsModal() {
-      var modal = document.getElementById("aiSettingsModal");
+    function openSettingsModal(tab) {
+      var modal = document.getElementById("settingsModal");
+      if (modal) { modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); }
+      if (tab) switchSettingsTab(tab);
+    }
+
+    function closeSettingsModal() {
+      var modal = document.getElementById("settingsModal");
       if (modal) { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); }
     }
+
+    function openAISettingsModal() { openSettingsModal("tab-ai"); }
+    function closeAISettingsModal() { closeSettingsModal(); }
 
     function openAIConnectionTestModal() {
       var modal = document.getElementById("aiConnectionTestModal");

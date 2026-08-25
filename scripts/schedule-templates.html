@@ -25,17 +25,13 @@
     }
 
     function openScheduleTemplatesModal() {
-      if (!el.scheduleMarketingModal) return;
-      el.scheduleMarketingModal.classList.add("is-open");
-      el.scheduleMarketingModal.setAttribute("aria-hidden", "false");
+      openSettingsModal("tab-templates");
       switchScheduleMarketingSection("sm_schedule");
       renderScheduleTemplateSelector();
     }
 
     function closeScheduleTemplatesModal() {
-      if (!el.scheduleMarketingModal) return;
-      el.scheduleMarketingModal.classList.remove("is-open");
-      el.scheduleMarketingModal.setAttribute("aria-hidden", "true");
+      closeSettingsModal();
     }
 
     function switchScheduleMarketingSection(section) {

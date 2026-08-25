@@ -7109,7 +7109,7 @@
       display: flex;
     }
 
-    #aiSettingsModal,
+    #settingsModal,
     #aiConnectionTestModal,
     #markdownAITestModal,
     #bookCreatorModal,
@@ -8792,13 +8792,66 @@
     }
 
 
-    /* v39 — AI settings foundation */
-    .ai-settings-card {
-      width: min(980px, calc(100vw - 36px));
-      max-width: min(980px, calc(100vw - 36px));
+    /* Settings modal — combined tabbed modal */
+    .settings-card {
+      width: min(1200px, calc(100vw - 36px));
+      max-width: min(1200px, calc(100vw - 36px));
+      height: 850px;
       max-height: calc(100vh - 48px);
       display: flex;
       flex-direction: column;
+      overflow: clip;
+    }
+    .settings-header {
+      flex-shrink: 0;
+      padding-bottom: 0 !important;
+    }
+    .settings-tabs {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px;
+    }
+    .settings-tab {
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: var(--bg-alt, #f8f9fa);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .settings-tab:hover {
+      background: rgba(99,102,241,0.08);
+      color: var(--text);
+    }
+    .settings-tab.is-active {
+      background: #fff;
+      color: var(--text);
+      border-bottom-color: #fff;
+      position: relative;
+      z-index: 1;
+    }
+    .settings-body {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .settings-panel {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .settings-panel[hidden] {
+      display: none;
+    }
+    .settings-footer {
+      flex-shrink: 0;
     }
 
     .ai-settings-body {

@@ -354,9 +354,9 @@
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <span>AI Test</span>
             </button>
-            <button id="sidebarAiSettingsButton" class="sidebar-popover-item" type="button">
+            <button id="sidebarSettingsButton" class="sidebar-popover-item" type="button">
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span>AI Settings</span>
+              <span>Settings</span>
             </button>
             <button id="sidebarBookCreatorButton" class="sidebar-popover-item" type="button">
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M12 6v7"/><path d="M9 9h6"/></svg>
@@ -372,10 +372,6 @@
             </button>
           </div>
           <div class="sidebar-popover-section">
-            <button id="sidebarScheduleMarketingButton" class="sidebar-popover-item" type="button">
-              <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
-              <span>Templates &amp; Workflows</span>
-            </button>
             <button id="generationPromptsButton" class="sidebar-popover-item" type="button">
               <svg class="sidebar-popover-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <span>Generation Prompts</span>
@@ -2247,138 +2243,405 @@
     </div>
   </div>
 
-  <div id="aiSettingsModal" class="modal" aria-hidden="true">
-    <div class="modal-card ai-settings-card">
-      <div class="modal-header">
-        <h3>AI Settings</h3>
-        <div class="muted">Configure OpenRouter, LM Studio, Ollama, or Opencode connections. This only sets up access; writing tools come next.</div>
+  <div id="settingsModal" class="modal" aria-hidden="true">
+    <div class="modal-card settings-card">
+      <div class="modal-header settings-header">
+        <h3>Settings</h3>
+        <div class="settings-tabs">
+          <button class="settings-tab is-active" data-settings-tab="tab-templates" type="button">Templates &amp; Workflows</button>
+          <button class="settings-tab" data-settings-tab="tab-prompts" type="button">AI Prompts</button>
+          <button class="settings-tab" data-settings-tab="tab-ai" type="button">AI Settings</button>
+        </div>
       </div>
 
-      <div class="modal-body ai-settings-body">
-        <div class="ai-settings-layout">
-          <div class="ai-provider-nav" aria-label="AI providers">
-            <button type="button" data-ai-provider="openrouter">OpenRouter</button>
-            <button type="button" data-ai-provider="lmstudio">LM Studio</button>
-            <button type="button" data-ai-provider="ollama">Ollama</button>
-            <button type="button" data-ai-provider="opencode">Opencode</button>
+      <div class="settings-body">
+        <!-- Tab 1: Templates & Workflows -->
+        <div id="tab-templates" class="settings-panel is-active">
+          <div class="schedule-marketing-layout">
+            <div class="schedule-marketing-sidebar" id="scheduleMarketingSidebar">
+              <div class="schedule-marketing-sidebar-item is-active" data-section="sm_schedule">Schedule Templates</div>
+              <div class="schedule-marketing-sidebar-item" data-section="sm_marketing">Marketing Templates</div>
+              <div class="schedule-marketing-sidebar-item" data-section="sm_doctypes">Document Types</div>
+              <div class="schedule-marketing-sidebar-item" data-section="sm_workflows">Status Workflows</div>
+              <div class="schedule-marketing-sidebar-item" data-section="sm_formatdefaults">Format Defaults</div>
+              <div class="schedule-marketing-sidebar-item" data-section="sm_dropdowns">Dropdown Options</div>
+            </div>
+            <div class="schedule-marketing-content">
+              <!-- Schedule Templates Section -->
+              <div class="schedule-marketing-section" data-section="sm_schedule">
+                <div class="schedule-templates-toolbar">
+                  <select id="scheduleTemplateSelector" class="schedule-template-select"></select>
+                  <button id="scheduleTemplateNewButton" type="button">New Template</button>
+                  <button id="scheduleTemplateDeleteButton" type="button">Delete</button>
+                </div>
+                <div id="scheduleTemplateEditor" class="schedule-template-editor">
+                  <div>
+                    <label class="label" for="scheduleTemplateNameInput">Template Name</label>
+                    <input id="scheduleTemplateNameInput" type="text" />
+                  </div>
+                  <div class="schedule-milestone-list-heading">
+                    <strong>Milestones</strong>
+                    <button id="scheduleMilestoneAddButton" type="button">+ Add Milestone</button>
+                  </div>
+                  <div id="scheduleMilestoneList" class="schedule-milestone-list"></div>
+                </div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="scheduleTemplatesSaveButton" class="primary" type="button">Save Schedule Templates</button>
+                </div>
+              </div>
+              <!-- Marketing Templates Section -->
+              <div class="schedule-marketing-section" data-section="sm_marketing" hidden>
+                <div class="schedule-templates-toolbar">
+                  <select id="marketingTemplateSelector" class="schedule-template-select"></select>
+                  <button id="marketingTemplateNewButton" type="button">New Template</button>
+                  <button id="marketingTemplateDeleteButton" type="button">Delete</button>
+                </div>
+                <div id="marketingTemplateEditor" class="schedule-template-editor">
+                  <div>
+                    <label class="label" for="marketingTemplateNameInput">Template Name</label>
+                    <input id="marketingTemplateNameInput" type="text" />
+                  </div>
+                  <div class="schedule-milestone-list-heading">
+                    <strong>Campaign Entries</strong>
+                    <button id="marketingEntryAddButton" type="button">+ Add Entry</button>
+                  </div>
+                  <div id="marketingEntryList" class="schedule-milestone-list"></div>
+                </div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="marketingTemplatesSaveButton" class="primary" type="button">Save Marketing Templates</button>
+                </div>
+              </div>
+              <!-- Document Types Section -->
+              <div class="schedule-marketing-section" data-section="sm_doctypes" hidden>
+                <div class="schedule-templates-toolbar">
+                  <select id="documentTypeSelector" class="schedule-template-select"></select>
+                  <button id="documentTypeNewButton" type="button">New Type</button>
+                  <button id="documentTypeDeleteButton" type="button">Delete</button>
+                </div>
+                <div id="documentTypeEditor" class="schedule-template-editor">
+                  <div>
+                    <label class="label" for="documentTypeKeyInput">Type Key</label>
+                    <input id="documentTypeKeyInput" type="text" placeholder="e.g. email, social_post" />
+                  </div>
+                  <div>
+                    <label class="label" for="documentTypeNameInput">Display Label</label>
+                    <input id="documentTypeNameInput" type="text" placeholder="e.g. Email" />
+                  </div>
+                  <div>
+                    <label class="label" for="documentTypeIconInput">Icon (emoji)</label>
+                    <input id="documentTypeIconInput" type="text" placeholder="e.g. ✉" style="width:60px" />
+                  </div>
+                </div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="documentTypesSaveButton" class="primary" type="button">Save Document Types</button>
+                </div>
+              </div>
+              <!-- Status Workflows Section -->
+              <div class="schedule-marketing-section" data-section="sm_workflows" hidden>
+                <div id="statusWorkflowList" class="schedule-milestone-list"></div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="statusWorkflowsSaveButton" class="primary" type="button">Save Workflows</button>
+                </div>
+              </div>
+              <!-- Format Defaults Section -->
+              <div class="schedule-marketing-section" data-section="sm_formatdefaults" hidden>
+                <div class="schedule-milestone-list-heading" style="margin-bottom:8px;display:flex;gap:8px;">
+                  <span style='flex:0 0 120px;font-weight:600;font-size:12px;'>FORMAT</span>
+                  <span style='flex:1;font-weight:600;font-size:12px;'>SCHEDULE TEMPLATE</span>
+                  <span style='flex:1;font-weight:600;font-size:12px;'>MARKETING TEMPLATE</span>
+                </div>
+                <div id="formatDefaultsList" class="schedule-milestone-list"></div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="formatDefaultsSaveButton" class="primary" type="button">Save Defaults</button>
+                </div>
+              </div>
+              <!-- Dropdown Options Section -->
+              <div class="schedule-marketing-section" data-section="sm_dropdowns" hidden>
+                <div class="resource-inspector-toolbar">
+                  <div class="resource-inspector-filter-group">
+                    <label class="label" for="resourceInspectorTypeFilter">Filter</label>
+                    <select id="resourceInspectorTypeFilter">
+                      <option value="all">All Types</option>
+                    </select>
+                  </div>
+                  <div id="resourceInspectorCount" class="tiny resource-inspector-count">0 options</div>
+                  <button id="resourceInspectorAddRowButton" type="button">Add Row</button>
+                  <button id="resourceInspectorSeedButton" type="button">Seed From Projects</button>
+                </div>
+                <div class="resource-inspector-table-wrap">
+                  <table class="resource-inspector-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Description</th>
+                        <th>Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resourceInspectorTableBody"></tbody>
+                  </table>
+                </div>
+                <div class="schedule-marketing-section-footer">
+                  <button id="resourceInspectorSaveButton" class="primary" type="button">Save Options</button>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div class="ai-settings-panel">
-            <div class="ai-default-provider-row">
-              <label class="label" for="aiDefaultProvider">Default Provider</label>
-              <select id="aiDefaultProvider">
-                <option value="openrouter">OpenRouter</option>
-                <option value="lmstudio">LM Studio</option>
-                <option value="ollama">Ollama</option>
-                <option value="opencode">Opencode (Zen)</option>
-              </select>
-            </div>
-
-            <div id="aiOpenRouterPanel" class="ai-provider-panel" data-ai-panel="openrouter">
-              <div class="ai-provider-heading">
-                <h4>OpenRouter</h4>
-                <div class="tiny">Cloud models through OpenRouter's OpenAI-compatible API.</div>
-              </div>
-              <div>
-                <label class="label" for="aiOpenRouterApiKey">API Key</label>
-                <input id="aiOpenRouterApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
-                <label class="ai-inline-check"><input id="aiOpenRouterClearKey" type="checkbox" /> Clear saved OpenRouter API key</label>
-              </div>
-              <div class="ai-model-row">
-                <div>
-                  <label class="label" for="aiOpenRouterModel">Model</label>
-                  <input id="aiOpenRouterModel" type="text" placeholder="e.g. anthropic/claude-3.5-sonnet" autocomplete="off" />
-                  <datalist id="aiOpenRouterModelList"></datalist>
+        <!-- Tab 2: AI Prompts -->
+        <div id="tab-prompts" class="settings-panel" hidden>
+          <div class="prompt-editor-layout">
+            <div class="prompt-editor-sidebar" id="promptEditorSidebar" tabindex="0">
+              <div class="prompt-editor-group is-open" data-group="world_builder">
+                <div class="prompt-editor-group-header" data-group="world_builder">
+                  <span class="prompt-editor-chevron">&#9654;</span> World Builder
                 </div>
-                <div class="ai-fetch-row">
-                <button id="aiOpenRouterFetchModelsButton" type="button">Fetch Models</button>
-                <span class="ai-model-count" id="aiOpenRouterModelCount"></span>
+                <div class="prompt-editor-group-items" id="promptEditorWbSidebar"></div>
               </div>
-              </div>
-            </div>
-
-            <div id="aiLmStudioPanel" class="ai-provider-panel" data-ai-panel="lmstudio" hidden>
-              <div class="ai-provider-heading">
-                <h4>LM Studio</h4>
-                <div class="tiny">OpenAI-compatible local server. Default endpoint: http://localhost:1234/v1</div>
-              </div>
-              <div>
-                <label class="label" for="aiLmStudioEndpoint">Endpoint</label>
-                <input id="aiLmStudioEndpoint" type="url" placeholder="http://localhost:1234/v1" />
-                <label class="ai-inline-check"><input id="aiLmStudioUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
-              </div>
-              <div class="ai-model-row">
-                <div>
-                  <label class="label" for="aiLmStudioModel">Model</label>
-                  <input id="aiLmStudioModel" type="text" placeholder="Select or type model name" autocomplete="off" />
-                  <datalist id="aiLmStudioModelList"></datalist>
+              <div class="prompt-editor-group" data-group="story_seed">
+                <div class="prompt-editor-group-header" data-group="story_seed">
+                  <span class="prompt-editor-chevron">&#9654;</span> Story Seed
                 </div>
-                <div class="ai-fetch-row">
-                <button id="aiLmStudioFetchModelsButton" type="button">Fetch Models</button>
-                <span class="ai-model-count" id="aiLmStudioModelCount"></span>
+                <div class="prompt-editor-group-items" id="promptEditorSsSidebar" hidden></div>
               </div>
-              </div>
-            </div>
-
-            <div id="aiOllamaPanel" class="ai-provider-panel" data-ai-panel="ollama" hidden>
-              <div class="ai-provider-heading">
-                <h4>Ollama</h4>
-                <div class="tiny">Ollama local API. Default endpoint: http://localhost:11434</div>
-              </div>
-              <div>
-                <label class="label" for="aiOllamaEndpoint">Endpoint</label>
-                <input id="aiOllamaEndpoint" type="url" placeholder="http://localhost:11434" />
-                <label class="ai-inline-check"><input id="aiOllamaUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
-              </div>
-              <div class="ai-model-row">
-                <div>
-                  <label class="label" for="aiOllamaModel">Model</label>
-                  <input id="aiOllamaModel" type="text" placeholder="Select or type model name" autocomplete="off" />
-                  <datalist id="aiOllamaModelList"></datalist>
+              <div class="prompt-editor-group" data-group="marketing">
+                <div class="prompt-editor-group-header" data-group="marketing">
+                  <span class="prompt-editor-chevron">&#9654;</span> Marketing &amp; Campaign
                 </div>
-                <div class="ai-fetch-row">
-                <button id="aiOllamaFetchModelsButton" type="button">Fetch Models</button>
-                <span class="ai-model-count" id="aiOllamaModelCount"></span>
+                <div class="prompt-editor-group-items" id="promptEditorMktSidebar" hidden></div>
               </div>
-              </div>
-            </div>
-
-            <div id="aiOpencodePanel" class="ai-provider-panel" data-ai-panel="opencode" hidden>
-              <div class="ai-provider-heading">
-                <h4>Opencode (Zen)</h4>
-                <div class="tiny">Cloud models through Opencode Zen's OpenAI-compatible API. Get your API key at <a href="https://opencode.ai/auth" target="_blank">opencode.ai/auth</a>.</div>
-              </div>
-              <div>
-                <label class="label" for="aiOpencodeApiKey">API Key</label>
-                <input id="aiOpencodeApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
-                <label class="ai-inline-check"><input id="aiOpencodeClearKey" type="checkbox" /> Clear saved Opencode API key</label>
-              </div>
-              <div class="ai-model-row">
-                <div>
-                  <label class="label" for="aiOpencodeModel">Model</label>
-                  <input id="aiOpencodeModel" type="text" placeholder="e.g. gpt-5.5" autocomplete="off" />
-                  <datalist id="aiOpencodeModelList"></datalist>
+              <div class="prompt-editor-group" data-group="brainstorm">
+                <div class="prompt-editor-group-header" data-group="brainstorm">
+                  <span class="prompt-editor-chevron">&#9654;</span> Brainstorm Extraction
                 </div>
-<div class="ai-fetch-row">
-                <button id="aiOpencodeFetchModelsButton" type="button">Fetch Models</button>
-                <span class="ai-model-count" id="aiOpencodeModelCount"></span>
+                <div class="prompt-editor-group-items" id="promptEditorBrSidebar" hidden></div>
               </div>
+              <div class="prompt-editor-group" data-group="codex">
+                <div class="prompt-editor-group-header" data-group="codex">
+                  <span class="prompt-editor-chevron">&#9654;</span> Codex Suggestions
+                </div>
+                <div class="prompt-editor-group-items" id="promptEditorCxSidebar" hidden></div>
               </div>
             </div>
-
-            <div class="ai-settings-note">
-              Local endpoints can use browser/direct mode so your browser calls LAN or localhost services such as LM Studio or Ollama. If browser mode fails, check the server URL and CORS settings, or type the model name manually. Opencode Zen is a cloud service — no browser mode needed.
+            <div class="prompt-editor-content">
+              <div class="prompt-editor-section" data-section="wb_prompt">
+                <div class="label" style="font-weight:600;" id="promptEditorWbTitle">Prompt</div>
+                <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorWbSubtitle"></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div>
+                    <label class="label">System Prompt</label>
+                    <textarea id="promptEditorWbSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
+                  </div>
+                  <div>
+                    <label class="label">User Prompt</label>
+                    <textarea id="promptEditorWbUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
+                  </div>
+                  <div>
+                    <label class="label">LLM Preview</label>
+                    <textarea id="promptEditorWbPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="prompt-editor-section" data-section="wb_system" hidden>
+                <div class="label" style="font-weight:600;">System Prompt Template</div>
+                <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
+                <textarea id="promptEditorSystemPrompt" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
+              </div>
+              <div class="prompt-editor-section" data-section="wb_pillarhelp" hidden>
+                <div class="label" style="font-weight:600;">Pillar Help Prompt</div>
+                <div class="tiny muted" style="margin-bottom:6px;">Sent when clicking "Help me with" on a pillar. Placeholders: {pillar_label}, {pillar_purpose}, {pillar_content}</div>
+                <textarea id="promptEditorPillarHelp" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Pillar help prompt template..."></textarea>
+              </div>
+              <div class="prompt-editor-section" data-section="ss_system" hidden>
+                <div class="label" style="font-weight:600;">Story Seed - System Prompt</div>
+                <div class="tiny muted" style="margin-bottom:6px;">The role and behaviour of the AI when generating story seeds.</div>
+                <textarea id="promptEditorSsSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
+              </div>
+              <div class="prompt-editor-section" data-section="ss_template" hidden>
+                <div class="label" style="font-weight:600;">Story Seed - User Prompt Template</div>
+                <div class="tiny muted" style="margin-bottom:6px;">The user-facing prompt template. Engine brief JSON is appended automatically.</div>
+                <textarea id="promptEditorSsTemplate" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Prompt template..."></textarea>
+              </div>
+              <div class="prompt-editor-section" data-section="mkt_newsletter" hidden>
+                <div class="label" style="font-weight:600;">Newsletter Prompts</div>
+                <div class="tiny muted" style="margin-bottom:6px;">System prompts for newsletter and email generation.</div>
+                <div id="promptEditorMktNewsletterList" style="display:flex;flex-direction:column;gap:8px;"></div>
+              </div>
+              <div class="prompt-editor-section" data-section="mkt_social" hidden>
+                <div class="label" style="font-weight:600;">Social Media Prompts</div>
+                <div class="tiny muted" style="margin-bottom:6px;">System prompts for social media post generation.</div>
+                <div id="promptEditorMktSocialList" style="display:flex;flex-direction:column;gap:8px;"></div>
+              </div>
+              <div class="prompt-editor-section" data-section="mkt_ads" hidden>
+                <div class="label" style="font-weight:600;">Ads &amp; Copy Prompts</div>
+                <div class="tiny muted" style="margin-bottom:6px;">System prompts for ad copy and marketing text.</div>
+                <div id="promptEditorMktAdsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+              </div>
+              <div class="prompt-editor-section" data-section="mkt_other" hidden>
+                <div class="label" style="font-weight:600;">Other Channel Prompts</div>
+                <div class="tiny muted" style="margin-bottom:6px;">Patreon, Royal Road, website, ARC, and release summary prompts.</div>
+                <div id="promptEditorMktOtherList" style="display:flex;flex-direction:column;gap:8px;"></div>
+              </div>
+              <div class="prompt-editor-section" data-section="mkt_prompt" hidden>
+                <div class="label" style="font-weight:600;" id="promptEditorMktTitle">Prompt</div>
+                <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorMktSubtitle"></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div>
+                    <label class="label">System Prompt</label>
+                    <textarea id="promptEditorMktSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
+                  </div>
+                  <div>
+                    <label class="label">User Prompt</label>
+                    <textarea id="promptEditorMktUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
+                  </div>
+                  <div>
+                    <label class="label">LLM Preview</label>
+                    <textarea id="promptEditorMktPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="prompt-editor-section" data-section="br_extract" hidden>
+                <div class="label" style="font-weight:600;">Brainstorm Extraction Prompt</div>
+                <div class="tiny muted" style="margin-bottom:6px;">The system prompt used to extract brainstorm dumps into world framework pillars.</div>
+                <textarea id="promptEditorBrExtract" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Extraction prompt..."></textarea>
+              </div>
+              <div class="prompt-editor-section" data-section="cx_suggest" hidden>
+                <div class="label" style="font-weight:600;">Codex Entity Suggestions</div>
+                <div class="tiny muted" style="margin-bottom:6px;">The system prompt used when suggesting new entities from the Codex.</div>
+                <textarea id="promptEditorCxSuggest" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Suggestion prompt..."></textarea>
+              </div>
             </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);">
+            <button id="promptEditorCancelBtn" type="button">Cancel</button>
+            <button id="promptEditorResetBtn" type="button">Reset to Defaults</button>
+            <button id="promptEditorSaveBtn" type="button" class="primary">Save Prompts</button>
+          </div>
+        </div>
 
-            <div id="aiSettingsStatus" class="status-bar">AI settings not loaded yet.</div>
+        <!-- Tab 3: AI Settings -->
+        <div id="tab-ai" class="settings-panel" hidden>
+          <div class="ai-settings-layout">
+            <div class="ai-provider-nav" aria-label="AI providers">
+              <button type="button" data-ai-provider="openrouter">OpenRouter</button>
+              <button type="button" data-ai-provider="lmstudio">LM Studio</button>
+              <button type="button" data-ai-provider="ollama">Ollama</button>
+              <button type="button" data-ai-provider="opencode">Opencode</button>
+            </div>
+            <div class="ai-settings-panel">
+              <div class="ai-default-provider-row">
+                <label class="label" for="aiDefaultProvider">Default Provider</label>
+                <select id="aiDefaultProvider">
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="lmstudio">LM Studio</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="opencode">Opencode (Zen)</option>
+                </select>
+              </div>
+              <div id="aiOpenRouterPanel" class="ai-provider-panel" data-ai-panel="openrouter">
+                <div class="ai-provider-heading">
+                  <h4>OpenRouter</h4>
+                  <div class="tiny">Cloud models through OpenRouter's OpenAI-compatible API.</div>
+                </div>
+                <div>
+                  <label class="label" for="aiOpenRouterApiKey">API Key</label>
+                  <input id="aiOpenRouterApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
+                  <label class="ai-inline-check"><input id="aiOpenRouterClearKey" type="checkbox" /> Clear saved OpenRouter API key</label>
+                </div>
+                <div class="ai-model-row">
+                  <div>
+                    <label class="label" for="aiOpenRouterModel">Model</label>
+                    <input id="aiOpenRouterModel" type="text" placeholder="e.g. anthropic/claude-3.5-sonnet" autocomplete="off" />
+                    <datalist id="aiOpenRouterModelList"></datalist>
+                  </div>
+                  <div class="ai-fetch-row">
+                    <button id="aiOpenRouterFetchModelsButton" type="button">Fetch Models</button>
+                    <span class="ai-model-count" id="aiOpenRouterModelCount"></span>
+                  </div>
+                </div>
+              </div>
+              <div id="aiLmStudioPanel" class="ai-provider-panel" data-ai-panel="lmstudio" hidden>
+                <div class="ai-provider-heading">
+                  <h4>LM Studio</h4>
+                  <div class="tiny">OpenAI-compatible local server. Default endpoint: http://localhost:1234/v1</div>
+                </div>
+                <div>
+                  <label class="label" for="aiLmStudioEndpoint">Endpoint</label>
+                  <input id="aiLmStudioEndpoint" type="url" placeholder="http://localhost:1234/v1" />
+                  <label class="ai-inline-check"><input id="aiLmStudioUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
+                </div>
+                <div class="ai-model-row">
+                  <div>
+                    <label class="label" for="aiLmStudioModel">Model</label>
+                    <input id="aiLmStudioModel" type="text" placeholder="Select or type model name" autocomplete="off" />
+                    <datalist id="aiLmStudioModelList"></datalist>
+                  </div>
+                  <div class="ai-fetch-row">
+                    <button id="aiLmStudioFetchModelsButton" type="button">Fetch Models</button>
+                    <span class="ai-model-count" id="aiLmStudioModelCount"></span>
+                  </div>
+                </div>
+              </div>
+              <div id="aiOllamaPanel" class="ai-provider-panel" data-ai-panel="ollama" hidden>
+                <div class="ai-provider-heading">
+                  <h4>Ollama</h4>
+                  <div class="tiny">Ollama local API. Default endpoint: http://localhost:11434</div>
+                </div>
+                <div>
+                  <label class="label" for="aiOllamaEndpoint">Endpoint</label>
+                  <input id="aiOllamaEndpoint" type="url" placeholder="http://localhost:11434" />
+                  <label class="ai-inline-check"><input id="aiOllamaUseBrowser" type="checkbox" /> Use browser/direct local connection for LAN or localhost endpoints</label>
+                </div>
+                <div class="ai-model-row">
+                  <div>
+                    <label class="label" for="aiOllamaModel">Model</label>
+                    <input id="aiOllamaModel" type="text" placeholder="Select or type model name" autocomplete="off" />
+                    <datalist id="aiOllamaModelList"></datalist>
+                  </div>
+                  <div class="ai-fetch-row">
+                    <button id="aiOllamaFetchModelsButton" type="button">Fetch Models</button>
+                    <span class="ai-model-count" id="aiOllamaModelCount"></span>
+                  </div>
+                </div>
+              </div>
+              <div id="aiOpencodePanel" class="ai-provider-panel" data-ai-panel="opencode" hidden>
+                <div class="ai-provider-heading">
+                  <h4>Opencode (Zen)</h4>
+                  <div class="tiny">Cloud models through Opencode Zen's OpenAI-compatible API. Get your API key at <a href="https://opencode.ai/auth" target="_blank">opencode.ai/auth</a>.</div>
+                </div>
+                <div>
+                  <label class="label" for="aiOpencodeApiKey">API Key</label>
+                  <input id="aiOpencodeApiKey" type="password" autocomplete="off" placeholder="Leave blank to keep saved key" />
+                  <label class="ai-inline-check"><input id="aiOpencodeClearKey" type="checkbox" /> Clear saved Opencode API key</label>
+                </div>
+                <div class="ai-model-row">
+                  <div>
+                    <label class="label" for="aiOpencodeModel">Model</label>
+                    <input id="aiOpencodeModel" type="text" placeholder="e.g. gpt-5.5" autocomplete="off" />
+                    <datalist id="aiOpencodeModelList"></datalist>
+                  </div>
+                  <div class="ai-fetch-row">
+                    <button id="aiOpencodeFetchModelsButton" type="button">Fetch Models</button>
+                    <span class="ai-model-count" id="aiOpencodeModelCount"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="ai-settings-note">
+                Local endpoints can use browser/direct mode so your browser calls LAN or localhost services such as LM Studio or Ollama. If browser mode fails, check the server URL and CORS settings, or type the model name manually. Opencode Zen is a cloud service — no browser mode needed.
+              </div>
+              <div id="aiSettingsStatus" class="status-bar">AI settings not loaded yet.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);">
+            <button id="aiSettingsTestButton" type="button">Test Connection</button>
+            <button id="aiSettingsSaveButton" class="primary" type="button">Save Settings</button>
           </div>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button id="aiSettingsTestButton" type="button">Test Connection</button>
-        <button id="aiSettingsCloseButton" type="button">Close</button>
-        <button id="aiSettingsSaveButton" class="primary" type="button">Save Settings</button>
+      <div class="modal-footer settings-footer">
+        <button id="settingsCloseButton" type="button">Close</button>
       </div>
     </div>
   </div>
@@ -3378,149 +3641,7 @@
     </div>
   </div>
 
-  <div id="scheduleMarketingModal" class="modal" aria-hidden="true">
-    <div class="modal-card schedule-marketing-card">
-      <div class="modal-header">
-        <h3>Templates &amp; Workflows</h3>
-        <div class="muted">Manage schedule templates, marketing plans, document types, status workflows, and format defaults.</div>
-      </div>
-      <div class="modal-body schedule-marketing-body">
-        <div class="schedule-marketing-layout">
-          <div class="schedule-marketing-sidebar" id="scheduleMarketingSidebar">
-            <div class="schedule-marketing-sidebar-item is-active" data-section="sm_schedule">Schedule Templates</div>
-            <div class="schedule-marketing-sidebar-item" data-section="sm_marketing">Marketing Templates</div>
-            <div class="schedule-marketing-sidebar-item" data-section="sm_doctypes">Document Types</div>
-            <div class="schedule-marketing-sidebar-item" data-section="sm_workflows">Status Workflows</div>
-            <div class="schedule-marketing-sidebar-item" data-section="sm_formatdefaults">Format Defaults</div>
-            <div class="schedule-marketing-sidebar-item" data-section="sm_dropdowns">Dropdown Options</div>
-          </div>
-          <div class="schedule-marketing-content">
-            <!-- Schedule Templates Section -->
-            <div class="schedule-marketing-section" data-section="sm_schedule">
-              <div class="schedule-templates-toolbar">
-                <select id="scheduleTemplateSelector" class="schedule-template-select"></select>
-                <button id="scheduleTemplateNewButton" type="button">New Template</button>
-                <button id="scheduleTemplateDeleteButton" type="button">Delete</button>
-              </div>
-              <div id="scheduleTemplateEditor" class="schedule-template-editor">
-                <div>
-                  <label class="label" for="scheduleTemplateNameInput">Template Name</label>
-                  <input id="scheduleTemplateNameInput" type="text" />
-                </div>
-                <div class="schedule-milestone-list-heading">
-                  <strong>Milestones</strong>
-                  <button id="scheduleMilestoneAddButton" type="button">+ Add Milestone</button>
-                </div>
-                <div id="scheduleMilestoneList" class="schedule-milestone-list"></div>
-              </div>
-              <div class="schedule-marketing-section-footer">
-                <button id="scheduleTemplatesSaveButton" class="primary" type="button">Save Schedule Templates</button>
-              </div>
-            </div>
-            <!-- Marketing Templates Section -->
-            <div class="schedule-marketing-section" data-section="sm_marketing" hidden>
-              <div class="schedule-templates-toolbar">
-                <select id="marketingTemplateSelector" class="schedule-template-select"></select>
-                <button id="marketingTemplateNewButton" type="button">New Template</button>
-                <button id="marketingTemplateDeleteButton" type="button">Delete</button>
-              </div>
-              <div id="marketingTemplateEditor" class="schedule-template-editor">
-                <div>
-                  <label class="label" for="marketingTemplateNameInput">Template Name</label>
-                  <input id="marketingTemplateNameInput" type="text" />
-                </div>
-                <div class="schedule-milestone-list-heading">
-                  <strong>Campaign Entries</strong>
-                  <button id="marketingEntryAddButton" type="button">+ Add Entry</button>
-                </div>
-                <div id="marketingEntryList" class="schedule-milestone-list"></div>
-              </div>
-              <div class="schedule-marketing-section-footer">
-                <button id="marketingTemplatesSaveButton" class="primary" type="button">Save Marketing Templates</button>
-              </div>
-            </div>
-            <!-- Document Types Section -->
-            <div class="schedule-marketing-section" data-section="sm_doctypes" hidden>
-              <div class="schedule-templates-toolbar">
-                <select id="documentTypeSelector" class="schedule-template-select"></select>
-                <button id="documentTypeNewButton" type="button">New Type</button>
-                <button id="documentTypeDeleteButton" type="button">Delete</button>
-              </div>
-              <div id="documentTypeEditor" class="schedule-template-editor">
-                <div>
-                  <label class="label" for="documentTypeKeyInput">Type Key</label>
-                  <input id="documentTypeKeyInput" type="text" placeholder="e.g. email, social_post" />
-                </div>
-                <div>
-                  <label class="label" for="documentTypeNameInput">Display Label</label>
-                  <input id="documentTypeNameInput" type="text" placeholder="e.g. Email" />
-                </div>
-                <div>
-                  <label class="label" for="documentTypeIconInput">Icon (emoji)</label>
-                  <input id="documentTypeIconInput" type="text" placeholder="e.g. ✉" style="width:60px" />
-                </div>
-              </div>
-              <div class="schedule-marketing-section-footer">
-                <button id="documentTypesSaveButton" class="primary" type="button">Save Document Types</button>
-              </div>
-            </div>
-            <!-- Status Workflows Section -->
-            <div class="schedule-marketing-section" data-section="sm_workflows" hidden>
-              <div id="statusWorkflowList" class="schedule-milestone-list"></div>
-              <div class="schedule-marketing-section-footer">
-                <button id="statusWorkflowsSaveButton" class="primary" type="button">Save Workflows</button>
-              </div>
-            </div>
-            <!-- Format Defaults Section -->
-            <div class="schedule-marketing-section" data-section="sm_formatdefaults" hidden>
-              <div class="schedule-milestone-list-heading" style="margin-bottom:8px;display:flex;gap:8px;">
-                <span style='flex:0 0 120px;font-weight:600;font-size:12px;'>FORMAT</span>
-                <span style='flex:1;font-weight:600;font-size:12px;'>SCHEDULE TEMPLATE</span>
-                <span style='flex:1;font-weight:600;font-size:12px;'>MARKETING TEMPLATE</span>
-              </div>
-              <div id="formatDefaultsList" class="schedule-milestone-list"></div>
-              <div class="schedule-marketing-section-footer">
-                <button id="formatDefaultsSaveButton" class="primary" type="button">Save Defaults</button>
-              </div>
-            </div>
-            <!-- Dropdown Options Section -->
-            <div class="schedule-marketing-section" data-section="sm_dropdowns" hidden>
-              <div class="resource-inspector-toolbar">
-                <div class="resource-inspector-filter-group">
-                  <label class="label" for="resourceInspectorTypeFilter">Filter</label>
-                  <select id="resourceInspectorTypeFilter">
-                    <option value="all">All Types</option>
-                  </select>
-                </div>
-                <div id="resourceInspectorCount" class="tiny resource-inspector-count">0 options</div>
-                <button id="resourceInspectorAddRowButton" type="button">Add Row</button>
-                <button id="resourceInspectorSeedButton" type="button">Seed From Projects</button>
-              </div>
-              <div class="resource-inspector-table-wrap">
-                <table class="resource-inspector-table">
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Value</th>
-                      <th>Description</th>
-                      <th>Remove</th>
-                    </tr>
-                  </thead>
-                  <tbody id="resourceInspectorTableBody"></tbody>
-                </table>
-              </div>
-              <div class="schedule-marketing-section-footer">
-                <button id="resourceInspectorSaveButton" class="primary" type="button">Save Options</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="scheduleMarketingCloseButton" type="button">Close</button>
-      </div>
-    </div>
-  </div>
+
 
 
 
@@ -3825,159 +3946,7 @@
     </div>
   </div>
 
-  <!-- AI Prompt Editor Modal -->
-  <div id="promptEditorModal" class="modal" aria-hidden="true">
-    <div class="modal-card prompt-editor-card">
-      <div class="modal-header">
-        <h3>AI Prompts</h3>
-        <div class="muted">View and edit the prompts used across the app. Changes are saved to your browser and applied to new sessions.</div>
-      </div>
-      <div class="prompt-editor-layout">
-        <div class="prompt-editor-sidebar" id="promptEditorSidebar" tabindex="0">
-          <!-- World Builder group — items populated dynamically -->
-          <div class="prompt-editor-group is-open" data-group="world_builder">
-            <div class="prompt-editor-group-header" data-group="world_builder">
-              <span class="prompt-editor-chevron">&#9654;</span> World Builder
-            </div>
-            <div class="prompt-editor-group-items" id="promptEditorWbSidebar"></div>
-          </div>
-          <!-- Story Seed group -->
-          <div class="prompt-editor-group" data-group="story_seed">
-            <div class="prompt-editor-group-header" data-group="story_seed">
-              <span class="prompt-editor-chevron">&#9654;</span> Story Seed
-            </div>
-            <div class="prompt-editor-group-items" id="promptEditorSsSidebar" hidden></div>
-          </div>
-          <!-- Marketing & Campaign group -->
-          <div class="prompt-editor-group" data-group="marketing">
-            <div class="prompt-editor-group-header" data-group="marketing">
-              <span class="prompt-editor-chevron">&#9654;</span> Marketing &amp; Campaign
-            </div>
-            <div class="prompt-editor-group-items" id="promptEditorMktSidebar" hidden></div>
-          </div>
-          <!-- Brainstorm Extraction group -->
-          <div class="prompt-editor-group" data-group="brainstorm">
-            <div class="prompt-editor-group-header" data-group="brainstorm">
-              <span class="prompt-editor-chevron">&#9654;</span> Brainstorm Extraction
-            </div>
-            <div class="prompt-editor-group-items" id="promptEditorBrSidebar" hidden></div>
-          </div>
-          <!-- Codex Suggestions group -->
-          <div class="prompt-editor-group" data-group="codex">
-            <div class="prompt-editor-group-header" data-group="codex">
-              <span class="prompt-editor-chevron">&#9654;</span> Codex Suggestions
-            </div>
-            <div class="prompt-editor-group-items" id="promptEditorCxSidebar" hidden></div>
-          </div>
-        </div>
-        <div class="prompt-editor-content">
-          <!-- World Builder: individual prompt editor (shared template) -->
-          <div class="prompt-editor-section" data-section="wb_prompt">
-            <div class="label" style="font-weight:600;" id="promptEditorWbTitle">Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorWbSubtitle"></div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <div>
-                <label class="label">System Prompt</label>
-                <textarea id="promptEditorWbSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
-              </div>
-              <div>
-                <label class="label">User Prompt</label>
-                <textarea id="promptEditorWbUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
-              </div>
-              <div>
-                <label class="label">LLM Preview</label>
-                <textarea id="promptEditorWbPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
-              </div>
-            </div>
-          </div>
-          <!-- World Builder: System Prompt -->
-          <div class="prompt-editor-section" data-section="wb_system" hidden>
-            <div class="label" style="font-weight:600;">System Prompt Template</div>
-            <div class="tiny muted" style="margin-bottom:6px;">The base system prompt. Mode and context are added automatically.</div>
-            <textarea id="promptEditorSystemPrompt" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt template..."></textarea>
-          </div>
-          <!-- World Builder: Pillar Help -->
-          <div class="prompt-editor-section" data-section="wb_pillarhelp" hidden>
-            <div class="label" style="font-weight:600;">Pillar Help Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;">Sent when clicking "Help me with" on a pillar. Placeholders: {pillar_label}, {pillar_purpose}, {pillar_content}</div>
-            <textarea id="promptEditorPillarHelp" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Pillar help prompt template..."></textarea>
-          </div>
-          <!-- Story Seed: System Prompt -->
-          <div class="prompt-editor-section" data-section="ss_system" hidden>
-            <div class="label" style="font-weight:600;">Story Seed - System Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;">The role and behaviour of the AI when generating story seeds.</div>
-            <textarea id="promptEditorSsSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
-          </div>
-          <!-- Story Seed: User Prompt Template -->
-          <div class="prompt-editor-section" data-section="ss_template" hidden>
-            <div class="label" style="font-weight:600;">Story Seed - User Prompt Template</div>
-            <div class="tiny muted" style="margin-bottom:6px;">The user-facing prompt template. Engine brief JSON is appended automatically.</div>
-            <textarea id="promptEditorSsTemplate" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Prompt template..."></textarea>
-          </div>
-          <!-- Marketing: Newsletter -->
-          <div class="prompt-editor-section" data-section="mkt_newsletter" hidden>
-            <div class="label" style="font-weight:600;">Newsletter Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">System prompts for newsletter and email generation.</div>
-            <div id="promptEditorMktNewsletterList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
-          <!-- Marketing: Social Media -->
-          <div class="prompt-editor-section" data-section="mkt_social" hidden>
-            <div class="label" style="font-weight:600;">Social Media Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">System prompts for social media post generation.</div>
-            <div id="promptEditorMktSocialList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
-          <!-- Marketing: Ads & Copy -->
-          <div class="prompt-editor-section" data-section="mkt_ads" hidden>
-            <div class="label" style="font-weight:600;">Ads &amp; Copy Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">System prompts for ad copy and marketing text.</div>
-            <div id="promptEditorMktAdsList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
-          <!-- Marketing: Other Channels -->
-          <div class="prompt-editor-section" data-section="mkt_other" hidden>
-            <div class="label" style="font-weight:600;">Other Channel Prompts</div>
-            <div class="tiny muted" style="margin-bottom:6px;">Patreon, Royal Road, website, ARC, and release summary prompts.</div>
-            <div id="promptEditorMktOtherList" style="display:flex;flex-direction:column;gap:8px;"></div>
-          </div>
-          <!-- Marketing: Individual prompt editor -->
-          <div class="prompt-editor-section" data-section="mkt_prompt" hidden>
-            <div class="label" style="font-weight:600;" id="promptEditorMktTitle">Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;" id="promptEditorMktSubtitle"></div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <div>
-                <label class="label">System Prompt</label>
-                <textarea id="promptEditorMktSystem" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="System prompt..."></textarea>
-              </div>
-              <div>
-                <label class="label">User Prompt</label>
-                <textarea id="promptEditorMktUser" rows="6" style="width:100%;font-family:monospace;font-size:11px;" placeholder="User prompt template..."></textarea>
-              </div>
-              <div>
-                <label class="label">LLM Preview</label>
-                <textarea id="promptEditorMktPreview" rows="6" style="width:100%;font-family:monospace;font-size:11px;background:var(--bg-alt,#f8f9fa);color:var(--muted);" readonly></textarea>
-              </div>
-            </div>
-          </div>
-          <!-- Brainstorm: Extraction Prompt -->
-          <div class="prompt-editor-section" data-section="br_extract" hidden>
-            <div class="label" style="font-weight:600;">Brainstorm Extraction Prompt</div>
-            <div class="tiny muted" style="margin-bottom:6px;">The system prompt used to extract brainstorm dumps into world framework pillars.</div>
-            <textarea id="promptEditorBrExtract" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Extraction prompt..."></textarea>
-          </div>
-          <!-- Codex: Entity Suggestions -->
-          <div class="prompt-editor-section" data-section="cx_suggest" hidden>
-            <div class="label" style="font-weight:600;">Codex Entity Suggestions</div>
-            <div class="tiny muted" style="margin-bottom:6px;">The system prompt used when suggesting new entities from the Codex.</div>
-            <textarea id="promptEditorCxSuggest" rows="4" style="width:100%;font-family:monospace;font-size:11px;" placeholder="Suggestion prompt..."></textarea>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="promptEditorCancelBtn" type="button">Cancel</button>
-        <button id="promptEditorResetBtn" type="button">Reset to Defaults</button>
-        <button id="promptEditorSaveBtn" type="button" class="primary">Save Prompts</button>
-      </div>
-    </div>
-  </div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
