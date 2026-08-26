@@ -8871,8 +8871,8 @@
     .ai-provider-nav {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding: 14px 8px;
+      gap: 0;
+      padding: 8px 0;
       border-right: 1px solid var(--border);
       background: var(--bg-alt, #f8f9fa);
       position: sticky;
@@ -8884,15 +8884,16 @@
     .ai-provider-nav button {
       width: 100%;
       text-align: left;
-      border-radius: 8px;
-      padding: 9px 14px;
-      font-size: 13px;
-      font-weight: 600;
+      border-radius: 0;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 400;
       background: transparent;
-      border: 1px solid transparent;
+      border: none;
+      border-left: 3px solid transparent;
       color: var(--muted);
       cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      transition: background 0.1s, color 0.1s;
     }
 
     .ai-provider-nav button:hover {
@@ -8901,10 +8902,10 @@
     }
 
     .ai-provider-nav button.is-active {
-      background: #fff;
-      border-color: var(--border);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      background: rgba(99,102,241,0.12);
+      color: #a5b4fc;
+      border-left-color: #6366f1;
+      font-weight: 600;
     }
 
     .ai-settings-panel {
@@ -9155,7 +9156,7 @@
     body.dark-mode .ai-provider-nav button {
       background: transparent;
       color: var(--muted);
-      border-color: transparent;
+      border-left-color: transparent;
     }
 
     body.dark-mode .ai-provider-nav button:hover {
@@ -9164,10 +9165,9 @@
     }
 
     body.dark-mode .ai-provider-nav button.is-active {
-      background: #1f2937;
-      border-color: #374151;
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      background: rgba(99,102,241,0.15);
+      color: #a5b4fc;
+      border-left-color: #6366f1;
     }
 
     body.dark-mode .ai-provider-panel {
