@@ -6563,8 +6563,7 @@
       return base;
     }
 
-    function openPromptEditorModal() {
-      openSettingsModal("tab-prompts");
+    function populatePromptEditor() {
       var allPrompts = getCustomAiPromptsAll();
       var wbPrompts = getWorldBuilderPrompts();
       // Build all sidebar groups dynamically
@@ -6592,6 +6591,18 @@
         }, { passive: false });
       }
     }
+
+    function openPromptEditorModal() {
+      openSettingsModal("tab-prompts");
+      populatePromptEditor();
+    }
+
+    // Populate prompts tab when it becomes visible
+    document.addEventListener("settingsTabChanged", function (e) {
+      if (e.detail && e.detail.tab === "tab-prompts") {
+        populatePromptEditor();
+      }
+    });
 
     var _wbPromptCache = { modes: {}, actions: {}, system_template: "", pillar_help: "" };
     var _mktPromptCache = {};

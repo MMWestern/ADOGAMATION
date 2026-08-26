@@ -422,6 +422,8 @@
         p.hidden = !isActive;
         p.classList.toggle("is-active", isActive);
       });
+      // Dispatch event so other code can initialize tab content
+      document.dispatchEvent(new CustomEvent("settingsTabChanged", { detail: { tab: tabId } }));
     }
 
     function openSettingsModal(tab) {
