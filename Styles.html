@@ -8818,19 +8818,19 @@
       border: 1px solid var(--border);
       border-bottom: none;
       border-radius: 8px 8px 0 0;
-      background: var(--bg-alt, #f8f9fa);
+      background: var(--bg);
       color: var(--muted);
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
     .settings-tab:hover {
-      background: rgba(99,102,241,0.08);
+      background: var(--hover);
       color: var(--text);
     }
     .settings-tab.is-active {
-      background: #fff;
+      background: var(--panel);
       color: var(--text);
-      border-bottom-color: #fff;
+      border-bottom-color: var(--panel);
       position: relative;
       z-index: 1;
     }
@@ -8874,7 +8874,7 @@
       gap: 0;
       padding: 8px 0;
       border-right: 1px solid var(--border);
-      background: var(--bg-alt, #f8f9fa);
+      background: var(--bg);
       position: sticky;
       top: 0;
       align-self: start;
