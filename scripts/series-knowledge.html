@@ -3809,6 +3809,144 @@
       });
     }
 
+    // ── Codex Preset Editor ───────────────────────────────────────────────
+
+    var _codexPresetEditorActive = null; // key of currently edited preset
+
+    function populateCodexPresetList() {
+      var container = document.getElementById("codexPresetList");
+      if (!container) return;
+      var html = "";
+      Object.keys(_codexFormatPresetsCache).forEach(function (key) {
+        var p = _codexFormatPresetsCache[key];
+        var isActive = _codexPresetEditorActive === key;
+        html += "<div class='schedule-marketing-sidebar-item" + (isActive ? " is-active" : "") + "' data-preset-key='" + key + "'>";
+        html += escapeHtml(p.name || key);
+        if (p.is_builtin) html += " <span style='font-size:9px;color:var(--muted);'>(built-in)</span>";
+        html += "</div>";
+      });
+      container.innerHTML = html;
+      container.querySelectorAll(".schedule-marketing-sidebar-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          var key = item.getAttribute("data-preset-key");
+          _codexPresetEditorActive = key;
+          populateCodexPresetList();
+          renderCodexPresetEditor(key);
+        });
+      });
+    }
+
+    function renderCodexPresetEditor(presetKey) {
+      var editor = document.getElementById("codexPresetEditor");
+      if (!editor) return;
+      var preset = _codexFormatPresetsCache[presetKey];
+      if (!preset) {
+        editor.innerHTML = "<div class='landing-empty'>Preset not found.</div>";
+        return;
+      }
+      var treeDef = preset.tree_definition || [];
+      var html = "";
+      html += "<div style='display:flex;flex-direction:column;gap:12px;'>";
+      // Header
+      html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
+      html += "<h4 style='margin:0;'>" + escapeHtml(preset.name || presetKey) + "</h4>";
+      html += "<div style='display:flex;gap:8px;'>";
+      if (!preset.is_builtin) {
+        html += "<button id='codexPresetDeleteBtn' type='button' style='font-size:12px;color:#ef4444;'>Delete</button>";
+      }
+      html += "<button id='codexPresetCloneBtn' type='button' style='font-size:12px;'>Clone</button>";
+      html += "</div>";
+      html += "</div>";
+      // Name/Description fields
+      html += "<div><label class='label'>Name</label><input id='codexPresetName' type='text' value='" + escapeHtml(preset.name || "") + "' /></div>";
+      html += "<div><label class='label'>Description</label><textarea id='codexPresetDesc' rows='2' style='width:100%;font-size:12px;'>" + escapeHtml(preset.description || "") + "</textarea></div>";
+      // Tree structure preview
+      html += "<div><label class='label'>Tree Structure</label>";
+      html += "<div style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:400px;overflow-y:auto;'>";
+      treeDef.forEach(function (cat) {
+        html += "<div style='margin-bottom:8px;'>";
+        html += "<div style='font-weight:600;color:var(--text);margin-bottom:4px;'>" + escapeHtml(cat.category) + "</div>";
+        (cat.items || []).forEach(function (item) {
+          html += "<div style='padding:2px 0 2px 16px;color:var(--muted);'>";
+          html += (item.icon || "") + " " + escapeHtml(item.label);
+          if (item.subTypes && item.subTypes.length) {
+            html += " <span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + " sub-types)</span>";
+          }
+          if (item.isFeature) html += " <span style='font-size:10px;color:var(--muted);'>[feature]</span>";
+          html += "</div>";
+        });
+        html += "</div>";
+      });
+      html += "</div></div>";
+      // Save button
+      html += "<div style='display:flex;gap:8px;justify-content:flex-end;'>";
+      html += "<button id='codexPresetSaveBtn' class='primary' type='button'>Save Changes</button>";
+      html += "</div>";
+      html += "</div>";
+      editor.innerHTML = html;
+      // Wire buttons
+      var saveBtn = document.getElementById("codexPresetSaveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          var nameInput = document.getElementById("codexPresetName");
+          var descInput = document.getElementById("codexPresetDesc");
+          preset.name = nameInput ? nameInput.value.trim() : preset.name;
+          preset.description = descInput ? descInput.value.trim() : preset.description;
+          // Save to Supabase
+          if (typeof supabaseRunner !== "undefined") {
+            supabaseRunner
+              .withSuccessHandler(function () { populateCodexPresetList(); })
+              .withFailureHandler(function (err) { console.warn("Preset save failed:", err); })
+              .saveCodexFormatPreset(JSON.stringify(preset));
+          }
+        });
+      }
+      var cloneBtn = document.getElementById("codexPresetCloneBtn");
+      if (cloneBtn) {
+        cloneBtn.addEventListener("click", function () {
+          var clone = JSON.parse(JSON.stringify(preset));
+          clone.key = presetKey + "_copy";
+          clone.name = (preset.name || presetKey) + " (Copy)";
+          clone.is_builtin = false;
+          delete clone.id;
+          if (typeof supabaseRunner !== "undefined") {
+            supabaseRunner
+              .withSuccessHandler(function (json) {
+                try {
+                  var result = JSON.parse(json);
+                  if (result.ok && result.preset) {
+                    _codexFormatPresetsCache[result.preset.key] = result.preset;
+                    _codexPresetEditorActive = result.preset.key;
+                    populateCodexPresetList();
+                    renderCodexPresetEditor(result.preset.key);
+                  }
+                } catch (e) {}
+              })
+              .withFailureHandler(function (err) { console.warn("Preset clone failed:", err); })
+              .saveCodexFormatPreset(JSON.stringify(clone));
+          }
+        });
+      }
+      var deleteBtn = document.getElementById("codexPresetDeleteBtn");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete preset '" + (preset.name || presetKey) + "'?")) return;
+          if (typeof supabaseRunner !== "undefined" && preset.id) {
+            supabaseRunner
+              .withSuccessHandler(function () {
+                delete _codexFormatPresetsCache[presetKey];
+                _codexPresetEditorActive = null;
+                populateCodexPresetList();
+                var ed = document.getElementById("codexPresetEditor");
+                if (ed) ed.innerHTML = "<div class='landing-empty'>Preset deleted.</div>";
+              })
+              .withFailureHandler(function (err) { console.warn("Preset delete failed:", err); })
+              .deleteCodexFormatPreset(preset.id);
+          }
+        });
+      }
+    }
+
     function wireCodexTreeSearch_() {
       var input = el.codexTreeSearchInput;
       var clearBtn = el.codexTreeSearchClear;
@@ -6829,6 +6967,9 @@
     document.addEventListener("settingsTabChanged", function (e) {
       if (e.detail && e.detail.tab === "tab-prompts") {
         populatePromptEditor();
+      }
+      if (e.detail && e.detail.tab === "tab-presets") {
+        populateCodexPresetList();
       }
     });
 

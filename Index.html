@@ -2255,6 +2255,7 @@
           <button class="settings-tab is-active" data-settings-tab="tab-templates" type="button">Templates &amp; Workflows</button>
           <button class="settings-tab" data-settings-tab="tab-prompts" type="button">AI Prompts</button>
           <button class="settings-tab" data-settings-tab="tab-ai" type="button">AI Settings</button>
+          <button class="settings-tab" data-settings-tab="tab-presets" type="button">Codex Presets</button>
         </div>
       </div>
 
@@ -2640,6 +2641,21 @@
           <div style="display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);">
             <button id="aiSettingsTestButton" type="button">Test Connection</button>
             <button id="aiSettingsSaveButton" class="primary" type="button">Save Settings</button>
+          </div>
+        </div>
+
+        <!-- Tab 4: Codex Presets -->
+        <div id="tab-presets" class="settings-panel" hidden>
+          <div style="display:flex;flex:1;min-height:0;overflow:hidden;">
+            <div style="width:220px;flex-shrink:0;border-right:1px solid var(--border);padding:8px 0;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
+              <div id="codexPresetList"></div>
+              <div style="padding:8px 14px;margin-top:auto;">
+                <button id="codexPresetNewButton" type="button" style="width:100%;font-size:12px;">+ New Preset</button>
+              </div>
+            </div>
+            <div id="codexPresetEditor" style="flex:1;overflow-y:auto;padding:16px;">
+              <div class="landing-empty" style="padding:20px;">Select a preset to edit, or create a new one.</div>
+            </div>
           </div>
         </div>
       </div>
