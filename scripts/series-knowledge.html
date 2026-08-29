@@ -3693,7 +3693,7 @@
     }
 
     function populateCodexPresetSelector(seriesId) {
-      var nameEl = el.codexPresetName;
+      var nameEl = el.codexPresetLabel;
       if (!nameEl) return;
       var currentKey = getCodexCurrentPresetKey(seriesId);
       var preset = _codexFormatPresetsCache[currentKey];
@@ -3827,8 +3827,8 @@
       html += "</div>";
       html += "</div>";
       // Name/Description fields
-      html += "<div><label class='label'>Name</label><input id='codexPresetName' type='text' value='" + escapeHtml(preset.name || "") + "' /></div>";
-      html += "<div><label class='label'>Description</label><textarea id='codexPresetDesc' rows='2' style='width:100%;font-size:12px;'>" + escapeHtml(preset.description || "") + "</textarea></div>";
+      html += "<div><label class='label'>Name</label><input id='codexPresetNameInput' type='text' value='" + escapeHtml(preset.name || "") + "' /></div>";
+      html += "<div><label class='label'>Description</label><textarea id='codexPresetDescInput' rows='2' style='width:100%;font-size:12px;'>" + escapeHtml(preset.description || "") + "</textarea></div>";
       // Tree structure preview
       html += "<div><label class='label'>Tree Structure</label>";
       html += "<div style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:400px;overflow-y:auto;'>";
@@ -3857,8 +3857,8 @@
       var saveBtn = document.getElementById("codexPresetSaveBtn");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
-          var nameInput = document.getElementById("codexPresetName");
-          var descInput = document.getElementById("codexPresetDesc");
+          var nameInput = document.getElementById("codexPresetNameInput");
+          var descInput = document.getElementById("codexPresetDescInput");
           preset.name = nameInput ? nameInput.value.trim() : preset.name;
           preset.description = descInput ? descInput.value.trim() : preset.description;
           // Save to Supabase
