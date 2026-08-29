@@ -6488,6 +6488,7 @@
       var genreVal = seriesMeta && seriesMeta.genre || "";
       var penVal = seriesMeta && seriesMeta.penName || "";
       var fmtVal = seriesMeta && seriesMeta.format || "";
+      var tplVal = seriesMeta && seriesMeta.codexTemplate || "standard_fantasy";
 
       var genreOpts = "<option value=''>— Select —</option>";
       getInspectorOptionValues("genre", DEFAULT_GENRE_OPTIONS).forEach(function (v) { genreOpts += "<option value='" + escapeHtml(v) + "'" + (v === genreVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
@@ -6495,6 +6496,11 @@
       getInspectorOptionValues("pen_name", getUniqueValues("pen_name")).forEach(function (v) { penOpts += "<option value='" + escapeHtml(v) + "'" + (v === penVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
       var fmtOpts = "<option value=''>— Select —</option>";
       getInspectorOptionValues("format", DEFAULT_FORMAT_OPTIONS).forEach(function (v) { fmtOpts += "<option value='" + escapeHtml(v) + "'" + (v === fmtVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
+      var tplOpts = "<option value=''>— Select —</option>";
+      var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
+        ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
+        : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+      tplOptions.forEach(function (t) { tplOpts += "<option value='" + escapeHtml(t.key) + "'" + (t.key === tplVal ? " selected" : "") + ">" + escapeHtml(t.name) + "</option>"; });
 
       var panelHtml = "<div class='landing-series-info-panel' style='display:flex;gap:16px;'>";
       panelHtml += "<div style='flex:0 0 180px;'>";
@@ -6509,7 +6515,7 @@
       panelHtml += "</div>";
       panelHtml += "<div class='compact-row compact-row-small'>";
       panelHtml += "<div><label class='label'>Format</label><select id='landingSeriesFormat' style='font-size:12px;padding:4px 6px;'>" + fmtOpts + "</select></div>";
-      panelHtml += "<div></div>";
+      panelHtml += "<div><label class='label'>Codex Template</label><select id='landingSeriesCodexTemplate' style='font-size:12px;padding:4px 6px;'>" + tplOpts + "</select></div>";
       panelHtml += "</div>";
       panelHtml += "<div><label class='label'>Summary</label><textarea id='landingSeriesSummary' rows='3' style='width:100%;resize:vertical;font-size:12px;padding:4px 6px;'>" + escapeHtml(seriesSummary) + "</textarea></div>";
       panelHtml += "<div style='display:flex;gap:8px;align-items:center;margin-top:2px;'>";
@@ -6530,27 +6536,35 @@
           var genreEl = el.landingQuickAccess.querySelector("#landingSeriesGenre");
           var penEl = el.landingQuickAccess.querySelector("#landingSeriesPenName");
           var fmtEl = el.landingQuickAccess.querySelector("#landingSeriesFormat");
+          var tplEl = el.landingQuickAccess.querySelector("#landingSeriesCodexTemplate");
           var summary = summaryEl ? summaryEl.value.trim() : "";
           var genre = genreEl ? genreEl.value.trim() : "";
           var penName = penEl ? penEl.value.trim() : "";
           var format = fmtEl ? fmtEl.value.trim() : "";
+          var codexTemplate = tplEl ? tplEl.value.trim() : "";
           setStatus("Saving series...", "warn");
           callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [sId, JSON.stringify({
             summary: summary,
             genre: genre || null,
             pen_name: penName || null,
-            format: format || null
+            format: format || null,
+            codex_template: codexTemplate || "standard_fantasy"
           })]).then(function () {
             var meta = appState.seriesMetaById[sId] || {};
             meta.summary = summary;
             meta.genre = genre;
             meta.penName = penName;
             meta.format = format;
+            meta.codexTemplate = codexTemplate || "standard_fantasy";
             appState.seriesMetaById[sId] = meta;
             applySeriesMetaToProjects();
             renderLandingDashboard();
             if (Number(appState.selectedRowNumber || 0) === Number(project.rowNumber || 0)) {
               fillDetailForm(getSelectedProject());
+            }
+            // Re-render codex tree when codex template changes
+            if (typeof renderCodexTree === "function" && sId) {
+              renderCodexTree(sId);
             }
             setStatus("Series saved.", "ok");
           }).catch(function (err) {
