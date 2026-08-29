@@ -3689,6 +3689,9 @@
       // Populate preset selector
       populateCodexPresetSelector(seriesId);
 
+      // Rebuild New Entry dropdown from preset
+      rebuildNewEntryDropdown(seriesId, el.codexNewEntry, el.codexNewEntryDropdown);
+
       if (!window._codexSidebarWired) {
         wireCodexTreeSearch_();
         wireCodexSidebarControls_();
@@ -3760,8 +3763,6 @@
       var newEntryBtn = el.codexNewEntry;
       var newEntryDropdown = el.codexNewEntryDropdown;
       if (newEntryBtn && newEntryDropdown) {
-        // Rebuild dropdown options from preset
-        rebuildNewEntryDropdown(seriesId, newEntryBtn, newEntryDropdown);
         // Wire toggle button once
         if (!newEntryBtn._newEntryWired) {
           newEntryBtn._newEntryWired = true;
