@@ -3759,32 +3759,54 @@
       var newEntryBtn = el.codexNewEntry;
       var newEntryDropdown = el.codexNewEntryDropdown;
       if (newEntryBtn && newEntryDropdown) {
-        newEntryBtn.addEventListener("click", function (e) {
+        // Rebuild dropdown from preset
+        rebuildNewEntryDropdown(seriesId, newEntryBtn, newEntryDropdown);
+      }
+    }
+
+    function rebuildNewEntryDropdown(seriesId, btn, dropdown) {
+      if (!btn || !dropdown) return;
+      var treeDef = getCodexTreeDef(seriesId);
+      // Build options from tree definition
+      var optionsHtml = "";
+      treeDef.forEach(function (cat) {
+        (cat.items || []).forEach(function (item) {
+          if (item.isFeature) return; // skip feature pages
+          if (!item.entityTypeKey) return;
+          optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' type='button'>";
+          optionsHtml += "<span>" + escapeHtml(item.label) + "</span>";
+          optionsHtml += "</button>";
+        });
+      });
+      dropdown.innerHTML = optionsHtml;
+      // Wire click handlers
+      dropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (opt) {
+        opt.addEventListener("click", function (e) {
           e.stopPropagation();
-          var open = newEntryDropdown.hidden;
-          newEntryDropdown.hidden = !open;
-          newEntryBtn.setAttribute("aria-expanded", String(open));
-        });
-        newEntryDropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (opt) {
-          opt.addEventListener("click", function (e) {
-            e.stopPropagation();
-            var type = opt.getAttribute("data-new-type") || "";
-            newEntryDropdown.hidden = true;
-            newEntryBtn.setAttribute("aria-expanded", "false");
-            if (type) {
-              var singularKey = (typeof CODEX_GROUP_TO_TYPE_KEY !== "undefined" && CODEX_GROUP_TO_TYPE_KEY[type]) || type;
-              var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: {} };
-              showCodexEntityDetail(newEntity, singularKey);
-            }
-          });
-        });
-        document.addEventListener("click", function () {
-          if (!newEntryDropdown.hidden) {
-            newEntryDropdown.hidden = true;
-            newEntryBtn.setAttribute("aria-expanded", "false");
+          var type = opt.getAttribute("data-new-type") || "";
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+          if (type) {
+            var singularKey = (typeof CODEX_GROUP_TO_TYPE_KEY !== "undefined" && CODEX_GROUP_TO_TYPE_KEY[type]) || type;
+            var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: {} };
+            showCodexEntityDetail(newEntity, singularKey);
           }
         });
-      }
+      });
+      // Wire toggle button
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var open = dropdown.hidden;
+        dropdown.hidden = !open;
+        btn.setAttribute("aria-expanded", String(open));
+      };
+      // Close on outside click
+      document.addEventListener("click", function () {
+        if (!dropdown.hidden) {
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
     }
 
     function wireCodexTreeSearch_() {

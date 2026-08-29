@@ -4231,6 +4231,19 @@
           String(entry.badge || "").toLowerCase().indexOf(query) !== -1 ||
           String(entry.type || "").toLowerCase().indexOf(query) !== -1;
       });
+      // Filter by current preset's visible types
+      if (typeof getCodexTreeDef === "function" && seriesId) {
+        var treeDef = getCodexTreeDef(seriesId);
+        var visibleTypes = {};
+        treeDef.forEach(function (cat) {
+          (cat.items || []).forEach(function (item) {
+            if (item.entityTypeKey) visibleTypes[item.key] = true;
+          });
+        });
+        visible = visible.filter(function (entry) {
+          return visibleTypes[entry.type] || false;
+        });
+      }
       if (!visible.length) {
         el.writingCodexList.innerHTML = "<div class='landing-empty' style='padding:10px 12px;color:#777884;background:transparent;border-color:#303038;'>No matching codex entries found.</div>";
         renderWritingChapterList(selected);
