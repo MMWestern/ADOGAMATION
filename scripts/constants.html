@@ -82,26 +82,15 @@ const DEFAULT_STATUS_OPTIONS = [
       { value: "Poetry Collection", description: "A compilation of poems organized around a theme or style." },
       { value: "Graphic Novel", description: "A full-length narrative told through sequential art and text." },
       { value: "Web Serial", description: "A story published episodically online, often with reader engagement." },
-      { value: "Chapbook", description: "A small, self-contained booklet of poetry, prose, or hybrid work." },
-      { value: "LitRPG", description: "Game-like progression systems, stats, skills, equipment, and quests." },
-      { value: "Fantasy", description: "Classic fantasy world-building with magic, cultures, and epic story arcs." },
-      { value: "Contemporary", description: "Real-world stories focused on character relationships, conflicts, and personal arcs." }
+      { value: "Chapbook", description: "A small, self-contained booklet of poetry, prose, or hybrid work." }
     ];
 
-    // Maps series format value → codex preset key
-    // Falls back to "standard_fantasy" for unmatched formats
-    var FORMAT_TO_CODEX_PRESET = {
-      "litrpg": "litrpg",
-      "fantasy": "standard_fantasy",
-      "standard_fantasy": "standard_fantasy",
-      "contemporary": "contemporary"
-    };
-
-    function resolveCodexPresetFromFormat(formatValue) {
-      if (!formatValue) return "standard_fantasy";
-      var key = String(formatValue).trim().toLowerCase();
-      return FORMAT_TO_CODEX_PRESET[key] || "standard_fantasy";
-    }
+    // Maps codex template key → display name (used in Series Info Panel dropdown)
+    var CODEX_TEMPLATE_OPTIONS = [
+      { key: "standard_fantasy", name: "Standard Fantasy" },
+      { key: "litrpg", name: "LitRPG" },
+      { key: "contemporary", name: "Contemporary" }
+    ];
 
     var CODEX_FORMAT_PRESETS_DEFAULTS = {
       litrpg: {

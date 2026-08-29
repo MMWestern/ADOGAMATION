@@ -2476,7 +2476,7 @@
               genre: String(row && row.genre || "").trim(),
               penName: String(row && row.pen_name || "").trim(),
               format: String(row && row.format || "").trim(),
-              codexFormatPreset: String(row && row.codex_format_preset || "").trim(),
+              codexTemplate: String(row && row.codex_template || row && row.codex_format_preset || "standard_fantasy").trim(),
               updatedAt: String(row && row.updated_at || row && row.updatedAt || "").trim(),
               docs: row && row.docs && typeof row.docs === "object" ? row.docs : {}
             };
@@ -6233,6 +6233,20 @@
         ensureSelectHasValue(el.detailSeriesFormat, fmtVal);
         el.detailSeriesFormat.value = fmtVal;
       }
+      if (el.detailSeriesCodexTemplate) {
+        el.detailSeriesCodexTemplate.innerHTML = "<option value=''>— Select —</option>";
+        // Use presets from cache if available, otherwise use hardcoded options
+        var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
+          ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
+          : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+        tplOptions.forEach(function (t) {
+          var o = document.createElement("option");
+          o.value = t.key; o.textContent = t.name;
+          el.detailSeriesCodexTemplate.appendChild(o);
+        });
+        var tplVal = seriesMeta && seriesMeta.codexTemplate || "standard_fantasy";
+        el.detailSeriesCodexTemplate.value = tplVal;
+      }
     }
 
     function saveSeriesMetadata() {
@@ -6244,21 +6258,24 @@
       var genre = el.detailSeriesGenre ? el.detailSeriesGenre.value.trim() : "";
       var penName = el.detailSeriesPenName ? el.detailSeriesPenName.value.trim() : "";
       var format = el.detailSeriesFormat ? el.detailSeriesFormat.value.trim() : "";
+      var codexTemplate = el.detailSeriesCodexTemplate ? el.detailSeriesCodexTemplate.value.trim() : "";
       setStatus("Saving series metadata...", "warn");
       callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [project.series_id, JSON.stringify({
         genre: genre || null,
         pen_name: penName || null,
-        format: format || null
+        format: format || null,
+        codex_template: codexTemplate || "standard_fantasy"
       })]).then(function () {
         var meta = appState.seriesMetaById[Number(project.series_id)] || {};
         meta.genre = genre;
         meta.penName = penName;
         meta.format = format;
+        meta.codexTemplate = codexTemplate || "standard_fantasy";
         appState.seriesMetaById[Number(project.series_id)] = meta;
         applySeriesMetaToProjects();
         fillDetailForm(getSelectedProject());
         renderLandingDashboard();
-        // Re-render codex tree if format changed (format drives codex preset)
+        // Re-render codex tree when codex template changes
         if (typeof renderCodexTree === "function" && Number(project.series_id || 0)) {
           renderCodexTree(Number(project.series_id));
         }
@@ -9561,6 +9578,18 @@
         ensureSelectHasValue(el.seriesEditFormat, series && series.format || "");
         el.seriesEditFormat.value = series && series.format || "";
       }
+      if (el.seriesEditCodexTemplate) {
+        el.seriesEditCodexTemplate.innerHTML = "<option value=''>— Select —</option>";
+        var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
+          ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
+          : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+        tplOptions.forEach(function (t) {
+          var o = document.createElement("option");
+          o.value = t.key; o.textContent = t.name;
+          el.seriesEditCodexTemplate.appendChild(o);
+        });
+        el.seriesEditCodexTemplate.value = series && series.codex_template || "standard_fantasy";
+      }
       el.seriesEditModal.classList.add("is-open");
       el.seriesEditModal.setAttribute("aria-hidden", "false");
       setTimeout(function () { el.seriesEditName.focus(); }, 20);
@@ -9584,6 +9613,7 @@
       var genre = el.seriesEditGenre ? el.seriesEditGenre.value.trim() : "";
       var penName = el.seriesEditPenName ? el.seriesEditPenName.value.trim() : "";
       var format = el.seriesEditFormat ? el.seriesEditFormat.value.trim() : "";
+      var codexTemplate = el.seriesEditCodexTemplate ? el.seriesEditCodexTemplate.value.trim() : "";
       if (_seriesEditId) {
         callAppsScriptJson("saveSupabaseSeriesMetaJsonFromClient", [_seriesEditId, JSON.stringify({
           name: name,
@@ -9591,7 +9621,8 @@
           series_image_url: imageUrl,
           genre: genre || null,
           pen_name: penName || null,
-          format: format || null
+          format: format || null,
+          codex_template: codexTemplate || "standard_fantasy"
         })]).then(function () {
           setStatus("Series updated.", "ok");
           closeSeriesEditModal();

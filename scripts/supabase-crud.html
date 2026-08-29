@@ -23,7 +23,7 @@
         });
     });
 
-    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "genre", "pen_name", "format", "codex_format_preset"];
+    var SUPABASE_SERIES_META_SELECT = ["id", "name", "summary", "series_image_url", "genre", "pen_name", "format", "codex_template"];
 
     _sbDefine('getSupabaseSeriesMetaJsonFromClient', function () {
       return sbClient.from('series').select(SUPABASE_SERIES_META_SELECT.join(',')).limit(500)
@@ -232,14 +232,14 @@
     });
 
     _sbDefine('listSeriesJsonFromClient', function () {
-      return sbClient.from('series').select('id,name,summary,series_image_url,genre,pen_name,format,codex_format_preset').limit(500).order('name')
+      return sbClient.from('series').select('id,name,summary,series_image_url,genre,pen_name,format,codex_template').limit(500).order('name')
         .then(function (res) {
           if (res.error) throw res.error;
           return JSON.stringify({ ok: true, rows: res.data || [] });
         });
     });
 
-    _sbDefine('createSeriesJsonFromClient', function (name, summary, imageUrl, genre, penName, format, codexFormatPreset) {
+    _sbDefine('createSeriesJsonFromClient', function (name, summary, imageUrl, genre, penName, format, codexTemplate) {
       return sbClient.from('series').insert({
         name: name,
         summary: summary || '',
@@ -247,8 +247,8 @@
         genre: genre || null,
         pen_name: penName || null,
         format: format || null,
-        codex_format_preset: codexFormatPreset || 'standard_fantasy'
-      }).select('id,name,summary,series_image_url,genre,pen_name,format,codex_format_preset').single()
+        codex_template: codexTemplate || 'standard_fantasy'
+      }).select('id,name,summary,series_image_url,genre,pen_name,format,codex_template').single()
         .then(function (res) {
           if (res.error) throw res.error;
           return JSON.stringify({ ok: true, series: res.data });

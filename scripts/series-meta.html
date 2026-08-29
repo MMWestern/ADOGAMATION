@@ -35,7 +35,7 @@
       if (Object.prototype.hasOwnProperty.call(seriesMeta, "genre") && seriesMeta.genre) merged.genre = String(seriesMeta.genre).trim();
       if (Object.prototype.hasOwnProperty.call(seriesMeta, "penName") && seriesMeta.penName) merged.pen_name = String(seriesMeta.penName).trim();
       if (Object.prototype.hasOwnProperty.call(seriesMeta, "format") && seriesMeta.format) merged.format = String(seriesMeta.format).trim();
-      if (Object.prototype.hasOwnProperty.call(seriesMeta, "codexFormatPreset") && seriesMeta.codexFormatPreset) merged.codex_format_preset = String(seriesMeta.codexFormatPreset).trim();
+      if (Object.prototype.hasOwnProperty.call(seriesMeta, "codexTemplate") && seriesMeta.codexTemplate) merged.codex_template = String(seriesMeta.codexTemplate).trim();
       Object.keys(SERIES_DOC_FIELD_TO_TYPE).forEach(function (fieldKey) {
         if (seriesMeta.docs && seriesMeta.docs[fieldKey] && typeof seriesMeta.docs[fieldKey].legacyUrl === "string") {
           merged[fieldKey] = String(seriesMeta.docs[fieldKey].legacyUrl || "").trim();

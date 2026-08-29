@@ -3271,14 +3271,11 @@
     }
 
     function getCodexCurrentPresetKey(seriesId) {
-      // Source of truth: series format field
+      // Source of truth: series codex_template field
       if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-        var format = appState.seriesMetaById[seriesId].format || "";
-        if (format) return resolveCodexPresetFromFormat(format);
+        var tpl = appState.seriesMetaById[seriesId].codexTemplate || "";
+        if (tpl) return tpl;
       }
-      // Fallback: check project-level format
-      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
-      if (project && project.format) return resolveCodexPresetFromFormat(project.format);
       return "standard_fantasy";
     }
 
@@ -3715,28 +3712,24 @@
       newSel.value = currentKey;
       newSel.addEventListener("change", function () {
         var newPreset = newSel.value;
-        // Find the format value that maps to this preset
-        var formatValue = newPreset; // default: use preset key as format
-        Object.keys(FORMAT_TO_CODEX_PRESET).forEach(function (fmt) {
-          if (FORMAT_TO_CODEX_PRESET[fmt] === newPreset) formatValue = fmt;
-        });
-        // Capitalize to match existing format convention
-        formatValue = formatValue.charAt(0).toUpperCase() + formatValue.slice(1);
-        // Update series metadata — format is the source of truth
+        // Update series metadata — codex_template is the source of truth
         if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-          appState.seriesMetaById[seriesId].format = formatValue;
+          appState.seriesMetaById[seriesId].codexTemplate = newPreset;
         }
         // Also update the project if selected
         var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
         if (project && Number(project.series_id || 0) === seriesId) {
-          project.format = formatValue;
+          project.codex_template = newPreset;
         }
+        // Update the Series Info Panel dropdown if it exists
+        var infoPanelSel = el.detailSeriesCodexTemplate;
+        if (infoPanelSel) infoPanelSel.value = newPreset;
         // Save to Supabase in background
         if (typeof supabaseRunner !== "undefined" && seriesId) {
           supabaseRunner
             .withSuccessHandler(function () {})
-            .withFailureHandler(function (err) { console.warn("Format save failed:", err); })
-            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ format: formatValue }));
+            .withFailureHandler(function (err) { console.warn("Codex template save failed:", err); })
+            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ codex_template: newPreset }));
         }
         // Re-render tree
         renderCodexTree(seriesId);
