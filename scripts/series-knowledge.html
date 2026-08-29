@@ -282,9 +282,13 @@
         // Wire codex mode switch on first load
         if (typeof wireCodexModeSwitch === "function") wireCodexModeSwitch();
 
+        // Load format presets once
+        var presetsPromise = Object.keys(_codexFormatPresetsCache).length ? Promise.resolve() : loadCodexFormatPresets();
+
         if (!forceRefresh && appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId]) {
             renderSeriesKnowledgePanel(project);
             return Promise.all([
+                presetsPromise,
                 loadSkEntities(seriesId),
                 (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(seriesId) : Promise.resolve()
             ]).then(function () {
@@ -300,6 +304,7 @@
                 appState.seriesKnowledgeById[seriesId] = knowledge;
                 renderSeriesKnowledgePanel(project);
                 return Promise.all([
+                    presetsPromise,
                     loadSkEntities(seriesId),
                     (typeof USE_NEW_CODEX_ENGINE !== "undefined" && USE_NEW_CODEX_ENGINE) ? loadCodexEntities(seriesId) : Promise.resolve()
                 ]).then(function () {
@@ -3220,6 +3225,67 @@
             });
     }
 
+    // ── Codex Format Presets ─────────────────────────────────────────────
+
+    var _codexFormatPresetsCache = {};  // key -> preset object
+    var _codexCurrentTreeDef = null;    // active tree_definition for current series
+
+    function loadCodexFormatPresets() {
+      if (typeof supabaseRunner === "undefined") return Promise.resolve({});
+      return new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (result.ok && Array.isArray(result.presets)) {
+                result.presets.forEach(function (p) { _codexFormatPresetsCache[p.key] = p; });
+              }
+            } catch (e) {}
+            // Merge hardcoded defaults as fallback
+            if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
+              Object.keys(CODEX_FORMAT_PRESETS_DEFAULTS).forEach(function (k) {
+                if (!_codexFormatPresetsCache[k]) _codexFormatPresetsCache[k] = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+              });
+            }
+            resolve(_codexFormatPresetsCache);
+          })
+          .withFailureHandler(function () {
+            // Use hardcoded defaults on failure
+            if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
+              _codexFormatPresetsCache = Object.assign({}, CODEX_FORMAT_PRESETS_DEFAULTS);
+            }
+            resolve(_codexFormatPresetsCache);
+          })
+          .listCodexFormatPresets();
+      });
+    }
+
+    function getCodexTreeDef(seriesId) {
+      // Get the preset key for this series
+      var presetKey = "standard_fantasy"; // default
+      if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
+        var mp = appState.seriesMetaById[seriesId].codexFormatPreset || "";
+        if (mp) presetKey = mp;
+      }
+      // Also check if series data has it directly
+      if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId] && appState.seriesMetaById[seriesId].codex_format_preset) {
+        presetKey = appState.seriesMetaById[seriesId].codex_format_preset;
+      }
+      var preset = _codexFormatPresetsCache[presetKey];
+      if (preset && Array.isArray(preset.tree_definition) && preset.tree_definition.length) {
+        return preset.tree_definition;
+      }
+      // Fallback to hardcoded CODEX_TREE_DEF
+      return CODEX_TREE_DEF;
+    }
+
+    function getCodexCurrentPresetKey(seriesId) {
+      if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
+        return appState.seriesMetaById[seriesId].codexFormatPreset || "standard_fantasy";
+      }
+      return "standard_fantasy";
+    }
+
     // ── Codex World Building Tree ──────────────────────────────────────────
 
     var CODEX_TREE_DEF = [
@@ -3373,13 +3439,124 @@
       return html;
     }
 
+    function renderSubTypeGroups(entities, item) {
+      var subTypes = item.subTypes || [];
+      var groups = {};
+      subTypes.forEach(function (st) { groups[st] = []; });
+      groups["Uncategorized"] = [];
+      entities.forEach(function (entity) {
+        var custom = entity.custom_data || {};
+        var st = String(custom.sub_type || "").trim();
+        if (st && groups[st]) {
+          groups[st].push(entity);
+        } else if (st) {
+          groups[st] = [entity];
+        } else {
+          groups["Uncategorized"].push(entity);
+        }
+      });
+      var html = "";
+      // Render sub-types that have entities, plus "Uncategorized" if it has entities
+      var order = subTypes.concat(["Uncategorized"]);
+      order.forEach(function (st) {
+        var list = groups[st] || [];
+        if (!list.length) return;
+        var stId = st.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+        html += "<div class='writing-codex-group codex-subtype-group' data-subtype='" + escapeHtml(st) + "'>";
+        html += "<div class='writing-codex-group-header codex-subtype-header'>";
+        html += "<div class='writing-codex-group-header-left'>";
+        html += "<span class='writing-codex-group-title' style='font-size:11px;'>" + escapeHtml(st) + "</span>";
+        html += "</div>";
+        html += "<div class='writing-codex-group-header-right'>";
+        html += "<span class='writing-codex-group-count'>" + list.length + "</span>";
+        html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+        html += "</div>";
+        html += "</div>";
+        html += "<div class='writing-codex-group-list'>";
+        list.forEach(function (entity) {
+          html += renderCodexEntityEntry(entity, item);
+        });
+        html += "</div>";
+        html += "</div>";
+      });
+      return html;
+    }
+
+    function renderCodexEntityEntry(entity, item) {
+      var name = entity.name || "Unnamed";
+      var desc = entity.summary || entity.description || "";
+      var imgUrl = entity.image_url || "";
+      var color = entity.color || "";
+      var custom = entity.custom_data || {};
+      var roleArchetype = String(custom.role_archetype || "").trim();
+      var archetype = String(custom.archetype || "").trim();
+      var thumbHtml = imgUrl
+        ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
+        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+      var scope = entity.scope || "series";
+      var pillHtml = "";
+      if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+      if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      var html = "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
+      html += thumbHtml;
+      html += "<div class='writing-codex-entry-content'>";
+      html += "<div class='writing-codex-entry-top'>";
+      html += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
+      html += "<div class='writing-codex-entry-badges'>" + pillHtml + "</div>";
+      html += "</div>";
+      html += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
+      html += "</div>";
+      html += "</button>";
+      return html;
+    }
+
+    function getHiddenEntityTypes(seriesId) {
+      if (!seriesId) return [];
+      var treeDef = getCodexTreeDef(seriesId);
+      var visibleTypes = {};
+      treeDef.forEach(function (cat) {
+        (cat.items || []).forEach(function (item) {
+          if (item.entityTypeKey) visibleTypes[item.entityTypeKey] = true;
+        });
+      });
+      var entities = codexCache.entitiesBySeries[seriesId] || [];
+      var hiddenCounts = {};
+      entities.forEach(function (e) {
+        var typeKey = (e.codex_entity_types || {}).key || "";
+        if (typeKey && !visibleTypes[typeKey]) {
+          hiddenCounts[typeKey] = (hiddenCounts[typeKey] || 0) + 1;
+        }
+      });
+      return Object.keys(hiddenCounts).map(function (k) {
+        return { type: k, count: hiddenCounts[k] };
+      });
+    }
+
+    function renderHiddenEntityWarning(seriesId) {
+      var hidden = getHiddenEntityTypes(seriesId);
+      if (!hidden.length) return "";
+      var total = hidden.reduce(function (s, h) { return s + h.count; }, 0);
+      var typeNames = hidden.map(function (h) { return h.type.replace(/_/g, " "); }).join(", ");
+      var html = "<div class='codex-hidden-warning'>";
+      html += "<span class='codex-hidden-warning-icon'>\u26A0\uFE0F</span>";
+      html += "<div class='codex-hidden-warning-text'>";
+      html += "<strong>" + total + " hidden entit" + (total === 1 ? "y" : "ies") + ":</strong> " + escapeHtml(typeNames);
+      html += " <span class='codex-hidden-warning-hint'>Switch preset or edit preset to include these types.</span>";
+      html += "</div>";
+      html += "</div>";
+      return html;
+    }
+
     function renderCodexTree(seriesId) {
       if (!el.codexTreeContainer) return;
       var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
       var currentProject = getSelectedProject();
       var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
+      var treeDef = getCodexTreeDef(seriesId);
       var html = "";
-      CODEX_TREE_DEF.forEach(function (cat) {
+      // Hidden entity warning
+      html += renderHiddenEntityWarning(seriesId);
+      treeDef.forEach(function (cat) {
         html += "<div class='writing-codex-group codex-tree-category'>";
         html += "<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + cat.category + "'>";
         html += "<span class='writing-codex-group-title'>" + cat.category + "</span>";
@@ -3437,32 +3614,11 @@
             if (item.entityTypeKey === "location" && skCurrentSeriesId) {
               var parentMap = buildLocationParentMap(skCurrentSeriesId);
               html += renderLocationTreeList(entities, item, parentMap);
+            } else if (item.subTypes && item.subTypes.length) {
+              html += renderSubTypeGroups(entities, item);
             } else {
               entities.forEach(function (entity) {
-                var name = entity.name || "Unnamed";
-                var desc = entity.summary || entity.description || "";
-                var imgUrl = entity.image_url || "";
-                var color = entity.color || "";
-                var custom = entity.custom_data || {};
-                var roleArchetype = String(custom.role_archetype || "").trim();
-                var archetype = String(custom.archetype || "").trim();
-                var thumbHtml = imgUrl
-                  ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
-                  : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
-                var scope = entity.scope || "series";
-                var pillHtml = "";
-                if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
-                if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
-                html += "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
-                html += thumbHtml;
-                html += "<div class='writing-codex-entry-content'>";
-                html += "<div class='writing-codex-entry-top'>";
-                html += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
-                html += "<div class='writing-codex-entry-badges'>" + pillHtml + "</div>";
-                html += "</div>";
-                html += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
-                html += "</div>";
-                html += "</button>";
+                html += renderCodexEntityEntry(entity, item);
               });
             }
             html += "</div>"; // group-list
@@ -3518,11 +3674,61 @@
         });
       });
 
+      el.codexTreeContainer.querySelectorAll(".codex-subtype-header").forEach(function (hdr) {
+        hdr.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var groupList = hdr.nextElementSibling;
+          if (!groupList) return;
+          var isHidden = groupList.hidden;
+          groupList.hidden = !isHidden;
+          var chevron = hdr.querySelector(".writing-codex-group-chevron");
+          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+        });
+      });
+
+      // Populate preset selector
+      populateCodexPresetSelector(seriesId);
+
       if (!window._codexSidebarWired) {
         wireCodexTreeSearch_();
         wireCodexSidebarControls_();
         window._codexSidebarWired = true;
       }
+    }
+
+    function populateCodexPresetSelector(seriesId) {
+      var sel = el.codexPresetSelect;
+      if (!sel) return;
+      var currentKey = getCodexCurrentPresetKey(seriesId);
+      sel.innerHTML = "";
+      Object.keys(_codexFormatPresetsCache).forEach(function (key) {
+        var p = _codexFormatPresetsCache[key];
+        var opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = p.name || key;
+        if (key === currentKey) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      // Remove old listener by cloning
+      var newSel = sel.cloneNode(true);
+      sel.parentNode.replaceChild(newSel, sel);
+      el.codexPresetSelect = newSel;
+      newSel.addEventListener("change", function () {
+        var newPreset = newSel.value;
+        // Update series metadata
+        if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
+          appState.seriesMetaById[seriesId].codexFormatPreset = newPreset;
+        }
+        // Save to Supabase in background
+        if (typeof supabaseRunner !== "undefined" && seriesId) {
+          supabaseRunner
+            .withSuccessHandler(function () {})
+            .withFailureHandler(function (err) { console.warn("Preset save failed:", err); })
+            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ codex_format_preset: newPreset }));
+        }
+        // Re-render tree
+        renderCodexTree(seriesId);
+      });
     }
 
     function wireCodexSidebarControls_() {

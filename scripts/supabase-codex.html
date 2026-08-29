@@ -10,6 +10,38 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, types: res.data || [] }); });
     });
 
+    // ---- Format Presets ----
+
+    _sbDefine('listCodexFormatPresets', function () {
+      return sbClient.from('codex_format_presets').select('*')
+        .order('sort_order', { ascending: true }).limit(100)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, presets: res.data || [] });
+        });
+    });
+
+    _sbDefine('saveCodexFormatPreset', function (presetJson) {
+      var preset = JSON.parse(presetJson);
+      if (preset.id) {
+        return sbClient.from('codex_format_presets').update({
+          name: preset.name, description: preset.description || '',
+          tree_definition: preset.tree_definition, sort_order: preset.sort_order || 0
+        }).eq('id', preset.id).select().single()
+          .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, preset: res.data }); });
+      }
+      return sbClient.from('codex_format_presets').insert({
+        key: preset.key, name: preset.name, description: preset.description || '',
+        tree_definition: preset.tree_definition, is_builtin: false, sort_order: preset.sort_order || 99
+      }).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, preset: res.data }); });
+    });
+
+    _sbDefine('deleteCodexFormatPreset', function (presetId) {
+      return sbClient.from('codex_format_presets').delete().eq('id', presetId).eq('is_builtin', false)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
     // ---- Entities ----
 
     _sbDefine('listCodexEntities', function (seriesId, entityTypeId, query, scope) {

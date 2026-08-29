@@ -2476,6 +2476,7 @@
               genre: String(row && row.genre || "").trim(),
               penName: String(row && row.pen_name || "").trim(),
               format: String(row && row.format || "").trim(),
+              codexFormatPreset: String(row && row.codex_format_preset || "").trim(),
               updatedAt: String(row && row.updated_at || row && row.updatedAt || "").trim(),
               docs: row && row.docs && typeof row.docs === "object" ? row.docs : {}
             };

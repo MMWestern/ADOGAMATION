@@ -17905,4 +17905,65 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
+
+    /* Codex preset selector */
+    .codex-preset-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      margin-bottom: 8px;
+    }
+    .codex-preset-selector select {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+    }
+    .codex-preset-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Hidden entity warning */
+    .codex-hidden-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 12px;
+      margin: 0 8px 8px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .codex-hidden-warning-icon { font-size: 14px; flex-shrink: 0; }
+    .codex-hidden-warning-text { color: var(--text); }
+    .codex-hidden-warning-hint { color: var(--muted); font-style: italic; }
+    body.dark-mode .codex-hidden-warning {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
+    /* Sub-type groups in codex tree */
+    .codex-subtype-group { margin-left: 8px; }
+    .codex-subtype-header {
+      padding: 4px 10px !important;
+      border-left: 2px solid var(--border);
+      margin-left: 4px;
+    }
+    .codex-subtype-header .writing-codex-group-title {
+      font-size: 10px !important;
+      color: var(--muted) !important;
+      font-weight: 500 !important;
+    }
+    .codex-subtype-group .writing-codex-entry {
+      padding-left: 24px;
+    }
 </style>
