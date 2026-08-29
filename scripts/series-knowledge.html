@@ -6938,7 +6938,47 @@
         populatePromptEditor();
       }
       if (e.detail && e.detail.tab === "tab-presets") {
+        // Wire New Preset button once
+        var newBtn = document.getElementById("codexPresetNewButton");
+        if (newBtn && !newBtn._wired) {
+          newBtn._wired = true;
+          newBtn.addEventListener("click", function () {
+            var newKey = "custom_" + Date.now();
+            var newPreset = {
+              key: newKey,
+              name: "New Custom Preset",
+              description: "",
+              tree_definition: JSON.parse(JSON.stringify(CODEX_TREE_DEF)),
+              is_builtin: false
+            };
+            if (typeof supabaseRunner !== "undefined") {
+              supabaseRunner
+                .withSuccessHandler(function (json) {
+                  try {
+                    var result = JSON.parse(json);
+                    if (result.ok && result.preset) {
+                      _codexFormatPresetsCache[result.preset.key] = result.preset;
+                      _codexPresetEditorActive = result.preset.key;
+                      populateCodexPresetList();
+                      renderCodexPresetEditor(result.preset.key);
+                    }
+                  } catch (e) {}
+                })
+                .withFailureHandler(function (err) { console.warn("Preset create failed:", err); })
+                .saveCodexFormatPreset(JSON.stringify(newPreset));
+            }
+          });
+        }
+        // Auto-select the current project's preset, or first in list
+        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+        var seriesId = project ? Number(project.series_id || 0) : 0;
+        var currentKey = seriesId ? getCodexCurrentPresetKey(seriesId) : "";
+        if (!currentKey || !_codexFormatPresetsCache[currentKey]) {
+          currentKey = Object.keys(_codexFormatPresetsCache)[0] || "";
+        }
+        _codexPresetEditorActive = currentKey;
         populateCodexPresetList();
+        if (currentKey) renderCodexPresetEditor(currentKey);
       }
     });
 
