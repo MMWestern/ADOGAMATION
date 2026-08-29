@@ -6258,6 +6258,10 @@
         applySeriesMetaToProjects();
         fillDetailForm(getSelectedProject());
         renderLandingDashboard();
+        // Re-render codex tree if format changed (format drives codex preset)
+        if (typeof renderCodexTree === "function" && Number(project.series_id || 0)) {
+          renderCodexTree(Number(project.series_id));
+        }
         setStatus("Series metadata saved.", "ok");
       }).catch(function (err) {
         setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
@@ -9592,7 +9596,13 @@
           setStatus("Series updated.", "ok");
           closeSeriesEditModal();
           renderSeriesManagerList();
-          loadSeriesMeta();
+          loadSeriesMeta().then(function () {
+            // Re-render codex tree if format changed
+            var project = getSelectedProject();
+            if (typeof renderCodexTree === "function" && project && Number(project.series_id || 0) === _seriesEditId) {
+              renderCodexTree(_seriesEditId);
+            }
+          });
           populateFilters();
         }).catch(function (err) {
           setStatus("Save failed: " + (err && err.message ? err.message : err), "error");
