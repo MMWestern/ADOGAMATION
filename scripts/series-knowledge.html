@@ -3693,47 +3693,11 @@
     }
 
     function populateCodexPresetSelector(seriesId) {
-      var sel = el.codexPresetSelect;
-      if (!sel) return;
+      var nameEl = el.codexPresetName;
+      if (!nameEl) return;
       var currentKey = getCodexCurrentPresetKey(seriesId);
-      sel.innerHTML = "";
-      Object.keys(_codexFormatPresetsCache).forEach(function (key) {
-        var p = _codexFormatPresetsCache[key];
-        var opt = document.createElement("option");
-        opt.value = key;
-        opt.textContent = p.name || key;
-        sel.appendChild(opt);
-      });
-      sel.value = currentKey;
-      // Remove old listener by cloning
-      var newSel = sel.cloneNode(true);
-      sel.parentNode.replaceChild(newSel, sel);
-      el.codexPresetSelect = newSel;
-      newSel.value = currentKey;
-      newSel.addEventListener("change", function () {
-        var newPreset = newSel.value;
-        // Update series metadata — codex_template is the source of truth
-        if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-          appState.seriesMetaById[seriesId].codexTemplate = newPreset;
-        }
-        // Also update the project if selected
-        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
-        if (project && Number(project.series_id || 0) === seriesId) {
-          project.codex_template = newPreset;
-        }
-        // Update the Series Info Panel dropdown if it exists
-        var infoPanelSel = el.detailSeriesCodexTemplate;
-        if (infoPanelSel) infoPanelSel.value = newPreset;
-        // Save to Supabase in background
-        if (typeof supabaseRunner !== "undefined" && seriesId) {
-          supabaseRunner
-            .withSuccessHandler(function () {})
-            .withFailureHandler(function (err) { console.warn("Codex template save failed:", err); })
-            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ codex_template: newPreset }));
-        }
-        // Re-render tree
-        renderCodexTree(seriesId);
-      });
+      var preset = _codexFormatPresetsCache[currentKey];
+      nameEl.textContent = preset ? preset.name : currentKey;
     }
 
     function wireCodexSidebarControls_() {
