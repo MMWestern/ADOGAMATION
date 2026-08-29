@@ -3706,13 +3706,14 @@
         var opt = document.createElement("option");
         opt.value = key;
         opt.textContent = p.name || key;
-        if (key === currentKey) opt.selected = true;
         sel.appendChild(opt);
       });
+      sel.value = currentKey;
       // Remove old listener by cloning
       var newSel = sel.cloneNode(true);
       sel.parentNode.replaceChild(newSel, sel);
       el.codexPresetSelect = newSel;
+      newSel.value = currentKey;
       newSel.addEventListener("change", function () {
         var newPreset = newSel.value;
         // Update series metadata
