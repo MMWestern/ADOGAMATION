@@ -3760,8 +3760,24 @@
       var newEntryBtn = el.codexNewEntry;
       var newEntryDropdown = el.codexNewEntryDropdown;
       if (newEntryBtn && newEntryDropdown) {
-        // Rebuild dropdown from preset
+        // Rebuild dropdown options from preset
         rebuildNewEntryDropdown(seriesId, newEntryBtn, newEntryDropdown);
+        // Wire toggle button once
+        if (!newEntryBtn._newEntryWired) {
+          newEntryBtn._newEntryWired = true;
+          newEntryBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var open = newEntryDropdown.hidden;
+            newEntryDropdown.hidden = !open;
+            newEntryBtn.setAttribute("aria-expanded", String(open));
+          });
+          document.addEventListener("click", function () {
+            if (!newEntryDropdown.hidden) {
+              newEntryDropdown.hidden = true;
+              newEntryBtn.setAttribute("aria-expanded", "false");
+            }
+          });
+        }
       }
     }
 
@@ -3780,7 +3796,7 @@
         });
       });
       dropdown.innerHTML = optionsHtml;
-      // Wire click handlers
+      // Wire click handlers on options
       dropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (opt) {
         opt.addEventListener("click", function (e) {
           e.stopPropagation();
@@ -3793,20 +3809,6 @@
             showCodexEntityDetail(newEntity, singularKey);
           }
         });
-      });
-      // Wire toggle button
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        var open = dropdown.hidden;
-        dropdown.hidden = !open;
-        btn.setAttribute("aria-expanded", String(open));
-      };
-      // Close on outside click
-      document.addEventListener("click", function () {
-        if (!dropdown.hidden) {
-          dropdown.hidden = true;
-          btn.setAttribute("aria-expanded", "false");
-        }
       });
     }
 
