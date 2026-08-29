@@ -3261,16 +3261,7 @@
     }
 
     function getCodexTreeDef(seriesId) {
-      // Get the preset key for this series
-      var presetKey = "standard_fantasy"; // default
-      if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-        var mp = appState.seriesMetaById[seriesId].codexFormatPreset || "";
-        if (mp) presetKey = mp;
-      }
-      // Also check if series data has it directly
-      if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId] && appState.seriesMetaById[seriesId].codex_format_preset) {
-        presetKey = appState.seriesMetaById[seriesId].codex_format_preset;
-      }
+      var presetKey = getCodexCurrentPresetKey(seriesId);
       var preset = _codexFormatPresetsCache[presetKey];
       if (preset && Array.isArray(preset.tree_definition) && preset.tree_definition.length) {
         return preset.tree_definition;
@@ -3280,9 +3271,14 @@
     }
 
     function getCodexCurrentPresetKey(seriesId) {
+      // Source of truth: series format field
       if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-        return appState.seriesMetaById[seriesId].codexFormatPreset || "standard_fantasy";
+        var format = appState.seriesMetaById[seriesId].format || "";
+        if (format) return resolveCodexPresetFromFormat(format);
       }
+      // Fallback: check project-level format
+      var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+      if (project && project.format) return resolveCodexPresetFromFormat(project.format);
       return "standard_fantasy";
     }
 
@@ -3719,16 +3715,28 @@
       newSel.value = currentKey;
       newSel.addEventListener("change", function () {
         var newPreset = newSel.value;
-        // Update series metadata
+        // Find the format value that maps to this preset
+        var formatValue = newPreset; // default: use preset key as format
+        Object.keys(FORMAT_TO_CODEX_PRESET).forEach(function (fmt) {
+          if (FORMAT_TO_CODEX_PRESET[fmt] === newPreset) formatValue = fmt;
+        });
+        // Capitalize to match existing format convention
+        formatValue = formatValue.charAt(0).toUpperCase() + formatValue.slice(1);
+        // Update series metadata — format is the source of truth
         if (seriesId && appState.seriesMetaById && appState.seriesMetaById[seriesId]) {
-          appState.seriesMetaById[seriesId].codexFormatPreset = newPreset;
+          appState.seriesMetaById[seriesId].format = formatValue;
+        }
+        // Also update the project if selected
+        var project = typeof getSelectedProject === "function" ? getSelectedProject() : null;
+        if (project && Number(project.series_id || 0) === seriesId) {
+          project.format = formatValue;
         }
         // Save to Supabase in background
         if (typeof supabaseRunner !== "undefined" && seriesId) {
           supabaseRunner
             .withSuccessHandler(function () {})
-            .withFailureHandler(function (err) { console.warn("Preset save failed:", err); })
-            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ codex_format_preset: newPreset }));
+            .withFailureHandler(function (err) { console.warn("Format save failed:", err); })
+            .saveSupabaseSeriesMetaJsonFromClient(seriesId, JSON.stringify({ format: formatValue }));
         }
         // Re-render tree
         renderCodexTree(seriesId);
