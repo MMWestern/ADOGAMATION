@@ -3643,12 +3643,9 @@
             if (item.entityTypeKey === "location" && skCurrentSeriesId) {
               var parentMap = buildLocationParentMap(skCurrentSeriesId);
               html += renderLocationTreeList(entities, item, parentMap);
-            } else if (item.subTypes && item.subTypes.length) {
-              html += renderSubTypeGroups(entities, item);
             } else {
-              entities.forEach(function (entity) {
-                html += renderCodexEntityEntry(entity, item);
-              });
+              // All types get sub-type grouping (with Uncategorized for unmatched)
+              html += renderSubTypeGroups(entities, item);
             }
             html += "</div>"; // group-list
             html += "</div>"; // type-group
