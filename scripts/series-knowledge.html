@@ -3476,9 +3476,8 @@
         var st = String(custom.sub_type || custom.role_archetype || "").trim();
         if (st && groups[st]) {
           groups[st].push(entity);
-        } else if (st) {
-          groups[st] = [entity];
         } else {
+          // Unrecognized or empty sub_type goes to Uncategorized
           groups["Uncategorized"].push(entity);
         }
       });
