@@ -2058,7 +2058,7 @@
     /* ---- Entity Relationship Panel ---- */
 
     function loadAndRenderEntityRelationships(seriesId, entityId) {
-      var listEl = document.getElementById("codexRelSidebarList");
+      var listEl = document.getElementById("codexRelPanelList");
       if (!listEl) return;
       var connections = skCache.connections[seriesId] || [];
       var allEntities = codexCache.entitiesBySeries[seriesId] || [];
@@ -2164,14 +2164,14 @@
     }
 
     function wireEntityRelationshipPanel(seriesId, entityId) {
-      var addBtn = document.getElementById("codexRelSidebarAddBtn");
-      var addForm = document.getElementById("codexRelSidebarAddForm");
-      var cancelBtn = document.getElementById("codexRelSidebarCancelBtn");
-      var saveBtn = document.getElementById("codexRelSidebarSaveBtn");
-      var targetBtn = document.getElementById("codexRelSidebarTargetBtn");
-      var targetDropdown = document.getElementById("codexRelSidebarTargetDropdown");
-      var targetInput = document.getElementById("codexRelSidebarTarget");
-      var typeSelect = document.getElementById("codexRelSidebarType");
+      var addBtn = document.getElementById("codexRelPanelAddBtn");
+      var addForm = document.getElementById("codexRelPanelAddForm");
+      var cancelBtn = document.getElementById("codexRelPanelCancelBtn");
+      var saveBtn = document.getElementById("codexRelPanelSaveBtn");
+      var targetBtn = document.getElementById("codexRelPanelTargetBtn");
+      var targetDropdown = document.getElementById("codexRelPanelTargetDropdown");
+      var targetInput = document.getElementById("codexRelPanelTarget");
+      var typeSelect = document.getElementById("codexRelPanelType");
 
       if (!addBtn || !addForm) return;
 
@@ -2309,7 +2309,7 @@
     }
 
     function showRelEditForm(seriesId, entityId, connectionId, currentTypeId) {
-      var listEl = document.getElementById("codexRelSidebarList");
+      var listEl = document.getElementById("codexRelPanelList");
       if (!listEl) return;
       // Remove any existing edit form
       var existing = listEl.querySelector(".codex-rel-edit-form");
@@ -4899,6 +4899,8 @@
       if (!el.codexEntityPageContent) return;
       el.codexEntityPageContent.innerHTML = html;
       el.codexEntityPage.hidden = false;
+      // Show relationships panel in right column
+      if (el.codexRelPanel) el.codexRelPanel.hidden = false;
 
       el.codexTreeContainer.querySelectorAll(".codex-entity-entry.is-active").forEach(function (c) { c.classList.remove("is-active"); });
       var treeEntry = el.codexTreeContainer.querySelector(".codex-entity-entry[data-entity-id='" + entity.id + "']");
@@ -5377,6 +5379,7 @@
           }
           if (typeof closeSkCodexInspector === "function") closeSkCodexInspector();
           if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+          if (el.codexRelPanel) el.codexRelPanel.hidden = true;
           if (el.codexDashboard) el.codexDashboard.hidden = false;
         });
       }
@@ -5429,6 +5432,7 @@
     function showCodexFeaturePage(featureKey) {
       if (el.codexDashboard) el.codexDashboard.hidden = true;
       if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+      if (el.codexRelPanel) el.codexRelPanel.hidden = true;
       if (el.codexFeaturePage) el.codexFeaturePage.hidden = false;
       if (!el.codexFeaturePageContent) return;
 

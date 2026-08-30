@@ -760,28 +760,7 @@
           <div id="codexDashboardStats" class="codex-dashboard-stats"></div>
         </div>
         <div id="codexEntityPage" class="codex-entity-page" hidden>
-          <div class="codex-entity-page-layout">
-            <div id="codexEntityPageContent" class="codex-entity-page-content"></div>
-            <div id="codexEntityRelSidebar" class="codex-entity-rel-sidebar">
-              <div class="codex-rel-sidebar-header">Relationships</div>
-              <div id="codexRelSidebarList" class="codex-rel-list"></div>
-              <div id="codexRelSidebarAddForm" class="codex-rel-add-form" hidden>
-                <div class="codex-rel-add-row">
-                  <div class="codex-rel-entity-picker">
-                    <button id="codexRelSidebarTargetBtn" type="button" class="codex-rel-entity-btn">Select entity...</button>
-                    <div id="codexRelSidebarTargetDropdown" class="codex-rel-entity-dropdown" hidden></div>
-                    <input id="codexRelSidebarTarget" type="hidden" value="" />
-                  </div>
-                  <select id="codexRelSidebarType" class="codex-detail-field-select"><option value="">Select type...</option></select>
-                </div>
-                <div style="display:flex;gap:6px;margin-top:6px;">
-                  <button id="codexRelSidebarSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
-                  <button id="codexRelSidebarCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
-                </div>
-              </div>
-              <button id="codexRelSidebarAddBtn" type="button" style="font-size:11px;margin-top:6px;">+ Add Relationship</button>
-            </div>
-          </div>
+          <div id="codexEntityPageContent" class="codex-entity-page-content"></div>
         </div>
         <div id="codexFeaturePage" class="codex-feature-page" hidden>
           <div id="codexFeaturePageContent" class="codex-feature-page-content"></div>
@@ -1584,6 +1563,28 @@
             <div id="pillarInspectorEditor" class="pillar-inspector-editor" hidden>
               <textarea id="pillarInspectorContent" class="pillar-inspector-textarea" rows="6" placeholder="Enter content for this pillar..."></textarea>
               <button type="button" id="pillarInspectorSaveBtn" class="pillar-inspector-save">Save</button>
+            </div>
+          </div>
+          <!-- Relationships Panel (right column) -->
+          <div id="codexRelPanel" class="codex-rel-panel" hidden>
+            <div class="codex-rel-panel-header">
+              <span class="codex-rel-panel-title">Relationships</span>
+              <button id="codexRelPanelAddBtn" type="button" class="codex-rel-panel-add">+ Add</button>
+            </div>
+            <div id="codexRelPanelList" class="codex-rel-list"></div>
+            <div id="codexRelPanelAddForm" class="codex-rel-add-form" hidden>
+              <div class="codex-rel-add-row">
+                <div class="codex-rel-entity-picker">
+                  <button id="codexRelPanelTargetBtn" type="button" class="codex-rel-entity-btn">Select entity...</button>
+                  <div id="codexRelPanelTargetDropdown" class="codex-rel-entity-dropdown" hidden></div>
+                  <input id="codexRelPanelTarget" type="hidden" value="" />
+                </div>
+                <select id="codexRelPanelType" class="codex-detail-field-select"><option value="">Select type...</option></select>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button id="codexRelPanelSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
+                <button id="codexRelPanelCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
+              </div>
             </div>
           </div>
           <!-- Brainstorm Sources -->
