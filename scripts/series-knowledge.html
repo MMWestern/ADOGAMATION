@@ -3230,9 +3230,29 @@
     var _codexFormatPresetsCache = {};  // key -> preset object
     var _codexCurrentTreeDef = null;    // active tree_definition for current series
 
-    // Pre-populate cache with hardcoded defaults immediately
+    // Pre-populate cache with hardcoded defaults + localStorage custom presets
     if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
       _codexFormatPresetsCache = Object.assign({}, CODEX_FORMAT_PRESETS_DEFAULTS);
+    }
+    // Load custom presets from localStorage
+    try {
+      var stored = localStorage.getItem("writing_app_codex_presets");
+      if (stored) {
+        var customPresets = JSON.parse(stored);
+        Object.keys(customPresets).forEach(function (k) {
+          _codexFormatPresetsCache[k] = customPresets[k];
+        });
+      }
+    } catch (e) {}
+
+    function saveCodexPresetsToStorage() {
+      try {
+        var custom = {};
+        Object.keys(_codexFormatPresetsCache).forEach(function (k) {
+          if (!_codexFormatPresetsCache[k].is_builtin) custom[k] = _codexFormatPresetsCache[k];
+        });
+        localStorage.setItem("writing_app_codex_presets", JSON.stringify(custom));
+      } catch (e) {}
     }
 
     function loadCodexFormatPresets() {
@@ -3982,9 +4002,10 @@
             (cat.items || []).forEach(function (item) { delete item._enabled; });
           });
           preset.tree_definition = cleanTreeDef;
-          // Update cache immediately
+          // Update cache and localStorage immediately
           _codexFormatPresetsCache[presetKey] = preset;
-          // Save to Supabase
+          saveCodexPresetsToStorage();
+          // Also try Supabase
           if (typeof supabaseRunner !== "undefined") {
             supabaseRunner
               .withSuccessHandler(function (json) {
@@ -3992,19 +4013,21 @@
                   var result = JSON.parse(json);
                   if (result.ok && result.preset) {
                     _codexFormatPresetsCache[result.preset.key] = result.preset;
+                    saveCodexPresetsToStorage();
                   }
                 } catch (e) { console.warn("Preset save response parse error:", e); }
                 populateCodexPresetList();
                 renderCodexPresetEditor(presetKey);
               })
               .withFailureHandler(function (err) {
-                console.error("Preset save to Supabase failed:", err);
-                alert("Failed to save preset to database. Check console for details.");
+                console.warn("Preset Supabase save failed (saved to localStorage):", err);
                 populateCodexPresetList();
+                renderCodexPresetEditor(presetKey);
               })
               .saveCodexFormatPreset(JSON.stringify(preset));
           } else {
             populateCodexPresetList();
+            renderCodexPresetEditor(presetKey);
           }
         });
       }
@@ -4016,6 +4039,13 @@
           clone.name = (preset.name || presetKey) + " (Copy)";
           clone.is_builtin = false;
           delete clone.id;
+          // Add to cache and localStorage immediately
+          _codexFormatPresetsCache[clone.key] = clone;
+          saveCodexPresetsToStorage();
+          _codexPresetEditorActive = clone.key;
+          populateCodexPresetList();
+          renderCodexPresetEditor(clone.key);
+          // Also try Supabase
           if (typeof supabaseRunner !== "undefined") {
             supabaseRunner
               .withSuccessHandler(function (json) {
@@ -4023,13 +4053,11 @@
                   var result = JSON.parse(json);
                   if (result.ok && result.preset) {
                     _codexFormatPresetsCache[result.preset.key] = result.preset;
-                    _codexPresetEditorActive = result.preset.key;
-                    populateCodexPresetList();
-                    renderCodexPresetEditor(result.preset.key);
+                    saveCodexPresetsToStorage();
                   }
                 } catch (e) { console.warn("Preset clone response parse error:", e); }
               })
-              .withFailureHandler(function (err) { console.warn("Preset clone failed:", err); })
+              .withFailureHandler(function (err) { console.warn("Preset Supabase clone failed (saved locally):", err); })
               .saveCodexFormatPreset(JSON.stringify(clone));
           }
         });
@@ -4038,16 +4066,18 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete preset '" + (preset.name || presetKey) + "'?")) return;
+          // Remove from cache and localStorage immediately
+          delete _codexFormatPresetsCache[presetKey];
+          saveCodexPresetsToStorage();
+          _codexPresetEditorActive = null;
+          populateCodexPresetList();
+          var ed = document.getElementById("codexPresetEditor");
+          if (ed) ed.innerHTML = "<div class='landing-empty'>Preset deleted.</div>";
+          // Also try Supabase
           if (typeof supabaseRunner !== "undefined" && preset.id) {
             supabaseRunner
-              .withSuccessHandler(function () {
-                delete _codexFormatPresetsCache[presetKey];
-                _codexPresetEditorActive = null;
-                populateCodexPresetList();
-                var ed = document.getElementById("codexPresetEditor");
-                if (ed) ed.innerHTML = "<div class='landing-empty'>Preset deleted.</div>";
-              })
-              .withFailureHandler(function (err) { console.warn("Preset delete failed:", err); })
+              .withSuccessHandler(function () {})
+              .withFailureHandler(function (err) { console.warn("Preset Supabase delete failed (removed locally):", err); })
               .deleteCodexFormatPreset(preset.id);
           }
         });
@@ -7094,6 +7124,13 @@
                 tree_definition: JSON.parse(JSON.stringify(CODEX_TREE_DEF)),
                 is_builtin: false
               };
+              // Add to cache and localStorage immediately
+              _codexFormatPresetsCache[newKey] = newPreset;
+              saveCodexPresetsToStorage();
+              _codexPresetEditorActive = newKey;
+              populateCodexPresetList();
+              renderCodexPresetEditor(newKey);
+              // Also try Supabase
               if (typeof supabaseRunner !== "undefined") {
                 supabaseRunner
                   .withSuccessHandler(function (json) {
@@ -7101,13 +7138,11 @@
                       var result = JSON.parse(json);
                       if (result.ok && result.preset) {
                         _codexFormatPresetsCache[result.preset.key] = result.preset;
-                        _codexPresetEditorActive = result.preset.key;
-                        populateCodexPresetList();
-                        renderCodexPresetEditor(result.preset.key);
+                        saveCodexPresetsToStorage();
                       }
                     } catch (e) {}
                   })
-                  .withFailureHandler(function (err) { console.warn("Preset create failed:", err); })
+                  .withFailureHandler(function (err) { console.warn("Preset Supabase create failed (saved locally):", err); })
                   .saveCodexFormatPreset(JSON.stringify(newPreset));
               }
             });
