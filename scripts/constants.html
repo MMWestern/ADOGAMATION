@@ -239,74 +239,74 @@ const DEFAULT_STATUS_OPTIONS = [
         key: "all_types", name: "All Types", description: "Shows every entity type and feature. Use this to see everything available.", is_builtin: true,
         tree_definition: [
           { category: "CORE", items: [
-            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor"] },
-            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location",subTypes:["City","Village","Forest","Mountain","Dungeon","Realm","Home","Workplace","Public","Travel"] },
-            { key:"organisations",label:"Organisations",icon:"\u{1F3E2}",entityTypeKey:"organisation" },
-            { key:"families",label:"Families / Houses",icon:"\u{1F465}",entityTypeKey:"family" },
-            { key:"species",label:"Species",icon:"\u{1F43E}",entityTypeKey:"species" },
-            { key:"cultures",label:"Cultures",icon:"\u{1F30D}",entityTypeKey:"culture" },
-            { key:"creatures",label:"Creatures",icon:"\u{1F409}",entityTypeKey:"creature",subTypes:["Beasts","Monsters","Dragons","Undead","Spirits"] },
-            { key:"items",label:"Items / Artefacts",icon:"\u{1F4E6}",entityTypeKey:"item",subTypes:["Weapons","Armour","Artefacts","Consumables","Materials","Quest Items","Personal","Documents","Technology","Keepsakes"] },
-            { key:"lore",label:"Lore",icon:"\u{1F4D6}",entityTypeKey:"lore",subTypes:["History","Mythology","Magic Rules","Prophecies"] },
+            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor","Mentioned"] },
+            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location",subTypes:["City","Village","Forest","Mountain","Dungeon","Realm","Home","Workplace","Public","Travel","Other"] },
+            { key:"organisations",label:"Organisations",icon:"\u{1F3E2}",entityTypeKey:"organisation",subTypes:["Guild","Faction","Government","Military","Religious","Criminal","Academic","Other"] },
+            { key:"families",label:"Families / Houses",icon:"\u{1F465}",entityTypeKey:"family",subTypes:["Noble","Common","Royal","Ancient","Other"] },
+            { key:"species",label:"Species",icon:"\u{1F43E}",entityTypeKey:"species",subTypes:["Humanoid","Beast","Plant","Elemental","Other"] },
+            { key:"cultures",label:"Cultures",icon:"\u{1F30D}",entityTypeKey:"culture",subTypes:["Tribal","Nomadic","Urban","Maritime","Other"] },
+            { key:"creatures",label:"Creatures",icon:"\u{1F409}",entityTypeKey:"creature",subTypes:["Beasts","Monsters","Dragons","Undead","Spirits","Other"] },
+            { key:"items",label:"Items / Artefacts",icon:"\u{1F4E6}",entityTypeKey:"item",subTypes:["Weapons","Armour","Artefacts","Consumables","Materials","Quest Items","Personal","Documents","Technology","Keepsakes","Other"] },
+            { key:"lore",label:"Lore",icon:"\u{1F4D6}",entityTypeKey:"lore",subTypes:["History","Mythology","Magic Rules","Prophecies","Legends","Other"] },
             { key:"timelines",label:"Timeline",icon:"\u{1F4C5}",isFeature:true }
           ]},
           { category: "WORLD", items: [
-            { key:"magic_systems",label:"Magic Systems",icon:"\u26A1",entityTypeKey:"magic_system" },
-            { key:"power_systems",label:"Power Systems",icon:"\u26A1",entityTypeKey:"power_system" },
-            { key:"religions",label:"Religions",icon:"\u{1F54C}",entityTypeKey:"religion" },
-            { key:"governments",label:"Governments",icon:"\u{1F3DB}\uFE0F",entityTypeKey:"government" },
-            { key:"languages",label:"Languages",icon:"\u{1F4AC}",entityTypeKey:"language" },
-            { key:"history",label:"History / Eras",icon:"\u{1F4D6}",entityTypeKey:"history_era" },
-            { key:"realms",label:"Realms / Dimensions",icon:"\u{1F30C}",entityTypeKey:"realm_dimension" },
-            { key:"system_rules",label:"System Rules",icon:"\u{1F4DC}",entityTypeKey:"system_rule" }
+            { key:"magic_systems",label:"Magic Systems",icon:"\u26A1",entityTypeKey:"magic_system",subTypes:["Elemental","Divine","Arcane","Ritual","Innate","Other"] },
+            { key:"power_systems",label:"Power Systems",icon:"\u26A1",entityTypeKey:"power_system",subTypes:["Tiered","Linear","Branching","Hybrid","Other"] },
+            { key:"religions",label:"Religions",icon:"\u{1F54C}",entityTypeKey:"religion",subTypes:["Monotheistic","Polytheistic","Animistic","Cult","Philosophy","Other"] },
+            { key:"governments",label:"Governments",icon:"\u{1F3DB}\uFE0F",entityTypeKey:"government",subTypes:["Monarchy","Democracy","Theocracy","Oligarchy","Tribal","Anarchy","Other"] },
+            { key:"languages",label:"Languages",icon:"\u{1F4AC}",entityTypeKey:"language",subTypes:["Spoken","Written","Magical","Sign","Other"] },
+            { key:"history",label:"History / Eras",icon:"\u{1F4D6}",entityTypeKey:"history_era",subTypes:["Ancient","Medieval","Renaissance","Modern","Future","Mythological","Other"] },
+            { key:"realms",label:"Realms / Dimensions",icon:"\u{1F30C}",entityTypeKey:"realm_dimension",subTypes:["Physical","Astral","Ethereal","Shadow","Divine","Other"] },
+            { key:"system_rules",label:"System Rules",icon:"\u{1F4DC}",entityTypeKey:"system_rule",subTypes:["Physics","Magic","Society","Economy","Other"] }
           ]},
           { category: "PROGRESSION", items: [
-            { key:"classes",label:"Classes / Paths",icon:"\u{1F6E1}",entityTypeKey:"class_path" },
-            { key:"stats",label:"Stats",icon:"\u{1F4CA}",entityTypeKey:"stat" },
-            { key:"skills",label:"Skills / Abilities",icon:"\u2728",entityTypeKey:"skill_ability" },
-            { key:"traits",label:"Traits / Perks",icon:"\u{1F3AF}",entityTypeKey:"trait_perk" },
-            { key:"resources",label:"Resources",icon:"\u{1F48E}",entityTypeKey:"resource" },
-            { key:"progression",label:"Progression",icon:"\u{1F4C8}",entityTypeKey:"progression" },
-            { key:"character_builds",label:"Character Builds",icon:"\u{1F3D7}",entityTypeKey:"character_build" },
-            { key:"skill_trees",label:"Skill Trees",icon:"\u{1F333}",entityTypeKey:"skill_tree" },
-            { key:"evolution",label:"Evolution",icon:"\u{1F98B}",entityTypeKey:"evolution" },
-            { key:"progression_events",label:"Progression Events",icon:"\u{1F389}",entityTypeKey:"progression_event" }
+            { key:"classes",label:"Classes / Paths",icon:"\u{1F6E1}",entityTypeKey:"class_path",subTypes:["Warrior","Mage","Rogue","Healer","Hybrid","Other"] },
+            { key:"stats",label:"Stats",icon:"\u{1F4CA}",entityTypeKey:"stat",subTypes:["Primary","Secondary","Derived","Other"] },
+            { key:"skills",label:"Skills / Abilities",icon:"\u2728",entityTypeKey:"skill_ability",subTypes:["Active","Passive","Ultimate","Crafting","Social","Other"] },
+            { key:"traits",label:"Traits / Perks",icon:"\u{1F3AF}",entityTypeKey:"trait_perk",subTypes:["Racial","Class","Background","Achievement","Other"] },
+            { key:"resources",label:"Resources",icon:"\u{1F48E}",entityTypeKey:"resource",subTypes:["Mana","Stamina","Gold","Materials","Tokens","Other"] },
+            { key:"progression",label:"Progression",icon:"\u{1F4C8}",entityTypeKey:"progression",subTypes:["Level","Rank","Tier","Stage","Other"] },
+            { key:"character_builds",label:"Character Builds",icon:"\u{1F3D7}",entityTypeKey:"character_build",subTypes:["PvE","PvP","Hybrid","Support","Other"] },
+            { key:"skill_trees",label:"Skill Trees",icon:"\u{1F333}",entityTypeKey:"skill_tree",subTypes:["Combat","Magic","Crafting","Social","Other"] },
+            { key:"evolution",label:"Evolution",icon:"\u{1F98B}",entityTypeKey:"evolution",subTypes:["Class Evolution","Species Evolution","Ascension","Mutation","Other"] },
+            { key:"progression_events",label:"Progression Events",icon:"\u{1F389}",entityTypeKey:"progression_event",subTypes:["Level Up","Breakthrough","Achievement","Unlock","Other"] }
           ]},
           { category: "EQUIPMENT", items: [
-            { key:"equipment",label:"Equipment",icon:"\u2694\uFE0F",entityTypeKey:"equipment" },
-            { key:"inventory",label:"Inventory",icon:"\u{1F392}",entityTypeKey:"inventory" },
-            { key:"crafting",label:"Crafting",icon:"\u{1F528}",entityTypeKey:"crafting" },
-            { key:"economy",label:"Economy",icon:"\u{1F4B0}",entityTypeKey:"economy" }
+            { key:"equipment",label:"Equipment",icon:"\u2694\uFE0F",entityTypeKey:"equipment",subTypes:["Weapon","Armour","Accessory","Tool","Mount","Other"] },
+            { key:"inventory",label:"Inventory",icon:"\u{1F392}",entityTypeKey:"inventory",subTypes:["Bag","Storage","Vault","Shared","Other"] },
+            { key:"crafting",label:"Crafting",icon:"\u{1F528}",entityTypeKey:"crafting",subTypes:["Blacksmithing","Alchemy","Enchanting","Cooking","Tailoring","Other"] },
+            { key:"economy",label:"Economy",icon:"\u{1F4B0}",entityTypeKey:"economy",subTypes:["Currency","Trade","Market","Banking","Other"] }
           ]},
           { category: "QUESTS", items: [
-            { key:"quests",label:"Quests",icon:"\u{1F9ED}",entityTypeKey:"quest" },
-            { key:"achievements",label:"Achievements / Titles",icon:"\u{1F3C6}",entityTypeKey:"achievement" },
-            { key:"rewards",label:"Rewards / Loot",icon:"\u{1F381}",entityTypeKey:"reward" }
+            { key:"quests",label:"Quests",icon:"\u{1F9ED}",entityTypeKey:"quest",subTypes:["Main","Side","Daily","Hidden","Chain","Other"] },
+            { key:"achievements",label:"Achievements / Titles",icon:"\u{1F3C6}",entityTypeKey:"achievement",subTypes:["Combat","Exploration","Social","Crafting","Collection","Other"] },
+            { key:"rewards",label:"Rewards / Loot",icon:"\u{1F381}",entityTypeKey:"reward",subTypes:["Item","Currency","Experience","Title","Unlock","Other"] }
           ]},
           { category: "STORY", items: [
-            { key:"story_threads",label:"Story Threads",icon:"\u{1F9F5}",entityTypeKey:"story_thread" },
-            { key:"character_arcs",label:"Character Arcs",icon:"\u{1F4C8}",entityTypeKey:"character_arc" },
-            { key:"mysteries",label:"Mysteries / Secrets",icon:"\u{1F50D}",entityTypeKey:"mystery" },
-            { key:"foreshadowing",label:"Foreshadowing",icon:"\u{1F52E}",entityTypeKey:"foreshadowing" },
-            { key:"setups_payoffs",label:"Setups / Payoffs",icon:"\u{1F3AC}",entityTypeKey:"setup_payoff" },
-            { key:"easter_eggs",label:"Easter Eggs",icon:"\u{1F95A}",entityTypeKey:"easter_egg" },
-            { key:"romantic_arcs",label:"Romantic Arc",icon:"\u{1F496}",entityTypeKey:"romantic_arc" },
-            { key:"secrets",label:"Secrets",icon:"\u{1F512}",entityTypeKey:"secret" },
-            { key:"conflicts",label:"Conflicts",icon:"\u{1F4A5}",entityTypeKey:"conflict" }
+            { key:"story_threads",label:"Story Threads",icon:"\u{1F9F5}",entityTypeKey:"story_thread",subTypes:["Main Plot","Subplot","Side Story","Flashback","Other"] },
+            { key:"character_arcs",label:"Character Arcs",icon:"\u{1F4C8}",entityTypeKey:"character_arc",subTypes:["Growth","Fall","Redemption","Tragedy","Flat","Other"] },
+            { key:"mysteries",label:"Mysteries / Secrets",icon:"\u{1F50D}",entityTypeKey:"mystery",subTypes:["Whodunit","Whydunit","Howdunit","What Is It","Other"] },
+            { key:"foreshadowing",label:"Foreshadowing",icon:"\u{1F52E}",entityTypeKey:"foreshadowing",subTypes:["Direct","Indirect","Symbolic","Chekhov's Gun","Red Herring","Other"] },
+            { key:"setups_payoffs",label:"Setups / Payoffs",icon:"\u{1F3AC}",entityTypeKey:"setup_payoff",subTypes:["Setup","Payoff","Both","Other"] },
+            { key:"easter_eggs",label:"Easter Eggs",icon:"\u{1F95A}",entityTypeKey:"easter_egg",subTypes:["Reference","Homage","Meta","Hidden","Other"] },
+            { key:"romantic_arcs",label:"Romantic Arc",icon:"\u{1F496}",entityTypeKey:"romantic_arc",subTypes:["Slow Burn","Love Triangle","Second Chance","Forbidden","Enemies to Lovers","Other"] },
+            { key:"secrets",label:"Secrets",icon:"\u{1F512}",entityTypeKey:"secret",subTypes:["Character","World","Plot","Identity","Other"] },
+            { key:"conflicts",label:"Conflicts",icon:"\u{1F4A5}",entityTypeKey:"conflict",subTypes:["Internal","Interpersonal","Societal","Environmental","Other"] }
           ]},
           { category: "RELATIONSHIPS", items: [
-            { key:"relationships",label:"Relationships",icon:"\u{1F49E}",entityTypeKey:"relationship" },
-            { key:"knowledge_states",label:"Knowledge States",icon:"\u{1F9E0}",entityTypeKey:"knowledge_state" },
-            { key:"social_circle",label:"Friends / Social Circle",icon:"\u{1F91D}",entityTypeKey:"social_circle" }
+            { key:"relationships",label:"Relationships",icon:"\u{1F49E}",entityTypeKey:"relationship",subTypes:["Ally","Enemy","Rival","Mentor","Student","Love Interest","Family","Other"] },
+            { key:"knowledge_states",label:"Knowledge States",icon:"\u{1F9E0}",entityTypeKey:"knowledge_state",subTypes:["Known","Unknown","Partially Known","Misunderstood","Other"] },
+            { key:"social_circle",label:"Friends / Social Circle",icon:"\u{1F91D}",entityTypeKey:"social_circle",subTypes:["Close Friend","Acquaintance","Colleague","Neighbor","Other"] }
           ]},
           { category: "META", items: [
-            { key:"continuity",label:"Continuity Notes",icon:"\u{1F517}",entityTypeKey:"continuity_note" },
-            { key:"other",label:"Journal / Notes",icon:"\u{1F4CB}",entityTypeKey:"journal" }
+            { key:"continuity",label:"Continuity Notes",icon:"\u{1F517}",entityTypeKey:"continuity_note",subTypes:["Plot Hole","Contradiction","Timeline Issue","Character Inconsistency","Other"] },
+            { key:"other",label:"Journal / Notes",icon:"\u{1F4CB}",entityTypeKey:"journal",subTypes:["Research","Ideas","To-Do","Reference","Other"] }
           ]},
           { category: "REFERENCE", items: [
-            { key:"maps",label:"Maps",icon:"\u{1F5FA}\uFE0F",entityTypeKey:"map" },
-            { key:"documents",label:"Documents",icon:"\u{1F4C4}",entityTypeKey:"document" },
-            { key:"glossary",label:"Glossary",icon:"\u{1F4D6}",entityTypeKey:"glossary" },
+            { key:"maps",label:"Maps",icon:"\u{1F5FA}\uFE0F",entityTypeKey:"map",subTypes:["World","Region","City","Building","Dungeon","Other"] },
+            { key:"documents",label:"Documents",icon:"\u{1F4C4}",entityTypeKey:"document",subTypes:["Letter","Contract","Prophecy","Diary","Official","Other"] },
+            { key:"glossary",label:"Glossary",icon:"\u{1F4D6}",entityTypeKey:"glossary",subTypes:["Term","Phrase","Name","Title","Other"] },
             { key:"connections",label:"Connections",icon:"\u{1F500}",isFeature:true },
             { key:"mentions",label:"Mentions",icon:"\u{1F4AC}",isFeature:true },
             { key:"assets",label:"Assets",icon:"\u{1F4CE}",isFeature:true },
