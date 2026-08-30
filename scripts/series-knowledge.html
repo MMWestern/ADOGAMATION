@@ -3787,16 +3787,33 @@
     function rebuildNewEntryDropdown(seriesId, btn, dropdown) {
       if (!btn || !dropdown) return;
       var treeDef = getCodexTreeDef(seriesId);
-      // Build options from tree definition
+      // Build options from tree definition, including sub-types
       var optionsHtml = "";
       treeDef.forEach(function (cat) {
         (cat.items || []).forEach(function (item) {
-          if (item._enabled === false) return; // skip disabled items
-          if (item.isFeature) return; // skip feature pages
+          if (item._enabled === false) return;
+          if (item.isFeature) return;
           if (!item.entityTypeKey) return;
-          optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' type='button'>";
-          optionsHtml += "<span>" + escapeHtml(item.label) + "</span>";
-          optionsHtml += "</button>";
+          var subTypes = item.subTypes || [];
+          if (subTypes.length) {
+            // Show parent as a header, sub-types as options
+            optionsHtml += "<div class='writing-codex-new-entry-group'>";
+            optionsHtml += "<div class='writing-codex-new-entry-group-label'>" + escapeHtml(item.label) + "</div>";
+            subTypes.forEach(function (st) {
+              optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(st) + "' type='button'>";
+              optionsHtml += "<span>" + escapeHtml(st) + "</span>";
+              optionsHtml += "</button>";
+            });
+            // Also add a generic option without sub-type
+            optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
+            optionsHtml += "<span style='color:var(--muted);'>Other " + escapeHtml(item.label) + "</span>";
+            optionsHtml += "</button>";
+            optionsHtml += "</div>";
+          } else {
+            optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
+            optionsHtml += "<span>" + escapeHtml(item.label) + "</span>";
+            optionsHtml += "</button>";
+          }
         });
       });
       dropdown.innerHTML = optionsHtml;
@@ -3805,11 +3822,14 @@
         opt.addEventListener("click", function (e) {
           e.stopPropagation();
           var type = opt.getAttribute("data-new-type") || "";
+          var subType = opt.getAttribute("data-sub-type") || "";
           dropdown.hidden = true;
           btn.setAttribute("aria-expanded", "false");
           if (type) {
             var singularKey = (typeof CODEX_GROUP_TO_TYPE_KEY !== "undefined" && CODEX_GROUP_TO_TYPE_KEY[type]) || type;
-            var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: {} };
+            var customData = {};
+            if (subType) customData.sub_type = subType;
+            var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: customData };
             showCodexEntityDetail(newEntity, singularKey);
           }
         });
