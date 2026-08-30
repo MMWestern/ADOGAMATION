@@ -4269,7 +4269,7 @@
       var scope = entity.scope || "series";
       var typeInfo = entity.codex_entity_types || {};
       var customData = entity.custom_data || {};
-      var roleArchetype = customData.role_archetype || "";
+      var roleArchetype = customData.role_archetype || customData.sub_type || "";
       var archetype = customData.archetype || "";
 
       var savedSections = customData.sections || {};
