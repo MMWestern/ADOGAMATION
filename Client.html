@@ -4214,6 +4214,7 @@
       var query = String(appState.writingWorkspace.search || "").trim().toLowerCase();
       var visible = entries.filter(function (entry) {
         if (filterKey === "series") return entry.scope === "series";
+        if (filterKey === "wiki") return entry.scope === "wiki";
         if (filterKey === "book") {
           if (entry.scope === "series") return false;
           var links = entry.bookLinks || entry.linkedProjectIds || [];

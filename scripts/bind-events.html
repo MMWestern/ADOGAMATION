@@ -68,7 +68,7 @@
         setWritingWorkspaceSidebarTab("chapters");
       });
 
-      [el.writingCodexFilterAll, el.writingCodexFilterSeries, el.writingCodexFilterBook].forEach(function (button) {
+      [el.writingCodexFilterAll, el.writingCodexFilterSeries, el.writingCodexFilterBook, el.writingCodexFilterWiki].forEach(function (button) {
         if (!button) return;
         bindUiOnce(button, "writing-codex-filter", "click", function () {
           setWritingWorkspaceFilter(button.getAttribute("data-codex-filter") || "all");

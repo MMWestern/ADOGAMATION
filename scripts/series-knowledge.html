@@ -3618,6 +3618,7 @@
               if ((e.codex_entity_types || {}).key !== item.entityTypeKey) return false;
               if (_codexScopeFilter === "all") return true;
               if (_codexScopeFilter === "series") return (e.scope || "series") === "series";
+              if (_codexScopeFilter === "wiki") return (e.scope || "series") === "wiki";
               if (_codexScopeFilter === "book") {
                 if ((e.scope || "series") !== "book") return false;
                 var eid = Number(e.id || 0);
@@ -3734,7 +3735,7 @@
     }
 
     function wireCodexSidebarControls_() {
-      var filterBtns = [el.codexFilterAll, el.codexFilterSeries, el.codexFilterBook].filter(Boolean);
+      var filterBtns = [el.codexFilterAll, el.codexFilterSeries, el.codexFilterBook, el.codexFilterWiki].filter(Boolean);
       function applyScopeFilter_() {
         refreshCurrentCodexView();
       }
@@ -3840,7 +3841,8 @@
             var singularKey = (typeof CODEX_GROUP_TO_TYPE_KEY !== "undefined" && CODEX_GROUP_TO_TYPE_KEY[type]) || type;
             var customData = {};
             if (subType) customData.sub_type = subType;
-            var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: "series", entity_type_key: singularKey, codex_entity_types: {}, custom_data: customData };
+            var defaultScope = _codexScopeFilter === "wiki" ? "wiki" : "series";
+            var newEntity = { id: 0, name: "", description: "", image_url: "", color: "", scope: defaultScope, entity_type_key: singularKey, codex_entity_types: {}, custom_data: customData };
             showCodexEntityDetail(newEntity, singularKey);
           }
         });
@@ -4387,6 +4389,7 @@
       html += "<label class='codex-detail-field-label'>Scope</label>";
       html += "<select id='codexDetailScope' class='codex-detail-field-select'>";
       html += "<option value='series'" + (scope === "series" ? " selected" : "") + ">All books in series</option>";
+      html += "<option value='wiki'" + (scope === "wiki" ? " selected" : "") + ">Wiki / Reference</option>";
       var entityId = Number(entity.id || 0);
       var linkedBookId = 0;
       if (entityId && codexCache.entityDetails && codexCache.entityDetails[entityId]) {
@@ -4879,7 +4882,9 @@
         var scopeRaw = scopeSelect ? scopeSelect.value : "series";
         var scope = "series";
         var scopeBookId = 0;
-        if (scopeRaw.indexOf("book:") === 0) {
+        if (scopeRaw === "wiki") {
+          scope = "wiki";
+        } else if (scopeRaw.indexOf("book:") === 0) {
           scope = "book";
           scopeBookId = Number(scopeRaw.split(":")[1] || 0);
         }
