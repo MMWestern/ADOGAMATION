@@ -3787,7 +3787,7 @@
     function rebuildNewEntryDropdown(seriesId, btn, dropdown) {
       if (!btn || !dropdown) return;
       var treeDef = getCodexTreeDef(seriesId);
-      // Build options from tree definition, with sub-type submenus
+      // Build options from tree definition, with expandable sub-types
       var optionsHtml = "";
       treeDef.forEach(function (cat) {
         (cat.items || []).forEach(function (item) {
@@ -3796,16 +3796,18 @@
           if (!item.entityTypeKey) return;
           var subTypes = item.subTypes || [];
           if (subTypes.length) {
-            optionsHtml += "<div class='writing-codex-new-entry-option has-submenu' data-new-type='" + item.key + "'>";
+            optionsHtml += "<div class='writing-codex-new-entry-group'>";
+            optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-parent' data-new-type='" + item.key + "' type='button'>";
             optionsHtml += "<span>" + escapeHtml(item.label) + "</span>";
-            optionsHtml += "<span class='writing-codex-new-entry-arrow'>&#9656;</span>";
-            optionsHtml += "<div class='writing-codex-new-entry-submenu'>";
+            optionsHtml += "<span class='writing-codex-new-entry-arrow'>&#9660;</span>";
+            optionsHtml += "</button>";
+            optionsHtml += "<div class='writing-codex-new-entry-children' hidden>";
             subTypes.forEach(function (st) {
-              optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(st) + "' type='button'>";
+              optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(st) + "' type='button'>";
               optionsHtml += "<span>" + escapeHtml(st) + "</span>";
               optionsHtml += "</button>";
             });
-            optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
+            optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
             optionsHtml += "<span style='color:var(--muted);'>Other</span>";
             optionsHtml += "</button>";
             optionsHtml += "</div>";
@@ -3818,8 +3820,20 @@
         });
       });
       dropdown.innerHTML = optionsHtml;
-      // Wire click handlers on leaf options (not parent submenu items)
-      dropdown.querySelectorAll(".writing-codex-new-entry-option:not(.has-submenu)").forEach(function (opt) {
+      // Wire parent expand/collapse
+      dropdown.querySelectorAll(".writing-codex-new-entry-parent").forEach(function (parentBtn) {
+        parentBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var children = parentBtn.nextElementSibling;
+          if (!children) return;
+          var isHidden = children.hidden;
+          children.hidden = !isHidden;
+          var arrow = parentBtn.querySelector(".writing-codex-new-entry-arrow");
+          if (arrow) arrow.textContent = isHidden ? "\u25B2" : "\u25BC";
+        });
+      });
+      // Wire click handlers on leaf options
+      dropdown.querySelectorAll(".writing-codex-new-entry-child, .writing-codex-new-entry-option:not(.writing-codex-new-entry-parent)").forEach(function (opt) {
         opt.addEventListener("click", function (e) {
           e.stopPropagation();
           var type = opt.getAttribute("data-new-type") || "";
@@ -3834,13 +3848,6 @@
             showCodexEntityDetail(newEntity, singularKey);
           }
         });
-      });
-      // Wire submenu hover for JS-based show/hide (backup for CSS hover)
-      dropdown.querySelectorAll(".has-submenu").forEach(function (parent) {
-        var submenu = parent.querySelector(".writing-codex-new-entry-submenu");
-        if (!submenu) return;
-        parent.addEventListener("mouseenter", function () { submenu.classList.add("is-open"); });
-        parent.addEventListener("mouseleave", function () { submenu.classList.remove("is-open"); });
       });
     }
 

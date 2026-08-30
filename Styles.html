@@ -17983,37 +17983,25 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       opacity: 1;
     }
 
-    /* New Entry dropdown submenus */
-    .writing-codex-new-entry-option.has-submenu {
-      position: relative;
+    /* New Entry dropdown expandable groups */
+    .writing-codex-new-entry-group {
+      /* parent container for expandable items */
+    }
+    .writing-codex-new-entry-parent {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: default;
     }
     .writing-codex-new-entry-arrow {
-      font-size: 10px;
+      font-size: 9px;
       color: var(--muted);
       margin-left: 8px;
     }
-    .writing-codex-new-entry-submenu {
-      display: none;
-      position: absolute;
-      left: calc(100% + 2px);
-      top: -6px;
-      min-width: 160px;
-      background: #191b20;
-      border: 1px solid #2a2a2f;
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
-      padding: 6px;
-      z-index: 110;
+    .writing-codex-new-entry-children {
+      padding-left: 12px;
     }
-    .writing-codex-new-entry-option.has-submenu:hover > .writing-codex-new-entry-submenu,
-    .writing-codex-new-entry-submenu.is-open {
-      display: block;
-    }
-    .writing-codex-new-entry-submenu .writing-codex-new-entry-option {
-      white-space: nowrap;
+    .writing-codex-new-entry-child {
+      font-size: 11px;
+      height: 26px;
     }
 </style>
