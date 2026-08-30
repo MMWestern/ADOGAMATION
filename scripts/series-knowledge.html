@@ -4122,7 +4122,8 @@
       if (!el.codexDashboardStats) return;
       var html = "";
       var countTotal = 0;
-      CODEX_TREE_DEF.forEach(function (cat) {
+      var activeTreeDef = (typeof getCodexTreeDef === "function" && seriesId) ? getCodexTreeDef(seriesId) : CODEX_TREE_DEF;
+      activeTreeDef.forEach(function (cat) {
         cat.items.forEach(function (item) {
           if (!item.entityTypeKey) return;
           var count = getEntityCountForType_(seriesId, item.entityTypeKey);
@@ -4149,7 +4150,8 @@
         card.addEventListener("click", function () {
           var key = card.getAttribute("data-tree-key") || "";
           var entityTypeKey = "";
-          CODEX_TREE_DEF.forEach(function (cat) {
+          var dashTreeDef = (typeof getCodexTreeDef === "function" && seriesId) ? getCodexTreeDef(seriesId) : CODEX_TREE_DEF;
+          dashTreeDef.forEach(function (cat) {
             cat.items.forEach(function (item) {
               if (item.key === key && item.entityTypeKey) entityTypeKey = item.entityTypeKey;
             });
@@ -4215,7 +4217,9 @@
 
       var treeItem = null;
       var pluralKey = "other";
-      CODEX_TREE_DEF.forEach(function (cat) {
+      // Use dynamic tree definition from current preset, fall back to CODEX_TREE_DEF
+      var activeTreeDef = (typeof getCodexTreeDef === "function" && skCurrentSeriesId) ? getCodexTreeDef(skCurrentSeriesId) : CODEX_TREE_DEF;
+      activeTreeDef.forEach(function (cat) {
         cat.items.forEach(function (item) {
           if (item.entityTypeKey === entityTypeKey) { treeItem = item; pluralKey = item.key; }
         });
@@ -4734,7 +4738,8 @@
       var container = el.codexEntityPageContent;
       if (!container) return;
       var entityTypeKey = "";
-      CODEX_TREE_DEF.forEach(function (cat) {
+      var sectionTreeDef = (typeof getCodexTreeDef === "function" && skCurrentSeriesId) ? getCodexTreeDef(skCurrentSeriesId) : CODEX_TREE_DEF;
+      sectionTreeDef.forEach(function (cat) {
         cat.items.forEach(function (item) {
           if (item.key === _codexActiveTreeItem && item.entityTypeKey) entityTypeKey = item.entityTypeKey;
         });
@@ -5205,7 +5210,8 @@
         return;
       }
       var treeItem = null;
-      CODEX_TREE_DEF.forEach(function (cat) {
+      var pageTreeDef = (typeof getCodexTreeDef === "function" && skCurrentSeriesId) ? getCodexTreeDef(skCurrentSeriesId) : CODEX_TREE_DEF;
+      pageTreeDef.forEach(function (cat) {
         cat.items.forEach(function (item) {
           if (item.key === _codexActiveTreeItem) treeItem = item;
         });
