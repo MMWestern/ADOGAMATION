@@ -4237,6 +4237,7 @@
         var visibleTypes = {};
         treeDef.forEach(function (cat) {
           (cat.items || []).forEach(function (item) {
+            if (item._enabled === false) return; // disabled items are hidden
             if (item.entityTypeKey) visibleTypes[item.key] = true;
           });
         });

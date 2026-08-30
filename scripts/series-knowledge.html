@@ -3543,6 +3543,7 @@
       var visibleTypes = {};
       treeDef.forEach(function (cat) {
         (cat.items || []).forEach(function (item) {
+          if (item._enabled === false) return; // disabled items are hidden
           if (item.entityTypeKey) visibleTypes[item.entityTypeKey] = true;
         });
       });
@@ -3591,6 +3592,8 @@
         html += "</div>";
         html += "<div class='writing-codex-group-list codex-tree-category-children'>";
         cat.items.forEach(function (item) {
+          // Skip disabled items
+          if (item._enabled === false) return;
           if (item.isFeature) {
             var isActive = _codexActiveTreeItem === item.key;
             html += "<div class='writing-codex-group codex-type-group' data-feature-key='" + item.key + "'>";
@@ -3788,6 +3791,7 @@
       var optionsHtml = "";
       treeDef.forEach(function (cat) {
         (cat.items || []).forEach(function (item) {
+          if (item._enabled === false) return; // skip disabled items
           if (item.isFeature) return; // skip feature pages
           if (!item.entityTypeKey) return;
           optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' type='button'>";
