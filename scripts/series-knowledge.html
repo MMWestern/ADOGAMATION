@@ -2119,6 +2119,11 @@
             var typeKey = (targetEntity.codex_entity_types || {}).key || "";
             if (_codexMode !== "overview") switchCodexMode("overview");
             showCodexEntityDetail(targetEntity, typeKey);
+            // Auto-open the Relations tab
+            setTimeout(function () {
+              var relTab = document.querySelector('.codex-sub-tab[data-section="relations"]');
+              if (relTab) relTab.click();
+            }, 50);
           }
         });
       });
