@@ -2058,7 +2058,7 @@
     /* ---- Entity Relationship Panel ---- */
 
     function loadAndRenderEntityRelationships(seriesId, entityId) {
-      var listEl = document.getElementById("codexDetailRelList");
+      var listEl = document.getElementById("codexRelSidebarList");
       if (!listEl) return;
       var connections = skCache.connections[seriesId] || [];
       var allEntities = codexCache.entitiesBySeries[seriesId] || [];
@@ -2153,11 +2153,6 @@
             var typeKey = (targetEntity.codex_entity_types || {}).key || "";
             if (_codexMode !== "overview") switchCodexMode("overview");
             showCodexEntityDetail(targetEntity, typeKey);
-            // Auto-open the Relations tab
-            setTimeout(function () {
-              var relTab = document.querySelector('.codex-sub-tab[data-section="relations"]');
-              if (relTab) relTab.click();
-            }, 50);
           }
         });
       });
@@ -2169,14 +2164,14 @@
     }
 
     function wireEntityRelationshipPanel(seriesId, entityId) {
-      var addBtn = document.getElementById("codexDetailRelAddBtn");
-      var addForm = document.getElementById("codexDetailRelAddForm");
-      var cancelBtn = document.getElementById("codexDetailRelCancelBtn");
-      var saveBtn = document.getElementById("codexDetailRelSaveBtn");
-      var targetBtn = document.getElementById("codexDetailRelTargetBtn");
-      var targetDropdown = document.getElementById("codexDetailRelTargetDropdown");
-      var targetInput = document.getElementById("codexDetailRelTarget");
-      var typeSelect = document.getElementById("codexDetailRelType");
+      var addBtn = document.getElementById("codexRelSidebarAddBtn");
+      var addForm = document.getElementById("codexRelSidebarAddForm");
+      var cancelBtn = document.getElementById("codexRelSidebarCancelBtn");
+      var saveBtn = document.getElementById("codexRelSidebarSaveBtn");
+      var targetBtn = document.getElementById("codexRelSidebarTargetBtn");
+      var targetDropdown = document.getElementById("codexRelSidebarTargetDropdown");
+      var targetInput = document.getElementById("codexRelSidebarTarget");
+      var typeSelect = document.getElementById("codexRelSidebarType");
 
       if (!addBtn || !addForm) return;
 
@@ -2314,7 +2309,7 @@
     }
 
     function showRelEditForm(seriesId, entityId, connectionId, currentTypeId) {
-      var listEl = document.getElementById("codexDetailRelList");
+      var listEl = document.getElementById("codexRelSidebarList");
       if (!listEl) return;
       // Remove any existing edit form
       var existing = listEl.querySelector(".codex-rel-edit-form");
@@ -4837,7 +4832,6 @@
       });
       html += "</div></div>";
       html += "<button type='button' class='codex-sub-tab is-active' data-section='description'>Description</button>";
-      html += "<button type='button' class='codex-sub-tab' data-section='relations'>Relations</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='backstory'>Backstory</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='history'>History</button>";
       _codexDetailActiveSections.forEach(function (key) {
@@ -4859,28 +4853,6 @@
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
       html += "<textarea id='codexDetailDescription' class='codex-detail-text description-field' rows='10' placeholder='Core details about this entry...'>" + escapeHtml(description) + "</textarea>";
-      html += "</div>";
-      html += "</div>";
-
-      html += "<div class='codex-sub-section' id='codexSectionRelations' hidden>";
-      html += "<div class='codex-sub-section-header'>";
-      html += "<span class='codex-sub-section-title'>Relationships</span>";
-      html += "</div>";
-      html += "<div class='codex-sub-section-body'>";
-      html += "<div id='codexDetailRelList' class='codex-rel-list'></div>";
-      html += "<div id='codexDetailRelAddForm' class='codex-rel-add-form' hidden>";
-      html += "<div class='codex-rel-add-row'>";
-      html += "<div class='codex-rel-entity-picker'>";
-      html += "<button id='codexDetailRelTargetBtn' type='button' class='codex-rel-entity-btn'>Select entity...</button>";
-      html += "<div id='codexDetailRelTargetDropdown' class='codex-rel-entity-dropdown' hidden></div>";
-      html += "<input id='codexDetailRelTarget' type='hidden' value='' />";
-      html += "</div>";
-      html += "<select id='codexDetailRelType' class='codex-detail-field-select'><option value=''>Select type...</option></select>";
-      html += "<button id='codexDetailRelSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Add</button>";
-      html += "<button id='codexDetailRelCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";
-      html += "</div>";
-      html += "</div>";
-      html += "<button id='codexDetailRelAddBtn' type='button' style='font-size:11px;margin-top:6px;'>+ Add Relationship</button>";
       html += "</div>";
       html += "</div>";
 

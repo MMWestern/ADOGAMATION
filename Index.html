@@ -760,7 +760,28 @@
           <div id="codexDashboardStats" class="codex-dashboard-stats"></div>
         </div>
         <div id="codexEntityPage" class="codex-entity-page" hidden>
-          <div id="codexEntityPageContent" class="codex-entity-page-content"></div>
+          <div class="codex-entity-page-layout">
+            <div id="codexEntityPageContent" class="codex-entity-page-content"></div>
+            <div id="codexEntityRelSidebar" class="codex-entity-rel-sidebar">
+              <div class="codex-rel-sidebar-header">Relationships</div>
+              <div id="codexRelSidebarList" class="codex-rel-list"></div>
+              <div id="codexRelSidebarAddForm" class="codex-rel-add-form" hidden>
+                <div class="codex-rel-add-row">
+                  <div class="codex-rel-entity-picker">
+                    <button id="codexRelSidebarTargetBtn" type="button" class="codex-rel-entity-btn">Select entity...</button>
+                    <div id="codexRelSidebarTargetDropdown" class="codex-rel-entity-dropdown" hidden></div>
+                    <input id="codexRelSidebarTarget" type="hidden" value="" />
+                  </div>
+                  <select id="codexRelSidebarType" class="codex-detail-field-select"><option value="">Select type...</option></select>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:6px;">
+                  <button id="codexRelSidebarSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
+                  <button id="codexRelSidebarCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
+                </div>
+              </div>
+              <button id="codexRelSidebarAddBtn" type="button" style="font-size:11px;margin-top:6px;">+ Add Relationship</button>
+            </div>
+          </div>
         </div>
         <div id="codexFeaturePage" class="codex-feature-page" hidden>
           <div id="codexFeaturePageContent" class="codex-feature-page-content"></div>
