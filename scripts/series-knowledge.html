@@ -3784,13 +3784,20 @@
     function rebuildNewEntryDropdown(seriesId, btn, dropdown) {
       if (!btn || !dropdown) return;
       var treeDef = getCodexTreeDef(seriesId);
-      // Build options from tree definition, with expandable sub-types
+      // Build options from tree definition, grouped by category
       var optionsHtml = "";
-      treeDef.forEach(function (cat) {
-        (cat.items || []).forEach(function (item) {
-          if (item._enabled === false) return;
-          if (item.isFeature) return;
-          if (!item.entityTypeKey) return;
+      treeDef.forEach(function (cat, catIdx) {
+        // Filter to valid items in this category
+        var validItems = (cat.items || []).filter(function (item) {
+          if (item._enabled === false) return false;
+          if (item.isFeature) return false;
+          return !!item.entityTypeKey;
+        });
+        if (!validItems.length) return;
+        // Category divider
+        if (catIdx > 0) optionsHtml += "<div class='writing-codex-new-entry-divider'></div>";
+        optionsHtml += "<div class='writing-codex-new-entry-category'>" + escapeHtml(cat.category) + "</div>";
+        validItems.forEach(function (item) {
           var subTypes = item.subTypes || [];
           if (subTypes.length) {
             optionsHtml += "<div class='writing-codex-new-entry-group'>";
