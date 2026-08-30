@@ -44,10 +44,10 @@
         type: groupKey,
         title: String(safe.name || 'Untitled').trim(),
         body: String(safe.summary || safe.description || '').trim(),
-        badge: String(safe.custom_data && safe.custom_data.role_archetype || safe.custom_data && safe.custom_data.type || '').trim(),
+        badge: String(safe.custom_data && (safe.custom_data.sub_type || safe.custom_data.role_archetype) || safe.custom_data && safe.custom_data.type || '').trim(),
         color: String(safe.color || '').trim(),
         image_url: String(safe.image_url || '').trim(),
-        role: String(safe.custom_data && safe.custom_data.role_archetype || '').trim(),
+        role: String(safe.custom_data && (safe.custom_data.sub_type || safe.custom_data.role_archetype) || '').trim(),
         archetype: String(safe.custom_data && safe.custom_data.archetype || '').trim(),
         scope: String(safe.scope || 'series').trim(),
         bookLinks: linkedProjects
@@ -73,7 +73,7 @@
         projectLinks: projectLinks || [],
         customData: custom,
         // Legacy fields for backward compat with existing modal
-        role_archetype: String(custom.role_archetype || '').trim(),
+        role_archetype: String(custom.sub_type || custom.role_archetype || '').trim(),
         archetype: String(custom.archetype || '').trim(),
         motivation_arc: String(custom.motivation_arc || '').trim(),
         backstory: String(custom.backstory || '').trim(),

@@ -3473,7 +3473,7 @@
       groups["Uncategorized"] = [];
       entities.forEach(function (entity) {
         var custom = entity.custom_data || {};
-        var st = String(custom.sub_type || "").trim();
+        var st = String(custom.sub_type || custom.role_archetype || "").trim();
         if (st && groups[st]) {
           groups[st].push(entity);
         } else if (st) {
@@ -3515,7 +3515,7 @@
       var imgUrl = entity.image_url || "";
       var color = entity.color || "";
       var custom = entity.custom_data || {};
-      var roleArchetype = String(custom.role_archetype || "").trim();
+      var roleArchetype = String(custom.role_archetype || custom.sub_type || "").trim();
       var archetype = String(custom.archetype || "").trim();
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
@@ -4894,7 +4894,10 @@
           var roleSelect = document.getElementById("codexDetailRole");
           var archSelect = document.getElementById("codexDetailArchetype");
           var motivationSelect = document.getElementById("codexDetailMotivation");
-          if (roleSelect) mergedCustom.role_archetype = roleSelect.value;
+          if (roleSelect) {
+            mergedCustom.role_archetype = roleSelect.value;
+            mergedCustom.sub_type = roleSelect.value; // sync sub_type with role
+          }
           if (archSelect) mergedCustom.archetype = archSelect.value;
           if (motivationSelect) mergedCustom.motivation_arc = motivationSelect.value;
           // Stage 1C: Read status field values
