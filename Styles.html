@@ -1593,13 +1593,12 @@
       right: 0;
       z-index: 100;
       min-width: 170px;
-      display: grid;
-      gap: 2px;
       padding: 6px;
       border: 1px solid #2a2a2f;
       border-radius: 10px;
       background: #191b20;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+      overflow: visible;
     }
 
     .writing-codex-new-entry-dropdown[hidden] {
@@ -17990,6 +17989,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       display: flex;
       justify-content: space-between;
       align-items: center;
+      cursor: default;
     }
     .writing-codex-new-entry-arrow {
       font-size: 10px;
@@ -17999,17 +17999,21 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .writing-codex-new-entry-submenu {
       display: none;
       position: absolute;
-      left: 100%;
-      top: 0;
+      left: calc(100% + 2px);
+      top: -6px;
       min-width: 160px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-      padding: 4px 0;
-      z-index: 10;
+      background: #191b20;
+      border: 1px solid #2a2a2f;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+      padding: 6px;
+      z-index: 110;
     }
-    .writing-codex-new-entry-option.has-submenu:hover > .writing-codex-new-entry-submenu {
+    .writing-codex-new-entry-option.has-submenu:hover > .writing-codex-new-entry-submenu,
+    .writing-codex-new-entry-submenu.is-open {
       display: block;
+    }
+    .writing-codex-new-entry-submenu .writing-codex-new-entry-option {
+      white-space: nowrap;
     }
 </style>

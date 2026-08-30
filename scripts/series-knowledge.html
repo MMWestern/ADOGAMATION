@@ -3835,6 +3835,13 @@
           }
         });
       });
+      // Wire submenu hover for JS-based show/hide (backup for CSS hover)
+      dropdown.querySelectorAll(".has-submenu").forEach(function (parent) {
+        var submenu = parent.querySelector(".writing-codex-new-entry-submenu");
+        if (!submenu) return;
+        parent.addEventListener("mouseenter", function () { submenu.classList.add("is-open"); });
+        parent.addEventListener("mouseleave", function () { submenu.classList.remove("is-open"); });
+      });
     }
 
     // ── Codex Preset Editor ───────────────────────────────────────────────
