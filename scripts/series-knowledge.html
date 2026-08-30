@@ -2110,10 +2110,16 @@
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
           relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (relType.id || 0) + "'>";
           relHtml += thumbHtml;
+          relHtml += "<div class='codex-rel-item-content'>";
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
+          relHtml += "<div class='codex-rel-item-bottom'>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
+          relHtml += "<div class='codex-rel-item-actions'>";
           relHtml += "<button type='button' class='codex-rel-edit' data-connection-id='" + c.id + "' title='Edit'>&#9998;</button>";
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
+          relHtml += "</div>";
+          relHtml += "</div>";
+          relHtml += "</div>";
           relHtml += "</div>";
         });
         relHtml += "</div>";

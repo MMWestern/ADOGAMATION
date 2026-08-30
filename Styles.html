@@ -18093,14 +18093,32 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
     .codex-rel-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 6px;
-      padding: 6px 8px;
+      padding: 8px;
       border-radius: 6px;
       background: var(--bg);
       border: 1px solid var(--border);
       font-size: 11px;
       min-width: 0;
+    }
+    .codex-rel-item-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .codex-rel-item-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+    .codex-rel-item-actions {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
     }
     .codex-rel-clickable {
       cursor: pointer;
