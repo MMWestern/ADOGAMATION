@@ -6235,10 +6235,12 @@
       }
       if (el.detailSeriesCodexTemplate) {
         el.detailSeriesCodexTemplate.innerHTML = "<option value=''>— Select —</option>";
-        // Use presets from cache if available, otherwise use hardcoded options
-        var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
-          ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
-          : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+        var tplOptions = [];
+        if (typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length) {
+          tplOptions = Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; });
+        } else if (typeof CODEX_TEMPLATE_OPTIONS !== "undefined") {
+          tplOptions = CODEX_TEMPLATE_OPTIONS;
+        }
         tplOptions.forEach(function (t) {
           var o = document.createElement("option");
           o.value = t.key; o.textContent = t.name;
@@ -6497,9 +6499,13 @@
       var fmtOpts = "<option value=''>— Select —</option>";
       getInspectorOptionValues("format", DEFAULT_FORMAT_OPTIONS).forEach(function (v) { fmtOpts += "<option value='" + escapeHtml(v) + "'" + (v === fmtVal ? " selected" : "") + ">" + escapeHtml(v) + "</option>"; });
       var tplOpts = "<option value=''>— Select —</option>";
-      var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
-        ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
-        : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+      // Use cache if available (includes custom presets), fall back to hardcoded options
+      var tplOptions = [];
+      if (typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length) {
+        tplOptions = Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; });
+      } else if (typeof CODEX_TEMPLATE_OPTIONS !== "undefined") {
+        tplOptions = CODEX_TEMPLATE_OPTIONS;
+      }
       tplOptions.forEach(function (t) { tplOpts += "<option value='" + escapeHtml(t.key) + "'" + (t.key === tplVal ? " selected" : "") + ">" + escapeHtml(t.name) + "</option>"; });
 
       var panelHtml = "<div class='landing-series-info-panel' style='display:flex;gap:16px;'>";
@@ -9594,9 +9600,12 @@
       }
       if (el.seriesEditCodexTemplate) {
         el.seriesEditCodexTemplate.innerHTML = "<option value=''>— Select —</option>";
-        var tplOptions = typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length
-          ? Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; })
-          : (typeof CODEX_TEMPLATE_OPTIONS !== "undefined" ? CODEX_TEMPLATE_OPTIONS : []);
+        var tplOptions = [];
+        if (typeof _codexFormatPresetsCache !== "undefined" && Object.keys(_codexFormatPresetsCache).length) {
+          tplOptions = Object.keys(_codexFormatPresetsCache).map(function (k) { return { key: k, name: _codexFormatPresetsCache[k].name || k }; });
+        } else if (typeof CODEX_TEMPLATE_OPTIONS !== "undefined") {
+          tplOptions = CODEX_TEMPLATE_OPTIONS;
+        }
         tplOptions.forEach(function (t) {
           var o = document.createElement("option");
           o.value = t.key; o.textContent = t.name;
