@@ -2173,23 +2173,73 @@
       var addForm = document.getElementById("codexDetailRelAddForm");
       var cancelBtn = document.getElementById("codexDetailRelCancelBtn");
       var saveBtn = document.getElementById("codexDetailRelSaveBtn");
-      var targetSelect = document.getElementById("codexDetailRelTarget");
+      var targetBtn = document.getElementById("codexDetailRelTargetBtn");
+      var targetDropdown = document.getElementById("codexDetailRelTargetDropdown");
+      var targetInput = document.getElementById("codexDetailRelTarget");
       var typeSelect = document.getElementById("codexDetailRelType");
 
       if (!addBtn || !addForm) return;
 
-      // Populate target entity dropdown
-      if (targetSelect) {
+      // Populate target entity dropdown with images and category headers
+      if (targetBtn && targetDropdown) {
         var allEntities = codexCache.entitiesBySeries[seriesId] || [];
-        var opts = "";
+        // Group by type
+        var groups = {};
+        var groupOrder = [];
         allEntities.forEach(function (e) {
           if (Number(e.id) === entityId) return; // skip self
-          var name = e.name || "Unnamed";
-          var typeKey = (e.codex_entity_types || {}).key || "";
-          var icon = getEntityIcon(typeKey);
-          opts += "<option value='" + e.id + "'>" + icon + " " + escapeHtml(name) + "</option>";
+          var typeKey = (e.codex_entity_types || {}).key || "other";
+          var typeLabel = (e.codex_entity_types || {}).name_plural || typeKey;
+          if (!groups[typeKey]) {
+            groups[typeKey] = { label: typeLabel, items: [] };
+            groupOrder.push(typeKey);
+          }
+          groups[typeKey].items.push(e);
         });
-        targetSelect.innerHTML = "<option value=''>Select entity...</option>" + opts;
+        var ddHtml = "";
+        groupOrder.forEach(function (typeKey, idx) {
+          var group = groups[typeKey];
+          if (idx > 0) ddHtml += "<div class='codex-rel-entity-divider'></div>";
+          ddHtml += "<div class='codex-rel-entity-category'>" + escapeHtml(group.label) + "</div>";
+          group.items.forEach(function (e) {
+            var name = e.name || "Unnamed";
+            var imgUrl = e.image_url || "";
+            var icon = getEntityIcon(typeKey);
+            var thumbHtml = imgUrl
+              ? "<img class='codex-rel-entity-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
+              : "<div class='codex-rel-entity-thumb-placeholder'>" + icon + "</div>";
+            ddHtml += "<button type='button' class='codex-rel-entity-option' data-entity-id='" + e.id + "'>";
+            ddHtml += thumbHtml;
+            ddHtml += "<span>" + escapeHtml(name) + "</span>";
+            ddHtml += "</button>";
+          });
+        });
+        targetDropdown.innerHTML = ddHtml;
+
+        // Toggle dropdown
+        targetBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          targetDropdown.hidden = !targetDropdown.hidden;
+        });
+
+        // Select entity
+        targetDropdown.addEventListener("click", function (e) {
+          var opt = e.target.closest(".codex-rel-entity-option");
+          if (!opt) return;
+          e.stopPropagation();
+          var eid = Number(opt.getAttribute("data-entity-id") || 0);
+          var ename = opt.querySelector("span");
+          if (eid && targetInput) {
+            targetInput.value = eid;
+            targetBtn.textContent = ename ? ename.textContent : "Selected";
+            targetDropdown.hidden = true;
+          }
+        });
+
+        // Close on outside click
+        document.addEventListener("click", function () {
+          if (!targetDropdown.hidden) targetDropdown.hidden = true;
+        });
       }
 
       // Populate relationship type dropdown
@@ -2214,20 +2264,22 @@
       cancelBtn.addEventListener("click", function () {
         addForm.hidden = true;
         addBtn.hidden = false;
-        if (targetSelect) targetSelect.value = "";
+        if (targetInput) targetInput.value = "";
+        if (targetBtn) targetBtn.textContent = "Select entity...";
         if (typeSelect) typeSelect.value = "";
       });
 
       // Save new relationship
       saveBtn.addEventListener("click", function () {
-        var targetId = targetSelect ? Number(targetSelect.value || 0) : 0;
+        var targetId = targetInput ? Number(targetInput.value || 0) : 0;
         var typeId = typeSelect ? Number(typeSelect.value || 0) : 0;
         if (!targetId) { setStatus("Select a target entity.", "error"); return; }
         if (!typeId) { setStatus("Select a relationship type.", "error"); return; }
         saveEntityConnection(seriesId, entityId, targetId, typeId, function () {
           addForm.hidden = true;
           addBtn.hidden = false;
-          if (targetSelect) targetSelect.value = "";
+          if (targetInput) targetInput.value = "";
+          if (targetBtn) targetBtn.textContent = "Select entity...";
           if (typeSelect) typeSelect.value = "";
           loadAndRenderEntityRelationships(seriesId, entityId);
         });
@@ -4818,7 +4870,11 @@
       html += "<div id='codexDetailRelList' class='codex-rel-list'></div>";
       html += "<div id='codexDetailRelAddForm' class='codex-rel-add-form' hidden>";
       html += "<div class='codex-rel-add-row'>";
-      html += "<select id='codexDetailRelTarget' class='codex-detail-field-select'><option value=''>Select entity...</option></select>";
+      html += "<div class='codex-rel-entity-picker'>";
+      html += "<button id='codexDetailRelTargetBtn' type='button' class='codex-rel-entity-btn'>Select entity...</button>";
+      html += "<div id='codexDetailRelTargetDropdown' class='codex-rel-entity-dropdown' hidden></div>";
+      html += "<input id='codexDetailRelTarget' type='hidden' value='' />";
+      html += "</div>";
       html += "<select id='codexDetailRelType' class='codex-detail-field-select'><option value=''>Select type...</option></select>";
       html += "<button id='codexDetailRelSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Add</button>";
       html += "<button id='codexDetailRelCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";

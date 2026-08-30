@@ -18135,4 +18135,84 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       flex: 1;
       min-width: 150px;
     }
+
+    /* Entity picker dropdown */
+    .codex-rel-entity-picker {
+      position: relative;
+      flex: 1;
+      min-width: 150px;
+    }
+    .codex-rel-entity-btn {
+      width: 100%;
+      text-align: left;
+      padding: 6px 10px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .codex-rel-entity-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 100;
+      width: 280px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      padding: 6px;
+    }
+    .codex-rel-entity-category {
+      padding: 4px 8px 2px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #6366f1;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .codex-rel-entity-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+    .codex-rel-entity-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 5px 8px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .codex-rel-entity-option:hover {
+      background: rgba(99,102,241,0.08);
+    }
+    .codex-rel-entity-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .codex-rel-entity-thumb-placeholder {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
 </style>
