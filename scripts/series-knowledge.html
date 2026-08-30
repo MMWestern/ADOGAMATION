@@ -4343,6 +4343,24 @@
       html += "<label class='codex-detail-field-label'>Name</label>";
       html += "<textarea id='codexDetailName' class='codex-detail-text name-field' rows='1'>" + escapeHtml(name) + "</textarea>";
       html += "</div>";
+      // Sub-type field — available for all entity types
+      var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
+      var subTypeOptions = [];
+      if (treeItem && treeItem.subTypes) subTypeOptions = treeItem.subTypes;
+      html += "<div class='codex-detail-field-wrap'>";
+      html += "<label class='codex-detail-field-label'>Sub-type</label>";
+      if (subTypeOptions.length) {
+        html += "<select id='codexDetailSubType' class='codex-detail-field-select'><option value=''>Select sub-type...</option>";
+        subTypeOptions.forEach(function (st) {
+          html += "<option value='" + escapeHtml(st) + "'" + (st === subTypeValue ? " selected" : "") + ">" + escapeHtml(st) + "</option>";
+        });
+        html += "<option value='_custom'" + (!subTypeValue || subTypeOptions.indexOf(subTypeValue) === -1 ? " selected" : "") + ">Custom...</option>";
+        html += "</select>";
+        html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='" + (subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? "" : "display:none;") + "margin-top:4px;' value='" + escapeHtml(subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? subTypeValue : "") + "' />";
+      } else {
+        html += "<input id='codexDetailSubType' type='text' placeholder='Enter sub-type...' value='" + escapeHtml(subTypeValue) + "' />";
+      }
+      html += "</div>";
       if (entityTypeKey === "character") {
         var roleSelect = document.getElementById("skCharacterRole");
         var archSelect = document.getElementById("skCharacterArchetype");
@@ -4567,6 +4585,7 @@
       wireCodexDetailAutoResize_();
       wireCodexNewSection_(entity, entityTypeKey, pluralKey);
       wireCodexDetailColorPicker_();
+      wireCodexDetailSubType_();
       wireCodexDetailImage_(entity, entityTypeKey);
       refreshCodexNewSectionDropdown_();
       // Wire breadcrumb pill clicks for location hierarchy
@@ -4712,6 +4731,17 @@
           btn.setAttribute("aria-expanded", "false");
         }
       });
+    }
+
+    function wireCodexDetailSubType_() {
+      var subTypeSelect = document.getElementById("codexDetailSubType");
+      var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
+      if (subTypeSelect && subTypeCustom) {
+        subTypeSelect.addEventListener("change", function () {
+          subTypeCustom.style.display = subTypeSelect.value === "_custom" ? "" : "none";
+          if (subTypeSelect.value === "_custom") subTypeCustom.focus();
+        });
+      }
     }
 
     function wireCodexDetailColorPicker_() {
@@ -4896,6 +4926,24 @@
           }
           if (archSelect) mergedCustom.archetype = archSelect.value;
           if (motivationSelect) mergedCustom.motivation_arc = motivationSelect.value;
+          // Read sub-type from the universal sub-type field (for non-character types or when role is empty)
+          var subTypeSelect = document.getElementById("codexDetailSubType");
+          var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
+          if (subTypeSelect) {
+            var stVal = subTypeSelect.value;
+            if (stVal === "_custom" && subTypeCustom) {
+              stVal = subTypeCustom.value.trim();
+            }
+            if (stVal && stVal !== "_custom") {
+              mergedCustom.sub_type = stVal;
+              // Also sync role_archetype for characters if not already set
+              if (entityTypeKey === "character" && !mergedCustom.role_archetype) {
+                mergedCustom.role_archetype = stVal;
+              }
+            } else if (!mergedCustom.sub_type) {
+              delete mergedCustom.sub_type;
+            }
+          }
           // Stage 1C: Read status field values
           var statusSelect = document.getElementById("codexDetailStatus");
           var canonStatusSelect = document.getElementById("codexDetailCanonStatus");
