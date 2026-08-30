@@ -4885,13 +4885,23 @@
         }
         var entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
         if (!entityTypeId) {
+          // Try reloading entity types from Supabase
           callAppsScriptJson("listCodexEntityTypes", []).then(function (result) {
             var types = result && result.types ? result.types : [];
             var typesByKey = {};
             types.forEach(function (t) { typesByKey[t.key] = t; });
             if (typeof codexCache !== "undefined") codexCache.entityTypesByKey = typesByKey;
             entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
-            if (!entityTypeId) { setStatus("Unknown entity type.", "error"); saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save"; saveBtn.setAttribute("data-saving", "0"); return; }
+            if (!entityTypeId) {
+              // Last resort: try using the entityTypeKey directly (singular)
+              entityTypeId = getCodexEntityTypeId_(seriesId, entityTypeKey);
+            }
+            if (!entityTypeId) {
+              setStatus("Unknown entity type '" + entityTypeKey + "'. Check that the codex_entity_types table has this type.", "error");
+              saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
+              saveBtn.setAttribute("data-saving", "0");
+              return;
+            }
             performSave(entityTypeId);
           }).catch(function (err) {
             setStatus("Failed to load entity types: " + (err && err.message ? err.message : err), "error");
