@@ -3996,12 +3996,6 @@
           var descInput = document.getElementById("codexPresetDescInput");
           preset.name = nameInput ? nameInput.value.trim() : preset.name;
           preset.description = descInput ? descInput.value.trim() : preset.description;
-          // Strip _enabled properties from tree_definition before saving
-          var cleanTreeDef = JSON.parse(JSON.stringify(preset.tree_definition || []));
-          cleanTreeDef.forEach(function (cat) {
-            (cat.items || []).forEach(function (item) { delete item._enabled; });
-          });
-          preset.tree_definition = cleanTreeDef;
           // Update cache and localStorage immediately
           _codexFormatPresetsCache[presetKey] = preset;
           saveCodexPresetsToStorage();
