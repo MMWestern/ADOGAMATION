@@ -2087,7 +2087,7 @@
           var thumbHtml = imgUrl
             ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
-          relHtml += "<div class='codex-rel-item' data-connection-id='" + c.id + "'>";
+          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + otherId + "'>";
           relHtml += thumbHtml;
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
@@ -2099,10 +2099,27 @@
 
       // Wire remove buttons
       listEl.querySelectorAll(".codex-rel-remove").forEach(function (btn) {
-        btn.addEventListener("click", function () {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
           var connId = Number(btn.getAttribute("data-connection-id"));
           if (!connId) return;
           deleteEntityConnection(seriesId, connId, entityId);
+        });
+      });
+
+      // Wire click-to-navigate on relationship items
+      listEl.querySelectorAll(".codex-rel-clickable").forEach(function (item) {
+        item.addEventListener("click", function (e) {
+          if (e.target.closest(".codex-rel-remove")) return; // don't navigate on remove
+          var targetId = Number(item.getAttribute("data-entity-id"));
+          if (!targetId) return;
+          var allEntities = codexCache.entitiesBySeries[seriesId] || [];
+          var targetEntity = allEntities.find(function (en) { return Number(en.id) === targetId; });
+          if (targetEntity) {
+            var typeKey = (targetEntity.codex_entity_types || {}).key || "";
+            if (_codexMode !== "overview") switchCodexMode("overview");
+            showCodexEntityDetail(targetEntity, typeKey);
+          }
         });
       });
     }
