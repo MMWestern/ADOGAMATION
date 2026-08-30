@@ -2087,10 +2087,11 @@
           var thumbHtml = imgUrl
             ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
-          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + otherId + "'>";
+          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + otherId + "' data-rel-type-id='" + (relType.id || 0) + "'>";
           relHtml += thumbHtml;
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
+          relHtml += "<button type='button' class='codex-rel-edit' data-connection-id='" + c.id + "' title='Edit'>&#9998;</button>";
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
           relHtml += "</div>";
         });
@@ -2104,6 +2105,17 @@
           var connId = Number(btn.getAttribute("data-connection-id"));
           if (!connId) return;
           deleteEntityConnection(seriesId, connId, entityId);
+        });
+      });
+
+      // Wire edit buttons
+      listEl.querySelectorAll(".codex-rel-edit").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var connId = Number(btn.getAttribute("data-connection-id"));
+          var relItem = btn.closest(".codex-rel-item");
+          var currentTypeId = relItem ? Number(relItem.getAttribute("data-rel-type-id") || 0) : 0;
+          showRelEditForm(seriesId, entityId, connId, currentTypeId);
         });
       });
 
@@ -2224,6 +2236,83 @@
         })
         .catch(function (err) {
           setStatus("Failed to save relationship: " + (err && err.message ? err.message : err), "error");
+        });
+    }
+
+    function showRelEditForm(seriesId, entityId, connectionId, currentTypeId) {
+      var listEl = document.getElementById("codexDetailRelList");
+      if (!listEl) return;
+      // Remove any existing edit form
+      var existing = listEl.querySelector(".codex-rel-edit-form");
+      if (existing) existing.remove();
+      // Build edit form
+      var formHtml = "<div class='codex-rel-edit-form' style='margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
+      formHtml += "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>";
+      formHtml += "<select id='codexRelEditType' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>Select type...</option></select>";
+      formHtml += "<button id='codexRelEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Save</button>";
+      formHtml += "<button id='codexRelEditCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";
+      formHtml += "</div></div>";
+      listEl.insertAdjacentHTML("afterend", formHtml);
+      var typeSelect = document.getElementById("codexRelEditType");
+      var saveBtn = document.getElementById("codexRelEditSaveBtn");
+      var cancelBtn = document.getElementById("codexRelEditCancelBtn");
+      // Populate relationship types
+      if (typeSelect) {
+        callAppsScriptJson("listCodexRelationshipTypes", [])
+          .then(function (result) {
+            var types = result && result.types ? result.types : [];
+            types.forEach(function (t) {
+              var opt = document.createElement("option");
+              opt.value = t.id;
+              opt.textContent = t.forward_label || t.key;
+              if (Number(t.id) === currentTypeId) opt.selected = true;
+              typeSelect.appendChild(opt);
+            });
+          })
+          .catch(function () {});
+      }
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          var newTypeId = typeSelect ? Number(typeSelect.value || 0) : 0;
+          if (!newTypeId) { setStatus("Select a relationship type.", "error"); return; }
+          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId);
+          var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
+          if (form) form.remove();
+        });
+      }
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function () {
+          var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
+          if (form) form.remove();
+        });
+      }
+    }
+
+    function updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId) {
+      // Find existing connection
+      var connections = skCache.connections[seriesId] || [];
+      var conn = connections.find(function (c) { return Number(c.id) === connectionId; });
+      if (!conn) { setStatus("Connection not found.", "error"); return; }
+      var payload = {
+        id: connectionId,
+        series_id: seriesId,
+        source_entity_id: Number(conn.source_entity_id),
+        target_entity_id: Number(conn.target_entity_id),
+        relationship_type_id: newTypeId,
+        label: conn.label || "",
+        inverse_label: conn.inverse_label || "",
+        description: conn.description || "",
+        is_secret: conn.is_secret || false
+      };
+      setStatus("Updating relationship...", "warn");
+      callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(payload)])
+        .then(function () { return loadSkConnections(seriesId); })
+        .then(function () {
+          setStatus("Relationship updated.", "ok");
+          loadAndRenderEntityRelationships(seriesId, entityId);
+        })
+        .catch(function (err) {
+          setStatus("Failed to update: " + (err && err.message ? err.message : err), "error");
         });
     }
 
