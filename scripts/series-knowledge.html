@@ -3787,7 +3787,7 @@
     function rebuildNewEntryDropdown(seriesId, btn, dropdown) {
       if (!btn || !dropdown) return;
       var treeDef = getCodexTreeDef(seriesId);
-      // Build options from tree definition, including sub-types
+      // Build options from tree definition, with sub-type submenus
       var optionsHtml = "";
       treeDef.forEach(function (cat) {
         (cat.items || []).forEach(function (item) {
@@ -3796,18 +3796,19 @@
           if (!item.entityTypeKey) return;
           var subTypes = item.subTypes || [];
           if (subTypes.length) {
-            // Show parent as a header, sub-types as options
-            optionsHtml += "<div class='writing-codex-new-entry-group'>";
-            optionsHtml += "<div class='writing-codex-new-entry-group-label'>" + escapeHtml(item.label) + "</div>";
+            optionsHtml += "<div class='writing-codex-new-entry-option has-submenu' data-new-type='" + item.key + "'>";
+            optionsHtml += "<span>" + escapeHtml(item.label) + "</span>";
+            optionsHtml += "<span class='writing-codex-new-entry-arrow'>&#9656;</span>";
+            optionsHtml += "<div class='writing-codex-new-entry-submenu'>";
             subTypes.forEach(function (st) {
               optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(st) + "' type='button'>";
               optionsHtml += "<span>" + escapeHtml(st) + "</span>";
               optionsHtml += "</button>";
             });
-            // Also add a generic option without sub-type
             optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
-            optionsHtml += "<span style='color:var(--muted);'>Other " + escapeHtml(item.label) + "</span>";
+            optionsHtml += "<span style='color:var(--muted);'>Other</span>";
             optionsHtml += "</button>";
+            optionsHtml += "</div>";
             optionsHtml += "</div>";
           } else {
             optionsHtml += "<button class='writing-codex-new-entry-option' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
@@ -3817,8 +3818,8 @@
         });
       });
       dropdown.innerHTML = optionsHtml;
-      // Wire click handlers on options
-      dropdown.querySelectorAll(".writing-codex-new-entry-option").forEach(function (opt) {
+      // Wire click handlers on leaf options (not parent submenu items)
+      dropdown.querySelectorAll(".writing-codex-new-entry-option:not(.has-submenu)").forEach(function (opt) {
         opt.addEventListener("click", function (e) {
           e.stopPropagation();
           var type = opt.getAttribute("data-new-type") || "";
