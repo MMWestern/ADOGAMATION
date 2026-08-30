@@ -2083,8 +2083,12 @@
           var relType = c.codex_relationship_types || {};
           var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
           var icon = getEntityIcon(otherType);
+          var imgUrl = otherEntity ? (otherEntity.image_url || "") : "";
+          var thumbHtml = imgUrl
+            ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
+            : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
           relHtml += "<div class='codex-rel-item' data-connection-id='" + c.id + "'>";
-          relHtml += "<span class='codex-rel-icon'>" + icon + "</span>";
+          relHtml += thumbHtml;
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
