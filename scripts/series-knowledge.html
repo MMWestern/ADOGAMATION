@@ -2175,7 +2175,7 @@
 
       if (!addBtn || !addForm) return;
 
-      // Populate target entity dropdown with images and category headers
+      // Populate target entity dropdown with images and category headers (refreshed per entity)
       if (targetBtn && targetDropdown) {
         var allEntities = codexCache.entitiesBySeries[seriesId] || [];
         // Group by type
@@ -2210,34 +2210,73 @@
           });
         });
         targetDropdown.innerHTML = ddHtml;
+      }
 
-        // Toggle dropdown
-        targetBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          targetDropdown.hidden = !targetDropdown.hidden;
+      // Wire controls once — these DOM nodes are static across entity selections
+      if (addBtn.getAttribute("data-rel-wired") !== "1") {
+        addBtn.setAttribute("data-rel-wired", "1");
+
+        if (targetBtn && targetDropdown) {
+          // Toggle dropdown
+          targetBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            targetDropdown.hidden = !targetDropdown.hidden;
+          });
+
+          // Select entity
+          targetDropdown.addEventListener("click", function (e) {
+            var opt = e.target.closest(".codex-rel-entity-option");
+            if (!opt) return;
+            e.stopPropagation();
+            var eid = Number(opt.getAttribute("data-entity-id") || 0);
+            var ename = opt.querySelector("span");
+            if (eid && targetInput) {
+              targetInput.value = eid;
+              targetBtn.textContent = ename ? ename.textContent : "Selected";
+              targetDropdown.hidden = true;
+            }
+          });
+
+          // Close on outside click
+          document.addEventListener("click", function () {
+            if (!targetDropdown.hidden) targetDropdown.hidden = true;
+          });
+        }
+
+        // Show/hide add form
+        addBtn.addEventListener("click", function () {
+          addForm.hidden = false;
+          addBtn.hidden = true;
+        });
+        cancelBtn.addEventListener("click", function () {
+          addForm.hidden = true;
+          addBtn.hidden = false;
+          if (targetInput) targetInput.value = "";
+          if (targetBtn) targetBtn.textContent = "Select entity...";
+          if (typeSelect) typeSelect.value = "";
         });
 
-        // Select entity
-        targetDropdown.addEventListener("click", function (e) {
-          var opt = e.target.closest(".codex-rel-entity-option");
-          if (!opt) return;
-          e.stopPropagation();
-          var eid = Number(opt.getAttribute("data-entity-id") || 0);
-          var ename = opt.querySelector("span");
-          if (eid && targetInput) {
-            targetInput.value = eid;
-            targetBtn.textContent = ename ? ename.textContent : "Selected";
-            targetDropdown.hidden = true;
-          }
-        });
-
-        // Close on outside click
-        document.addEventListener("click", function () {
-          if (!targetDropdown.hidden) targetDropdown.hidden = true;
+        // Save new relationship (targets whatever entity is currently open)
+        saveBtn.addEventListener("click", function () {
+          var targetId = targetInput ? Number(targetInput.value || 0) : 0;
+          var typeId = typeSelect ? Number(typeSelect.value || 0) : 0;
+          if (!targetId) { setStatus("Select a target entity.", "error"); return; }
+          if (!typeId) { setStatus("Select a relationship type.", "error"); return; }
+          var curSeriesId = Number(skCurrentSeriesId || 0);
+          var curEntityId = Number(_codexActiveEntityId || 0);
+          if (!curSeriesId || !curEntityId) return;
+          saveEntityConnection(curSeriesId, curEntityId, targetId, typeId, function () {
+            addForm.hidden = true;
+            addBtn.hidden = false;
+            if (targetInput) targetInput.value = "";
+            if (targetBtn) targetBtn.textContent = "Select entity...";
+            if (typeSelect) typeSelect.value = "";
+            loadAndRenderEntityRelationships(curSeriesId, curEntityId);
+          });
         });
       }
 
-      // Populate relationship type dropdown
+      // Populate relationship type dropdown (fresh per entity open)
       if (typeSelect) {
         callAppsScriptJson("listCodexRelationshipTypes", [])
           .then(function (result) {
@@ -2250,35 +2289,6 @@
           })
           .catch(function () {});
       }
-
-      // Show/hide add form
-      addBtn.addEventListener("click", function () {
-        addForm.hidden = false;
-        addBtn.hidden = true;
-      });
-      cancelBtn.addEventListener("click", function () {
-        addForm.hidden = true;
-        addBtn.hidden = false;
-        if (targetInput) targetInput.value = "";
-        if (targetBtn) targetBtn.textContent = "Select entity...";
-        if (typeSelect) typeSelect.value = "";
-      });
-
-      // Save new relationship
-      saveBtn.addEventListener("click", function () {
-        var targetId = targetInput ? Number(targetInput.value || 0) : 0;
-        var typeId = typeSelect ? Number(typeSelect.value || 0) : 0;
-        if (!targetId) { setStatus("Select a target entity.", "error"); return; }
-        if (!typeId) { setStatus("Select a relationship type.", "error"); return; }
-        saveEntityConnection(seriesId, entityId, targetId, typeId, function () {
-          addForm.hidden = true;
-          addBtn.hidden = false;
-          if (targetInput) targetInput.value = "";
-          if (targetBtn) targetBtn.textContent = "Select entity...";
-          if (typeSelect) typeSelect.value = "";
-          loadAndRenderEntityRelationships(seriesId, entityId);
-        });
-      });
     }
 
     function saveEntityConnection(seriesId, sourceId, targetId, typeId, callback) {
@@ -4937,8 +4947,19 @@
       refreshCodexNewSectionDropdown_();
       // Wire relationship panel for all entity types
       if (skCurrentSeriesId && entity.id) {
-        loadAndRenderEntityRelationships(skCurrentSeriesId, Number(entity.id));
-        wireEntityRelationshipPanel(skCurrentSeriesId, Number(entity.id));
+        var relSeriesId = skCurrentSeriesId;
+        var relEntityId = Number(entity.id);
+        var renderRelPanel = function () {
+          if (Number(_codexActiveEntityId) !== relEntityId) return;
+          loadAndRenderEntityRelationships(relSeriesId, relEntityId);
+          wireEntityRelationshipPanel(relSeriesId, relEntityId);
+        };
+        var relConnections = skCache.connections[relSeriesId];
+        if (!relConnections) {
+          loadSkConnections(relSeriesId).then(renderRelPanel).catch(renderRelPanel);
+        } else {
+          renderRelPanel();
+        }
       }
       // Wire breadcrumb pill clicks for location hierarchy
       if (entityTypeKey === "location") {
@@ -6192,6 +6213,7 @@
       if (el.codexReview) el.codexReview.hidden = mode !== "review";
       if (el.codexEntityPage) el.codexEntityPage.hidden = true;
       if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+      if (el.codexRelPanel) el.codexRelPanel.hidden = true;
       // Toggle assistant panel in right column
       if (el.worldBuilderAssistant) el.worldBuilderAssistant.hidden = mode !== "world-builder";
       // Hide legacy entity form when in world-builder mode

@@ -1552,6 +1552,29 @@
           </div>
         </div>
 
+        <!-- Relationships Panel (right column) -->
+        <div id="codexRelPanel" class="codex-rel-panel" hidden>
+          <div class="codex-rel-panel-header">
+            <span class="codex-rel-panel-title">Relationships</span>
+            <button id="codexRelPanelAddBtn" type="button" class="codex-rel-panel-add">+ Add</button>
+          </div>
+          <div id="codexRelPanelList" class="codex-rel-list"></div>
+          <div id="codexRelPanelAddForm" class="codex-rel-add-form" hidden>
+            <div class="codex-rel-add-row">
+              <div class="codex-rel-entity-picker">
+                <button id="codexRelPanelTargetBtn" type="button" class="codex-rel-entity-btn">Select entity...</button>
+                <div id="codexRelPanelTargetDropdown" class="codex-rel-entity-dropdown" hidden></div>
+                <input id="codexRelPanelTarget" type="hidden" value="" />
+              </div>
+              <select id="codexRelPanelType" class="codex-detail-field-select"><option value="">Select type...</option></select>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button id="codexRelPanelSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
+              <button id="codexRelPanelCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <div id="worldBuilderAssistantPanel" class="world-builder-assistant-panel" hidden>
           <!-- Pillar Inspector -->
           <div id="pillarInspectorPanel" class="pillar-inspector-panel">
@@ -1563,28 +1586,6 @@
             <div id="pillarInspectorEditor" class="pillar-inspector-editor" hidden>
               <textarea id="pillarInspectorContent" class="pillar-inspector-textarea" rows="6" placeholder="Enter content for this pillar..."></textarea>
               <button type="button" id="pillarInspectorSaveBtn" class="pillar-inspector-save">Save</button>
-            </div>
-          </div>
-          <!-- Relationships Panel (right column) -->
-          <div id="codexRelPanel" class="codex-rel-panel" hidden>
-            <div class="codex-rel-panel-header">
-              <span class="codex-rel-panel-title">Relationships</span>
-              <button id="codexRelPanelAddBtn" type="button" class="codex-rel-panel-add">+ Add</button>
-            </div>
-            <div id="codexRelPanelList" class="codex-rel-list"></div>
-            <div id="codexRelPanelAddForm" class="codex-rel-add-form" hidden>
-              <div class="codex-rel-add-row">
-                <div class="codex-rel-entity-picker">
-                  <button id="codexRelPanelTargetBtn" type="button" class="codex-rel-entity-btn">Select entity...</button>
-                  <div id="codexRelPanelTargetDropdown" class="codex-rel-entity-dropdown" hidden></div>
-                  <input id="codexRelPanelTarget" type="hidden" value="" />
-                </div>
-                <select id="codexRelPanelType" class="codex-detail-field-select"><option value="">Select type...</option></select>
-              </div>
-              <div style="display:flex;gap:6px;margin-top:6px;">
-                <button id="codexRelPanelSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
-                <button id="codexRelPanelCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
-              </div>
             </div>
           </div>
           <!-- Brainstorm Sources -->

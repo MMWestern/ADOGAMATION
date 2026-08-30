@@ -6652,6 +6652,8 @@
       if (assistantPanel) assistantPanel.hidden = (safeTab !== "codex" || _codexMode !== "world-builder");
       // Wider right panel for CODEX tab
       document.body.classList.toggle("world-builder-active", safeTab === "codex");
+      // Right-hand details column must be visible on the CODEX tab (relationships panel lives there)
+      if (safeTab === "codex" && el.hubDetailsPanel) el.hubDetailsPanel.hidden = false;
 
       if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
