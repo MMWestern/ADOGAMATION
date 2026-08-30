@@ -18018,4 +18018,67 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       background: var(--border);
       margin: 4px 0;
     }
+
+    /* Entity relationship panel */
+    .codex-rel-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .codex-rel-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .codex-rel-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .codex-rel-name {
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .codex-rel-label {
+      font-size: 11px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .codex-rel-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 4px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: opacity 0.15s;
+    }
+    .codex-rel-remove:hover {
+      opacity: 1;
+      color: #ef4444;
+    }
+    .codex-rel-add-form {
+      margin-top: 8px;
+    }
+    .codex-rel-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .codex-rel-add-row select {
+      flex: 1;
+      min-width: 150px;
+    }
 </style>

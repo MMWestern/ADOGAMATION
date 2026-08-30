@@ -2055,6 +2055,167 @@
             });
     }
 
+    /* ---- Entity Relationship Panel ---- */
+
+    function loadAndRenderEntityRelationships(seriesId, entityId) {
+      var listEl = document.getElementById("codexDetailRelList");
+      if (!listEl) return;
+      var connections = skCache.connections[seriesId] || [];
+      var allEntities = codexCache.entitiesBySeries[seriesId] || [];
+      var entityMap = {};
+      allEntities.forEach(function (e) { entityMap[e.id] = e; });
+
+      var relHtml = "";
+      var entityConnections = connections.filter(function (c) {
+        if (c.deleted_at) return false;
+        return Number(c.source_entity_id) === entityId || Number(c.target_entity_id) === entityId;
+      });
+
+      if (!entityConnections.length) {
+        relHtml = "<div class='codex-rel-empty' style='color:var(--muted);font-size:12px;padding:8px 0;'>No relationships yet.</div>";
+      } else {
+        entityConnections.forEach(function (c) {
+          var isSource = Number(c.source_entity_id) === entityId;
+          var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+          var otherEntity = entityMap[otherId];
+          var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Unknown";
+          var otherType = otherEntity ? (otherEntity.codex_entity_types || {}).key || "" : "";
+          var relType = c.codex_relationship_types || {};
+          var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
+          var icon = getEntityIcon(otherType);
+          relHtml += "<div class='codex-rel-item' data-connection-id='" + c.id + "'>";
+          relHtml += "<span class='codex-rel-icon'>" + icon + "</span>";
+          relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
+          relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
+          relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
+          relHtml += "</div>";
+        });
+      }
+      listEl.innerHTML = relHtml;
+
+      // Wire remove buttons
+      listEl.querySelectorAll(".codex-rel-remove").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var connId = Number(btn.getAttribute("data-connection-id"));
+          if (!connId) return;
+          deleteEntityConnection(seriesId, connId, entityId);
+        });
+      });
+    }
+
+    function getEntityIcon(typeKey) {
+      var icons = { character: "\u{1F464}", location: "\u{1F4CD}", organisation: "\u{1F3E2}", family: "\u{1F465}", item: "\u{1F4E6}", lore: "\u{1F4D6}", quest: "\u{1F9ED}", creature: "\u{1F409}", species: "\u{1F43E}", culture: "\u{1F30D}", map: "\u{1F5FA}\uFE0F", document: "\u{1F4C4}", glossary: "\u{1F4D6}", magic_system: "\u26A1", relationship: "\u{1F49E}", story_thread: "\u{1F9F5}", mystery: "\u{1F50D}", character_arc: "\u{1F4C8}" };
+      return icons[typeKey] || "\u{1F4CE}";
+    }
+
+    function wireEntityRelationshipPanel(seriesId, entityId) {
+      var addBtn = document.getElementById("codexDetailRelAddBtn");
+      var addForm = document.getElementById("codexDetailRelAddForm");
+      var cancelBtn = document.getElementById("codexDetailRelCancelBtn");
+      var saveBtn = document.getElementById("codexDetailRelSaveBtn");
+      var targetSelect = document.getElementById("codexDetailRelTarget");
+      var typeSelect = document.getElementById("codexDetailRelType");
+
+      if (!addBtn || !addForm) return;
+
+      // Populate target entity dropdown
+      if (targetSelect) {
+        var allEntities = codexCache.entitiesBySeries[seriesId] || [];
+        var opts = "";
+        allEntities.forEach(function (e) {
+          if (Number(e.id) === entityId) return; // skip self
+          var name = e.name || "Unnamed";
+          var typeKey = (e.codex_entity_types || {}).key || "";
+          var icon = getEntityIcon(typeKey);
+          opts += "<option value='" + e.id + "'>" + icon + " " + escapeHtml(name) + "</option>";
+        });
+        targetSelect.innerHTML = "<option value=''>Select entity...</option>" + opts;
+      }
+
+      // Populate relationship type dropdown
+      if (typeSelect) {
+        callAppsScriptJson("listCodexRelationshipTypes", [])
+          .then(function (result) {
+            var types = result && result.types ? result.types : [];
+            var relOpts = "";
+            types.forEach(function (t) {
+              relOpts += "<option value='" + t.id + "'>" + escapeHtml(t.forward_label || t.key) + "</option>";
+            });
+            typeSelect.innerHTML = "<option value=''>Select type...</option>" + relOpts;
+          })
+          .catch(function () {});
+      }
+
+      // Show/hide add form
+      addBtn.addEventListener("click", function () {
+        addForm.hidden = false;
+        addBtn.hidden = true;
+      });
+      cancelBtn.addEventListener("click", function () {
+        addForm.hidden = true;
+        addBtn.hidden = false;
+        if (targetSelect) targetSelect.value = "";
+        if (typeSelect) typeSelect.value = "";
+      });
+
+      // Save new relationship
+      saveBtn.addEventListener("click", function () {
+        var targetId = targetSelect ? Number(targetSelect.value || 0) : 0;
+        var typeId = typeSelect ? Number(typeSelect.value || 0) : 0;
+        if (!targetId) { setStatus("Select a target entity.", "error"); return; }
+        if (!typeId) { setStatus("Select a relationship type.", "error"); return; }
+        saveEntityConnection(seriesId, entityId, targetId, typeId, function () {
+          addForm.hidden = true;
+          addBtn.hidden = false;
+          if (targetSelect) targetSelect.value = "";
+          if (typeSelect) typeSelect.value = "";
+          loadAndRenderEntityRelationships(seriesId, entityId);
+        });
+      });
+    }
+
+    function saveEntityConnection(seriesId, sourceId, targetId, typeId, callback) {
+      var payload = {
+        id: 0,
+        series_id: seriesId,
+        source_entity_id: sourceId,
+        target_entity_id: targetId,
+        relationship_type_id: typeId,
+        label: "",
+        inverse_label: "",
+        description: "",
+        is_secret: false
+      };
+      setStatus("Saving relationship...", "warn");
+      callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(payload)])
+        .then(function (result) {
+          // Reload connections cache
+          return loadSkConnections(seriesId);
+        })
+        .then(function () {
+          setStatus("Relationship saved.", "ok");
+          if (callback) callback();
+        })
+        .catch(function (err) {
+          setStatus("Failed to save relationship: " + (err && err.message ? err.message : err), "error");
+        });
+    }
+
+    function deleteEntityConnection(seriesId, connectionId, entityId) {
+      setStatus("Removing relationship...", "warn");
+      callAppsScriptJson("deleteCodexConnection", [connectionId])
+        .then(function () {
+          return loadSkConnections(seriesId);
+        })
+        .then(function () {
+          setStatus("Relationship removed.", "ok");
+          loadAndRenderEntityRelationships(seriesId, entityId);
+        })
+        .catch(function (err) {
+          setStatus("Failed to remove relationship: " + (err && err.message ? err.message : err), "error");
+        });
+    }
+
     /* ---- Parent Location Connection ---- */
 
     function saveParentLocationConnection(seriesId, entityId) {
@@ -4514,10 +4675,19 @@
 
       html += "<div class='codex-sub-section' id='codexSectionRelations' hidden>";
       html += "<div class='codex-sub-section-header'>";
-      html += "<span class='codex-sub-section-title'>Relations</span>";
+      html += "<span class='codex-sub-section-title'>Relationships</span>";
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
-      html += "<textarea id='codexDetailRelations' class='codex-detail-text description-field' rows='10' placeholder='Relationships, connections, and links to other entities...'>" + escapeHtml(customData.relations_notes || "") + "</textarea>";
+      html += "<div id='codexDetailRelList' class='codex-rel-list'></div>";
+      html += "<div id='codexDetailRelAddForm' class='codex-rel-add-form' hidden>";
+      html += "<div class='codex-rel-add-row'>";
+      html += "<select id='codexDetailRelTarget' class='codex-detail-field-select'><option value=''>Select entity...</option></select>";
+      html += "<select id='codexDetailRelType' class='codex-detail-field-select'><option value=''>Select type...</option></select>";
+      html += "<button id='codexDetailRelSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Add</button>";
+      html += "<button id='codexDetailRelCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";
+      html += "</div>";
+      html += "</div>";
+      html += "<button id='codexDetailRelAddBtn' type='button' style='font-size:11px;margin-top:6px;'>+ Add Relationship</button>";
       html += "</div>";
       html += "</div>";
 
@@ -4598,6 +4768,11 @@
       wireCodexDetailSubType_();
       wireCodexDetailImage_(entity, entityTypeKey);
       refreshCodexNewSectionDropdown_();
+      // Wire relationship panel for all entity types
+      if (skCurrentSeriesId && entity.id) {
+        loadAndRenderEntityRelationships(skCurrentSeriesId, Number(entity.id));
+        wireEntityRelationshipPanel(skCurrentSeriesId, Number(entity.id));
+      }
       // Wire breadcrumb pill clicks for location hierarchy
       if (entityTypeKey === "location") {
         var breadcrumbContainer = el.codexEntityPageContent ? el.codexEntityPageContent.querySelector(".codex-location-breadcrumb") : null;
@@ -4929,14 +5104,11 @@
             var k = ta.getAttribute("data-section-key") || "";
             if (k) sections[k] = String(ta.value || "").trim();
           });
-          var relationsNotes = String(document.getElementById("codexDetailRelations") && document.getElementById("codexDetailRelations").value || "").trim();
           var backstoryNotes = String(document.getElementById("codexDetailBackstory") && document.getElementById("codexDetailBackstory").value || "").trim();
           var existingCustom = entity.custom_data || {};
           var mergedCustom = {};
           for (var ck in existingCustom) { if (existingCustom.hasOwnProperty(ck)) mergedCustom[ck] = existingCustom[ck]; }
           mergedCustom.sections = sections;
-          if (relationsNotes) mergedCustom.relations_notes = relationsNotes;
-          else delete mergedCustom.relations_notes;
           if (backstoryNotes) mergedCustom.backstory = backstoryNotes;
           else delete mergedCustom.backstory;
           var roleSelect = document.getElementById("codexDetailRole");
