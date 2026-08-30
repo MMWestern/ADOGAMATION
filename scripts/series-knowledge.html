@@ -3231,7 +3231,13 @@
     var _codexCurrentTreeDef = null;    // active tree_definition for current series
 
     function loadCodexFormatPresets() {
-      if (typeof supabaseRunner === "undefined") return Promise.resolve({});
+      if (typeof supabaseRunner === "undefined") {
+        // Use hardcoded defaults when Supabase unavailable
+        if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
+          _codexFormatPresetsCache = Object.assign({}, CODEX_FORMAT_PRESETS_DEFAULTS);
+        }
+        return Promise.resolve(_codexFormatPresetsCache);
+      }
       return new Promise(function (resolve) {
         supabaseRunner
           .withSuccessHandler(function (json) {
@@ -3240,7 +3246,7 @@
               if (result.ok && Array.isArray(result.presets)) {
                 result.presets.forEach(function (p) { _codexFormatPresetsCache[p.key] = p; });
               }
-            } catch (e) {}
+            } catch (e) { console.warn("Load presets parse error:", e); }
             // Merge hardcoded defaults as fallback
             if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
               Object.keys(CODEX_FORMAT_PRESETS_DEFAULTS).forEach(function (k) {
@@ -3249,10 +3255,13 @@
             }
             resolve(_codexFormatPresetsCache);
           })
-          .withFailureHandler(function () {
+          .withFailureHandler(function (err) {
+            console.warn("Load presets failed:", err);
             // Use hardcoded defaults on failure
             if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
-              _codexFormatPresetsCache = Object.assign({}, CODEX_FORMAT_PRESETS_DEFAULTS);
+              Object.keys(CODEX_FORMAT_PRESETS_DEFAULTS).forEach(function (k) {
+                if (!_codexFormatPresetsCache[k]) _codexFormatPresetsCache[k] = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+              });
             }
             resolve(_codexFormatPresetsCache);
           })
@@ -3861,12 +3870,28 @@
           var descInput = document.getElementById("codexPresetDescInput");
           preset.name = nameInput ? nameInput.value.trim() : preset.name;
           preset.description = descInput ? descInput.value.trim() : preset.description;
+          // Update cache immediately
+          _codexFormatPresetsCache[presetKey] = preset;
           // Save to Supabase
           if (typeof supabaseRunner !== "undefined") {
             supabaseRunner
-              .withSuccessHandler(function () { populateCodexPresetList(); })
-              .withFailureHandler(function (err) { console.warn("Preset save failed:", err); })
+              .withSuccessHandler(function (json) {
+                try {
+                  var result = JSON.parse(json);
+                  if (result.ok && result.preset) {
+                    _codexFormatPresetsCache[result.preset.key] = result.preset;
+                  }
+                } catch (e) { console.warn("Preset save response parse error:", e); }
+                populateCodexPresetList();
+                renderCodexPresetEditor(presetKey);
+              })
+              .withFailureHandler(function (err) {
+                console.warn("Preset save failed:", err);
+                populateCodexPresetList();
+              })
               .saveCodexFormatPreset(JSON.stringify(preset));
+          } else {
+            populateCodexPresetList();
           }
         });
       }
@@ -3889,7 +3914,7 @@
                     populateCodexPresetList();
                     renderCodexPresetEditor(result.preset.key);
                   }
-                } catch (e) {}
+                } catch (e) { console.warn("Preset clone response parse error:", e); }
               })
               .withFailureHandler(function (err) { console.warn("Preset clone failed:", err); })
               .saveCodexFormatPreset(JSON.stringify(clone));
