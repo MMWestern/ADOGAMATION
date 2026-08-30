@@ -4702,11 +4702,10 @@
       if (roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
       if (archetype && archetype !== roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
       html += "</div>";
-      html += "<div class='codex-detail-field-group'>";
-      html += "<div class='codex-detail-field-wrap' style='grid-column:1/-1;'>";
-      html += "<label class='codex-detail-field-label'>Name</label>";
+      html += "<div class='codex-detail-name-row'>";
       html += "<textarea id='codexDetailName' class='codex-detail-text name-field' rows='1'>" + escapeHtml(name) + "</textarea>";
       html += "</div>";
+      html += "<div class='codex-detail-field-group'>";
       // Sub-type field — available for all entity types
       var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
       var subTypeOptions = [];

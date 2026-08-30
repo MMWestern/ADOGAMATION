@@ -14592,11 +14592,22 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   gap: 8px;
   margin-bottom: 8px;
 }
+.codex-detail-name-row {
+  margin-bottom: 8px;
+}
+.codex-detail-name-row .codex-detail-text.name-field {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f2f2f4;
+  width: 100%;
+  min-height: 32px;
+}
 .codex-detail-field-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+  justify-content: flex-end;
 }
 .codex-detail-field-label {
   display: block;
@@ -14636,6 +14647,8 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 140px;
+  max-width: 200px;
 }
 .codex-detail-scope-wrap {
   display: flex;
@@ -14713,33 +14726,32 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
   width: 150px;
 }
 
-/* -- Entity detail body: vertical tabs + content -- */
+/* -- Entity detail body: horizontal tabs + content -- */
 .codex-entity-detail-body {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   gap: 0;
 }
 .codex-entity-sub-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 220px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a2f;
   flex-shrink: 0;
-  padding: 8px 3px 8px 0;
-  border-right: 1px solid #2a2a2f;
-  overflow-y: auto;
 }
 .codex-sub-tab {
   display: flex;
   align-items: center;
-  min-height: 36px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 0;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid #2a2a2f;
+  border-radius: 6px;
   background: transparent;
   color: #777884;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
@@ -14748,11 +14760,13 @@ body.dark-mode .tree-resource.is-active .tree-resource-dot.is-dirty {
 .codex-sub-tab:hover {
   background: rgba(255,255,255,0.04);
   color: #a5a5ad;
+  border-color: #3a3a42;
 }
 .codex-sub-tab.is-active {
   background: rgba(99,102,241,0.12);
   color: #a5b4fc;
   font-weight: 600;
+  border-color: #6366f1;
 }
 .codex-new-section-wrap {
   position: relative;
