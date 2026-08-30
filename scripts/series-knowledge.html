@@ -3998,7 +3998,8 @@
                 renderCodexPresetEditor(presetKey);
               })
               .withFailureHandler(function (err) {
-                console.warn("Preset save failed:", err);
+                console.error("Preset save to Supabase failed:", err);
+                alert("Failed to save preset to database. Check console for details.");
                 populateCodexPresetList();
               })
               .saveCodexFormatPreset(JSON.stringify(preset));

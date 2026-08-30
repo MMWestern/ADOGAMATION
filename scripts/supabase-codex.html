@@ -28,13 +28,21 @@
           name: preset.name, description: preset.description || '',
           tree_definition: preset.tree_definition, sort_order: preset.sort_order || 0
         }).eq('id', preset.id).select().single()
-          .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, preset: res.data }); });
+          .then(function (res) {
+            if (res.error) { console.error("Preset update error:", res.error); throw res.error; }
+            return JSON.stringify({ ok: true, preset: res.data });
+          })
+          .catch(function (err) { console.error("Preset update failed:", err); throw err; });
       }
       return sbClient.from('codex_format_presets').insert({
         key: preset.key, name: preset.name, description: preset.description || '',
         tree_definition: preset.tree_definition, is_builtin: false, sort_order: preset.sort_order || 99
       }).select().single()
-        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, preset: res.data }); });
+        .then(function (res) {
+          if (res.error) { console.error("Preset insert error:", res.error); throw res.error; }
+          return JSON.stringify({ ok: true, preset: res.data });
+        })
+        .catch(function (err) { console.error("Preset insert failed:", err); throw err; });
     });
 
     _sbDefine('deleteCodexFormatPreset', function (presetId) {
