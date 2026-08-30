@@ -2065,29 +2065,50 @@
       var entityMap = {};
       allEntities.forEach(function (e) { entityMap[e.id] = e; });
 
-      var relHtml = "";
       var entityConnections = connections.filter(function (c) {
         if (c.deleted_at) return false;
         return Number(c.source_entity_id) === entityId || Number(c.target_entity_id) === entityId;
       });
 
       if (!entityConnections.length) {
-        relHtml = "<div class='codex-rel-empty' style='color:var(--muted);font-size:12px;padding:8px 0;'>No relationships yet.</div>";
-      } else {
-        entityConnections.forEach(function (c) {
-          var isSource = Number(c.source_entity_id) === entityId;
-          var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
-          var otherEntity = entityMap[otherId];
+        listEl.innerHTML = "<div class='codex-rel-empty' style='color:var(--muted);font-size:12px;padding:8px 0;'>No relationships yet.</div>";
+        return;
+      }
+
+      // Group by entity type
+      var groups = {};
+      var groupOrder = [];
+      entityConnections.forEach(function (c) {
+        var isSource = Number(c.source_entity_id) === entityId;
+        var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+        var otherEntity = entityMap[otherId];
+        var otherType = otherEntity ? (otherEntity.codex_entity_types || {}).key || "other" : "other";
+        var otherTypeLabel = otherEntity ? (otherEntity.codex_entity_types || {}).name_plural || otherType : "Other";
+        if (!groups[otherType]) {
+          groups[otherType] = { label: otherTypeLabel, items: [] };
+          groupOrder.push(otherType);
+        }
+        groups[otherType].items.push({ conn: c, otherId: otherId, otherEntity: otherEntity, isSource: isSource });
+      });
+
+      var relHtml = "";
+      groupOrder.forEach(function (typeKey) {
+        var group = groups[typeKey];
+        relHtml += "<div class='codex-rel-group'>";
+        relHtml += "<div class='codex-rel-group-header'>" + escapeHtml(group.label) + "</div>";
+        group.items.forEach(function (item) {
+          var c = item.conn;
+          var otherEntity = item.otherEntity;
           var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Unknown";
           var otherType = otherEntity ? (otherEntity.codex_entity_types || {}).key || "" : "";
           var relType = c.codex_relationship_types || {};
-          var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
+          var label = item.isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
           var icon = getEntityIcon(otherType);
           var imgUrl = otherEntity ? (otherEntity.image_url || "") : "";
           var thumbHtml = imgUrl
             ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
-          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + otherId + "' data-rel-type-id='" + (relType.id || 0) + "'>";
+          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (relType.id || 0) + "'>";
           relHtml += thumbHtml;
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
@@ -2095,7 +2116,8 @@
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
           relHtml += "</div>";
         });
-      }
+        relHtml += "</div>";
+      });
       listEl.innerHTML = relHtml;
 
       // Wire remove buttons
