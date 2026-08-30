@@ -159,15 +159,15 @@ const DEFAULT_STATUS_OPTIONS = [
         key: "standard_fantasy", name: "Standard Fantasy", description: "Classic fantasy world-building with magic, cultures, and epic story arcs.", is_builtin: true,
         tree_definition: [
           { category: "CORE", items: [
-            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character" },
-            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location" },
+            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor"] },
+            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location",subTypes:["City","Village","Forest","Mountain","Dungeon","Realm"] },
             { key:"organisations",label:"Organisations",icon:"\u{1F3E2}",entityTypeKey:"organisation" },
             { key:"families",label:"Families / Houses",icon:"\u{1F465}",entityTypeKey:"family" },
             { key:"species",label:"Species",icon:"\u{1F43E}",entityTypeKey:"species" },
             { key:"cultures",label:"Cultures",icon:"\u{1F30D}",entityTypeKey:"culture" },
-            { key:"creatures",label:"Creatures",icon:"\u{1F409}",entityTypeKey:"creature" },
-            { key:"items",label:"Items / Artefacts",icon:"\u{1F4E6}",entityTypeKey:"item" },
-            { key:"lore",label:"Lore",icon:"\u{1F4D6}",entityTypeKey:"lore" },
+            { key:"creatures",label:"Creatures",icon:"\u{1F409}",entityTypeKey:"creature",subTypes:["Beasts","Monsters","Dragons","Undead","Spirits"] },
+            { key:"items",label:"Items / Artefacts",icon:"\u{1F4E6}",entityTypeKey:"item",subTypes:["Weapons","Armour","Artefacts","Consumables","Materials","Quest Items"] },
+            { key:"lore",label:"Lore",icon:"\u{1F4D6}",entityTypeKey:"lore",subTypes:["History","Mythology","Magic Rules","Prophecies"] },
             { key:"timelines",label:"Timeline",icon:"\u{1F4C5}",isFeature:true }
           ]},
           { category: "WORLD", items: [
@@ -205,10 +205,10 @@ const DEFAULT_STATUS_OPTIONS = [
         key: "contemporary", name: "Contemporary", description: "Real-world stories focused on character relationships, conflicts, and personal arcs.", is_builtin: true,
         tree_definition: [
           { category: "CORE", items: [
-            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character" },
-            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location" },
+            { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor"] },
+            { key:"locations",label:"Locations",icon:"\u{1F4CD}",entityTypeKey:"location",subTypes:["Home","Workplace","Public","Travel"] },
             { key:"organisations",label:"Organisations",icon:"\u{1F3E2}",entityTypeKey:"organisation" },
-            { key:"objects",label:"Objects",icon:"\u{1F4E6}",entityTypeKey:"item" },
+            { key:"objects",label:"Objects",icon:"\u{1F4E6}",entityTypeKey:"item",subTypes:["Personal","Documents","Technology","Keepsakes"] },
             { key:"timelines",label:"Timeline",icon:"\u{1F4C5}",isFeature:true }
           ]},
           { category: "RELATIONSHIPS", items: [
