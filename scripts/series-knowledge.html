@@ -3941,7 +3941,7 @@
       var treeDef = preset.tree_definition || [];
       var html = "";
       html += "<div style='display:flex;flex-direction:column;gap:12px;'>";
-      // Header
+      // Header with all action buttons
       html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
       html += "<h4 style='margin:0;'>" + escapeHtml(preset.name || presetKey) + "</h4>";
       html += "<div style='display:flex;gap:8px;'>";
@@ -3949,6 +3949,7 @@
         html += "<button id='codexPresetDeleteBtn' type='button' style='font-size:12px;color:#ef4444;'>Delete</button>";
       }
       html += "<button id='codexPresetCloneBtn' type='button' style='font-size:12px;'>Clone</button>";
+      html += "<button id='codexPresetSaveBtn' class='primary' type='button' style='font-size:12px;'>Save Changes</button>";
       html += "</div>";
       html += "</div>";
       // Name/Description fields
@@ -3963,10 +3964,6 @@
       html += "<button id='codexPresetAddCategoryBtn' type='button' style='font-size:11px;'>+ Add Category</button>";
       html += "</div>";
       html += "</div>";
-      // Save button
-      html += "<div style='display:flex;gap:8px;justify-content:flex-end;'>";
-      html += "<button id='codexPresetSaveBtn' class='primary' type='button'>Save Changes</button>";
-      html += "</div>";
       html += "</div>";
       editor.innerHTML = html;
       // Wire tree editor events
@@ -3979,6 +3976,12 @@
           var descInput = document.getElementById("codexPresetDescInput");
           preset.name = nameInput ? nameInput.value.trim() : preset.name;
           preset.description = descInput ? descInput.value.trim() : preset.description;
+          // Strip _enabled properties from tree_definition before saving
+          var cleanTreeDef = JSON.parse(JSON.stringify(preset.tree_definition || []));
+          cleanTreeDef.forEach(function (cat) {
+            (cat.items || []).forEach(function (item) { delete item._enabled; });
+          });
+          preset.tree_definition = cleanTreeDef;
           // Update cache immediately
           _codexFormatPresetsCache[presetKey] = preset;
           // Save to Supabase
