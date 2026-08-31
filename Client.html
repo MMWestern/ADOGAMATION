@@ -3076,6 +3076,8 @@
         closeSkCodexInspector();
         if (el.codexEntityPage) el.codexEntityPage.hidden = true;
         if (el.codexFeaturePage) el.codexFeaturePage.hidden = true;
+        if (el.codexRelPanel) el.codexRelPanel.hidden = true;
+        if (el.codexRelPanelList) el.codexRelPanelList.innerHTML = "";
         if (el.codexDashboard) el.codexDashboard.hidden = false;
         _codexActiveEntityId = 0;
         loadSeriesKnowledgeForSelectedProject(false).then(function () {
