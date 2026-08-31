@@ -282,8 +282,8 @@
         // Wire codex mode switch on first load
         if (typeof wireCodexModeSwitch === "function") wireCodexModeSwitch();
 
-        // Load format presets once
-        var presetsPromise = Object.keys(_codexFormatPresetsCache).length ? Promise.resolve() : loadCodexFormatPresets();
+        // Load format presets (merge Supabase + localStorage) every time so persisted edits survive refresh
+        var presetsPromise = typeof loadCodexFormatPresets === "function" ? loadCodexFormatPresets() : Promise.resolve();
 
         if (!forceRefresh && appState.seriesKnowledgeById && appState.seriesKnowledgeById[seriesId]) {
             renderSeriesKnowledgePanel(project);
@@ -3623,9 +3623,11 @@
 
     function loadCodexFormatPresets() {
       if (typeof supabaseRunner === "undefined") {
-        // Use hardcoded defaults when Supabase unavailable
+        // Use hardcoded defaults + preserved localStorage customs when Supabase unavailable
         if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
-          _codexFormatPresetsCache = Object.assign({}, CODEX_FORMAT_PRESETS_DEFAULTS);
+          Object.keys(CODEX_FORMAT_PRESETS_DEFAULTS).forEach(function (k) {
+            if (!_codexFormatPresetsCache[k]) _codexFormatPresetsCache[k] = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+          });
         }
         return Promise.resolve(_codexFormatPresetsCache);
       }
@@ -7824,10 +7826,8 @@
         populatePromptEditor();
       }
       if (e.detail && e.detail.tab === "tab-presets") {
-        // Ensure presets are loaded before populating
-        var presetsReady = Object.keys(_codexFormatPresetsCache).length
-          ? Promise.resolve()
-          : (typeof loadCodexFormatPresets === "function" ? loadCodexFormatPresets() : Promise.resolve());
+        // Ensure presets are loaded (merge Supabase + localStorage) so persisted edits survive refresh
+        var presetsReady = typeof loadCodexFormatPresets === "function" ? loadCodexFormatPresets() : Promise.resolve();
         presetsReady.then(function () {
           // Wire New Preset button once
           var newBtn = document.getElementById("codexPresetNewButton");
