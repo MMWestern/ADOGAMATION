@@ -4260,8 +4260,10 @@
         (cat.items || []).forEach(function (item, itemIdx) {
           var isEnabled = item._enabled !== false; // default to true
           html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:3px 0 3px 16px;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
+          html += "<span style='display:flex;align-items:center;gap:6px;'>";
           html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;' />";
           html += "<span>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
+          html += "</span>";
           if (item.subTypes && item.subTypes.length) {
             html += "<span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + " sub-types)</span>";
           }
