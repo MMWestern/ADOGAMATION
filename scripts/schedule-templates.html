@@ -106,6 +106,23 @@
           "<button type='button' class='schedule-milestone-delete' data-milestone-index='" + i + "'>×</button>";
         list.appendChild(row);
       });
+      Array.from(list.querySelectorAll(".schedule-milestone-row")).forEach(function (row, i) {
+        var m = tmpl.milestones[i];
+        var nameInput = row.querySelector(".schedule-milestone-name");
+        var offsetInput = row.querySelector(".schedule-milestone-offset");
+        var genCheck = row.querySelector(".schedule-entry-gen-check");
+        var docTypeSel = row.querySelector(".schedule-entry-doc-type");
+        var promptSel = row.querySelector(".schedule-entry-prompt-key");
+        if (nameInput && m) nameInput.addEventListener("input", function () { m.name = nameInput.value; });
+        if (offsetInput && m) offsetInput.addEventListener("input", function () { m.dayOffset = Number(offsetInput.value) || 0; });
+        if (genCheck && m) genCheck.addEventListener("change", function () {
+          m.generatesDoc = genCheck.checked;
+          if (docTypeSel) docTypeSel.disabled = !genCheck.checked;
+          if (promptSel) promptSel.disabled = !genCheck.checked;
+        });
+        if (docTypeSel && m) docTypeSel.addEventListener("change", function () { m.docType = docTypeSel.value; });
+        if (promptSel && m) promptSel.addEventListener("change", function () { m.promptKey = promptSel.value; });
+      });
       Array.from(list.querySelectorAll(".schedule-milestone-delete")).forEach(function (btn) {
         btn.addEventListener("click", function () {
           var idx = Number(btn.getAttribute("data-milestone-index"));
@@ -114,15 +131,6 @@
           if (!t) return;
           t.milestones.splice(idx, 1);
           renderScheduleTemplateEditor();
-        });
-      });
-      Array.from(list.querySelectorAll(".schedule-entry-gen-check")).forEach(function (cb) {
-        cb.addEventListener("change", function () {
-          var row = cb.closest(".schedule-milestone-row");
-          var docTypeSel = row.querySelector(".schedule-entry-doc-type");
-          var promptSel = row.querySelector(".schedule-entry-prompt-key");
-          if (docTypeSel) docTypeSel.disabled = !cb.checked;
-          if (promptSel) promptSel.disabled = !cb.checked;
         });
       });
     }
