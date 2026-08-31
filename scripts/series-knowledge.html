@@ -2091,6 +2091,11 @@
         groups[otherType].items.push({ conn: c, otherId: otherId, otherEntity: otherEntity, isSource: isSource });
       });
 
+      // Sort categories alphabetically by label for consistent ordering
+      groupOrder.sort(function (a, b) {
+        return (groups[a].label || a).localeCompare(groups[b].label || b);
+      });
+
       var relHtml = "";
       groupOrder.forEach(function (typeKey) {
         var group = groups[typeKey];
