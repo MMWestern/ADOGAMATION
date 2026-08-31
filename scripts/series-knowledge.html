@@ -4262,21 +4262,40 @@
         html += "<div style='display:grid;gap:1px;'>";
         (cat.items || []).forEach(function (item, itemIdx) {
           var isEnabled = item._enabled !== false; // default to true
+          var subTypes = item.subTypes || [];
+          var hasSubTypes = subTypes.length > 0;
           // Item row - matches .writing-codex-entry style
-          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:transparent;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
+          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='border-radius:6px;background:transparent;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
+          html += "<div style='display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;padding:5px 8px;'>";
           // Checkbox
           html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;' />";
           // Label with icon
           html += "<span style='font-size:12px;color:#f2f2f4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
           // Right side - badges and buttons
           html += "<span style='display:flex;align-items:center;gap:4px;'>";
-          if (item.subTypes && item.subTypes.length) {
-            html += "<span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + ")</span>";
+          if (hasSubTypes) {
+            html += "<span style='font-size:10px;color:var(--muted);'>(" + subTypes.length + ")</span>";
           }
           if (item.isFeature) html += "<span style='font-size:10px;color:var(--muted);'>[feature]</span>";
-          html += "<button class='preset-tree-edit-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit sub-types'>Sub-types</button>";
+          html += "<button class='preset-tree-toggle-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Toggle sub-types'>Sub-types</button>";
           html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove item'>&times;</button>";
           html += "</span>";
+          html += "</div>";
+          // Collapsible sub-types section
+          html += "<div class='preset-tree-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:none;padding:4px 8px 4px 32px;'>";
+          html += "<div class='preset-tree-subtypes-list' style='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;'>";
+          subTypes.forEach(function (st, stIdx) {
+            html += "<span style='display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#29292d;border-radius:4px;font-size:11px;color:#f2f2f4;'>";
+            html += escapeHtml(st);
+            html += "<button class='preset-tree-remove-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-st-idx='" + stIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:0 2px;background:transparent;border:none;cursor:pointer;' title='Remove sub-type'>&times;</button>";
+            html += "</span>";
+          });
+          html += "</div>";
+          html += "<div style='display:flex;gap:4px;'>";
+          html += "<input class='preset-tree-subtype-input' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='text' placeholder='Add sub-type...' style='flex:1;font-size:11px;padding:2px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+          html += "<button class='preset-tree-add-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 8px;background:#6366f1;border:none;border-radius:4px;color:white;cursor:pointer;'>Add</button>";
+          html += "</div>";
+          html += "</div>";
           html += "</div>";
         });
         html += "</div>";
@@ -4344,18 +4363,59 @@
         }
       });
 
-      // Edit sub-types
+      // Edit sub-types - now toggles collapsible section
       container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-edit-subtypes")) {
+        if (e.target.classList.contains("preset-tree-toggle-subtypes")) {
+          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+          var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+          var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+          if (subtypesSection) {
+            subtypesSection.style.display = subtypesSection.style.display === "none" ? "block" : "none";
+          }
+        }
+      });
+
+      // Add sub-type
+      container.addEventListener("click", function (e) {
+        if (e.target.classList.contains("preset-tree-add-subtype")) {
           var catIdx = Number(e.target.getAttribute("data-cat-idx"));
           var itemIdx = Number(e.target.getAttribute("data-item-idx"));
           if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+          var input = container.querySelector(".preset-tree-subtype-input[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+          if (!input || !input.value.trim()) return;
           var item = treeDef[catIdx].items[itemIdx];
-          var current = (item.subTypes || []).join(", ");
-          var input = prompt("Sub-types (comma-separated):", current);
-          if (input === null) return;
-          item.subTypes = input.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+          if (!item.subTypes) item.subTypes = [];
+          item.subTypes.push(input.value.trim());
           container.innerHTML = renderPresetTreeEditor(treeDef);
+          // Re-open the sub-types section after re-render
+          var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+          if (subtypesSection) subtypesSection.style.display = "block";
+        }
+      });
+
+      // Remove sub-type
+      container.addEventListener("click", function (e) {
+        if (e.target.classList.contains("preset-tree-remove-subtype")) {
+          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+          var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+          var stIdx = Number(e.target.getAttribute("data-st-idx"));
+          if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+          var item = treeDef[catIdx].items[itemIdx];
+          if (item.subTypes) {
+            item.subTypes.splice(stIdx, 1);
+            container.innerHTML = renderPresetTreeEditor(treeDef);
+            // Re-open the sub-types section after re-render
+            var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+            if (subtypesSection) subtypesSection.style.display = "block";
+          }
+        }
+      });
+
+      // Handle Enter key in sub-type input
+      container.addEventListener("keypress", function (e) {
+        if (e.key === "Enter" && e.target.classList.contains("preset-tree-subtype-input")) {
+          var addBtn = e.target.parentElement.querySelector(".preset-tree-add-subtype");
+          if (addBtn) addBtn.click();
         }
       });
 
