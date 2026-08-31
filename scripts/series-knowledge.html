@@ -4252,28 +4252,37 @@
     function renderPresetTreeEditor(treeDef) {
       var html = "";
       treeDef.forEach(function (cat, catIdx) {
-        html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:16px;'>";
-        html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);'>";
-        html += "<span style='font-weight:600;color:var(--text);font-size:13px;'>" + escapeHtml(cat.category) + "</span>";
-        html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;margin-left:auto;' title='Remove category'>&times;</button>";
+        html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:12px;'>";
+        // Category header - matches .writing-codex-group-header style
+        html += "<div style='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 8px;background:#29292d;border-radius:4px;margin-bottom:4px;'>";
+        html += "<span style='font-size:11px;font-weight:700;color:#f2f2f4;text-transform:uppercase;letter-spacing:0.04em;'>" + escapeHtml(cat.category) + "</span>";
+        html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove category'>&times;</button>";
         html += "</div>";
+        // Items list
+        html += "<div style='display:grid;gap:1px;'>";
         (cat.items || []).forEach(function (item, itemIdx) {
           var isEnabled = item._enabled !== false; // default to true
-          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:4px 0;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
-          html += "<span style='display:flex;align-items:center;gap:6px;min-width:180px;'>";
+          // Item row - matches .writing-codex-entry style
+          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:transparent;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
+          // Checkbox
           html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;' />";
-          html += "<span>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
-          html += "</span>";
+          // Label with icon
+          html += "<span style='font-size:12px;color:#f2f2f4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
+          // Right side - badges and buttons
+          html += "<span style='display:flex;align-items:center;gap:4px;'>";
           if (item.subTypes && item.subTypes.length) {
-            html += "<span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + " sub-types)</span>";
+            html += "<span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + ")</span>";
           }
           if (item.isFeature) html += "<span style='font-size:10px;color:var(--muted);'>[feature]</span>";
-          html += "<button class='preset-tree-edit-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;' title='Edit sub-types'>Sub-types</button>";
-          html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;' title='Remove item'>&times;</button>";
+          html += "<button class='preset-tree-edit-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit sub-types'>Sub-types</button>";
+          html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove item'>&times;</button>";
+          html += "</span>";
           html += "</div>";
         });
-        html += "<div style='padding:4px 0;'>";
-        html += "<button class='preset-tree-add-item' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;padding:2px 8px;'>+ Add Item</button>";
+        html += "</div>";
+        // Add item button
+        html += "<div style='padding:4px 8px;'>";
+        html += "<button class='preset-tree-add-item' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;padding:4px 8px;background:transparent;border:1px dashed #3a3a42;border-radius:4px;color:#7fa7d9;cursor:pointer;width:100%;text-align:left;'>+ Add Item</button>";
         html += "</div>";
         html += "</div>";
       });
