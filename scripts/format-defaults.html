@@ -50,8 +50,10 @@
       var list = el.formatDefaultsList;
       if (!list) return;
       list.innerHTML = "";
-      DEFAULT_FORMAT_OPTIONS.forEach(function (opt) {
-        var format = opt.value;
+      var formatValues = (typeof getInspectorOptionValues === "function")
+        ? getInspectorOptionValues("format", DEFAULT_FORMAT_OPTIONS)
+        : DEFAULT_FORMAT_OPTIONS.map(function (o) { return o.value; });
+      formatValues.forEach(function (format) {
         var defaults = appState.formatDefaults && appState.formatDefaults[format] || { scheduleTemplate: "", marketingTemplate: "" };
         var row = document.createElement("div");
         row.className = "format-default-row";
