@@ -3640,10 +3640,16 @@
                 result.presets.forEach(function (p) { _codexFormatPresetsCache[p.key] = p; });
               }
             } catch (e) { console.warn("Load presets parse error:", e); }
-            // Merge hardcoded defaults as fallback
+            // Merge hardcoded defaults as fallback, and preserve is_base/derived_from
             if (typeof CODEX_FORMAT_PRESETS_DEFAULTS !== "undefined") {
               Object.keys(CODEX_FORMAT_PRESETS_DEFAULTS).forEach(function (k) {
-                if (!_codexFormatPresetsCache[k]) _codexFormatPresetsCache[k] = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+                if (!_codexFormatPresetsCache[k]) {
+                  _codexFormatPresetsCache[k] = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+                } else {
+                  var def = CODEX_FORMAT_PRESETS_DEFAULTS[k];
+                  if (def.is_base) _codexFormatPresetsCache[k].is_base = true;
+                  if (def.derived_from) _codexFormatPresetsCache[k].derived_from = def.derived_from;
+                }
               });
             }
             resolve(_codexFormatPresetsCache);
