@@ -4249,14 +4249,16 @@
       });
     }
 
-    function renderPresetTreeEditor(treeDef) {
+    function renderPresetTreeEditor(treeDef, isBase) {
       var html = "";
       treeDef.forEach(function (cat, catIdx) {
         html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:12px;'>";
         // Category header - matches .writing-codex-group-header style
         html += "<div style='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 8px;background:#29292d;border-radius:4px;margin-bottom:4px;'>";
         html += "<span style='font-size:11px;font-weight:700;color:#f2f2f4;text-transform:uppercase;letter-spacing:0.04em;'>" + escapeHtml(cat.category) + "</span>";
-        html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove category'>&times;</button>";
+        if (isBase) {
+          html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove category'>&times;</button>";
+        }
         html += "</div>";
         // Items list
         html += "<div style='display:grid;gap:1px;'>";
@@ -4278,7 +4280,9 @@
           }
           if (item.isFeature) html += "<span style='font-size:10px;color:var(--muted);'>[feature]</span>";
           html += "<button class='preset-tree-toggle-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Toggle sub-types'>Sub-types</button>";
-          html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove item'>&times;</button>";
+          if (isBase) {
+            html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;background:transparent;border:none;cursor:pointer;' title='Remove item'>&times;</button>";
+          }
           html += "</span>";
           html += "</div>";
           // Collapsible sub-types section
@@ -4287,33 +4291,39 @@
           subTypes.forEach(function (st, stIdx) {
             html += "<span style='display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#29292d;border-radius:4px;font-size:11px;color:#f2f2f4;'>";
             html += escapeHtml(st);
-            html += "<button class='preset-tree-remove-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-st-idx='" + stIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:0 2px;background:transparent;border:none;cursor:pointer;' title='Remove sub-type'>&times;</button>";
+            if (isBase) {
+              html += "<button class='preset-tree-remove-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-st-idx='" + stIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:0 2px;background:transparent;border:none;cursor:pointer;' title='Remove sub-type'>&times;</button>";
+            }
             html += "</span>";
           });
           html += "</div>";
-          html += "<div style='display:flex;gap:4px;'>";
-          html += "<input class='preset-tree-subtype-input' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='text' placeholder='Add sub-type...' style='flex:1;font-size:11px;padding:2px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
-          html += "<button class='preset-tree-add-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 8px;background:#6366f1;border:none;border-radius:4px;color:white;cursor:pointer;'>Add</button>";
-          html += "</div>";
+          if (isBase) {
+            html += "<div style='display:flex;gap:4px;'>";
+            html += "<input class='preset-tree-subtype-input' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='text' placeholder='Add sub-type...' style='flex:1;font-size:11px;padding:2px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+            html += "<button class='preset-tree-add-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 8px;background:#6366f1;border:none;border-radius:4px;color:white;cursor:pointer;'>Add</button>";
+            html += "</div>";
+          }
           html += "</div>";
           html += "</div>";
         });
         html += "</div>";
-        // Add item button
-        html += "<div style='padding:4px 8px;'>";
-        html += "<button class='preset-tree-add-item' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;padding:4px 8px;background:transparent;border:1px dashed #3a3a42;border-radius:4px;color:#7fa7d9;cursor:pointer;width:100%;text-align:left;'>+ Add Item</button>";
-        html += "</div>";
+        // Add item button (only for base presets)
+        if (isBase) {
+          html += "<div style='padding:4px 8px;'>";
+          html += "<button class='preset-tree-add-item' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;padding:4px 8px;background:transparent;border:1px dashed #3a3a42;border-radius:4px;color:#7fa7d9;cursor:pointer;width:100%;text-align:left;'>+ Add Item</button>";
+          html += "</div>";
+        }
         html += "</div>";
       });
       return html;
     }
 
-    function wirePresetTreeEditor(preset) {
+    function wirePresetTreeEditor(preset, isBase) {
       var container = document.getElementById("codexPresetTreeEditor");
       if (!container) return;
       var treeDef = preset.tree_definition || [];
 
-      // Toggle item on/off
+      // Toggle item on/off (works for both base and derived)
       container.addEventListener("change", function (e) {
         if (e.target.classList.contains("preset-tree-toggle")) {
           var catIdx = Number(e.target.getAttribute("data-cat-idx"));
@@ -4326,44 +4336,47 @@
         }
       });
 
-      // Remove item
-      container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-remove-item")) {
-          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
-          var itemIdx = Number(e.target.getAttribute("data-item-idx"));
-          if (treeDef[catIdx] && treeDef[catIdx].items) {
-            treeDef[catIdx].items.splice(itemIdx, 1);
-            container.innerHTML = renderPresetTreeEditor(treeDef);
+      // Only wire add/remove events for base presets
+      if (isBase) {
+        // Remove item
+        container.addEventListener("click", function (e) {
+          if (e.target.classList.contains("preset-tree-remove-item")) {
+            var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+            var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+            if (treeDef[catIdx] && treeDef[catIdx].items) {
+              treeDef[catIdx].items.splice(itemIdx, 1);
+              container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+            }
           }
-        }
-      });
+        });
 
-      // Remove category
-      container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-remove-cat")) {
-          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
-          treeDef.splice(catIdx, 1);
-          container.innerHTML = renderPresetTreeEditor(treeDef);
-        }
-      });
-
-      // Add item to category
-      container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-add-item")) {
-          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
-          var label = prompt("Item label (e.g. Characters):");
-          if (!label) return;
-          var key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-          var icon = prompt("Icon (emoji, optional):", "") || "";
-          var entityTypeKey = prompt("Entity type key (e.g. character, item):", key) || key;
-          if (treeDef[catIdx] && treeDef[catIdx].items) {
-            treeDef[catIdx].items.push({ key: key, label: label, icon: icon, entityTypeKey: entityTypeKey, _enabled: true });
-            container.innerHTML = renderPresetTreeEditor(treeDef);
+        // Remove category
+        container.addEventListener("click", function (e) {
+          if (e.target.classList.contains("preset-tree-remove-cat")) {
+            var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+            treeDef.splice(catIdx, 1);
+            container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
           }
-        }
-      });
+        });
 
-      // Edit sub-types - now toggles collapsible section
+        // Add item to category
+        container.addEventListener("click", function (e) {
+          if (e.target.classList.contains("preset-tree-add-item")) {
+            var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+            var label = prompt("Item label (e.g. Characters):");
+            if (!label) return;
+            var key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+            var icon = prompt("Icon (emoji, optional):", "") || "";
+            var entityTypeKey = prompt("Entity type key (e.g. character, item):", key) || key;
+            if (treeDef[catIdx] && treeDef[catIdx].items) {
+              treeDef[catIdx].items.push({ key: key, label: label, icon: icon, entityTypeKey: entityTypeKey, _enabled: true });
+              container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+            }
+          }
+        });
+      }
+
+      // Edit sub-types - now toggles collapsible section (works for both base and derived)
       container.addEventListener("click", function (e) {
         if (e.target.classList.contains("preset-tree-toggle-subtypes")) {
           var catIdx = Number(e.target.getAttribute("data-cat-idx"));
@@ -4375,59 +4388,113 @@
         }
       });
 
-      // Add sub-type
-      container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-add-subtype")) {
-          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
-          var itemIdx = Number(e.target.getAttribute("data-item-idx"));
-          if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
-          var input = container.querySelector(".preset-tree-subtype-input[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
-          if (!input || !input.value.trim()) return;
-          var item = treeDef[catIdx].items[itemIdx];
-          if (!item.subTypes) item.subTypes = [];
-          item.subTypes.push(input.value.trim());
-          container.innerHTML = renderPresetTreeEditor(treeDef);
-          // Re-open the sub-types section after re-render
-          var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
-          if (subtypesSection) subtypesSection.style.display = "block";
-        }
-      });
-
-      // Remove sub-type
-      container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("preset-tree-remove-subtype")) {
-          var catIdx = Number(e.target.getAttribute("data-cat-idx"));
-          var itemIdx = Number(e.target.getAttribute("data-item-idx"));
-          var stIdx = Number(e.target.getAttribute("data-st-idx"));
-          if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
-          var item = treeDef[catIdx].items[itemIdx];
-          if (item.subTypes) {
-            item.subTypes.splice(stIdx, 1);
-            container.innerHTML = renderPresetTreeEditor(treeDef);
+      // Add sub-type (only for base presets)
+      if (isBase) {
+        container.addEventListener("click", function (e) {
+          if (e.target.classList.contains("preset-tree-add-subtype")) {
+            var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+            var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+            var input = container.querySelector(".preset-tree-subtype-input[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+            if (!input || !input.value.trim()) return;
+            var item = treeDef[catIdx].items[itemIdx];
+            if (!item.subTypes) item.subTypes = [];
+            item.subTypes.push(input.value.trim());
+            container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
             // Re-open the sub-types section after re-render
             var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
             if (subtypesSection) subtypesSection.style.display = "block";
           }
-        }
-      });
-
-      // Handle Enter key in sub-type input
-      container.addEventListener("keypress", function (e) {
-        if (e.key === "Enter" && e.target.classList.contains("preset-tree-subtype-input")) {
-          var addBtn = e.target.parentElement.querySelector(".preset-tree-add-subtype");
-          if (addBtn) addBtn.click();
-        }
-      });
-
-      // Add category
-      var addCatBtn = document.getElementById("codexPresetAddCategoryBtn");
-      if (addCatBtn) {
-        addCatBtn.addEventListener("click", function () {
-          var name = prompt("Category name (e.g. CORE, WORLD, STORY):");
-          if (!name) return;
-          treeDef.push({ category: name, items: [] });
-          container.innerHTML = renderPresetTreeEditor(treeDef);
         });
+
+        // Remove sub-type
+        container.addEventListener("click", function (e) {
+          if (e.target.classList.contains("preset-tree-remove-subtype")) {
+            var catIdx = Number(e.target.getAttribute("data-cat-idx"));
+            var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+            var stIdx = Number(e.target.getAttribute("data-st-idx"));
+            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+            var item = treeDef[catIdx].items[itemIdx];
+            if (item.subTypes) {
+              item.subTypes.splice(stIdx, 1);
+              container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+              // Re-open the sub-types section after re-render
+              var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
+              if (subtypesSection) subtypesSection.style.display = "block";
+            }
+          }
+        });
+
+        // Handle Enter key in sub-type input
+        container.addEventListener("keypress", function (e) {
+          if (e.key === "Enter" && e.target.classList.contains("preset-tree-subtype-input")) {
+            var addBtn = e.target.parentElement.querySelector(".preset-tree-add-subtype");
+            if (addBtn) addBtn.click();
+          }
+        });
+
+        // Add category
+        var addCatBtn = document.getElementById("codexPresetAddCategoryBtn");
+        if (addCatBtn) {
+          addCatBtn.addEventListener("click", function () {
+            var name = prompt("Category name (e.g. CORE, WORLD, STORY):");
+            if (!name) return;
+            treeDef.push({ category: name, items: [] });
+            container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+          });
+        }
+      }
+    }
+
+    function syncDerivedPreset(derivedKey) {
+      var derived = _codexFormatPresetsCache[derivedKey];
+      if (!derived || !derived.derived_from) return;
+      var baseKey = derived.derived_from;
+      var base = _codexFormatPresetsCache[baseKey];
+      if (!base || !base.tree_definition) {
+        setStatus("Base preset '" + baseKey + "' not found.", "error");
+        return;
+      }
+      var baseTree = base.tree_definition;
+      var derivedTree = derived.tree_definition || [];
+      // Build a map of enabled items from derived preset
+      var enabledMap = {};
+      derivedTree.forEach(function (cat) {
+        (cat.items || []).forEach(function (item) {
+          enabledMap[cat.category + "|" + item.key] = item._enabled !== false;
+        });
+      });
+      // Build new tree from base, preserving enabled state
+      var newTree = baseTree.map(function (cat) {
+        var newCat = { category: cat.category, items: [] };
+        (cat.items || []).forEach(function (item) {
+          var mapKey = cat.category + "|" + item.key;
+          var newItem = JSON.parse(JSON.stringify(item));
+          newItem._enabled = enabledMap[mapKey] !== undefined ? enabledMap[mapKey] : false;
+          newCat.items.push(newItem);
+        });
+        return newCat;
+      });
+      // Update derived preset
+      derived.tree_definition = newTree;
+      _codexFormatPresetsCache[derivedKey] = derived;
+      saveCodexPresetsToStorage();
+      // Save to Supabase
+      if (typeof supabaseRunner !== "undefined") {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            setStatus("Synced from base preset.", "ok");
+            renderCodexPresetEditor(derivedKey);
+          })
+          .withFailureHandler(function (err) {
+            console.warn("Sync save failed:", err);
+            setStatus("Synced locally (server save failed).", "warn");
+            renderCodexPresetEditor(derivedKey);
+          })
+          .saveCodexFormatPreset(JSON.stringify(derived));
+      } else {
+        setStatus("Synced from base preset.", "ok");
+        renderCodexPresetEditor(derivedKey);
       }
     }
 
@@ -4440,12 +4507,17 @@
         return;
       }
       var treeDef = preset.tree_definition || [];
+      var isBase = !!preset.is_base;
+      var isDerived = !!preset.derived_from;
       var html = "";
       html += "<div style='display:flex;flex-direction:column;gap:12px;'>";
       // Header with all action buttons
       html += "<div style='display:flex;justify-content:space-between;align-items:center;'>";
       html += "<h4 style='margin:0;'>" + escapeHtml(preset.name || presetKey) + "</h4>";
       html += "<div style='display:flex;gap:8px;'>";
+      if (isDerived) {
+        html += "<button id='codexPresetSyncBtn' type='button' style='font-size:12px;color:#6366f1;'>Sync from Base</button>";
+      }
       if (!preset.is_builtin) {
         html += "<button id='codexPresetDeleteBtn' type='button' style='font-size:12px;color:#ef4444;'>Delete</button>";
       }
@@ -4466,17 +4538,31 @@
       html += "</div>";
       // Interactive tree editor
       html += "<div><label class='label'>Tree Structure</label>";
+      if (isDerived) {
+        html += "<div style='font-size:11px;color:var(--muted);margin-bottom:8px;'>This is a derived preset. Toggle items on/off. Add new items in the base preset (All Types).</div>";
+      }
       html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:500px;overflow-y:auto;'>";
-      html += renderPresetTreeEditor(treeDef);
+      html += renderPresetTreeEditor(treeDef, isBase);
       html += "</div>";
-      html += "<div style='margin-top:8px;display:flex;gap:8px;'>";
-      html += "<button id='codexPresetAddCategoryBtn' type='button' style='font-size:11px;'>+ Add Category</button>";
-      html += "</div>";
+      if (isBase) {
+        html += "<div style='margin-top:8px;display:flex;gap:8px;'>";
+        html += "<button id='codexPresetAddCategoryBtn' type='button' style='font-size:11px;'>+ Add Category</button>";
+        html += "</div>";
+      }
       html += "</div>";
       html += "</div>";
       editor.innerHTML = html;
       // Wire tree editor events
-      wirePresetTreeEditor(preset);
+      wirePresetTreeEditor(preset, isBase);
+      // Wire sync button for derived presets
+      if (isDerived) {
+        var syncBtn = document.getElementById("codexPresetSyncBtn");
+        if (syncBtn) {
+          syncBtn.addEventListener("click", function () {
+            syncDerivedPreset(presetKey);
+          });
+        }
+      }
       // Fix mouse wheel scroll on tree editor
       var treeEditor = document.getElementById("codexPresetTreeEditor");
       if (treeEditor) {

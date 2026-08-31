@@ -95,7 +95,7 @@ const DEFAULT_STATUS_OPTIONS = [
 
     var CODEX_FORMAT_PRESETS_DEFAULTS = {
       litrpg: {
-        key: "litrpg", name: "LitRPG", description: "Game-like progression systems, stats, skills, equipment, and quests.", is_builtin: true,
+        key: "litrpg", name: "LitRPG", description: "Game-like progression systems, stats, skills, equipment, and quests.", is_builtin: true, derived_from: "all_types",
         tree_definition: [
           { category: "CORE", items: [
             { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character" },
@@ -157,7 +157,7 @@ const DEFAULT_STATUS_OPTIONS = [
         ]
       },
       standard_fantasy: {
-        key: "standard_fantasy", name: "Standard Fantasy", description: "Classic fantasy world-building with magic, cultures, and epic story arcs.", is_builtin: true,
+        key: "standard_fantasy", name: "Standard Fantasy", description: "Classic fantasy world-building with magic, cultures, and epic story arcs.", is_builtin: true, derived_from: "all_types",
         tree_definition: [
           { category: "CORE", items: [
             { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor"] },
@@ -203,7 +203,7 @@ const DEFAULT_STATUS_OPTIONS = [
         ]
       },
       contemporary: {
-        key: "contemporary", name: "Contemporary", description: "Real-world stories focused on character relationships, conflicts, and personal arcs.", is_builtin: true,
+        key: "contemporary", name: "Contemporary", description: "Real-world stories focused on character relationships, conflicts, and personal arcs.", is_builtin: true, derived_from: "all_types",
         tree_definition: [
           { category: "CORE", items: [
             { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor"] },
@@ -236,7 +236,7 @@ const DEFAULT_STATUS_OPTIONS = [
         ]
       },
       all_types: {
-        key: "all_types", name: "All Types", description: "Shows every entity type and feature. Use this to see everything available.", is_builtin: true,
+        key: "all_types", name: "All Types", description: "Shows every entity type and feature. Use this to see everything available.", is_builtin: true, is_base: true,
         tree_definition: [
           { category: "CORE", items: [
             { key:"characters",label:"Characters",icon:"\u{1F464}",entityTypeKey:"character",subTypes:["Protagonist","Antagonist","Supporting","Minor","Mentioned"] },
