@@ -4466,7 +4466,7 @@
       html += "</div>";
       // Interactive tree editor
       html += "<div><label class='label'>Tree Structure</label>";
-      html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;'>";
+      html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:500px;overflow-y:auto;'>";
       html += renderPresetTreeEditor(treeDef);
       html += "</div>";
       html += "<div style='margin-top:8px;display:flex;gap:8px;'>";
@@ -4477,6 +4477,21 @@
       editor.innerHTML = html;
       // Wire tree editor events
       wirePresetTreeEditor(preset);
+      // Fix mouse wheel scroll on tree editor
+      var treeEditor = document.getElementById("codexPresetTreeEditor");
+      if (treeEditor) {
+        treeEditor.addEventListener("wheel", function (e) {
+          var scrollTop = treeEditor.scrollTop;
+          var scrollHeight = treeEditor.scrollHeight;
+          var clientHeight = treeEditor.clientHeight;
+          var delta = e.deltaY;
+          // Only handle if content overflows
+          if (scrollHeight > clientHeight) {
+            e.preventDefault();
+            treeEditor.scrollTop = scrollTop + delta;
+          }
+        }, { passive: false });
+      }
       // Wire buttons
       var saveBtn = document.getElementById("codexPresetSaveBtn");
       if (saveBtn) {

@@ -2675,14 +2675,14 @@
 
         <!-- Tab 4: Codex Presets -->
         <div id="tab-presets" class="settings-panel" hidden>
-          <div style="display:grid;grid-template-columns:220px minmax(0,1fr);flex:1;min-height:0;">
-            <div style="flex-shrink:0;border-right:1px solid var(--border);padding:8px 0;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;flex:1;min-height:0;overflow:hidden;">
+            <div style="width:220px;flex-shrink:0;border-right:1px solid var(--border);padding:8px 0;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
               <div id="codexPresetList"></div>
               <div style="padding:8px 14px;margin-top:auto;">
                 <button id="codexPresetNewButton" type="button" style="width:100%;font-size:12px;">+ New Preset</button>
               </div>
             </div>
-            <div id="codexPresetEditor" style="overflow-y:auto;padding:16px;min-height:0;">
+            <div id="codexPresetEditor" style="flex:1;overflow-y:auto;padding:16px;">
               <div class="landing-empty" style="padding:20px;">Select a preset to edit, or create a new one.</div>
             </div>
           </div>
