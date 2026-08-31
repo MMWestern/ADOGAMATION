@@ -4252,15 +4252,15 @@
     function renderPresetTreeEditor(treeDef) {
       var html = "";
       treeDef.forEach(function (cat, catIdx) {
-        html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:10px;'>";
-        html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px;'>";
-        html += "<span style='font-weight:600;color:var(--text);'>" + escapeHtml(cat.category) + "</span>";
-        html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;' title='Remove category'>&times;</button>";
+        html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:16px;'>";
+        html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);'>";
+        html += "<span style='font-weight:600;color:var(--text);font-size:13px;'>" + escapeHtml(cat.category) + "</span>";
+        html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;margin-left:auto;' title='Remove category'>&times;</button>";
         html += "</div>";
         (cat.items || []).forEach(function (item, itemIdx) {
           var isEnabled = item._enabled !== false; // default to true
-          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:3px 0 3px 16px;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
-          html += "<span style='display:flex;align-items:center;gap:6px;'>";
+          html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:4px 0;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
+          html += "<span style='display:flex;align-items:center;gap:6px;min-width:180px;'>";
           html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;' />";
           html += "<span>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
           html += "</span>";
@@ -4272,7 +4272,7 @@
           html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;' title='Remove item'>&times;</button>";
           html += "</div>";
         });
-        html += "<div style='padding:3px 0 3px 16px;'>";
+        html += "<div style='padding:4px 0;'>";
         html += "<button class='preset-tree-add-item' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;padding:2px 8px;'>+ Add Item</button>";
         html += "</div>";
         html += "</div>";
