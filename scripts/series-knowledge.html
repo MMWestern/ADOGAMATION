@@ -4230,12 +4230,25 @@
       var container = document.getElementById("codexPresetList");
       if (!container) return;
       var html = "";
-      Object.keys(_codexFormatPresetsCache).forEach(function (key) {
+      // Sort presets: base first, then built-in, then custom
+      var keys = Object.keys(_codexFormatPresetsCache).sort(function (a, b) {
+        var pa = _codexFormatPresetsCache[a];
+        var pb = _codexFormatPresetsCache[b];
+        if (pa.is_base && !pb.is_base) return -1;
+        if (!pa.is_base && pb.is_base) return 1;
+        if (pa.is_builtin && !pb.is_builtin) return -1;
+        if (!pa.is_builtin && pb.is_builtin) return 1;
+        return (pa.sort_order || 99) - (pb.sort_order || 99);
+      });
+      keys.forEach(function (key) {
         var p = _codexFormatPresetsCache[key];
         var isActive = _codexPresetEditorActive === key;
+        var isBase = !!p.is_base;
+        var displayName = isBase ? "BASE - " + (p.name || key) : (p.name || key);
+        var nameStyle = isBase ? "font-weight:700;font-size:13px;" : "";
         html += "<div class='schedule-marketing-sidebar-item" + (isActive ? " is-active" : "") + "' data-preset-key='" + key + "'>";
-        html += escapeHtml(p.name || key);
-        if (p.is_builtin) html += " <span style='font-size:9px;color:var(--muted);'>(built-in)</span>";
+        html += "<span style='" + nameStyle + "'>" + escapeHtml(displayName) + "</span>";
+        if (p.is_builtin && !isBase) html += " <span style='font-size:9px;color:var(--muted);'>(built-in)</span>";
         html += "</div>";
       });
       container.innerHTML = html;
