@@ -4254,20 +4254,20 @@
       treeDef.forEach(function (cat, catIdx) {
         html += "<div class='preset-tree-category' data-cat-idx='" + catIdx + "' style='margin-bottom:10px;'>";
         html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px;'>";
-        html += "<span style='font-weight:600;color:var(--text);flex:1;'>" + escapeHtml(cat.category) + "</span>";
+        html += "<span style='font-weight:600;color:var(--text);'>" + escapeHtml(cat.category) + "</span>";
         html += "<button class='preset-tree-remove-cat' data-cat-idx='" + catIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;' title='Remove category'>&times;</button>";
         html += "</div>";
         (cat.items || []).forEach(function (item, itemIdx) {
           var isEnabled = item._enabled !== false; // default to true
           html += "<div class='preset-tree-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' style='display:flex;align-items:center;gap:6px;padding:3px 0 3px 16px;" + (isEnabled ? "" : "opacity:0.4;") + "'>";
-          html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;' />";
-          html += "<span style='flex:1;'>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
+          html += "<input type='checkbox' class='preset-tree-toggle' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "'" + (isEnabled ? " checked" : "") + " style='margin:0;flex-shrink:0;' />";
+          html += "<span style='flex-shrink:0;'>" + (item.icon || "") + " " + escapeHtml(item.label) + "</span>";
           if (item.subTypes && item.subTypes.length) {
-            html += "<span style='font-size:10px;color:var(--muted);'>(" + item.subTypes.length + " sub-types)</span>";
+            html += "<span style='font-size:10px;color:var(--muted);flex-shrink:0;'>(" + item.subTypes.length + " sub-types)</span>";
           }
-          if (item.isFeature) html += "<span style='font-size:10px;color:var(--muted);'>[feature]</span>";
-          html += "<button class='preset-tree-edit-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;' title='Edit sub-types'>Sub-types</button>";
-          html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;' title='Remove item'>&times;</button>";
+          if (item.isFeature) html += "<span style='font-size:10px;color:var(--muted);flex-shrink:0;'>[feature]</span>";
+          html += "<button class='preset-tree-edit-subtypes' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;padding:2px 6px;flex-shrink:0;' title='Edit sub-types'>Sub-types</button>";
+          html += "<button class='preset-tree-remove-item' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' type='button' style='font-size:10px;color:#ef4444;padding:2px 6px;flex-shrink:0;' title='Remove item'>&times;</button>";
           html += "</div>";
         });
         html += "<div style='padding:3px 0 3px 16px;'>";
@@ -4382,9 +4382,17 @@
       html += "<button id='codexPresetSaveBtn' class='primary' type='button' style='font-size:12px;'>Save Changes</button>";
       html += "</div>";
       html += "</div>";
-      // Name/Description fields
-      html += "<div><label class='label'>Name</label><input id='codexPresetNameInput' type='text' value='" + escapeHtml(preset.name || "") + "' /></div>";
-      html += "<div><label class='label'>Description</label><textarea id='codexPresetDescInput' rows='2' style='width:100%;font-size:12px;'>" + escapeHtml(preset.description || "") + "</textarea></div>";
+      // Name/Description fields - side by side
+      html += "<div style='display:flex;gap:12px;'>";
+      html += "<div style='flex:1;'>";
+      html += "<label class='label'>Name</label>";
+      html += "<input id='codexPresetNameInput' type='text' value='" + escapeHtml(preset.name || "") + "' style='width:100%;' />";
+      html += "</div>";
+      html += "<div style='flex:2;'>";
+      html += "<label class='label'>Description</label>";
+      html += "<textarea id='codexPresetDescInput' rows='1' style='width:100%;font-size:12px;'>" + escapeHtml(preset.description || "") + "</textarea>";
+      html += "</div>";
+      html += "</div>";
       // Interactive tree editor
       html += "<div><label class='label'>Tree Structure</label>";
       html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:500px;overflow-y:auto;'>";
