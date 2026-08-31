@@ -8848,7 +8848,10 @@
       overflow: hidden;
     }
     .settings-panel.scrollable {
-      overflow-y: auto;
+      overflow: auto;
+    }
+    .settings-panel.scrollable > * {
+      flex-shrink: 0;
     }
     .settings-panel[hidden] {
       display: none;
