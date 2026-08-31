@@ -10,6 +10,36 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, types: res.data || [] }); });
     });
 
+    _sbDefine('createCodexEntityType', function (typeJson) {
+      var type = JSON.parse(typeJson);
+      return sbClient.from('codex_entity_types').insert({
+        key: type.key,
+        name_singular: type.name_singular || type.key,
+        name_plural: type.name_plural || type.key + 's',
+        icon: type.icon || '',
+        description: type.description || '',
+        is_system_type: false,
+        is_enabled: true,
+        sort_order: type.sort_order || 999
+      }).select().single()
+      .then(function (res) {
+        if (res.error) {
+          // Handle duplicate key error (PostgreSQL error code 23505)
+          if (res.error.code === '23505') {
+            // Find similar existing types
+            var similarTypes = Object.keys(codexCache.entityTypesByKey || {}).filter(function(key) {
+              return key.includes(type.key) || type.key.includes(key);
+            });
+            throw new Error('Entity type "' + type.key + '" already exists. Similar types: ' +
+              (similarTypes.length ? similarTypes.join(', ') : 'none') +
+              '. Please choose a different key or use an existing type.');
+          }
+          throw res.error;
+        }
+        return JSON.stringify({ ok: true, type: res.data });
+      });
+    });
+
     // ---- Format Presets ----
 
     _sbDefine('listCodexFormatPresets', function () {
@@ -115,9 +145,38 @@
       var safeSeriesId = Number(seriesId || 0);
       var safeTypeId = Number(entityTypeId || 0);
       if (!safeSeriesId) throw new Error('Series id is required.');
-      if (!safeTypeId) throw new Error('Entity type id is required.');
       var parsed = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : (payloadJson || {});
       var entityId = Number(parsed.id || 0);
+      
+      // Auto-create entity type if not found
+      if (!safeTypeId) {
+        var typeKey = parsed.entity_type_key || '';
+        if (!typeKey) {
+          throw new Error('Entity type id is required.');
+        }
+        
+        // Check if type already exists in cache
+        var existingType = codexCache.entityTypesByKey && codexCache.entityTypesByKey[typeKey];
+        if (existingType) {
+          safeTypeId = Number(existingType.id || 0);
+        } else {
+          // Auto-create the type
+          return createCodexEntityType(JSON.stringify({
+            key: typeKey,
+            name_singular: typeKey,
+            name_plural: typeKey + 's'
+          })).then(function (result) {
+            var newType = JSON.parse(result).type;
+            // Update cache
+            if (codexCache.entityTypesByKey) {
+              codexCache.entityTypesByKey[typeKey] = newType;
+            }
+            // Retry save with new type ID
+            return saveCodexEntity(seriesId, newType.id, payloadJson);
+          });
+        }
+      }
+      
       var payload = {
         series_id: safeSeriesId,
         entity_type_id: safeTypeId,

@@ -4422,16 +4422,37 @@
                 } catch (e) { console.warn("Preset save response parse error:", e); }
                 populateCodexPresetList();
                 renderCodexPresetEditor(presetKey);
+                // Refresh codex tree and New Entry dropdown if on codex tab
+                if (typeof renderCodexTree === "function" && skCurrentSeriesId) {
+                  renderCodexTree(skCurrentSeriesId);
+                }
+                if (typeof rebuildNewEntryDropdown === "function" && skCurrentSeriesId) {
+                  rebuildNewEntryDropdown(skCurrentSeriesId, el.codexNewEntry, el.codexNewEntryDropdown);
+                }
               })
               .withFailureHandler(function (err) {
                 console.warn("Preset Supabase save failed (saved to localStorage):", err);
                 populateCodexPresetList();
                 renderCodexPresetEditor(presetKey);
+                // Refresh codex tree and New Entry dropdown if on codex tab
+                if (typeof renderCodexTree === "function" && skCurrentSeriesId) {
+                  renderCodexTree(skCurrentSeriesId);
+                }
+                if (typeof rebuildNewEntryDropdown === "function" && skCurrentSeriesId) {
+                  rebuildNewEntryDropdown(skCurrentSeriesId, el.codexNewEntry, el.codexNewEntryDropdown);
+                }
               })
               .saveCodexFormatPreset(JSON.stringify(preset));
           } else {
             populateCodexPresetList();
             renderCodexPresetEditor(presetKey);
+            // Refresh codex tree and New Entry dropdown if on codex tab
+            if (typeof renderCodexTree === "function" && skCurrentSeriesId) {
+              renderCodexTree(skCurrentSeriesId);
+            }
+            if (typeof rebuildNewEntryDropdown === "function" && skCurrentSeriesId) {
+              rebuildNewEntryDropdown(skCurrentSeriesId, el.codexNewEntry, el.codexNewEntryDropdown);
+            }
           }
         });
       }
@@ -5283,12 +5304,11 @@
               entityTypeId = getCodexEntityTypeId_(seriesId, entityTypeKey);
             }
             if (!entityTypeId) {
-              setStatus("Unknown entity type '" + entityTypeKey + "'. Check that the codex_entity_types table has this type.", "error");
-              saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
-              saveBtn.setAttribute("data-saving", "0");
+              // Auto-create the entity type instead of showing error
+              performSave(0, entityTypeKey);
               return;
             }
-            performSave(entityTypeId);
+            performSave(entityTypeId, entityTypeKey);
           }).catch(function (err) {
             setStatus("Failed to load entity types: " + (err && err.message ? err.message : err), "error");
             saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
@@ -5296,8 +5316,8 @@
           });
           return;
         }
-        performSave(entityTypeId);
-        function performSave(eTypeId) {
+        performSave(entityTypeId, entityTypeKey);
+        function performSave(eTypeId, eTypeKey) {
           var sections = {};
           document.querySelectorAll(".codex-section-textarea").forEach(function (ta) {
             var k = ta.getAttribute("data-section-key") || "";
@@ -5356,7 +5376,8 @@
             visibility: visibilitySelect ? visibilitySelect.value : (entity.visibility || "private"),
             spoiler_level: spoilerSelect ? spoilerSelect.value : (entity.spoiler_level || "author_only"),
             projectLinks: scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [],
-            custom_data: mergedCustom
+            custom_data: mergedCustom,
+            entity_type_key: eTypeKey || entityTypeKey
           };
           callAppsScriptJson("saveCodexEntity", [seriesId, eTypeId, JSON.stringify(codexPayload)])
             .then(function (result) {
@@ -5389,7 +5410,23 @@
               refreshCurrentCodexView();
             })
             .catch(function (error) {
-              setStatus("Save failed: " + (error && error.message ? error.message : error), "error");
+              var errorMsg = error && error.message ? error.message : String(error);
+              // Handle "already exists" error with suggestions
+              if (errorMsg.includes('already exists')) {
+                // Parse the error message to extract similar types
+                var match = errorMsg.match(/Similar types: ([^.]+)/);
+                var similarTypes = match ? match[1].split(', ') : [];
+                
+                // Show error with suggestions
+                var userMsg = errorMsg;
+                if (similarTypes.length > 0 && similarTypes[0] !== 'none') {
+                  userMsg += '\n\nSuggested alternatives: ' + similarTypes.join(', ');
+                }
+                userMsg += '\n\nPlease choose a different key or use an existing type.';
+                setStatus(userMsg, "error");
+              } else {
+                setStatus("Save failed: " + errorMsg, "error");
+              }
               saveBtn.textContent = isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save";
               saveBtn.setAttribute("data-saving", "0");
             });
