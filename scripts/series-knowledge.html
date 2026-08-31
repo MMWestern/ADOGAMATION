@@ -3950,6 +3950,12 @@
       // Hidden entity warning
       html += renderHiddenEntityWarning(seriesId);
       treeDef.forEach(function (cat) {
+        // Check if any items in this category are enabled
+        var hasEnabledItems = (cat.items || []).some(function (item) {
+          return item._enabled !== false;
+        });
+        // Skip categories with no enabled items
+        if (!hasEnabledItems) return;
         html += "<div class='writing-codex-group codex-tree-category'>";
         html += "<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + cat.category + "'>";
         html += "<span class='writing-codex-group-title'>" + cat.category + "</span>";
