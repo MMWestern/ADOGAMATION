@@ -160,13 +160,32 @@
         if (existingType) {
           safeTypeId = Number(existingType.id || 0);
         } else {
-          // Auto-create the type
-          return createCodexEntityType(JSON.stringify({
+          // Auto-create the type inline
+          return sbClient.from('codex_entity_types').insert({
             key: typeKey,
             name_singular: typeKey,
-            name_plural: typeKey + 's'
-          })).then(function (result) {
-            var newType = JSON.parse(result).type;
+            name_plural: typeKey + 's',
+            icon: '',
+            description: '',
+            is_system_type: false,
+            is_enabled: true,
+            sort_order: 999
+          }).select().single()
+          .then(function (res) {
+            if (res.error) {
+              // Handle duplicate key error (PostgreSQL error code 23505)
+              if (res.error.code === '23505') {
+                // Find similar existing types
+                var similarTypes = Object.keys(codexCache.entityTypesByKey || {}).filter(function(key) {
+                  return key.includes(typeKey) || typeKey.includes(key);
+                });
+                throw new Error('Entity type "' + typeKey + '" already exists. Similar types: ' +
+                  (similarTypes.length ? similarTypes.join(', ') : 'none') +
+                  '. Please choose a different key or use an existing type.');
+              }
+              throw res.error;
+            }
+            var newType = res.data;
             // Update cache
             if (codexCache.entityTypesByKey) {
               codexCache.entityTypesByKey[typeKey] = newType;
