@@ -4465,8 +4465,9 @@
       html += "</div>";
       html += "</div>";
       // Interactive tree editor
-      html += "<div><label class='label'>Tree Structure</label>";
-      html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:500px;overflow:auto;'>";
+      html += "<div style='flex:1;min-height:0;overflow:hidden;'>";
+      html += "<label class='label'>Tree Structure</label>";
+      html += "<div id='codexPresetTreeEditor' style='background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;max-height:calc(100vh - 300px);overflow-y:auto;overflow-x:hidden;'>";
       html += renderPresetTreeEditor(treeDef);
       html += "</div>";
       html += "<div style='margin-top:8px;display:flex;gap:8px;'>";
