@@ -4564,7 +4564,12 @@
       html += "</div>";
       html += "</div>";
       // Interactive tree editor
-      html += "<div><label class='label'>Tree Structure</label>";
+      html += "<div><div style='display:flex;align-items:center;justify-content:space-between;'>";
+      html += "<label class='label'>Tree Structure</label>";
+      html += "<div style='display:flex;gap:6px;'>";
+      html += "<button id='codexPresetSelectAllBtn' type='button' style='font-size:11px;padding:2px 8px;'>Select All</button>";
+      html += "<button id='codexPresetDeselectAllBtn' type='button' style='font-size:11px;padding:2px 8px;'>Deselect All</button>";
+      html += "</div></div>";
       if (isDerived) {
         html += "<div style='font-size:11px;color:var(--muted);margin-bottom:8px;'>This is a derived preset. Toggle items on/off. Add new items in the base preset (All Types).</div>";
       }
@@ -4581,6 +4586,27 @@
       editor.innerHTML = html;
       // Wire tree editor events
       wirePresetTreeEditor(preset, isBase);
+      // Wire Select All / Deselect All buttons
+      var selectAllBtn = document.getElementById("codexPresetSelectAllBtn");
+      var deselectAllBtn = document.getElementById("codexPresetDeselectAllBtn");
+      if (selectAllBtn) {
+        selectAllBtn.addEventListener("click", function () {
+          treeDef.forEach(function (cat) {
+            (cat.items || []).forEach(function (item) { item._enabled = true; });
+          });
+          var container = document.getElementById("codexPresetTreeEditor");
+          if (container) container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+        });
+      }
+      if (deselectAllBtn) {
+        deselectAllBtn.addEventListener("click", function () {
+          treeDef.forEach(function (cat) {
+            (cat.items || []).forEach(function (item) { item._enabled = false; });
+          });
+          var container = document.getElementById("codexPresetTreeEditor");
+          if (container) container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
+        });
+      }
       // Wire sync button for derived presets
       if (isDerived) {
         var syncBtn = document.getElementById("codexPresetSyncBtn");
