@@ -109,16 +109,16 @@ INSERT INTO codex_entity_field_definitions (entity_type_key, field_key, label, f
 ON CONFLICT (entity_type_key, field_key) DO NOTHING;
 
 -- Lore fields
-INSERT INTO codex_entity_field_definitions (entity_type_key, field_key, label, field_type, group_name, sort_order, help_text) VALUES
-  ('lore', 'era', 'Era/Time Period', 'text', 'Context', 10, 'When this lore is from'),
-  ('lore', 'source', 'Source', 'text', 'Context', 20, 'Where this knowledge comes from'),
+INSERT INTO codex_entity_field_definitions (entity_type_key, field_key, label, field_type, group_name, sort_order, help_text, options_json) VALUES
+  ('lore', 'era', 'Era/Time Period', 'text', 'Context', 10, 'When this lore is from', NULL),
+  ('lore', 'source', 'Source', 'text', 'Context', 20, 'Where this knowledge comes from', NULL),
   ('lore', 'reliability', 'Reliability', 'select', 'Context', 30, 'How reliable this information is', '{"options":["Verified","Likely","Rumored","Disputed","Unknown"]}'),
-  ('lore', 'related_events', 'Related Events', 'long_text', 'Connections', 40, 'Related historical events'),
-  ('lore', 'impact', 'Impact', 'long_text', 'Significance', 50, 'Why this lore matters')
+  ('lore', 'related_events', 'Related Events', 'long_text', 'Connections', 40, 'Related historical events', NULL),
+  ('lore', 'impact', 'Impact', 'long_text', 'Significance', 50, 'Why this lore matters', NULL)
 ON CONFLICT (entity_type_key, field_key) DO NOTHING;
 
 -- Story Thread fields
-INSERT INTO codex_entity_field_definitions (entity_type_key, field_key, label, field_type, group_name, sort_order, help_text) VALUES
+INSERT INTO codex_entity_field_definitions (entity_type_key, field_key, label, field_type, group_name, sort_order, help_text, options_json) VALUES
   ('story_thread', 'thread_type', 'Thread Type', 'select', 'Classification', 10, 'Type of story thread', '{"options":["Main Plot","Subplot","Side Story","Flashback","Foreshadowing","Other"]}'),
   ('story_thread', 'tension', 'Tension Level', 'select', 'Dynamics', 20, 'Current tension level', '{"options":["Low","Medium","High","Critical"]}'),
   ('story_thread', 'resolution', 'Resolution Status', 'select', 'Dynamics', 30, 'Whether resolved', '{"options":["Unresolved","In Progress","Resolved","Abandoned"]}')
