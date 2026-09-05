@@ -2349,21 +2349,43 @@
       // Remove any existing edit form
       var existing = listEl.querySelector(".codex-rel-edit-form");
       if (existing) existing.remove();
+      // Find existing connection for pre-fill
+      var connections = skCache.connections[seriesId] || [];
+      var conn = connections.find(function (c) { return Number(c.id) === connectionId; });
       // Build edit form
       var formHtml = "<div class='codex-rel-edit-form' style='margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
       formHtml += "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>";
       formHtml += "<select id='codexRelEditType' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>Select type...</option></select>";
+      formHtml += "</div>";
+      // Book and chapter context
+      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;'>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      formHtml += "<select id='codexRelEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— No book —</option></select></div>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Valid From Chapter</label>";
+      formHtml += "<select id='codexRelEditFromChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book first —</option></select></div>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Valid Until Chapter</label>";
+      formHtml += "<select id='codexRelEditToChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book first —</option></select></div>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Context Status</label>";
+      formHtml += "<select id='codexRelEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      ["active", "ended", "planned"].forEach(function (s) {
+        var sel = conn && conn.context_status === s ? " selected" : "";
+        formHtml += "<option value='" + s + "'" + sel + ">" + s + "</option>";
+      });
+      formHtml += "</select></div>";
+      formHtml += "</div>";
+      // Notes
+      formHtml += "<div style='margin-top:8px;'><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
+      formHtml += "<input id='codexRelEditNotes' type='text' value='" + escapeHtml(conn ? conn.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Buttons
+      formHtml += "<div style='display:flex;gap:8px;margin-top:10px;'>";
       formHtml += "<button id='codexRelEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Save</button>";
       formHtml += "<button id='codexRelEditCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";
-      formHtml += "</div>";
-      // Master Codex v2: Book/chapter context fields
-      formHtml += "<div style='display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;'>";
-      formHtml += "<select id='codexRelEditBook' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>All books (no context)</option></select>";
-      formHtml += "</div>";
-      formHtml += "</div>";
+      formHtml += "</div></div>";
       listEl.insertAdjacentHTML("afterend", formHtml);
       var typeSelect = document.getElementById("codexRelEditType");
       var bookSelect = document.getElementById("codexRelEditBook");
+      var fromChapterSelect = document.getElementById("codexRelEditFromChapter");
+      var toChapterSelect = document.getElementById("codexRelEditToChapter");
       var saveBtn = document.getElementById("codexRelEditSaveBtn");
       var cancelBtn = document.getElementById("codexRelEditCancelBtn");
       // Populate relationship types
@@ -2386,21 +2408,60 @@
         appState.projects.forEach(function (p) {
           var pid = Number(p.project_id || p.id || 0);
           if (!pid) return;
-          // Filter: only show books belonging to the current series
           var projectSeriesId = Number(p.series_id || 0);
           if (projectSeriesId !== seriesId) return;
           var opt = document.createElement("option");
           opt.value = pid;
           opt.textContent = p.title || "Book #" + pid;
+          if (conn && conn.book_id && pid === Number(conn.book_id)) opt.selected = true;
           bookSelect.appendChild(opt);
         });
+      }
+      // Load chapters when book changes
+      if (bookSelect) {
+        bookSelect.addEventListener("change", function () {
+          var bookId = Number(bookSelect.value || 0);
+          if (!bookId) {
+            fromChapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+            toChapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+            return;
+          }
+          fromChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          codexV2LoadChapters(bookId).then(function (chapters) {
+            var fromHtml = codexV2BuildChapterDropdown("codexRelEditFromChapter", chapters, conn ? conn.valid_from_chapter : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+            var toHtml = codexV2BuildChapterDropdown("codexRelEditToChapter", chapters, conn ? conn.valid_to_chapter : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+            fromChapterSelect.innerHTML = fromHtml;
+            toChapterSelect.innerHTML = toHtml;
+          });
+        });
+        // If editing and has book, trigger load
+        if (conn && conn.book_id) bookSelect.dispatchEvent(new Event("change"));
       }
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
           var newTypeId = typeSelect ? Number(typeSelect.value || 0) : 0;
           if (!newTypeId) { setStatus("Select a relationship type.", "error"); return; }
           var bookId = bookSelect ? Number(bookSelect.value || 0) : 0;
-          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId);
+          var fromChapterId = fromChapterSelect ? Number(fromChapterSelect.value || 0) : 0;
+          var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
+          var contextStatus = document.getElementById("codexRelEditStatus") ? document.getElementById("codexRelEditStatus").value : "active";
+          var notes = document.getElementById("codexRelEditNotes") ? document.getElementById("codexRelEditNotes").value.trim() : "";
+          // Resolve chapter sort_orders
+          var validFromSort = null;
+          var validToSort = null;
+          if (bookId) {
+            var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+            if (fromChapterId) {
+              var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
+              if (fromCh) validFromSort = fromCh.sort_order;
+            }
+            if (toChapterId) {
+              var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
+              if (toCh) validToSort = toCh.sort_order;
+            }
+          }
+          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
           var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
           if (form) form.remove();
         });
@@ -2413,7 +2474,7 @@
       }
     }
 
-    function updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId) {
+    function updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes) {
       // Find existing connection
       var connections = skCache.connections[seriesId] || [];
       var conn = connections.find(function (c) { return Number(c.id) === connectionId; });
@@ -2428,8 +2489,12 @@
         inverse_label: conn.inverse_label || "",
         description: conn.description || "",
         is_secret: conn.is_secret || false,
-        // Master Codex v2: Include book context if provided
-        book_id: bookId || null
+        book_id: bookId || null,
+        chapter_id: fromChapterId || null,
+        valid_from_sort: validFromSort,
+        valid_to_sort: validToSort,
+        context_status: contextStatus || "active",
+        notes: notes || null
       };
       setStatus("Updating relationship...", "warn");
       callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(payload)])
@@ -8515,7 +8580,11 @@
                     html += " <span style='color:var(--muted);'>in book #" + app.book_id + "</span>";
                   }
                 }
-                if (app.chapter_id) html += " <span style='color:var(--muted);'>chapter " + app.chapter_id + "</span>";
+                if (app.chapter_id) {
+                  var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(app.book_id)]) ? skCache.chapters[Number(app.book_id)] : [];
+                  var chapter = chapters.find(function (c) { return Number(c.id) === Number(app.chapter_id); });
+                  html += " <span style='color:var(--muted);font-size:10px;'>— " + escapeHtml(chapter ? chapter.title : "Ch." + app.chapter_id) + "</span>";
+                }
                 if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
                 html += "</div>";
                 html += "<button type='button' class='codex-appearance-edit' data-appearance-id='" + app.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
@@ -8681,7 +8750,13 @@
                 if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
                 if (s.book_id) {
                   var book = bookMap[Number(s.book_id)];
-                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(book ? book.title : "Book #" + s.book_id) + "</span>";
+                  var contextText = book ? book.title : "Book #" + s.book_id;
+                  if (s.chapter_id) {
+                    var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(s.book_id)]) ? skCache.chapters[Number(s.book_id)] : [];
+                    var chapter = chapters.find(function (c) { return Number(c.id) === Number(s.chapter_id); });
+                    contextText += " — " + (chapter ? chapter.title : "Ch." + s.chapter_id);
+                  }
+                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(contextText) + "</span>";
                 }
                 if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
                 html += "</div>";
@@ -8743,7 +8818,13 @@
                 if (ev.canon_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(ev.canon_status) + "]</span>";
                 if (ev.book_id) {
                   var book = bookMap[Number(ev.book_id)];
-                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(book ? book.title : "Book #" + ev.book_id) + "</span>";
+                  var contextText = book ? book.title : "Book #" + ev.book_id;
+                  if (ev.chapter_id) {
+                    var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(ev.book_id)]) ? skCache.chapters[Number(ev.book_id)] : [];
+                    var chapter = chapters.find(function (c) { return Number(c.id) === Number(ev.chapter_id); });
+                    contextText += " — " + (chapter ? chapter.title : "Ch." + ev.chapter_id);
+                  }
+                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(contextText) + "</span>";
                 }
                 html += "</div>";
                 html += "<button type='button' class='codex-event-edit' data-event-id='" + ev.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
@@ -8911,10 +8992,14 @@
       html += "</select>";
       html += "<input id='stateEditPropertyCustom' type='text' value='" + escapeHtml(!currentPropEntityId ? currentPropKey : "") + "' placeholder='e.g. level, class, gold' style='" + (!currentPropEntityId && currentPropKey ? "" : "display:none;") + "margin-top:4px;width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
       html += "</div>";
-      // Value
+      // Value (type-aware based on selected property)
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Value</label>";
       var valStr = isEdit ? (existingState.value_number != null ? String(existingState.value_number) : existingState.value_text || "") : "";
-      html += "<input id='stateEditValue' type='text' value='" + escapeHtml(valStr) + "' placeholder='Value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      html += "<div id='stateEditValueWrap'>";
+      html += "<input id='stateEditValue' type='text' value='" + escapeHtml(valStr) + "' placeholder='Value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+      html += "</div>";
+      html += "<div id='stateEditValueType' class='tiny' style='color:var(--muted);margin-top:2px;'></div>";
+      html += "</div>";
       // Book
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
       html += "<select id='stateEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
@@ -8973,12 +9058,51 @@
           bookSelect.dispatchEvent(new Event("change"));
         }
       }
-      // Wire property select to show/hide custom input
+      // Wire property select to show/hide custom input and update value editor
       var propSelect = document.getElementById("stateEditPropertySelect");
       var propCustom = document.getElementById("stateEditPropertyCustom");
       if (propSelect && propCustom) {
         propSelect.addEventListener("change", function () {
           propCustom.style.display = propSelect.value === "_custom" ? "" : "none";
+          // Update value editor based on selected entity type
+          var valueWrap = document.getElementById("stateEditValueWrap");
+          var valueTypeLabel = document.getElementById("stateEditValueType");
+          var currentValue = document.getElementById("stateEditValue") ? document.getElementById("stateEditValue").value : "";
+          if (!valueWrap) return;
+          var propVal = propSelect.value;
+          var entityTypeKey = "";
+          if (propVal && propVal.indexOf("entity:") === 0) {
+            var propId = Number(propVal.replace("entity:", ""));
+            var propEntity = entities.find(function (e) { return Number(e.id) === propId; });
+            if (propEntity) entityTypeKey = (propEntity.codex_entity_types || {}).key || "";
+          }
+          // Determine input type based on entity type
+          var inputType = "text";
+          var placeholder = "Value";
+          var typeHint = "";
+          if (entityTypeKey === "stat" || entityTypeKey === "resource") {
+            inputType = "number";
+            placeholder = "Numeric value";
+            typeHint = entityTypeKey === "stat" ? "Numeric stat value" : "Numeric resource value";
+          } else if (entityTypeKey === "trait_perk") {
+            inputType = "checkbox";
+            typeHint = "Boolean: checked = true";
+          } else if (entityTypeKey === "skill_ability") {
+            placeholder = "e.g. Rank 1, Level 5, Active";
+            typeHint = "Skill rank or status";
+          } else if (entityTypeKey === "class_path") {
+            placeholder = "e.g. Level 4, Tier 2";
+            typeHint = "Class level or tier";
+          }
+          // Rebuild value input
+          var newHtml = "";
+          if (inputType === "checkbox") {
+            newHtml = "<input id='stateEditValue' type='checkbox' " + (currentValue === "true" ? "checked" : "") + " style='margin:0;' />";
+          } else {
+            newHtml = "<input id='stateEditValue' type='" + inputType + "' value='" + escapeHtml(currentValue) + "' placeholder='" + placeholder + "' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+          }
+          valueWrap.innerHTML = newHtml;
+          if (valueTypeLabel) valueTypeLabel.textContent = typeHint;
         });
       }
       // Wire buttons
@@ -8997,15 +9121,41 @@
           var propEntity = entities.find(function (e) { return Number(e.id) === propertyEntityId; });
           propertyKey = propEntity ? propEntity.name || "" : "";
         }
-        var valueText = document.getElementById("stateEditValue").value.trim();
+        // Read value from appropriate input type
+        var valueInput = document.getElementById("stateEditValue");
+        var valueText = null;
+        var valueNumber = null;
+        var valueJson = null;
+        if (valueInput) {
+          if (valueInput.type === "checkbox") {
+            valueText = valueInput.checked ? "true" : "false";
+          } else if (valueInput.type === "number") {
+            var numVal = valueInput.value;
+            valueNumber = numVal ? Number(numVal) : null;
+          } else {
+            valueText = valueInput.value.trim() || null;
+            // Auto-detect numeric
+            if (valueText && !isNaN(valueText)) { valueNumber = Number(valueText); valueText = null; }
+          }
+        }
         var bookId = Number(document.getElementById("stateEditBook").value || 0);
         var chapterId = Number(document.getElementById("stateEditChapter").value || 0);
         var stateStatus = document.getElementById("stateEditStatus").value;
         var notes = document.getElementById("stateEditNotes").value.trim();
         if (!propertyKey && !propertyEntityId) { alert("Property is required."); return; }
-        // Determine if value is numeric
-        var valueNumber = null;
-        if (valueText && !isNaN(valueText)) { valueNumber = Number(valueText); valueText = null; }
+        // Cross-book chapter validation
+        if (chapterId && bookId) {
+          var validChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+          var chapterValid = validChapters.some(function (c) { return Number(c.id) === chapterId; });
+          if (!chapterValid) { alert("Selected chapter does not belong to the selected book."); return; }
+        }
+        // Resolve chapter sort_order for effective_from_sort
+        var effectiveFromSort = null;
+        if (chapterId && bookId) {
+          var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+          var chapter = chapters.find(function (c) { return Number(c.id) === chapterId; });
+          if (chapter) effectiveFromSort = chapter.sort_order;
+        }
         var payload = {
           subject_entity_id: entityId,
           property_entity_id: propertyEntityId,
@@ -9015,6 +9165,7 @@
           series_id: seriesId,
           book_id: bookId || null,
           chapter_id: chapterId || null,
+          effective_from_sort: effectiveFromSort,
           state_status: stateStatus,
           notes: notes || null
         };
@@ -9042,6 +9193,8 @@
       if (existing) existing.remove();
       var isEdit = !!existingEvent;
       var EVENT_TYPES = ["level_up", "stat_change", "skill_unlock", "skill_rank_change", "class_acquired", "class_change", "trait_acquired", "trait_lost", "resource_change", "item_acquired", "item_lost", "title_awarded", "achievement_awarded", "reputation_change", "relationship_change", "custom"];
+      var PROP_TYPES = ["stat", "resource", "skill_ability", "class_path", "trait_perk", "progression", "equipment", "item", "achievement"];
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
       var html = "<div id='codexEventEditForm' style='margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
       html += "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>" + (isEdit ? "Edit Event" : "Add Event") + "</div>";
       html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
@@ -9051,6 +9204,47 @@
       EVENT_TYPES.forEach(function (opt) {
         var sel = isEdit && existingEvent.event_type === opt ? " selected" : "";
         html += "<option value='" + opt + "'" + sel + ">" + opt.replace(/_/g, " ") + "</option>";
+      });
+      html += "</select></div>";
+      // Property Entity (what was affected)
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Property</label>";
+      var currentPropEntityId = isEdit && existingEvent.property_entity_id ? Number(existingEvent.property_entity_id) : 0;
+      html += "<select id='eventEditPropertyEntity' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select property —</option>";
+      PROP_TYPES.forEach(function (typeKey) {
+        var typeEntities = entities.filter(function (e) { return (e.codex_entity_types || {}).key === typeKey; });
+        if (!typeEntities.length) return;
+        var typeLabel = typeEntities[0].codex_entity_types ? typeEntities[0].codex_entity_types.name_plural || typeKey : typeKey;
+        html += "<optgroup label='" + escapeHtml(typeLabel) + "'>";
+        typeEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        typeEntities.forEach(function (e) {
+          var sel = currentPropEntityId && Number(e.id) === currentPropEntityId ? " selected" : "";
+          html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+        });
+        html += "</optgroup>";
+      });
+      html += "</select></div>";
+      // Old Value
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Old Value</label>";
+      var oldValStr = isEdit && existingEvent.old_value ? (typeof existingEvent.old_value === "object" ? JSON.stringify(existingEvent.old_value) : String(existingEvent.old_value)) : "";
+      html += "<input id='eventEditOldValue' type='text' value='" + escapeHtml(oldValStr) + "' placeholder='Previous value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // New Value
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>New Value</label>";
+      var newValStr = isEdit && existingEvent.new_value ? (typeof existingEvent.new_value === "object" ? JSON.stringify(existingEvent.new_value) : String(existingEvent.new_value)) : "";
+      html += "<input id='eventEditNewValue' type='text' value='" + escapeHtml(newValStr) + "' placeholder='New value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Delta
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Delta</label>";
+      var deltaStr = isEdit && existingEvent.delta != null ? String(existingEvent.delta) : "";
+      html += "<input id='eventEditDelta' type='number' value='" + escapeHtml(deltaStr) + "' placeholder='Change amount' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Source Entity (what caused the change)
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Source / Cause</label>";
+      var currentSourceId = isEdit && existingEvent.source_entity_id ? Number(existingEvent.source_entity_id) : 0;
+      html += "<select id='eventEditSourceEntity' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— None —</option>";
+      entities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); }).forEach(function (e) {
+        var sel = currentSourceId && Number(e.id) === currentSourceId ? " selected" : "";
+        var typeLabel = (e.codex_entity_types || {}).key || "";
+        html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + (typeLabel ? " [" + typeLabel + "]" : "") + "</option>";
       });
       html += "</select></div>";
       // Reason
@@ -9120,14 +9314,33 @@
       });
       document.getElementById("eventEditSaveBtn").addEventListener("click", function () {
         var eventType = document.getElementById("eventEditType").value;
+        var propertyEntityId = Number(document.getElementById("eventEditPropertyEntity").value || 0) || null;
+        var oldValueText = document.getElementById("eventEditOldValue").value.trim();
+        var newValueText = document.getElementById("eventEditNewValue").value.trim();
+        var delta = document.getElementById("eventEditDelta").value;
+        var sourceEntityId = Number(document.getElementById("eventEditSourceEntity").value || 0) || null;
         var reason = document.getElementById("eventEditReason").value.trim();
         var canonStatus = document.getElementById("eventEditCanonStatus").value;
         var notes = document.getElementById("eventEditNotes").value.trim();
         var bookId = Number(document.getElementById("eventEditBook").value || 0);
         var chapterId = Number(document.getElementById("eventEditChapter").value || 0);
+        // Cross-book chapter validation
+        if (chapterId && bookId) {
+          var validChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+          var chapterValid = validChapters.some(function (c) { return Number(c.id) === chapterId; });
+          if (!chapterValid) { alert("Selected chapter does not belong to the selected book."); return; }
+        }
+        // Parse old/new values
+        var oldValue = oldValueText ? (isNaN(oldValueText) ? oldValueText : Number(oldValueText)) : null;
+        var newValue = newValueText ? (isNaN(newValueText) ? newValueText : Number(newValueText)) : null;
         var payload = {
           subject_entity_id: entityId,
           event_type: eventType,
+          property_entity_id: propertyEntityId,
+          old_value: oldValue != null ? { value: oldValue } : null,
+          new_value: newValue != null ? { value: newValue } : null,
+          delta: delta ? Number(delta) : null,
+          source_entity_id: sourceEntityId,
           series_id: seriesId,
           book_id: bookId || null,
           chapter_id: chapterId || null,
@@ -9270,6 +9483,29 @@
 
     function saveCodexFieldValues(seriesId, entityId, definitions, existingValueMap) {
       var saveBtn = document.getElementById("codexFieldSaveBtn");
+      // Validate required fields before saving
+      var missingFields = [];
+      definitions.forEach(function (def) {
+        if (!def.required) return;
+        var item = document.querySelector(".codex-field-item[data-def-id='" + def.id + "']");
+        if (!item) return;
+        var input = item.querySelector(".codex-field-input");
+        if (!input) return;
+        var fieldType = def.field_type || "text";
+        var hasValue = false;
+        if (fieldType === "boolean") {
+          hasValue = true; // checkbox always has a value
+        } else if (fieldType === "entity_link") {
+          hasValue = !!input.value;
+        } else {
+          hasValue = !!String(input.value || "").trim();
+        }
+        if (!hasValue) missingFields.push(def.label);
+      });
+      if (missingFields.length) {
+        alert("Required fields missing: " + missingFields.join(", "));
+        return;
+      }
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
       var promises = [];
       definitions.forEach(function (def) {
