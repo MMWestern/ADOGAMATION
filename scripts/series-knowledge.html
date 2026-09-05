@@ -8532,25 +8532,51 @@
       if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
       if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading events...</div>";
 
+      // Load state records
       supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             var result = JSON.parse(json);
             if (!result.ok || !result.states.length) {
               if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded.</div>";
-              return;
+            } else {
+              var html = "";
+              result.states.forEach(function (s) {
+                var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
+                html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
+                html += "<div style='flex:1;'>";
+                html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                html += " <span>= " + escapeHtml(String(value)) + "</span>";
+                if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
+                html += "</div>";
+                html += "<button type='button' class='codex-state-edit' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
+                html += "<button type='button' class='codex-state-delete' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:none;color:#ef4444;cursor:pointer;' title='Delete'>&times;</button>";
+                html += "</div>";
+              });
+              if (stateList) stateList.innerHTML = html;
+              // Wire edit/delete buttons
+              if (stateList) {
+                stateList.querySelectorAll(".codex-state-edit").forEach(function (btn) {
+                  btn.addEventListener("click", function () {
+                    var stateId = Number(btn.getAttribute("data-state-id"));
+                    var state = result.states.find(function (s) { return Number(s.id) === stateId; });
+                    if (state) showStateEditForm(seriesId, entityId, state);
+                  });
+                });
+                stateList.querySelectorAll(".codex-state-delete").forEach(function (btn) {
+                  btn.addEventListener("click", function () {
+                    var stateId = Number(btn.getAttribute("data-state-id"));
+                    if (confirm("Delete this state record?")) {
+                      supabaseRunner
+                        .withSuccessHandler(function () { loadCodexStateAndEvents(seriesId, entityId); })
+                        .withFailureHandler(function (err) { console.error("[codexV2] Delete state failed:", err); })
+                        .deleteCodexEntityState(stateId);
+                    }
+                  });
+                });
+              }
             }
-            var html = "";
-            result.states.forEach(function (s) {
-              var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
-              html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
-              html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
-              html += " <span>= " + escapeHtml(String(value)) + "</span>";
-              if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
-              if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
-              html += "</div>";
-            });
-            if (stateList) stateList.innerHTML = html;
           } catch (e) {
             if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
           }
@@ -8560,23 +8586,49 @@
         })
         .listCodexEntityState(seriesId, entityId);
 
+      // Load progression events
       supabaseRunner
         .withSuccessHandler(function (json) {
           try {
             var result = JSON.parse(json);
             if (!result.ok || !result.events.length) {
               if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No progression events.</div>";
-              return;
+            } else {
+              var html = "";
+              result.events.forEach(function (ev) {
+                html += "<div class='codex-event-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
+                html += "<div style='flex:1;'>";
+                html += "<span style='font-weight:600;'>" + escapeHtml(ev.event_type || "event") + "</span>";
+                if (ev.reason) html += " <span style='color:var(--muted);'>— " + escapeHtml(ev.reason) + "</span>";
+                if (ev.canon_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(ev.canon_status) + "]</span>";
+                html += "</div>";
+                html += "<button type='button' class='codex-event-edit' data-event-id='" + ev.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
+                html += "<button type='button' class='codex-event-delete' data-event-id='" + ev.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:none;color:#ef4444;cursor:pointer;' title='Delete'>&times;</button>";
+                html += "</div>";
+              });
+              if (eventList) eventList.innerHTML = html;
+              // Wire edit/delete buttons
+              if (eventList) {
+                eventList.querySelectorAll(".codex-event-edit").forEach(function (btn) {
+                  btn.addEventListener("click", function () {
+                    var eventId = Number(btn.getAttribute("data-event-id"));
+                    var event = result.events.find(function (e) { return Number(e.id) === eventId; });
+                    if (event) showEventEditForm(seriesId, entityId, event);
+                  });
+                });
+                eventList.querySelectorAll(".codex-event-delete").forEach(function (btn) {
+                  btn.addEventListener("click", function () {
+                    var eventId = Number(btn.getAttribute("data-event-id"));
+                    if (confirm("Delete this progression event?")) {
+                      supabaseRunner
+                        .withSuccessHandler(function () { loadCodexStateAndEvents(seriesId, entityId); })
+                        .withFailureHandler(function (err) { console.error("[codexV2] Delete event failed:", err); })
+                        .deleteCodexProgressionEvent(eventId);
+                    }
+                  });
+                });
+              }
             }
-            var html = "";
-            result.events.forEach(function (ev) {
-              html += "<div class='codex-event-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
-              html += "<span style='font-weight:600;'>" + escapeHtml(ev.event_type || "event") + "</span>";
-              if (ev.reason) html += " <span style='color:var(--muted);'>— " + escapeHtml(ev.reason) + "</span>";
-              if (ev.canon_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(ev.canon_status) + "]</span>";
-              html += "</div>";
-            });
-            if (eventList) eventList.innerHTML = html;
           } catch (e) {
             if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading events.</div>";
           }
@@ -8585,6 +8637,169 @@
           if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading events.</div>";
         })
         .listCodexProgressionEvents(seriesId, entityId);
+
+      // Wire Add State button
+      var addStateBtn = document.getElementById("codexStateAddBtn");
+      if (addStateBtn && !addStateBtn._wired) {
+        addStateBtn._wired = true;
+        addStateBtn.addEventListener("click", function () {
+          showStateEditForm(seriesId, entityId, null);
+        });
+      }
+      // Wire Add Event button
+      var addEventBtn = document.getElementById("codexEventAddBtn");
+      if (addEventBtn && !addEventBtn._wired) {
+        addEventBtn._wired = true;
+        addEventBtn.addEventListener("click", function () {
+          showEventEditForm(seriesId, entityId, null);
+        });
+      }
+    }
+
+    function showStateEditForm(seriesId, entityId, existingState) {
+      var stateList = document.getElementById("codexStateList");
+      if (!stateList) return;
+      // Remove any existing edit form
+      var existing = document.getElementById("codexStateEditForm");
+      if (existing) existing.remove();
+      var isEdit = !!existingState;
+      var html = "<div id='codexStateEditForm' style='margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
+      html += "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>" + (isEdit ? "Edit State" : "Add State") + "</div>";
+      html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
+      // Property key
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Property</label>";
+      html += "<input id='stateEditPropertyKey' type='text' value='" + escapeHtml(isEdit ? existingState.property_key || "" : "") + "' placeholder='e.g. level, class, gold' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Value
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Value</label>";
+      var valStr = isEdit ? (existingState.value_number != null ? String(existingState.value_number) : existingState.value_text || "") : "";
+      html += "<input id='stateEditValue' type='text' value='" + escapeHtml(valStr) + "' placeholder='Value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Status
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Status</label>";
+      html += "<select id='stateEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      ["draft", "provisional", "canon", "deprecated"].forEach(function (opt) {
+        var sel = isEdit && existingState.state_status === opt ? " selected" : "";
+        html += "<option value='" + opt + "'" + sel + ">" + opt + "</option>";
+      });
+      html += "</select></div>";
+      // Notes
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
+      html += "<input id='stateEditNotes' type='text' value='" + escapeHtml(isEdit ? existingState.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      html += "</div>";
+      // Buttons
+      html += "<div style='display:flex;gap:8px;margin-top:10px;'>";
+      html += "<button id='stateEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 12px;'>Save</button>";
+      html += "<button id='stateEditCancelBtn' type='button' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
+      html += "</div></div>";
+      stateList.insertAdjacentHTML("afterbegin", html);
+      // Wire buttons
+      document.getElementById("stateEditCancelBtn").addEventListener("click", function () {
+        document.getElementById("codexStateEditForm").remove();
+      });
+      document.getElementById("stateEditSaveBtn").addEventListener("click", function () {
+        var propertyKey = document.getElementById("stateEditPropertyKey").value.trim();
+        var valueText = document.getElementById("stateEditValue").value.trim();
+        var stateStatus = document.getElementById("stateEditStatus").value;
+        var notes = document.getElementById("stateEditNotes").value.trim();
+        if (!propertyKey) { alert("Property is required."); return; }
+        // Determine if value is numeric
+        var valueNumber = null;
+        if (valueText && !isNaN(valueText)) { valueNumber = Number(valueText); valueText = null; }
+        var payload = {
+          subject_entity_id: entityId,
+          property_key: propertyKey,
+          value_text: valueText,
+          value_number: valueNumber,
+          series_id: seriesId,
+          state_status: stateStatus,
+          notes: notes || null
+        };
+        if (isEdit) payload.id = existingState.id;
+        var saveBtn = document.getElementById("stateEditSaveBtn");
+        saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+        supabaseRunner
+          .withSuccessHandler(function () {
+            document.getElementById("codexStateEditForm").remove();
+            loadCodexStateAndEvents(seriesId, entityId);
+          })
+          .withFailureHandler(function (err) {
+            console.error("[codexV2] Save state failed:", err);
+            saveBtn.disabled = false; saveBtn.textContent = "Save";
+          })
+          .saveCodexEntityState(seriesId, JSON.stringify(payload));
+      });
+    }
+
+    function showEventEditForm(seriesId, entityId, existingEvent) {
+      var eventList = document.getElementById("codexEventList");
+      if (!eventList) return;
+      // Remove any existing edit form
+      var existing = document.getElementById("codexEventEditForm");
+      if (existing) existing.remove();
+      var isEdit = !!existingEvent;
+      var EVENT_TYPES = ["level_up", "stat_change", "skill_unlock", "skill_rank_change", "class_acquired", "class_change", "trait_acquired", "trait_lost", "resource_change", "item_acquired", "item_lost", "title_awarded", "achievement_awarded", "reputation_change", "relationship_change", "custom"];
+      var html = "<div id='codexEventEditForm' style='margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
+      html += "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>" + (isEdit ? "Edit Event" : "Add Event") + "</div>";
+      html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
+      // Event type
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Event Type</label>";
+      html += "<select id='eventEditType' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      EVENT_TYPES.forEach(function (opt) {
+        var sel = isEdit && existingEvent.event_type === opt ? " selected" : "";
+        html += "<option value='" + opt + "'" + sel + ">" + opt.replace(/_/g, " ") + "</option>";
+      });
+      html += "</select></div>";
+      // Reason
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Reason</label>";
+      html += "<input id='eventEditReason' type='text' value='" + escapeHtml(isEdit ? existingEvent.reason || "" : "") + "' placeholder='Why the change happened' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Canon status
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Canon Status</label>";
+      html += "<select id='eventEditCanonStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      ["draft", "provisional", "canon", "deprecated"].forEach(function (opt) {
+        var sel = isEdit && existingEvent.canon_status === opt ? " selected" : "";
+        html += "<option value='" + opt + "'" + sel + ">" + opt + "</option>";
+      });
+      html += "</select></div>";
+      // Notes
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
+      html += "<input id='eventEditNotes' type='text' value='" + escapeHtml(isEdit ? existingEvent.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      html += "</div>";
+      // Buttons
+      html += "<div style='display:flex;gap:8px;margin-top:10px;'>";
+      html += "<button id='eventEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 12px;'>Save</button>";
+      html += "<button id='eventEditCancelBtn' type='button' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
+      html += "</div></div>";
+      eventList.insertAdjacentHTML("afterbegin", html);
+      // Wire buttons
+      document.getElementById("eventEditCancelBtn").addEventListener("click", function () {
+        document.getElementById("codexEventEditForm").remove();
+      });
+      document.getElementById("eventEditSaveBtn").addEventListener("click", function () {
+        var eventType = document.getElementById("eventEditType").value;
+        var reason = document.getElementById("eventEditReason").value.trim();
+        var canonStatus = document.getElementById("eventEditCanonStatus").value;
+        var notes = document.getElementById("eventEditNotes").value.trim();
+        var payload = {
+          subject_entity_id: entityId,
+          event_type: eventType,
+          series_id: seriesId,
+          reason: reason || null,
+          canon_status: canonStatus,
+          notes: notes || null
+        };
+        if (isEdit) payload.id = existingEvent.id;
+        var saveBtn = document.getElementById("eventEditSaveBtn");
+        saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+        supabaseRunner
+          .withSuccessHandler(function () {
+            document.getElementById("codexEventEditForm").remove();
+            loadCodexStateAndEvents(seriesId, entityId);
+          })
+          .withFailureHandler(function (err) {
+            console.error("[codexV2] Save event failed:", err);
+            saveBtn.disabled = false; saveBtn.textContent = "Save";
+          })
+          .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
+      });
     }
 
     function loadCodexFieldDefinitions(seriesId, entityId, entityTypeKey) {
