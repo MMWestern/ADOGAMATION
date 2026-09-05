@@ -1,8 +1,9 @@
-    // ============================================================
-    // MASTER CODEX v2 — Dual-write helpers
-    // These functions write to v2 tables alongside legacy writes.
-    // Controlled by CODEX_V2_DUAL_WRITE flag.
-    // ============================================================
+    window.codexV2RecordAppearance = codexV2RecordAppearance;
+    window.codexV2RecordState = codexV2RecordState;
+    window.codexV2RecordEvent = codexV2RecordEvent;
+    window.codexV2UpdateConnectionContext = codexV2UpdateConnectionContext;
+    window.codexV2BackfillAppearances = codexV2BackfillAppearances;
+    window.codexV2DeprecationAudit = codexV2DeprecationAudit;
 
     /**
      * Record an entity appearance when an entity is linked to a project/book.
