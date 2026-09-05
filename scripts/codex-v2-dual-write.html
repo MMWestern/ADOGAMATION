@@ -9,8 +9,14 @@
      * Called from saveCodexEntityProjects and entity save paths.
      */
     function codexV2RecordAppearance(seriesId, entityId, bookId, appearanceType) {
-      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
-      if (!seriesId || !entityId || !bookId) return;
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) {
+        console.log("[codexV2] appearance skipped: flag disabled");
+        return;
+      }
+      if (!seriesId || !entityId || !bookId) {
+        console.log("[codexV2] appearance skipped: missing params", seriesId, entityId, bookId);
+        return;
+      }
       var payload = {
         entity_id: entityId,
         series_id: seriesId,
@@ -18,9 +24,10 @@
         appearance_type: appearanceType || "appears",
         source: "dual_write"
       };
+      console.log("[codexV2] Saving appearance:", payload);
       supabaseRunner
-        .withSuccessHandler(function () {})
-        .withFailureHandler(function (err) { console.warn("[codexV2] appearance dual-write failed:", err); })
+        .withSuccessHandler(function (result) { console.log("[codexV2] appearance saved:", result); })
+        .withFailureHandler(function (err) { console.error("[codexV2] appearance dual-write failed:", err); })
         .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
     }
 
@@ -53,8 +60,14 @@
      * Called from entity save paths for status changes, class changes, etc.
      */
     function codexV2RecordEvent(seriesId, entityId, eventType, reason, bookId, chapterId) {
-      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
-      if (!seriesId || !entityId || !eventType) return;
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) {
+        console.log("[codexV2] event skipped: flag disabled");
+        return;
+      }
+      if (!seriesId || !entityId || !eventType) {
+        console.log("[codexV2] event skipped: missing params", seriesId, entityId, eventType);
+        return;
+      }
       var payload = {
         subject_entity_id: entityId,
         event_type: eventType,
@@ -65,9 +78,10 @@
         canon_status: "draft",
         source: "dual_write"
       };
+      console.log("[codexV2] Saving event:", payload);
       supabaseRunner
-        .withSuccessHandler(function () {})
-        .withFailureHandler(function (err) { console.warn("[codexV2] event dual-write failed:", err); })
+        .withSuccessHandler(function (result) { console.log("[codexV2] event saved:", result); })
+        .withFailureHandler(function (err) { console.error("[codexV2] event dual-write failed:", err); })
         .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
     }
 
