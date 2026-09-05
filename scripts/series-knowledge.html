@@ -8419,11 +8419,30 @@
               list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No appearances recorded.</div>";
               return;
             }
+            // Build book lookup map from appState.projects
+            var bookMap = {};
+            if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+              appState.projects.forEach(function (p) {
+                var pid = Number(p.project_id || p.id || 0);
+                if (pid) bookMap[pid] = p;
+              });
+            }
             var html = "";
             result.appearances.forEach(function (app) {
               html += "<div class='codex-appearance-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
               html += "<span style='font-weight:600;'>" + escapeHtml(app.appearance_type || "appears") + "</span>";
-              if (app.book_id) html += " <span style='color:var(--muted);'>in book " + app.book_id + "</span>";
+              if (app.book_id) {
+                var book = bookMap[Number(app.book_id)];
+                if (book) {
+                  var seriesName = book.series ? String(book.series).trim() : "";
+                  var bookTitle = book.title ? String(book.title).trim() : "Untitled";
+                  html += " <span style='color:var(--muted);'>in " + escapeHtml(bookTitle);
+                  if (seriesName) html += " <span style='font-size:10px;'>(" + escapeHtml(seriesName) + ")</span>";
+                  html += "</span>";
+                } else {
+                  html += " <span style='color:var(--muted);'>in book #" + app.book_id + "</span>";
+                }
+              }
               if (app.chapter_id) html += " <span style='color:var(--muted);'>chapter " + app.chapter_id + "</span>";
               if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
               html += "</div>";
