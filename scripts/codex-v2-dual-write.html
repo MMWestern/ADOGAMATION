@@ -375,3 +375,154 @@
 
     window.codexV2GetEntityStateAt = codexV2GetEntityStateAt;
     window.codexV2GetActiveConnectionsAt = codexV2GetActiveConnectionsAt;
+
+    /**
+     * Create Patrick/Uni-Verse pilot dataset for testing.
+     * Run from browser console: codexV2CreatePilotDataset(seriesId, book1Id, book2Id)
+     * Requires: seriesId, and IDs of two existing books in that series.
+     * Returns a Promise with the created entity IDs.
+     */
+    function codexV2CreatePilotDataset(seriesId, book1Id, book2Id) {
+      return new Promise(function (resolve, reject) {
+        if (!seriesId || !book1Id) { reject(new Error("seriesId and book1Id required")); return; }
+        var log = [];
+        var created = {};
+        function saveEntity(typeKey, name, callback) {
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              try {
+                var r = JSON.parse(json);
+                if (r.ok && r.entity) {
+                  created[name] = r.entity.id;
+                  log.push("Created " + typeKey + ": " + name + " (id=" + r.entity.id + ")");
+                  callback(r.entity.id);
+                } else {
+                  log.push("FAILED " + typeKey + ": " + name);
+                  callback(null);
+                }
+              } catch (e) { log.push("ERROR " + name + ": " + e.message); callback(null); }
+            })
+            .withFailureHandler(function (err) { log.push("FAILED " + name + ": " + err); callback(null); })
+            .saveCodexEntity(seriesId, 0, JSON.stringify({ name: name, entity_type_key: typeKey, scope: "series", custom_data: {} }));
+        }
+        function saveState(entityId, propertyKey, valueText, valueNumber, bookId, chapterId, sortOrder, callback) {
+          var payload = {
+            subject_entity_id: entityId,
+            property_key: propertyKey,
+            value_text: valueText,
+            value_number: valueNumber,
+            series_id: seriesId,
+            book_id: bookId || null,
+            chapter_id: chapterId || null,
+            effective_from_sort: sortOrder,
+            state_status: "canon",
+            notes: "Pilot data"
+          };
+          supabaseRunner
+            .withSuccessHandler(function () { log.push("State: " + propertyKey + " = " + (valueNumber != null ? valueNumber : valueText)); callback(); })
+            .withFailureHandler(function (err) { log.push("STATE FAILED: " + propertyKey + " - " + err); callback(); })
+            .saveCodexEntityState(seriesId, JSON.stringify(payload));
+        }
+        function saveEvent(entityId, eventType, propertyEntityId, reason, bookId, chapterId, callback) {
+          var payload = {
+            subject_entity_id: entityId,
+            event_type: eventType,
+            property_entity_id: propertyEntityId || null,
+            series_id: seriesId,
+            book_id: bookId || null,
+            chapter_id: chapterId || null,
+            reason: reason || null,
+            canon_status: "canon",
+            notes: "Pilot data"
+          };
+          supabaseRunner
+            .withSuccessHandler(function () { log.push("Event: " + eventType); callback(); })
+            .withFailureHandler(function (err) { log.push("EVENT FAILED: " + eventType + " - " + err); callback(); })
+            .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
+        }
+        function saveConnection(sourceId, targetId, relTypeKey, bookId, callback) {
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              try {
+                var r = JSON.parse(json);
+                if (r.ok && r.connection) {
+                  log.push("Connection: " + relTypeKey + " (id=" + r.connection.id + ")");
+                  callback(r.connection.id);
+                } else { callback(null); }
+              } catch (e) { callback(null); }
+            })
+            .withFailureHandler(function () { callback(null); })
+            .saveCodexConnection(seriesId, JSON.stringify({
+              source_entity_id: sourceId,
+              target_entity_id: targetId,
+              relationship_type_id: null,
+              label: relTypeKey,
+              book_id: bookId || null
+            }));
+        }
+        // Create entities sequentially
+        saveEntity("system_rule", "Uni-Verse System", function (systemId) {
+          saveEntity("stat", "Strength", function (strId) {
+            saveEntity("stat", "Dexterity", function (dexId) {
+              saveEntity("stat", "Constitution", function (conId) {
+                saveEntity("stat", "Intelligence", function (intId) {
+                  saveEntity("stat", "Charisma", function (chaId) {
+                    saveEntity("resource", "Health", function (hpId) {
+                      saveEntity("resource", "Mana", function (mpId) {
+                        saveEntity("resource", "Experience", function (xpId) {
+                          saveEntity("class_path", "Beast Slayer", function (classId) {
+                            saveEntity("skill_ability", "Fireball", function (fbId) {
+                              saveEntity("item", "Goblin Sword", function (swordId) {
+                                saveEntity("character", "Patrick Kelth", function (patrickId) {
+                                  if (!patrickId) { log.push("ABORT: Patrick not created"); resolve({ log: log, created: created }); return; }
+                                  // Book 1 Chapter 1: Patrick Level 1, STR 6, no Fireball, no sword
+                                  saveState(patrickId, "Level", null, 1, book1Id, null, 1, function () {
+                                    saveState(patrickId, "Strength", null, 6, book1Id, null, 1, function () {
+                                      // Book 1 Chapter 7: Acquire Goblin Sword
+                                      saveEvent(patrickId, "item_acquired", swordId, "Defeated goblin boss", book1Id, null, function () {
+                                        saveConnection(patrickId, swordId, "owns", book1Id, function () {
+                                          // Book 1 Chapter 12: Level 3, STR 8, Fireball Rank 1
+                                          saveState(patrickId, "Level", null, 3, book1Id, null, 12, function () {
+                                            saveState(patrickId, "Strength", null, 8, book1Id, null, 12, function () {
+                                              saveState(patrickId, "Fireball", "Rank 1", null, book1Id, null, 12, function () {
+                                                saveEvent(patrickId, "stat_change", strId, "Attribute point allocated", book1Id, null, function () {
+                                                  saveEvent(patrickId, "skill_unlock", fbId, "Learned from ancient tome", book1Id, null, function () {
+                                                    // Book 2 Chapter 3: Lose Goblin Sword (if book2Id provided)
+                                                    var finish = function () {
+                                                      log.push("=== PILOT COMPLETE ===");
+                                                      log.push("Entities: " + JSON.stringify(created));
+                                                      resolve({ log: log, created: created });
+                                                    };
+                                                    if (book2Id) {
+                                                      saveEvent(patrickId, "item_lost", swordId, "Lost during dungeon collapse", book2Id, null, function () {
+                                                        finish();
+                                                      });
+                                                    } else {
+                                                      finish();
+                                                    }
+                                                  });
+                                                });
+                                              });
+                                            });
+                                          });
+                                        });
+                                      });
+                                    });
+                                  });
+                                });
+                              });
+                            });
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+    }
+
+    window.codexV2CreatePilotDataset = codexV2CreatePilotDataset;
