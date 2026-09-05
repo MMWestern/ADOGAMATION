@@ -1281,3 +1281,64 @@
       return sbClient.from('codex_entity_field_values').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
+
+    // ============================================================
+    // MASTER CODEX v2.1 — Temporal Queries
+    // ============================================================
+
+    _sbDefine('getEntityStateAt', function (entityId, bookId, chapterSortOrder) {
+      var safeEntityId = Number(entityId || 0);
+      if (!safeEntityId) throw new Error('Entity id is required.');
+      // Build query: get most recent state for each property at or before the narrative point
+      var q = sbClient.from('codex_entity_state')
+        .select('*')
+        .eq('subject_entity_id', safeEntityId)
+        .in('state_status', ['provisional', 'canon']);
+      if (bookId) {
+        q = q.or('book_id.is.null,book_id.eq.' + Number(bookId));
+      }
+      if (chapterSortOrder != null) {
+        q = q.or('effective_from_sort.is.null,effective_from_sort.lte.' + Number(chapterSortOrder));
+      }
+      q = q.order('effective_from_sort', { ascending: false }).limit(500);
+      return q.then(function (res) {
+        if (res.error) throw res.error;
+        var rows = res.data || [];
+        // Deduplicate: keep most recent record per property_key or property_entity_id
+        var seen = {};
+        var result = [];
+        rows.forEach(function (r) {
+          var key = r.property_key || ('entity:' + r.property_entity_id);
+          if (!seen[key]) {
+            seen[key] = true;
+            result.push(r);
+          }
+        });
+        return JSON.stringify({ ok: true, states: result });
+      });
+    });
+
+    _sbDefine('getActiveConnectionsAt', function (entityId, chapterSortOrder) {
+      var safeEntityId = Number(entityId || 0);
+      if (!safeEntityId) throw new Error('Entity id is required.');
+      var q = sbClient.from('codex_connections')
+        .select('*,codex_relationship_types(key,forward_label,inverse_label),source:codex_entities!source_entity_id(id,name,color),target:codex_entities!target_entity_id(id,name,color)')
+        .is('deleted_at', null)
+        .or('source_entity_id.eq.' + safeEntityId + ',target_entity_id.eq.' + safeEntityId);
+      if (chapterSortOrder != null) {
+        // valid_from_sort <= current AND (valid_to_sort IS NULL OR valid_to_sort > current)
+        q = q.or('valid_from_sort.is.null,valid_from_sort.lte.' + Number(chapterSortOrder));
+      }
+      q = q.limit(5000);
+      return q.then(function (res) {
+        if (res.error) throw res.error;
+        var rows = (res.data || []).filter(function (c) {
+          // Filter out connections that have ended before this narrative point
+          if (chapterSortOrder != null && c.valid_to_sort != null && Number(c.valid_to_sort) <= Number(chapterSortOrder)) {
+            return false;
+          }
+          return true;
+        });
+        return JSON.stringify({ ok: true, connections: rows });
+      });
+    });

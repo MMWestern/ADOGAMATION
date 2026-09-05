@@ -305,3 +305,50 @@
     window.codexV2LoadChapters = codexV2LoadChapters;
     window.codexV2BuildChapterDropdown = codexV2BuildChapterDropdown;
     window.codexV2GetChapterTitle = codexV2GetChapterTitle;
+
+    /**
+     * Get entity state at a specific narrative point.
+     * Returns a Promise that resolves with array of state records.
+     */
+    function codexV2GetEntityStateAt(entityId, bookId, chapterSortOrder) {
+      return new Promise(function (resolve) {
+        if (!entityId) { resolve([]); return; }
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              resolve(result.ok ? result.states : []);
+            } catch (e) { resolve([]); }
+          })
+          .withFailureHandler(function (err) {
+            console.warn("[codexV2] getEntityStateAt failed:", err);
+            resolve([]);
+          })
+          .getEntityStateAt(entityId, bookId || null, chapterSortOrder != null ? chapterSortOrder : null);
+      });
+    }
+
+    /**
+     * Get active connections at a specific narrative point.
+     * Returns a Promise that resolves with array of connections.
+     */
+    function codexV2GetActiveConnectionsAt(entityId, chapterSortOrder) {
+      return new Promise(function (resolve) {
+        if (!entityId) { resolve([]); return; }
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              resolve(result.ok ? result.connections : []);
+            } catch (e) { resolve([]); }
+          })
+          .withFailureHandler(function (err) {
+            console.warn("[codexV2] getActiveConnectionsAt failed:", err);
+            resolve([]);
+          })
+          .getActiveConnectionsAt(entityId, chapterSortOrder != null ? chapterSortOrder : null);
+      });
+    }
+
+    window.codexV2GetEntityStateAt = codexV2GetEntityStateAt;
+    window.codexV2GetActiveConnectionsAt = codexV2GetActiveConnectionsAt;

@@ -5211,10 +5211,14 @@
       html += "<div class='codex-sub-section' id='codexSectionState' hidden>";
       html += "<div class='codex-sub-section-header'>";
       html += "<span class='codex-sub-section-title'>State / Progression</span>";
+      html += "<div style='display:flex;gap:6px;'>";
+      html += "<button type='button' id='codexStateViewAtBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;color:var(--muted);'>View State At...</button>";
       html += "<button type='button' id='codexStateAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add State</button>";
-      html += "<button type='button' id='codexEventAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;margin-left:4px;'>+ Add Event</button>";
+      html += "<button type='button' id='codexEventAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add Event</button>";
+      html += "</div>";
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexStateViewAtPanel' style='display:none;margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'></div>";
       html += "<div id='codexStateList' class='codex-state-list'>";
       html += "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
       html += "</div>";
@@ -8670,6 +8674,83 @@
         addEventBtn._wired = true;
         addEventBtn.addEventListener("click", function () {
           showEventEditForm(seriesId, entityId, null);
+        });
+      }
+      // Wire View State At button
+      var viewAtBtn = document.getElementById("codexStateViewAtBtn");
+      if (viewAtBtn && !viewAtBtn._wired) {
+        viewAtBtn._wired = true;
+        viewAtBtn.addEventListener("click", function () {
+          var panel = document.getElementById("codexStateViewAtPanel");
+          if (!panel) return;
+          if (panel.style.display !== "none") {
+            panel.style.display = "none";
+            return;
+          }
+          panel.style.display = "block";
+          var html = "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>View State At Narrative Point</div>";
+          html += "<div style='display:flex;gap:8px;align-items:end;flex-wrap:wrap;'>";
+          // Book dropdown
+          html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+          html += "<select id='viewStateAtBook' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+          html += "<option value=''>— Select book —</option>";
+          var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+          projects.forEach(function (p) {
+            var pid = Number(p.project_id || p.id || 0);
+            html += "<option value='" + pid + "'>" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+          });
+          html += "</select></div>";
+          // Chapter dropdown
+          html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+          html += "<select id='viewStateAtChapter' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+          html += "<option value=''>— Select book first —</option>";
+          html += "</select></div>";
+          // Load button
+          html += "<button id='viewStateAtLoadBtn' type='button' class='primary' style='font-size:11px;padding:4px 12px;'>Load</button>";
+          html += "</div>";
+          // Results container
+          html += "<div id='viewStateAtResults' style='margin-top:10px;'></div>";
+          panel.innerHTML = html;
+          // Wire book change to load chapters
+          var bookSel = document.getElementById("viewStateAtBook");
+          var chapterSel = document.getElementById("viewStateAtChapter");
+          bookSel.addEventListener("change", function () {
+            var bookId = Number(bookSel.value || 0);
+            if (!bookId) { chapterSel.innerHTML = "<option value=''>— Select book first —</option>"; return; }
+            chapterSel.innerHTML = "<option value=''>Loading...</option>";
+            codexV2LoadChapters(bookId).then(function (chapters) {
+              chapterSel.innerHTML = codexV2BuildChapterDropdown("viewStateAtChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+            });
+          });
+          // Wire load button
+          document.getElementById("viewStateAtLoadBtn").addEventListener("click", function () {
+            var bookId = Number(bookSel.value || 0);
+            var chapterId = Number(chapterSel.value || 0);
+            var chapterSortOrder = null;
+            if (chapterId) {
+              var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+              var ch = chapters.find(function (c) { return Number(c.id) === chapterId; });
+              if (ch) chapterSortOrder = ch.sort_order;
+            }
+            var resultsDiv = document.getElementById("viewStateAtResults");
+            resultsDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
+            codexV2GetEntityStateAt(entityId, bookId, chapterSortOrder).then(function (states) {
+              if (!states.length) {
+                resultsDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded at this narrative point.</div>";
+                return;
+              }
+              var html = "<div style='font-size:11px;font-weight:700;margin-bottom:6px;'>State at this point:</div>";
+              states.forEach(function (s) {
+                var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
+                html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
+                html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                html += " = " + escapeHtml(String(value));
+                if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                html += "</div>";
+              });
+              resultsDiv.innerHTML = html;
+            });
+          });
         });
       }
     }
