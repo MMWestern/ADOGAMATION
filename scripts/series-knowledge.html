@@ -8887,9 +8887,30 @@
       var html = "<div id='codexStateEditForm' style='margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
       html += "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>" + (isEdit ? "Edit State" : "Add State") + "</div>";
       html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
-      // Property key
+      // Property: dropdown of progression entities + custom text option
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Property</label>";
-      html += "<input id='stateEditPropertyKey' type='text' value='" + escapeHtml(isEdit ? existingState.property_key || "" : "") + "' placeholder='e.g. level, class, gold' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      var PROP_TYPES = ["stat", "resource", "skill_ability", "class_path", "trait_perk", "progression", "equipment", "item"];
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+      var currentPropKey = isEdit ? existingState.property_key || "" : "";
+      var currentPropEntityId = isEdit && existingState.property_entity_id ? Number(existingState.property_entity_id) : 0;
+      html += "<select id='stateEditPropertySelect' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select property —</option>";
+      PROP_TYPES.forEach(function (typeKey) {
+        var typeEntities = entities.filter(function (e) { return (e.codex_entity_types || {}).key === typeKey; });
+        if (!typeEntities.length) return;
+        var typeLabel = typeEntities[0].codex_entity_types ? typeEntities[0].codex_entity_types.name_plural || typeKey : typeKey;
+        html += "<optgroup label='" + escapeHtml(typeLabel) + "'>";
+        typeEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        typeEntities.forEach(function (e) {
+          var selected = currentPropEntityId && Number(e.id) === currentPropEntityId ? " selected" : "";
+          html += "<option value='entity:" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+        });
+        html += "</optgroup>";
+      });
+      html += "<option value='_custom'" + (!currentPropEntityId && currentPropKey ? " selected" : "") + ">Custom property...</option>";
+      html += "</select>";
+      html += "<input id='stateEditPropertyCustom' type='text' value='" + escapeHtml(!currentPropEntityId ? currentPropKey : "") + "' placeholder='e.g. level, class, gold' style='" + (!currentPropEntityId && currentPropKey ? "" : "display:none;") + "margin-top:4px;width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+      html += "</div>";
       // Value
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Value</label>";
       var valStr = isEdit ? (existingState.value_number != null ? String(existingState.value_number) : existingState.value_text || "") : "";
@@ -8952,23 +8973,42 @@
           bookSelect.dispatchEvent(new Event("change"));
         }
       }
+      // Wire property select to show/hide custom input
+      var propSelect = document.getElementById("stateEditPropertySelect");
+      var propCustom = document.getElementById("stateEditPropertyCustom");
+      if (propSelect && propCustom) {
+        propSelect.addEventListener("change", function () {
+          propCustom.style.display = propSelect.value === "_custom" ? "" : "none";
+        });
+      }
       // Wire buttons
       document.getElementById("stateEditCancelBtn").addEventListener("click", function () {
         document.getElementById("codexStateEditForm").remove();
       });
       document.getElementById("stateEditSaveBtn").addEventListener("click", function () {
-        var propertyKey = document.getElementById("stateEditPropertyKey").value.trim();
+        var propSelectVal = propSelect ? propSelect.value : "";
+        var propertyKey = "";
+        var propertyEntityId = null;
+        if (propSelectVal === "_custom") {
+          propertyKey = propCustom ? propCustom.value.trim() : "";
+        } else if (propSelectVal && propSelectVal.indexOf("entity:") === 0) {
+          propertyEntityId = Number(propSelectVal.replace("entity:", ""));
+          // Find entity name for property_key
+          var propEntity = entities.find(function (e) { return Number(e.id) === propertyEntityId; });
+          propertyKey = propEntity ? propEntity.name || "" : "";
+        }
         var valueText = document.getElementById("stateEditValue").value.trim();
         var bookId = Number(document.getElementById("stateEditBook").value || 0);
         var chapterId = Number(document.getElementById("stateEditChapter").value || 0);
         var stateStatus = document.getElementById("stateEditStatus").value;
         var notes = document.getElementById("stateEditNotes").value.trim();
-        if (!propertyKey) { alert("Property is required."); return; }
+        if (!propertyKey && !propertyEntityId) { alert("Property is required."); return; }
         // Determine if value is numeric
         var valueNumber = null;
         if (valueText && !isNaN(valueText)) { valueNumber = Number(valueText); valueText = null; }
         var payload = {
           subject_entity_id: entityId,
+          property_entity_id: propertyEntityId,
           property_key: propertyKey,
           value_text: valueText,
           value_number: valueNumber,
