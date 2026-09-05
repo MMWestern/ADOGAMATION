@@ -2119,6 +2119,20 @@
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<div class='codex-rel-item-bottom'>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
+          // Master Codex v2: Show book/chapter context if available
+          if (c.book_id || c.chapter_id) {
+            relHtml += "<span class='codex-rel-context' style='font-size:10px;color:var(--muted);margin-left:6px;'>";
+            if (c.book_id) {
+              var book = appState.projects ? appState.projects.find(function (p) { return Number(p.project_id || p.id) === Number(c.book_id); }) : null;
+              if (book) {
+                relHtml += escapeHtml(book.title || "Book #" + c.book_id);
+              } else {
+                relHtml += "Book #" + c.book_id;
+              }
+            }
+            if (c.chapter_id) relHtml += " Ch." + c.chapter_id;
+            relHtml += "</span>";
+          }
           relHtml += "<div class='codex-rel-item-actions'>";
           relHtml += "<button type='button' class='codex-rel-edit' data-connection-id='" + c.id + "' title='Edit'>&#9998;</button>";
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
@@ -2341,9 +2355,15 @@
       formHtml += "<select id='codexRelEditType' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>Select type...</option></select>";
       formHtml += "<button id='codexRelEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 10px;'>Save</button>";
       formHtml += "<button id='codexRelEditCancelBtn' type='button' style='font-size:11px;padding:4px 10px;'>Cancel</button>";
-      formHtml += "</div></div>";
+      formHtml += "</div>";
+      // Master Codex v2: Book/chapter context fields
+      formHtml += "<div style='display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;'>";
+      formHtml += "<select id='codexRelEditBook' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>All books (no context)</option></select>";
+      formHtml += "</div>";
+      formHtml += "</div>";
       listEl.insertAdjacentHTML("afterend", formHtml);
       var typeSelect = document.getElementById("codexRelEditType");
+      var bookSelect = document.getElementById("codexRelEditBook");
       var saveBtn = document.getElementById("codexRelEditSaveBtn");
       var cancelBtn = document.getElementById("codexRelEditCancelBtn");
       // Populate relationship types
@@ -2361,11 +2381,23 @@
           })
           .catch(function () {});
       }
+      // Populate book dropdown
+      if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+        appState.projects.forEach(function (p) {
+          var pid = Number(p.project_id || p.id || 0);
+          if (!pid) return;
+          var opt = document.createElement("option");
+          opt.value = pid;
+          opt.textContent = p.title || "Book #" + pid;
+          bookSelect.appendChild(opt);
+        });
+      }
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
           var newTypeId = typeSelect ? Number(typeSelect.value || 0) : 0;
           if (!newTypeId) { setStatus("Select a relationship type.", "error"); return; }
-          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId);
+          var bookId = bookSelect ? Number(bookSelect.value || 0) : 0;
+          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId);
           var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
           if (form) form.remove();
         });
@@ -2378,7 +2410,7 @@
       }
     }
 
-    function updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId) {
+    function updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId) {
       // Find existing connection
       var connections = skCache.connections[seriesId] || [];
       var conn = connections.find(function (c) { return Number(c.id) === connectionId; });
@@ -2392,7 +2424,9 @@
         label: conn.label || "",
         inverse_label: conn.inverse_label || "",
         description: conn.description || "",
-        is_secret: conn.is_secret || false
+        is_secret: conn.is_secret || false,
+        // Master Codex v2: Include book context if provided
+        book_id: bookId || null
       };
       setStatus("Updating relationship...", "warn");
       callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(payload)])
