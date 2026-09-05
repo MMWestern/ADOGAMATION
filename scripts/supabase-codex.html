@@ -160,39 +160,39 @@
         if (existingType) {
           safeTypeId = Number(existingType.id || 0);
         } else {
-          // Auto-create the type inline
-          return sbClient.from('codex_entity_types').insert({
-            key: typeKey,
-            name_singular: typeKey,
-            name_plural: typeKey + 's',
-            icon: '',
-            description: '',
-            is_system_type: false,
-            is_enabled: true,
-            sort_order: 999
-          }).select().single()
-          .then(function (res) {
-            if (res.error) {
-              // Handle duplicate key error (PostgreSQL error code 23505)
-              if (res.error.code === '23505') {
-                // Find similar existing types
-                var similarTypes = Object.keys(codexCache.entityTypesByKey || {}).filter(function(key) {
-                  return key.includes(typeKey) || typeKey.includes(key);
-                });
-                throw new Error('Entity type "' + typeKey + '" already exists. Similar types: ' +
-                  (similarTypes.length ? similarTypes.join(', ') : 'none') +
-                  '. Please choose a different key or use an existing type.');
+          // Try to find existing type in database first, then auto-create if needed
+          return sbClient.from('codex_entity_types').select('id').eq('key', typeKey).limit(1)
+            .then(function (lookupRes) {
+              if (lookupRes.error) throw lookupRes.error;
+              if (lookupRes.data && lookupRes.data.length) {
+                // Type exists in database, use its ID
+                safeTypeId = Number(lookupRes.data[0].id);
+                // Update cache
+                if (codexCache.entityTypesByKey) {
+                  codexCache.entityTypesByKey[typeKey] = lookupRes.data[0];
+                }
+                return saveCodexEntity(seriesId, safeTypeId, payloadJson);
               }
-              throw res.error;
-            }
-            var newType = res.data;
-            // Update cache
-            if (codexCache.entityTypesByKey) {
-              codexCache.entityTypesByKey[typeKey] = newType;
-            }
-            // Retry save with new type ID
-            return saveCodexEntity(seriesId, newType.id, payloadJson);
-          });
+              // Type doesn't exist, create it
+              return sbClient.from('codex_entity_types').insert({
+                key: typeKey,
+                name_singular: typeKey,
+                name_plural: typeKey + 's',
+                icon: '',
+                description: '',
+                is_system_type: false,
+                is_enabled: true,
+                sort_order: 999
+              }).select().single()
+              .then(function (res) {
+                if (res.error) throw res.error;
+                var newType = res.data;
+                if (codexCache.entityTypesByKey) {
+                  codexCache.entityTypesByKey[typeKey] = newType;
+                }
+                return saveCodexEntity(seriesId, newType.id, payloadJson);
+              });
+            });
         }
       }
       
