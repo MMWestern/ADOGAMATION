@@ -160,3 +160,75 @@
           .listCodexEntities(seriesId);
       });
     }
+
+    /**
+     * Run deprecation audit for entity types.
+     * Returns a Promise that resolves with audit results.
+     */
+    function codexV2DeprecationAudit(seriesId) {
+      return new Promise(function (resolve, reject) {
+        if (!seriesId) {
+          reject(new Error("Series id is required."));
+          return;
+        }
+        console.log("[codexV2] Starting deprecation audit for series", seriesId);
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (!result.ok || !result.entities) {
+                reject(new Error("Failed to load entities."));
+                return;
+              }
+              var entities = result.entities;
+              var connections = skCache.connections[seriesId] || [];
+              // Count entities by type
+              var typeCounts = {};
+              entities.forEach(function (e) {
+                var typeKey = (e.codex_entity_types || {}).key || e.entity_type_key || "unknown";
+                typeCounts[typeKey] = (typeCounts[typeKey] || 0) + 1;
+              });
+              // Count connections
+              var connectionCount = connections.filter(function (c) { return !c.deleted_at; }).length;
+              // Build audit report
+              var audit = {
+                series_id: seriesId,
+                total_entities: entities.length,
+                total_connections: connectionCount,
+                type_counts: typeCounts,
+                deprecation_candidates: []
+              };
+              // Check specific overlaps
+              var overlaps = [
+                { type: "relationship", vs: "codex_connections", description: "Relationship entity vs connections table" },
+                { type: "equipment", vs: "item", description: "Equipment entity vs Item entity" },
+                { type: "quest", vs: "story_thread", description: "Quest entity vs Story Thread entity" },
+                { type: "magic_system", vs: "power_system", description: "Magic System vs Power System" }
+              ];
+              overlaps.forEach(function (overlap) {
+                var count = typeCounts[overlap.type] || 0;
+                var vsCount = overlap.vs === "codex_connections" ? connectionCount : (typeCounts[overlap.vs] || 0);
+                var recommendation = "ACTIVE USAGE - Keep separate";
+                if (count === 0) recommendation = "SAFE TO DEPRECATE - No entities exist";
+                else if (count < 5) recommendation = "LOW USAGE - Consider migration";
+                audit.deprecation_candidates.push({
+                  type: overlap.type,
+                  count: count,
+                  vs: overlap.vs,
+                  vs_count: vsCount,
+                  description: overlap.description,
+                  recommendation: recommendation
+                });
+              });
+              console.log("[codexV2] Deprecation audit complete:", audit);
+              resolve(audit);
+            } catch (e) {
+              reject(e);
+            }
+          })
+          .withFailureHandler(function (err) {
+            reject(err);
+          })
+          .listCodexEntities(seriesId);
+      });
+    }
