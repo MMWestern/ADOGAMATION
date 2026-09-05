@@ -8541,6 +8541,11 @@
               if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded.</div>";
             } else {
               var html = "";
+              // Build book lookup map
+              var bookMap = {};
+              if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+                appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
+              }
               result.states.forEach(function (s) {
                 var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
                 html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
@@ -8548,6 +8553,10 @@
                 html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
                 html += " <span>= " + escapeHtml(String(value)) + "</span>";
                 if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                if (s.book_id) {
+                  var book = bookMap[Number(s.book_id)];
+                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(book ? book.title : "Book #" + s.book_id) + "</span>";
+                }
                 if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
                 html += "</div>";
                 html += "<button type='button' class='codex-state-edit' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
@@ -8595,12 +8604,21 @@
               if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No progression events.</div>";
             } else {
               var html = "";
+              // Build book lookup map
+              var bookMap = {};
+              if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+                appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
+              }
               result.events.forEach(function (ev) {
                 html += "<div class='codex-event-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
                 html += "<div style='flex:1;'>";
                 html += "<span style='font-weight:600;'>" + escapeHtml(ev.event_type || "event") + "</span>";
                 if (ev.reason) html += " <span style='color:var(--muted);'>— " + escapeHtml(ev.reason) + "</span>";
                 if (ev.canon_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(ev.canon_status) + "]</span>";
+                if (ev.book_id) {
+                  var book = bookMap[Number(ev.book_id)];
+                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(book ? book.title : "Book #" + ev.book_id) + "</span>";
+                }
                 html += "</div>";
                 html += "<button type='button' class='codex-event-edit' data-event-id='" + ev.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
                 html += "<button type='button' class='codex-event-delete' data-event-id='" + ev.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:none;color:#ef4444;cursor:pointer;' title='Delete'>&times;</button>";
@@ -8673,6 +8691,22 @@
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Value</label>";
       var valStr = isEdit ? (existingState.value_number != null ? String(existingState.value_number) : existingState.value_text || "") : "";
       html += "<input id='stateEditValue' type='text' value='" + escapeHtml(valStr) + "' placeholder='Value' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Book
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      html += "<select id='stateEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— No book —</option>";
+      var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+      projects.forEach(function (p) {
+        var pid = Number(p.project_id || p.id || 0);
+        var sel = isEdit && existingState.book_id && pid === Number(existingState.book_id) ? " selected" : "";
+        html += "<option value='" + pid + "'" + sel + ">" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+      });
+      html += "</select></div>";
+      // Chapter (loaded dynamically when book is selected)
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      html += "<select id='stateEditChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select book first —</option>";
+      html += "</select></div>";
       // Status
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Status</label>";
       html += "<select id='stateEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
@@ -8691,6 +8725,30 @@
       html += "<button id='stateEditCancelBtn' type='button' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
       html += "</div></div>";
       stateList.insertAdjacentHTML("afterbegin", html);
+      // Load chapters when book is selected
+      var bookSelect = document.getElementById("stateEditBook");
+      var chapterSelect = document.getElementById("stateEditChapter");
+      if (bookSelect && chapterSelect) {
+        bookSelect.addEventListener("change", function () {
+          var bookId = Number(bookSelect.value || 0);
+          if (!bookId) {
+            chapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+            return;
+          }
+          chapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          if (typeof codexV2LoadChapters === "function") {
+            codexV2LoadChapters(bookId).then(function (chapters) {
+              chapterSelect.innerHTML = typeof codexV2BuildChapterDropdown === "function"
+                ? codexV2BuildChapterDropdown("stateEditChapter", chapters, isEdit ? existingState.chapter_id : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "")
+                : "<option value=''>— No chapter —</option>";
+            });
+          }
+        });
+        // If editing, trigger chapter load for existing book
+        if (isEdit && existingState.book_id) {
+          bookSelect.dispatchEvent(new Event("change"));
+        }
+      }
       // Wire buttons
       document.getElementById("stateEditCancelBtn").addEventListener("click", function () {
         document.getElementById("codexStateEditForm").remove();
@@ -8698,6 +8756,8 @@
       document.getElementById("stateEditSaveBtn").addEventListener("click", function () {
         var propertyKey = document.getElementById("stateEditPropertyKey").value.trim();
         var valueText = document.getElementById("stateEditValue").value.trim();
+        var bookId = Number(document.getElementById("stateEditBook").value || 0);
+        var chapterId = Number(document.getElementById("stateEditChapter").value || 0);
         var stateStatus = document.getElementById("stateEditStatus").value;
         var notes = document.getElementById("stateEditNotes").value.trim();
         if (!propertyKey) { alert("Property is required."); return; }
@@ -8710,6 +8770,8 @@
           value_text: valueText,
           value_number: valueNumber,
           series_id: seriesId,
+          book_id: bookId || null,
+          chapter_id: chapterId || null,
           state_status: stateStatus,
           notes: notes || null
         };
@@ -8762,6 +8824,22 @@
       // Notes
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
       html += "<input id='eventEditNotes' type='text' value='" + escapeHtml(isEdit ? existingEvent.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Book
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      html += "<select id='eventEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— No book —</option>";
+      var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+      projects.forEach(function (p) {
+        var pid = Number(p.project_id || p.id || 0);
+        var sel = isEdit && existingEvent.book_id && pid === Number(existingEvent.book_id) ? " selected" : "";
+        html += "<option value='" + pid + "'" + sel + ">" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+      });
+      html += "</select></div>";
+      // Chapter (loaded dynamically when book is selected)
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      html += "<select id='eventEditChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select book first —</option>";
+      html += "</select></div>";
       html += "</div>";
       // Buttons
       html += "<div style='display:flex;gap:8px;margin-top:10px;'>";
@@ -8769,6 +8847,30 @@
       html += "<button id='eventEditCancelBtn' type='button' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
       html += "</div></div>";
       eventList.insertAdjacentHTML("afterbegin", html);
+      // Load chapters when book is selected
+      var bookSelect = document.getElementById("eventEditBook");
+      var chapterSelect = document.getElementById("eventEditChapter");
+      if (bookSelect && chapterSelect) {
+        bookSelect.addEventListener("change", function () {
+          var bookId = Number(bookSelect.value || 0);
+          if (!bookId) {
+            chapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+            return;
+          }
+          chapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          if (typeof codexV2LoadChapters === "function") {
+            codexV2LoadChapters(bookId).then(function (chapters) {
+              chapterSelect.innerHTML = typeof codexV2BuildChapterDropdown === "function"
+                ? codexV2BuildChapterDropdown("eventEditChapter", chapters, isEdit ? existingEvent.chapter_id : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "")
+                : "<option value=''>— No chapter —</option>";
+            });
+          }
+        });
+        // If editing, trigger chapter load for existing book
+        if (isEdit && existingEvent.book_id) {
+          bookSelect.dispatchEvent(new Event("change"));
+        }
+      }
       // Wire buttons
       document.getElementById("eventEditCancelBtn").addEventListener("click", function () {
         document.getElementById("codexEventEditForm").remove();
@@ -8778,10 +8880,14 @@
         var reason = document.getElementById("eventEditReason").value.trim();
         var canonStatus = document.getElementById("eventEditCanonStatus").value;
         var notes = document.getElementById("eventEditNotes").value.trim();
+        var bookId = Number(document.getElementById("eventEditBook").value || 0);
+        var chapterId = Number(document.getElementById("eventEditChapter").value || 0);
         var payload = {
           subject_entity_id: entityId,
           event_type: eventType,
           series_id: seriesId,
+          book_id: bookId || null,
+          chapter_id: chapterId || null,
           reason: reason || null,
           canon_status: canonStatus,
           notes: notes || null

@@ -233,3 +233,75 @@
           .listCodexEntities(seriesId);
       });
     }
+
+    /**
+     * Load chapters (document_sections) for a book/project.
+     * Returns a Promise that resolves with array of {id, title, sort_order}.
+     * Caches results in skCache.chapters[projectId].
+     */
+    function codexV2LoadChapters(projectId) {
+      return new Promise(function (resolve) {
+        if (!projectId) { resolve([]); return; }
+        // Check cache first
+        if (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[projectId]) {
+          resolve(skCache.chapters[projectId]);
+          return;
+        }
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              var chapters = (result.rows || []).map(function (r) {
+                return { id: r.id, title: r.title || "Untitled", sort_order: r.sort_order || 0 };
+              });
+              // Cache the result
+              if (typeof skCache !== "undefined") {
+                if (!skCache.chapters) skCache.chapters = {};
+                skCache.chapters[projectId] = chapters;
+              }
+              resolve(chapters);
+            } catch (e) {
+              console.warn("[codexV2] Error parsing chapters:", e);
+              resolve([]);
+            }
+          })
+          .withFailureHandler(function (err) {
+            console.warn("[codexV2] Error loading chapters:", err);
+            resolve([]);
+          })
+          .getSupabaseProjectSectionDocumentJsonFromClient(projectId, "draft");
+      });
+    }
+
+    /**
+     * Build a chapter dropdown HTML string.
+     * @param {string} selectId - The id for the select element
+     * @param {Array} chapters - Array of {id, title, sort_order}
+     * @param {number} selectedId - Currently selected chapter id
+     * @param {string} style - Optional inline style
+     * @returns {string} HTML string
+     */
+    function codexV2BuildChapterDropdown(selectId, chapters, selectedId, style) {
+      var s = style || "width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;";
+      var html = "<select id='" + selectId + "' style='" + s + "'>";
+      html += "<option value=''>— No chapter —</option>";
+      chapters.forEach(function (ch) {
+        var sel = selectedId && Number(ch.id) === Number(selectedId) ? " selected" : "";
+        html += "<option value='" + ch.id + "'" + sel + ">" + escapeHtml(ch.title) + "</option>";
+      });
+      html += "</select>";
+      return html;
+    }
+
+    /**
+     * Get chapter title by id from a chapters array.
+     */
+    function codexV2GetChapterTitle(chapters, chapterId) {
+      if (!chapterId || !chapters) return "";
+      var ch = chapters.find(function (c) { return Number(c.id) === Number(chapterId); });
+      return ch ? ch.title : "Chapter #" + chapterId;
+    }
+
+    window.codexV2LoadChapters = codexV2LoadChapters;
+    window.codexV2BuildChapterDropdown = codexV2BuildChapterDropdown;
+    window.codexV2GetChapterTitle = codexV2GetChapterTitle;
