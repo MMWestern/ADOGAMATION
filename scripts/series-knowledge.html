@@ -8652,6 +8652,33 @@
               html += "</select>";
             } else if (fieldType === "number") {
               html += "<input type='number' class='codex-field-input' data-field-type='number' value='" + escapeHtml(String(currentValue)) + "' style='width:200px;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+            } else if (fieldType === "entity_link") {
+              // Entity link: dropdown of entities filtered by type
+              var filterType = def.options_json && def.options_json.entity_type_key ? def.options_json.entity_type_key : "";
+              var linkedId = val && val.linked_entity_id ? Number(val.linked_entity_id) : 0;
+              var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+              // Group entities by type for display
+              var grouped = {};
+              entities.forEach(function (e) {
+                var ek = (e.codex_entity_types || {}).key || e.entity_type_key || "unknown";
+                if (filterType && ek !== filterType) return;
+                if (!grouped[ek]) grouped[ek] = [];
+                grouped[ek].push(e);
+              });
+              html += "<select class='codex-field-input' data-field-type='entity_link' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;width:100%;'>";
+              html += "<option value=''>— None —</option>";
+              Object.keys(grouped).sort().forEach(function (typeKey) {
+                var typeEntities = grouped[typeKey];
+                var typeLabel = typeEntities.length && typeEntities[0].codex_entity_types ? typeEntities[0].codex_entity_types.name_plural || typeKey : typeKey;
+                html += "<optgroup label='" + escapeHtml(typeLabel) + "'>";
+                typeEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+                typeEntities.forEach(function (e) {
+                  var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
+                  html += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+                });
+                html += "</optgroup>";
+              });
+              html += "</select>";
             } else {
               html += "<input type='text' class='codex-field-input' data-field-type='text' value='" + escapeHtml(String(currentValue)) + "' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
             }
@@ -8702,6 +8729,10 @@
           payload.value_boolean = input.checked;
         } else if (fieldType === "number") {
           payload.value_number = input.value ? Number(input.value) : null;
+        } else if (fieldType === "entity_link") {
+          var linkedId = input.value ? Number(input.value) : null;
+          payload.linked_entity_id = linkedId;
+          payload.value_text = linkedId && input.selectedIndex >= 0 ? input.options[input.selectedIndex].textContent : null;
         } else {
           payload.value_text = input.value || null;
         }
