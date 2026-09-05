@@ -550,3 +550,87 @@
     }
 
     window.codexV2CreatePilotDataset = codexV2CreatePilotDataset;
+
+    /**
+     * Run Patrick temporal pilot verification queries.
+     * After creating the pilot dataset, call this to verify historical state.
+     * Run from browser console: codexV2VerifyPilot(seriesId, book1Id, book2Id, patrickId)
+     * Returns a Promise with the verification results.
+     */
+    function codexV2VerifyPilot(seriesId, book1Id, book2Id, patrickId) {
+      return new Promise(function (resolve, reject) {
+        if (!seriesId || !book1Id || !patrickId) { reject(new Error("seriesId, book1Id, and patrickId required")); return; }
+        console.log("[pilot] Starting verification for Patrick (id=" + patrickId + ")");
+        var results = [];
+
+        // Helper to query state at a narrative point
+        function queryState(label, bookId, chapterSortOrder) {
+          return new Promise(function (res) {
+            codexV2GetEntityStateAt(patrickId, bookId, chapterSortOrder).then(function (states) {
+              var stateMap = {};
+              states.forEach(function (s) {
+                var val = s.value_number != null ? s.value_number : s.value_text || "?";
+                stateMap[s.property_key] = val;
+              });
+              results.push({ label: label, type: "state", data: stateMap });
+              console.log("[pilot] " + label + ":", stateMap);
+              res();
+            });
+          });
+        }
+
+        // Helper to query relationships at a narrative point
+        function queryRelationships(label, chapterSortOrder) {
+          return new Promise(function (res) {
+            codexV2GetActiveConnectionsAt(patrickId, chapterSortOrder).then(function (connections) {
+              var rels = connections.map(function (c) {
+                var otherName = c.source_entity_id === patrickId
+                  ? (c.target || {}).name || "Unknown"
+                  : (c.source || {}).name || "Unknown";
+                var relLabel = c.codex_relationship_types ? (c.source_entity_id === patrickId ? c.codex_relationship_types.forward_label : c.codex_relationship_types.inverse_label) : c.label || "related";
+                return otherName + " (" + relLabel + ")";
+              });
+              results.push({ label: label, type: "relationships", data: rels });
+              console.log("[pilot] " + label + " relationships:", rels);
+              res();
+            });
+          });
+        }
+
+        // Run queries sequentially
+        // Note: We use sort_order values as narrative anchors
+        // Book 1 sort_order 1 = Chapter 1, sort_order 7 = Chapter 7, sort_order 12 = Chapter 12
+        queryState("Book 1 Ch 1 (sort=1)", book1Id, 1).then(function () {
+          return queryState("Book 1 Ch 5 (sort=5)", book1Id, 5);
+        }).then(function () {
+          return queryRelationships("Book 1 Ch 5 (sort=5)", 5);
+        }).then(function () {
+          return queryState("Book 1 Ch 7 (sort=7)", book1Id, 7);
+        }).then(function () {
+          return queryRelationships("Book 1 Ch 7 (sort=7)", 7);
+        }).then(function () {
+          return queryState("Book 1 Ch 12 (sort=12)", book1Id, 12);
+        }).then(function () {
+          return queryRelationships("Book 1 Ch 12 (sort=12)", 12);
+        }).then(function () {
+          if (book2Id) {
+            return queryState("Book 2 Ch 2 (sort=2)", book2Id, 2).then(function () {
+              return queryRelationships("Book 2 Ch 2 (sort=2)", 2);
+            }).then(function () {
+              return queryState("Book 2 Ch 3 (sort=3)", book2Id, 3);
+            }).then(function () {
+              return queryRelationships("Book 2 Ch 3 (sort=3)", 3);
+            });
+          }
+        }).then(function () {
+          console.log("[pilot] === VERIFICATION COMPLETE ===");
+          console.log("[pilot] Results:", JSON.stringify(results, null, 2));
+          resolve(results);
+        }).catch(function (err) {
+          console.error("[pilot] Verification error:", err);
+          reject(err);
+        });
+      });
+    }
+
+    window.codexV2VerifyPilot = codexV2VerifyPilot;
