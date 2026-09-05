@@ -994,3 +994,7 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
 
     // Feature flag: set to true to use the new generic Codex engine instead of legacy series_* tables
     var USE_NEW_CODEX_ENGINE = true;
+
+    // Feature flag: Master Codex v2 — enable dual-write to new v2 tables (appearances, state, events)
+    // Set to true to write to v2 tables alongside legacy writes
+    var CODEX_V2_DUAL_WRITE = true;

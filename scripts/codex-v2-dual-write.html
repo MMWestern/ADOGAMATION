@@ -1,0 +1,93 @@
+    // ============================================================
+    // MASTER CODEX v2 — Dual-write helpers
+    // These functions write to v2 tables alongside legacy writes.
+    // Controlled by CODEX_V2_DUAL_WRITE flag.
+    // ============================================================
+
+    /**
+     * Record an entity appearance when an entity is linked to a project/book.
+     * Called from saveCodexEntityProjects and entity save paths.
+     */
+    function codexV2RecordAppearance(seriesId, entityId, bookId, appearanceType) {
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
+      if (!seriesId || !entityId || !bookId) return;
+      var payload = {
+        entity_id: entityId,
+        series_id: seriesId,
+        book_id: bookId,
+        appearance_type: appearanceType || "appears",
+        source: "dual_write"
+      };
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) { console.warn("[codexV2] appearance dual-write failed:", err); })
+        .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
+    }
+
+    /**
+     * Record a state change when an entity property changes.
+     * Called from entity save paths when key properties change.
+     */
+    function codexV2RecordState(seriesId, entityId, propertyKey, valueText, valueNumber, bookId, chapterId) {
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
+      if (!seriesId || !entityId || !propertyKey) return;
+      var payload = {
+        subject_entity_id: entityId,
+        property_key: propertyKey,
+        value_text: valueText || null,
+        value_number: valueNumber != null ? valueNumber : null,
+        series_id: seriesId,
+        book_id: bookId || null,
+        chapter_id: chapterId || null,
+        state_status: "draft",
+        source: "dual_write"
+      };
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) { console.warn("[codexV2] state dual-write failed:", err); })
+        .saveCodexEntityState(seriesId, JSON.stringify(payload));
+    }
+
+    /**
+     * Record a progression event when a significant entity change occurs.
+     * Called from entity save paths for status changes, class changes, etc.
+     */
+    function codexV2RecordEvent(seriesId, entityId, eventType, reason, bookId, chapterId) {
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
+      if (!seriesId || !entityId || !eventType) return;
+      var payload = {
+        subject_entity_id: entityId,
+        event_type: eventType,
+        series_id: seriesId,
+        book_id: bookId || null,
+        chapter_id: chapterId || null,
+        reason: reason || null,
+        canon_status: "draft",
+        source: "dual_write"
+      };
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) { console.warn("[codexV2] event dual-write failed:", err); })
+        .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
+    }
+
+    /**
+     * Dual-write connection with context fields.
+     * Called from saveCodexConnection when book/chapter context is available.
+     */
+    function codexV2UpdateConnectionContext(connectionId, bookId, chapterId, status, notes) {
+      if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
+      if (!connectionId) return;
+      // The connection is already saved by the caller — we just need to update the new context fields
+      // This is done via a direct update since the connection already exists
+      var updates = {};
+      if (bookId) updates.book_id = bookId;
+      if (chapterId) updates.chapter_id = chapterId;
+      if (status) updates.context_status = status;
+      if (notes) updates.notes = notes;
+      if (Object.keys(updates).length === 0) return;
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) { console.warn("[codexV2] connection context dual-write failed:", err); })
+        .updateCodexConnectionContext(connectionId, JSON.stringify(updates));
+    }

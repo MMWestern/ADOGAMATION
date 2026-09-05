@@ -241,6 +241,22 @@
           }));
         });
         return Promise.all([projectOp, tagOp]).then(function () {
+          // Master Codex v2: Dual-write appearances for project links
+          if (typeof CODEX_V2_DUAL_WRITE !== "undefined" && CODEX_V2_DUAL_WRITE && projectLinks.length) {
+            projectLinks.forEach(function (link) {
+              var pid = Number(link.project_id || link.projectId || 0);
+              if (pid && typeof codexV2RecordAppearance === "function") {
+                codexV2RecordAppearance(safeSeriesId, savedId, pid, "appears");
+              }
+            });
+          }
+          // Master Codex v2: Dual-write state event for status/canon_status changes
+          if (typeof CODEX_V2_DUAL_WRITE !== "undefined" && CODEX_V2_DUAL_WRITE && entityId) {
+            // Entity was updated (not created) — check for status changes
+            if (typeof codexV2RecordEvent === "function") {
+              codexV2RecordEvent(safeSeriesId, savedId, "entity_updated", "Entity saved via UI");
+            }
+          }
           return JSON.stringify({ ok: true, entity: saved });
         });
       });
@@ -326,7 +342,26 @@
       var op = connId
         ? sbClient.from('codex_connections').update(payload).eq('id', connId).select().single()
         : sbClient.from('codex_connections').insert([payload]).select().single();
-      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connection: res.data }); });
+      return op.then(function (res) {
+        if (res.error) throw res.error;
+        var saved = res.data;
+        var savedId = Number(saved.id);
+        // Master Codex v2: Dual-write context fields if provided
+        if (typeof CODEX_V2_DUAL_WRITE !== "undefined" && CODEX_V2_DUAL_WRITE) {
+          var contextUpdates = {};
+          if (parsed.book_id) contextUpdates.book_id = Number(parsed.book_id);
+          if (parsed.chapter_id) contextUpdates.chapter_id = Number(parsed.chapter_id);
+          if (parsed.valid_from_sort != null) contextUpdates.valid_from_sort = Number(parsed.valid_from_sort);
+          if (parsed.valid_to_sort != null) contextUpdates.valid_to_sort = Number(parsed.valid_to_sort);
+          if (parsed.context_status) contextUpdates.context_status = String(parsed.context_status);
+          if (parsed.notes) contextUpdates.notes = String(parsed.notes);
+          if (parsed.created_source) contextUpdates.created_source = String(parsed.created_source);
+          if (Object.keys(contextUpdates).length > 0 && typeof codexV2UpdateConnectionContext === "function") {
+            codexV2UpdateConnectionContext(savedId, contextUpdates.book_id, contextUpdates.chapter_id, contextUpdates.context_status, contextUpdates.notes);
+          }
+        }
+        return JSON.stringify({ ok: true, connection: saved });
+      });
     });
 
     _sbDefine('deleteCodexConnection', function (connectionId) {
@@ -334,6 +369,23 @@
       if (!safeId) throw new Error('Connection id is required.');
       return sbClient.from('codex_connections').update({ deleted_at: new Date().toISOString() }).eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connectionId: safeId }); });
+    });
+
+    _sbDefine('updateCodexConnectionContext', function (connectionId, contextJson) {
+      var safeId = Number(connectionId || 0);
+      if (!safeId) throw new Error('Connection id is required.');
+      var parsed = typeof contextJson === 'string' ? JSON.parse(contextJson) : (contextJson || {});
+      var updates = {};
+      if (parsed.book_id != null) updates.book_id = parsed.book_id;
+      if (parsed.chapter_id != null) updates.chapter_id = parsed.chapter_id;
+      if (parsed.valid_from_sort != null) updates.valid_from_sort = parsed.valid_from_sort;
+      if (parsed.valid_to_sort != null) updates.valid_to_sort = parsed.valid_to_sort;
+      if (parsed.context_status) updates.context_status = parsed.context_status;
+      if (parsed.notes) updates.notes = parsed.notes;
+      if (parsed.created_source) updates.created_source = parsed.created_source;
+      if (Object.keys(updates).length === 0) return JSON.stringify({ ok: true });
+      return sbClient.from('codex_connections').update(updates).eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
 
     // ---- Tags ----
