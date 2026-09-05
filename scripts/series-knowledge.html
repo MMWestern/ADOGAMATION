@@ -2381,11 +2381,14 @@
           })
           .catch(function () {});
       }
-      // Populate book dropdown
+      // Populate book dropdown (only books in current series)
       if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
         appState.projects.forEach(function (p) {
           var pid = Number(p.project_id || p.id || 0);
           if (!pid) return;
+          // Filter: only show books belonging to the current series
+          var projectSeriesId = Number(p.series_id || 0);
+          if (projectSeriesId !== seriesId) return;
           var opt = document.createElement("option");
           opt.value = pid;
           opt.textContent = p.title || "Book #" + pid;
