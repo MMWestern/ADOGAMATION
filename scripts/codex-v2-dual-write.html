@@ -91,3 +91,72 @@
         .withFailureHandler(function (err) { console.warn("[codexV2] connection context dual-write failed:", err); })
         .updateCodexConnectionContext(connectionId, JSON.stringify(updates));
     }
+
+    /**
+     * Backfill appearances from existing entity_projects.
+     * Only backfills unambiguous data: entity linked to a project = entity appears in that book.
+     * Returns a Promise that resolves with the count of backfilled records.
+     */
+    function codexV2BackfillAppearances(seriesId) {
+      return new Promise(function (resolve, reject) {
+        if (!seriesId) {
+          reject(new Error("Series id is required."));
+          return;
+        }
+        console.log("[codexV2] Starting appearances backfill for series", seriesId);
+        // Step 1: Load all entities for this series with their project links
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (!result.ok || !result.entities) {
+                reject(new Error("Failed to load entities."));
+                return;
+              }
+              var entities = result.entities;
+              console.log("[codexV2] Found", entities.length, "entities to backfill");
+              // Step 2: For each entity with project links, create appearance records
+              var backfillCount = 0;
+              var promises = [];
+              entities.forEach(function (entity) {
+                var entityId = Number(entity.id);
+                var projectLinks = entity.projectLinks || [];
+                projectLinks.forEach(function (link) {
+                  var pid = Number(link.project_id || link.projectId || 0);
+                  if (pid) {
+                    backfillCount++;
+                    promises.push(new Promise(function (res) {
+                      var payload = {
+                        entity_id: entityId,
+                        series_id: seriesId,
+                        book_id: pid,
+                        appearance_type: "appears",
+                        source: "backfill"
+                      };
+                      supabaseRunner
+                        .withSuccessHandler(function () { res(true); })
+                        .withFailureHandler(function (err) {
+                          console.warn("[codexV2] backfill failed for entity", entityId, "book", pid, err);
+                          res(false);
+                        })
+                        .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
+                    }));
+                  }
+                });
+              });
+              // Step 3: Wait for all backfill operations to complete
+              Promise.all(promises).then(function (results) {
+                var successCount = results.filter(function (r) { return r; }).length;
+                console.log("[codexV2] Backfill complete:", successCount, "of", backfillCount, "records created");
+                resolve({ total: backfillCount, success: successCount });
+              });
+            } catch (e) {
+              reject(e);
+            }
+          })
+          .withFailureHandler(function (err) {
+            reject(err);
+          })
+          .listCodexEntities(seriesId);
+      });
+    }

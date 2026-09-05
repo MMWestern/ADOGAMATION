@@ -5158,7 +5158,10 @@
       html += "<div class='codex-sub-section' id='codexSectionAppearances' hidden>";
       html += "<div class='codex-sub-section-header'>";
       html += "<span class='codex-sub-section-title'>Appearances</span>";
+      html += "<div style='display:flex;gap:6px;'>";
+      html += "<button type='button' id='codexAppearanceBackfillBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;color:var(--muted);'>Backfill from Books</button>";
       html += "<button type='button' id='codexAppearanceAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add</button>";
+      html += "</div>";
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
       html += "<div id='codexAppearanceList' class='codex-appearance-list'>";
@@ -5387,6 +5390,34 @@
         // Master Codex v2: Load appearances when Appearances tab is selected
         if (section === "appearances" && _codexActiveEntityId && skCurrentSeriesId) {
           loadCodexAppearances(skCurrentSeriesId, _codexActiveEntityId);
+          // Wire backfill button
+          var backfillBtn = document.getElementById("codexAppearanceBackfillBtn");
+          if (backfillBtn && !backfillBtn._wired) {
+            backfillBtn._wired = true;
+            backfillBtn.addEventListener("click", function () {
+              if (!skCurrentSeriesId) return;
+              backfillBtn.disabled = true;
+              backfillBtn.textContent = "Backfilling...";
+              if (typeof codexV2BackfillAppearances === "function") {
+                codexV2BackfillAppearances(skCurrentSeriesId).then(function (result) {
+                  backfillBtn.textContent = "Done (" + result.success + " added)";
+                  setTimeout(function () {
+                    backfillBtn.textContent = "Backfill from Books";
+                    backfillBtn.disabled = false;
+                  }, 2000);
+                  // Reload appearances
+                  loadCodexAppearances(skCurrentSeriesId, _codexActiveEntityId);
+                }).catch(function (err) {
+                  console.error("[codexV2] Backfill error:", err);
+                  backfillBtn.textContent = "Error";
+                  setTimeout(function () {
+                    backfillBtn.textContent = "Backfill from Books";
+                    backfillBtn.disabled = false;
+                  }, 2000);
+                });
+              }
+            });
+          }
         }
         // Master Codex v2: Load state/events when State tab is selected
         if (section === "state" && _codexActiveEntityId && skCurrentSeriesId) {
