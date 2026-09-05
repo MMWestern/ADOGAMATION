@@ -160,38 +160,69 @@
         if (existingType) {
           safeTypeId = Number(existingType.id || 0);
         } else {
-          // Try to find existing type in database first, then auto-create if needed
-          return sbClient.from('codex_entity_types').select('id').eq('key', typeKey).limit(1)
+          // Look up or create the entity type, then proceed with entity save
+          return sbClient.from('codex_entity_types').select('id,key,name_singular,name_plural').eq('key', typeKey).limit(1)
             .then(function (lookupRes) {
               if (lookupRes.error) throw lookupRes.error;
               if (lookupRes.data && lookupRes.data.length) {
                 // Type exists in database, use its ID
                 safeTypeId = Number(lookupRes.data[0].id);
-                // Update cache
                 if (codexCache.entityTypesByKey) {
                   codexCache.entityTypesByKey[typeKey] = lookupRes.data[0];
                 }
-                return saveCodexEntity(seriesId, safeTypeId, payloadJson);
+              } else {
+                // Type doesn't exist, will be created below
+                safeTypeId = 0;
               }
-              // Type doesn't exist, create it
-              return sbClient.from('codex_entity_types').insert({
-                key: typeKey,
-                name_singular: typeKey,
-                name_plural: typeKey + 's',
-                icon: '',
-                description: '',
-                is_system_type: false,
-                is_enabled: true,
-                sort_order: 999
-              }).select().single()
-              .then(function (res) {
-                if (res.error) throw res.error;
-                var newType = res.data;
-                if (codexCache.entityTypesByKey) {
-                  codexCache.entityTypesByKey[typeKey] = newType;
-                }
-                return saveCodexEntity(seriesId, newType.id, payloadJson);
-              });
+              // Now build and save the entity with the resolved type ID
+              var entityPayload = {
+                series_id: safeSeriesId,
+                entity_type_id: safeTypeId || 0,
+                name: String(parsed.name || '').trim(),
+                slug: String(parsed.slug || '').trim() || null,
+                aliases: Array.isArray(parsed.aliases) ? parsed.aliases : [],
+                summary: String(parsed.summary || '').trim(),
+                description: String(parsed.description || '').trim(),
+                image_url: String(parsed.image_url || '').trim(),
+                color: String(parsed.color || '').trim(),
+                scope: String(parsed.scope || 'series').trim() || 'series',
+                status: String(parsed.status || 'active').trim() || 'active',
+                visibility: String(parsed.visibility || 'private').trim() || 'private',
+                canon_status: String(parsed.canon_status || 'draft').trim() || 'draft',
+                public_summary: String(parsed.public_summary || '').trim(),
+                marketing_summary: String(parsed.marketing_summary || '').trim(),
+                spoiler_level: String(parsed.spoiler_level || 'author_only').trim() || 'author_only',
+                featured: !!parsed.featured,
+                sort_order: Number(parsed.sort_order || 0) || 0,
+                custom_data: parsed.custom_data || {}
+              };
+              if (!safeTypeId) {
+                // Need to create the type first
+                return sbClient.from('codex_entity_types').insert({
+                  key: typeKey,
+                  name_singular: typeKey,
+                  name_plural: typeKey + 's',
+                  icon: '',
+                  description: '',
+                  is_system_type: false,
+                  is_enabled: true,
+                  sort_order: 999
+                }).select().single()
+                .then(function (typeRes) {
+                  if (typeRes.error) throw typeRes.error;
+                  var newType = typeRes.data;
+                  if (codexCache.entityTypesByKey) codexCache.entityTypesByKey[typeKey] = newType;
+                  entityPayload.entity_type_id = newType.id;
+                  return sbClient.from('codex_entities').insert([entityPayload]).select().single();
+                })
+                .then(function (res) {
+                  if (res.error) throw res.error;
+                  return JSON.stringify({ ok: true, entity: res.data });
+                });
+              }
+              // Type exists, save entity directly
+              return sbClient.from('codex_entities').insert([entityPayload]).select().single()
+                .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entity: res.data }); });
             });
         }
       }
