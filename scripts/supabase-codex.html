@@ -1012,3 +1012,221 @@
       return sbClient.from('world_snippets').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
+
+    // ============================================================
+    // MASTER CODEX v2 — Phase 2 CRUD
+    // ============================================================
+
+    // --- Entity Appearances ---
+
+    _sbDefine('listCodexEntityAppearances', function (seriesId, entityId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_entity_appearances').select('*').eq('series_id', safeSeriesId).order('book_id').order('chapter_id');
+      if (entityId) q = q.eq('entity_id', Number(entityId));
+      return q.limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, appearances: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEntityAppearance', function (seriesId, appearanceJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof appearanceJson === 'string' ? JSON.parse(appearanceJson) : (appearanceJson || {});
+      var appearanceId = Number(parsed.id || 0);
+      var payload = {
+        entity_id: Number(parsed.entity_id || 0),
+        series_id: safeSeriesId,
+        book_id: Number(parsed.book_id || 0),
+        chapter_id: parsed.chapter_id ? Number(parsed.chapter_id) : null,
+        appearance_type: String(parsed.appearance_type || 'appears').trim(),
+        notes: parsed.notes ? String(parsed.notes).trim() : null,
+        source: String(parsed.source || 'manual').trim()
+      };
+      if (!payload.entity_id) throw new Error('Entity id is required.');
+      if (!payload.book_id) throw new Error('Book id is required.');
+      if (appearanceId) payload.id = appearanceId;
+      var op = appearanceId
+        ? sbClient.from('codex_entity_appearances').update(payload).eq('id', appearanceId).select().single()
+        : sbClient.from('codex_entity_appearances').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, appearance: res.data }); });
+    });
+
+    _sbDefine('deleteCodexEntityAppearance', function (appearanceId) {
+      var safeId = Number(appearanceId || 0);
+      if (!safeId) throw new Error('Appearance id is required.');
+      return sbClient.from('codex_entity_appearances').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Entity State ---
+
+    _sbDefine('listCodexEntityState', function (seriesId, entityId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_entity_state').select('*').eq('series_id', safeSeriesId).order('effective_from_sort');
+      if (entityId) q = q.eq('subject_entity_id', Number(entityId));
+      return q.limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, states: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEntityState', function (seriesId, stateJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof stateJson === 'string' ? JSON.parse(stateJson) : (stateJson || {});
+      var stateId = Number(parsed.id || 0);
+      var payload = {
+        subject_entity_id: Number(parsed.subject_entity_id || 0),
+        property_entity_id: parsed.property_entity_id ? Number(parsed.property_entity_id) : null,
+        property_key: parsed.property_key ? String(parsed.property_key).trim() : null,
+        value_number: parsed.value_number != null ? Number(parsed.value_number) : null,
+        value_text: parsed.value_text ? String(parsed.value_text).trim() : null,
+        value_json: parsed.value_json || null,
+        series_id: safeSeriesId,
+        book_id: parsed.book_id ? Number(parsed.book_id) : null,
+        chapter_id: parsed.chapter_id ? Number(parsed.chapter_id) : null,
+        effective_from_sort: parsed.effective_from_sort != null ? Number(parsed.effective_from_sort) : null,
+        effective_to_sort: parsed.effective_to_sort != null ? Number(parsed.effective_to_sort) : null,
+        state_status: String(parsed.state_status || 'draft').trim(),
+        source_reference: parsed.source_reference ? String(parsed.source_reference).trim() : null,
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (!payload.subject_entity_id) throw new Error('Subject entity id is required.');
+      if (stateId) payload.id = stateId;
+      var op = stateId
+        ? sbClient.from('codex_entity_state').update(payload).eq('id', stateId).select().single()
+        : sbClient.from('codex_entity_state').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, state: res.data }); });
+    });
+
+    _sbDefine('deleteCodexEntityState', function (stateId) {
+      var safeId = Number(stateId || 0);
+      if (!safeId) throw new Error('State id is required.');
+      return sbClient.from('codex_entity_state').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Progression Events ---
+
+    _sbDefine('listCodexProgressionEvents', function (seriesId, entityId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var q = sbClient.from('codex_progression_events').select('*').eq('series_id', safeSeriesId).order('created_at');
+      if (entityId) q = q.eq('subject_entity_id', Number(entityId));
+      return q.limit(500)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, events: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexProgressionEvent', function (seriesId, eventJson) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var parsed = typeof eventJson === 'string' ? JSON.parse(eventJson) : (eventJson || {});
+      var eventId = Number(parsed.id || 0);
+      var payload = {
+        subject_entity_id: Number(parsed.subject_entity_id || 0),
+        event_type: String(parsed.event_type || 'custom').trim(),
+        property_entity_id: parsed.property_entity_id ? Number(parsed.property_entity_id) : null,
+        old_value: parsed.old_value || null,
+        new_value: parsed.new_value || null,
+        delta: parsed.delta != null ? Number(parsed.delta) : null,
+        series_id: safeSeriesId,
+        book_id: parsed.book_id ? Number(parsed.book_id) : null,
+        chapter_id: parsed.chapter_id ? Number(parsed.chapter_id) : null,
+        reason: parsed.reason ? String(parsed.reason).trim() : null,
+        source_entity_id: parsed.source_entity_id ? Number(parsed.source_entity_id) : null,
+        canon_status: String(parsed.canon_status || 'draft').trim(),
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (!payload.subject_entity_id) throw new Error('Subject entity id is required.');
+      if (eventId) payload.id = eventId;
+      var op = eventId
+        ? sbClient.from('codex_progression_events').update(payload).eq('id', eventId).select().single()
+        : sbClient.from('codex_progression_events').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, event: res.data }); });
+    });
+
+    _sbDefine('deleteCodexProgressionEvent', function (eventId) {
+      var safeId = Number(eventId || 0);
+      if (!safeId) throw new Error('Event id is required.');
+      return sbClient.from('codex_progression_events').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Entity Field Definitions ---
+
+    _sbDefine('listCodexEntityFieldDefinitions', function (entityTypeKey) {
+      var q = sbClient.from('codex_entity_field_definitions').select('*').order('sort_order');
+      if (entityTypeKey) q = q.eq('entity_type_key', String(entityTypeKey).trim());
+      return q.limit(200)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, definitions: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEntityFieldDefinition', function (defJson) {
+      var parsed = typeof defJson === 'string' ? JSON.parse(defJson) : (defJson || {});
+      var defId = Number(parsed.id || 0);
+      var payload = {
+        entity_type_key: String(parsed.entity_type_key || '').trim(),
+        field_key: String(parsed.field_key || '').trim(),
+        label: String(parsed.label || '').trim(),
+        field_type: String(parsed.field_type || 'text').trim(),
+        group_name: parsed.group_name ? String(parsed.group_name).trim() : null,
+        sort_order: Number(parsed.sort_order || 0),
+        required: !!parsed.required,
+        options_json: parsed.options_json || null,
+        relationship_type_id: parsed.relationship_type_id ? Number(parsed.relationship_type_id) : null,
+        help_text: parsed.help_text ? String(parsed.help_text).trim() : null,
+        preset_visibility: parsed.preset_visibility || null
+      };
+      if (!payload.entity_type_key) throw new Error('Entity type key is required.');
+      if (!payload.field_key) throw new Error('Field key is required.');
+      if (!payload.label) throw new Error('Label is required.');
+      if (defId) payload.id = defId;
+      var op = defId
+        ? sbClient.from('codex_entity_field_definitions').update(payload).eq('id', defId).select().single()
+        : sbClient.from('codex_entity_field_definitions').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, definition: res.data }); });
+    });
+
+    _sbDefine('deleteCodexEntityFieldDefinition', function (defId) {
+      var safeId = Number(defId || 0);
+      if (!safeId) throw new Error('Definition id is required.');
+      return sbClient.from('codex_entity_field_definitions').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Entity Field Values ---
+
+    _sbDefine('listCodexEntityFieldValues', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      return sbClient.from('codex_entity_field_values').select('*, codex_entity_field_definitions(*)').eq('entity_id', safeId).limit(200)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, values: res.data || [] }); });
+    });
+
+    _sbDefine('saveCodexEntityFieldValue', function (valueJson) {
+      var parsed = typeof valueJson === 'string' ? JSON.parse(valueJson) : (valueJson || {});
+      var valueId = Number(parsed.id || 0);
+      var payload = {
+        entity_id: Number(parsed.entity_id || 0),
+        field_definition_id: Number(parsed.field_definition_id || 0),
+        value_text: parsed.value_text ? String(parsed.value_text).trim() : null,
+        value_number: parsed.value_number != null ? Number(parsed.value_number) : null,
+        value_boolean: parsed.value_boolean != null ? !!parsed.value_boolean : null,
+        value_json: parsed.value_json || null,
+        linked_entity_id: parsed.linked_entity_id ? Number(parsed.linked_entity_id) : null,
+        canon_status: String(parsed.canon_status || 'draft').trim()
+      };
+      if (!payload.entity_id) throw new Error('Entity id is required.');
+      if (!payload.field_definition_id) throw new Error('Field definition id is required.');
+      if (valueId) payload.id = valueId;
+      var op = valueId
+        ? sbClient.from('codex_entity_field_values').update(payload).eq('id', valueId).select().single()
+        : sbClient.from('codex_entity_field_values').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, value: res.data }); });
+    });
+
+    _sbDefine('deleteCodexEntityFieldValue', function (valueId) {
+      var safeId = Number(valueId || 0);
+      if (!safeId) throw new Error('Value id is required.');
+      return sbClient.from('codex_entity_field_values').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });

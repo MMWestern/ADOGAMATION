@@ -5109,6 +5109,9 @@
       html += "<button type='button' class='codex-sub-tab is-active' data-section='description'>Description</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='backstory'>Backstory</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='history'>History</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='appearances'>Appearances</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='state'>State</button>";
+      html += "<button type='button' class='codex-sub-tab' data-section='fields'>Details</button>";
       _codexDetailActiveSections.forEach(function (key) {
         var label = getCodexSectionLabel_(key, entityTypeKey);
         html += "<button type='button' class='codex-sub-tab codex-dynamic-tab' data-section='" + key + "'>" + label + "<span class='codex-sub-tab-remove' data-remove='" + key + "'>&times;</span></button>";
@@ -5147,6 +5150,48 @@
       html += "<div class='codex-sub-section-body'>";
       html += "<div id='codexRevisionList' class='codex-revision-list'>";
       html += "<div class='tiny' style='color:var(--muted);'>Loading history...</div>";
+      html += "</div>";
+      html += "</div>";
+      html += "</div>";
+
+      // Appearances tab
+      html += "<div class='codex-sub-section' id='codexSectionAppearances' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Appearances</span>";
+      html += "<button type='button' id='codexAppearanceAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add</button>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexAppearanceList' class='codex-appearance-list'>";
+      html += "<div class='tiny' style='color:var(--muted);'>Loading appearances...</div>";
+      html += "</div>";
+      html += "</div>";
+      html += "</div>";
+
+      // State/Progression tab
+      html += "<div class='codex-sub-section' id='codexSectionState' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>State / Progression</span>";
+      html += "<button type='button' id='codexStateAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add State</button>";
+      html += "<button type='button' id='codexEventAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;margin-left:4px;'>+ Add Event</button>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexStateList' class='codex-state-list'>";
+      html += "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
+      html += "</div>";
+      html += "<div id='codexEventList' class='codex-event-list' style='margin-top:12px;'>";
+      html += "<div class='tiny' style='color:var(--muted);'>Loading events...</div>";
+      html += "</div>";
+      html += "</div>";
+      html += "</div>";
+
+      // Schema-driven fields tab
+      html += "<div class='codex-sub-section' id='codexSectionFields' hidden>";
+      html += "<div class='codex-sub-section-header'>";
+      html += "<span class='codex-sub-section-title'>Details</span>";
+      html += "</div>";
+      html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexFieldDefinitionsList' class='codex-fields-list'>";
+      html += "<div class='tiny' style='color:var(--muted);'>Loading fields...</div>";
       html += "</div>";
       html += "</div>";
       html += "</div>";
@@ -5338,6 +5383,21 @@
         // Stage 1A: Load revision history when History tab is selected
         if (section === "history" && _codexActiveEntityId) {
           loadCodexRevisions(_codexActiveEntityId);
+        }
+        // Master Codex v2: Load appearances when Appearances tab is selected
+        if (section === "appearances" && _codexActiveEntityId && skCurrentSeriesId) {
+          loadCodexAppearances(skCurrentSeriesId, _codexActiveEntityId);
+        }
+        // Master Codex v2: Load state/events when State tab is selected
+        if (section === "state" && _codexActiveEntityId && skCurrentSeriesId) {
+          loadCodexStateAndEvents(skCurrentSeriesId, _codexActiveEntityId);
+        }
+        // Master Codex v2: Load field definitions when Details tab is selected
+        if (section === "fields" && _codexActiveEntityId && skCurrentSeriesId) {
+          var entityTypeKey = "";
+          var entity = codexCache.entitiesBySeries[skCurrentSeriesId] ? codexCache.entitiesBySeries[skCurrentSeriesId].find(function (e) { return Number(e.id) === _codexActiveEntityId; }) : null;
+          if (entity) entityTypeKey = (entity.codex_entity_types || {}).key || entity.entity_type_key || "";
+          loadCodexFieldDefinitions(skCurrentSeriesId, _codexActiveEntityId, entityTypeKey);
         }
       });
     }
@@ -8341,4 +8401,144 @@
     var promptEditorResetBtn = document.getElementById("promptEditorResetBtn");
     if (promptEditorResetBtn) {
       promptEditorResetBtn.addEventListener("click", resetPromptEditorModal);
+    }
+
+    // ============================================================
+    // MASTER CODEX v2 — Phase 2: Read-only v2 views
+    // ============================================================
+
+    function loadCodexAppearances(seriesId, entityId) {
+      var list = document.getElementById("codexAppearanceList");
+      if (!list) return;
+      list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading appearances...</div>";
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            var result = JSON.parse(json);
+            if (!result.ok || !result.appearances.length) {
+              list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No appearances recorded.</div>";
+              return;
+            }
+            var html = "";
+            result.appearances.forEach(function (app) {
+              html += "<div class='codex-appearance-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
+              html += "<span style='font-weight:600;'>" + escapeHtml(app.appearance_type || "appears") + "</span>";
+              if (app.book_id) html += " <span style='color:var(--muted);'>in book " + app.book_id + "</span>";
+              if (app.chapter_id) html += " <span style='color:var(--muted);'>chapter " + app.chapter_id + "</span>";
+              if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
+              html += "</div>";
+            });
+            list.innerHTML = html;
+          } catch (e) {
+            list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading appearances.</div>";
+          }
+        })
+        .withFailureHandler(function () {
+          list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading appearances.</div>";
+        })
+        .listCodexEntityAppearances(seriesId, entityId);
+    }
+
+    function loadCodexStateAndEvents(seriesId, entityId) {
+      var stateList = document.getElementById("codexStateList");
+      var eventList = document.getElementById("codexEventList");
+      if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
+      if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading events...</div>";
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            var result = JSON.parse(json);
+            if (!result.ok || !result.states.length) {
+              if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded.</div>";
+              return;
+            }
+            var html = "";
+            result.states.forEach(function (s) {
+              var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
+              html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
+              html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+              html += " <span>= " + escapeHtml(String(value)) + "</span>";
+              if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+              if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
+              html += "</div>";
+            });
+            if (stateList) stateList.innerHTML = html;
+          } catch (e) {
+            if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
+          }
+        })
+        .withFailureHandler(function () {
+          if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
+        })
+        .listCodexEntityState(seriesId, entityId);
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            var result = JSON.parse(json);
+            if (!result.ok || !result.events.length) {
+              if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No progression events.</div>";
+              return;
+            }
+            var html = "";
+            result.events.forEach(function (ev) {
+              html += "<div class='codex-event-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
+              html += "<span style='font-weight:600;'>" + escapeHtml(ev.event_type || "event") + "</span>";
+              if (ev.reason) html += " <span style='color:var(--muted);'>— " + escapeHtml(ev.reason) + "</span>";
+              if (ev.canon_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(ev.canon_status) + "]</span>";
+              html += "</div>";
+            });
+            if (eventList) eventList.innerHTML = html;
+          } catch (e) {
+            if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading events.</div>";
+          }
+        })
+        .withFailureHandler(function () {
+          if (eventList) eventList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading events.</div>";
+        })
+        .listCodexProgressionEvents(seriesId, entityId);
+    }
+
+    function loadCodexFieldDefinitions(seriesId, entityId, entityTypeKey) {
+      var list = document.getElementById("codexFieldDefinitionsList");
+      if (!list) return;
+      list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading fields...</div>";
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          try {
+            var result = JSON.parse(json);
+            if (!result.ok || !result.definitions.length) {
+              list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No field definitions for this entity type.</div>";
+              return;
+            }
+            var html = "";
+            var groups = {};
+            result.definitions.forEach(function (def) {
+              var group = def.group_name || "General";
+              if (!groups[group]) groups[group] = [];
+              groups[group].push(def);
+            });
+            Object.keys(groups).forEach(function (group) {
+              html += "<div style='margin-bottom:12px;'>";
+              html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>" + escapeHtml(group) + "</div>";
+              groups[group].forEach(function (def) {
+                html += "<div class='codex-field-item' style='padding:4px 0;font-size:12px;'>";
+                html += "<label style='font-weight:600;display:block;margin-bottom:2px;'>" + escapeHtml(def.label) + "</label>";
+                if (def.help_text) html += "<div class='tiny' style='color:var(--muted);margin-bottom:4px;'>" + escapeHtml(def.help_text) + "</div>";
+                html += "<div style='color:var(--muted);font-style:italic;'>No value set</div>";
+                html += "</div>";
+              });
+              html += "</div>";
+            });
+            list.innerHTML = html;
+          } catch (e) {
+            list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading fields.</div>";
+          }
+        })
+        .withFailureHandler(function () {
+          list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading fields.</div>";
+        })
+        .listCodexEntityFieldDefinitions(entityTypeKey);
     }
