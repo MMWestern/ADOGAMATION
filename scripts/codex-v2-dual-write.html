@@ -385,27 +385,40 @@
     function codexV2CreatePilotDataset(seriesId, book1Id, book2Id) {
       return new Promise(function (resolve, reject) {
         if (!seriesId || !book1Id) { reject(new Error("seriesId and book1Id required")); return; }
+        console.log("[pilot] Starting pilot dataset creation for series", seriesId, "book1", book1Id, "book2", book2Id);
         var log = [];
         var created = {};
         function saveEntity(typeKey, name, callback) {
+          console.log("[pilot] Creating entity:", typeKey, name);
           supabaseRunner
             .withSuccessHandler(function (json) {
               try {
                 var r = JSON.parse(json);
+                console.log("[pilot] Entity response:", name, r);
                 if (r.ok && r.entity) {
                   created[name] = r.entity.id;
                   log.push("Created " + typeKey + ": " + name + " (id=" + r.entity.id + ")");
                   callback(r.entity.id);
                 } else {
-                  log.push("FAILED " + typeKey + ": " + name);
+                  log.push("FAILED " + typeKey + ": " + name + " - " + JSON.stringify(r));
+                  console.error("[pilot] Entity failed:", name, r);
                   callback(null);
                 }
-              } catch (e) { log.push("ERROR " + name + ": " + e.message); callback(null); }
+              } catch (e) {
+                log.push("ERROR " + name + ": " + e.message);
+                console.error("[pilot] Entity error:", name, e);
+                callback(null);
+              }
             })
-            .withFailureHandler(function (err) { log.push("FAILED " + name + ": " + err); callback(null); })
+            .withFailureHandler(function (err) {
+              log.push("FAILED " + name + ": " + (err && err.message ? err.message : err));
+              console.error("[pilot] Entity failure:", name, err);
+              callback(null);
+            })
             .saveCodexEntity(seriesId, 0, JSON.stringify({ name: name, entity_type_key: typeKey, scope: "series", custom_data: {} }));
         }
         function saveState(entityId, propertyKey, valueText, valueNumber, bookId, chapterId, sortOrder, callback) {
+          console.log("[pilot] Saving state:", propertyKey, "=", valueNumber != null ? valueNumber : valueText);
           var payload = {
             subject_entity_id: entityId,
             property_key: propertyKey,
@@ -420,10 +433,11 @@
           };
           supabaseRunner
             .withSuccessHandler(function () { log.push("State: " + propertyKey + " = " + (valueNumber != null ? valueNumber : valueText)); callback(); })
-            .withFailureHandler(function (err) { log.push("STATE FAILED: " + propertyKey + " - " + err); callback(); })
+            .withFailureHandler(function (err) { log.push("STATE FAILED: " + propertyKey + " - " + err); console.error("[pilot] State failed:", propertyKey, err); callback(); })
             .saveCodexEntityState(seriesId, JSON.stringify(payload));
         }
         function saveEvent(entityId, eventType, propertyEntityId, reason, bookId, chapterId, callback) {
+          console.log("[pilot] Saving event:", eventType);
           var payload = {
             subject_entity_id: entityId,
             event_type: eventType,
@@ -437,10 +451,11 @@
           };
           supabaseRunner
             .withSuccessHandler(function () { log.push("Event: " + eventType); callback(); })
-            .withFailureHandler(function (err) { log.push("EVENT FAILED: " + eventType + " - " + err); callback(); })
+            .withFailureHandler(function (err) { log.push("EVENT FAILED: " + eventType + " - " + err); console.error("[pilot] Event failed:", eventType, err); callback(); })
             .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
         }
         function saveConnection(sourceId, targetId, relTypeKey, bookId, callback) {
+          console.log("[pilot] Saving connection:", relTypeKey);
           supabaseRunner
             .withSuccessHandler(function (json) {
               try {
@@ -462,7 +477,9 @@
         }
         // Create entities sequentially
         saveEntity("system_rule", "Uni-Verse System", function (systemId) {
+          console.log("[pilot] System created:", systemId);
           saveEntity("stat", "Strength", function (strId) {
+            console.log("[pilot] Strength created:", strId);
             saveEntity("stat", "Dexterity", function (dexId) {
               saveEntity("stat", "Constitution", function (conId) {
                 saveEntity("stat", "Intelligence", function (intId) {
@@ -474,7 +491,13 @@
                             saveEntity("skill_ability", "Fireball", function (fbId) {
                               saveEntity("item", "Goblin Sword", function (swordId) {
                                 saveEntity("character", "Patrick Kelth", function (patrickId) {
-                                  if (!patrickId) { log.push("ABORT: Patrick not created"); resolve({ log: log, created: created }); return; }
+                                  console.log("[pilot] Patrick created:", patrickId);
+                                  if (!patrickId) {
+                                    log.push("ABORT: Patrick not created");
+                                    console.error("[pilot] ABORT: Patrick not created");
+                                    resolve({ log: log, created: created });
+                                    return;
+                                  }
                                   // Book 1 Chapter 1: Patrick Level 1, STR 6, no Fireball, no sword
                                   saveState(patrickId, "Level", null, 1, book1Id, null, 1, function () {
                                     saveState(patrickId, "Strength", null, 6, book1Id, null, 1, function () {
@@ -491,6 +514,7 @@
                                                     var finish = function () {
                                                       log.push("=== PILOT COMPLETE ===");
                                                       log.push("Entities: " + JSON.stringify(created));
+                                                      console.log("[pilot] COMPLETE:", created);
                                                       resolve({ log: log, created: created });
                                                     };
                                                     if (book2Id) {
