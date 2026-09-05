@@ -2272,6 +2272,21 @@
         addBtn.addEventListener("click", function () {
           addForm.hidden = false;
           addBtn.hidden = true;
+          // Populate book dropdown
+          var bookSelect = document.getElementById("codexRelPanelBook");
+          if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+            bookSelect.innerHTML = "<option value=''>— No book —</option>";
+            appState.projects.forEach(function (p) {
+              var pid = Number(p.project_id || p.id || 0);
+              if (!pid) return;
+              var projectSeriesId = Number(p.series_id || 0);
+              if (projectSeriesId !== seriesId) return;
+              var opt = document.createElement("option");
+              opt.value = pid;
+              opt.textContent = p.title || "Book #" + pid;
+              bookSelect.appendChild(opt);
+            });
+          }
         });
         cancelBtn.addEventListener("click", function () {
           addForm.hidden = true;
@@ -2279,7 +2294,39 @@
           if (targetInput) targetInput.value = "";
           if (targetBtn) targetBtn.textContent = "Select entity...";
           if (typeSelect) typeSelect.value = "";
+          // Clear temporal fields
+          var bookSel = document.getElementById("codexRelPanelBook");
+          var fromCh = document.getElementById("codexRelPanelFromChapter");
+          var toCh = document.getElementById("codexRelPanelToChapter");
+          var notesIn = document.getElementById("codexRelPanelNotes");
+          if (bookSel) bookSel.value = "";
+          if (fromCh) fromCh.innerHTML = "<option value=''>— Select book —</option>";
+          if (toCh) toCh.innerHTML = "<option value=''>— Select book —</option>";
+          if (notesIn) notesIn.value = "";
         });
+
+        // Load chapters when book changes
+        var bookSelect = document.getElementById("codexRelPanelBook");
+        var fromChapterSelect = document.getElementById("codexRelPanelFromChapter");
+        var toChapterSelect = document.getElementById("codexRelPanelToChapter");
+        if (bookSelect) {
+          bookSelect.addEventListener("change", function () {
+            var bookId = Number(bookSelect.value || 0);
+            if (!bookId) {
+              if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+              if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+              return;
+            }
+            if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+            if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+            codexV2LoadChapters(bookId).then(function (chapters) {
+              var fromHtml = codexV2BuildChapterDropdown("codexRelPanelFromChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+              var toHtml = codexV2BuildChapterDropdown("codexRelPanelToChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+              if (fromChapterSelect) fromChapterSelect.innerHTML = fromHtml;
+              if (toChapterSelect) toChapterSelect.innerHTML = toHtml;
+            });
+          });
+        }
 
         // Save new relationship (targets whatever entity is currently open)
         saveBtn.addEventListener("click", function () {
@@ -2290,14 +2337,52 @@
           var curSeriesId = Number(skCurrentSeriesId || 0);
           var curEntityId = Number(_codexActiveEntityId || 0);
           if (!curSeriesId || !curEntityId) return;
+          // Read temporal fields
+          var bookId = bookSelect ? Number(bookSelect.value || 0) : 0;
+          var fromChapterId = fromChapterSelect ? Number(fromChapterSelect.value || 0) : 0;
+          var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
+          var contextStatus = document.getElementById("codexRelPanelStatus") ? document.getElementById("codexRelPanelStatus").value : "active";
+          var notes = document.getElementById("codexRelPanelNotes") ? document.getElementById("codexRelPanelNotes").value.trim() : "";
+          // Resolve chapter sort_orders
+          var validFromSort = null;
+          var validToSort = null;
+          if (bookId) {
+            var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+            if (fromChapterId) {
+              var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
+              if (fromCh) validFromSort = fromCh.sort_order;
+            }
+            if (toChapterId) {
+              var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
+              if (toCh) validToSort = toCh.sort_order;
+            }
+          }
+          // Cross-book chapter validation
+          if (fromChapterId && bookId) {
+            var validChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+            if (!validChapters.some(function (c) { return Number(c.id) === fromChapterId; })) {
+              alert("Valid From chapter does not belong to the selected book."); return;
+            }
+          }
+          if (toChapterId && bookId) {
+            var validChapters2 = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+            if (!validChapters2.some(function (c) { return Number(c.id) === toChapterId; })) {
+              alert("Valid Until chapter does not belong to the selected book."); return;
+            }
+          }
           saveEntityConnection(curSeriesId, curEntityId, targetId, typeId, function () {
             addForm.hidden = true;
             addBtn.hidden = false;
             if (targetInput) targetInput.value = "";
             if (targetBtn) targetBtn.textContent = "Select entity...";
             if (typeSelect) typeSelect.value = "";
+            // Clear temporal fields
+            if (bookSelect) bookSelect.value = "";
+            if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+            if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+            if (document.getElementById("codexRelPanelNotes")) document.getElementById("codexRelPanelNotes").value = "";
             loadAndRenderEntityRelationships(curSeriesId, curEntityId);
-          });
+          }, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
         });
       }
 
@@ -2316,7 +2401,7 @@
       }
     }
 
-    function saveEntityConnection(seriesId, sourceId, targetId, typeId, callback) {
+    function saveEntityConnection(seriesId, sourceId, targetId, typeId, callback, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes) {
       var payload = {
         id: 0,
         series_id: seriesId,
@@ -2326,7 +2411,14 @@
         label: "",
         inverse_label: "",
         description: "",
-        is_secret: false
+        is_secret: false,
+        // Temporal context fields (v2.1.1)
+        book_id: bookId || null,
+        chapter_id: fromChapterId || null,
+        valid_from_sort: validFromSort != null ? validFromSort : null,
+        valid_to_sort: validToSort != null ? validToSort : null,
+        context_status: contextStatus || "active",
+        notes: notes || null
       };
       setStatus("Saving relationship...", "warn");
       callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(payload)])
@@ -5214,6 +5306,9 @@
       html += "<button type='button' class='codex-sub-tab' data-section='appearances'>Appearances</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='state'>State</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='fields'>Details</button>";
+      if (entityTypeKey === "character") {
+        html += "<button type='button' class='codex-sub-tab' data-section='sheet'>Progression Sheet</button>";
+      }
       _codexDetailActiveSections.forEach(function (key) {
         var label = getCodexSectionLabel_(key, entityTypeKey);
         html += "<button type='button' class='codex-sub-tab codex-dynamic-tab' data-section='" + key + "'>" + label + "<span class='codex-sub-tab-remove' data-remove='" + key + "'>&times;</span></button>";
@@ -5304,6 +5399,20 @@
       html += "</div>";
       html += "</div>";
       html += "</div>";
+
+      // Progression Sheet section (character-only)
+      if (entityTypeKey === "character") {
+        html += "<div class='codex-sub-section' id='codexSectionSheet' hidden>";
+        html += "<div class='codex-sub-section-header'>";
+        html += "<span class='codex-sub-section-title'>Progression Sheet</span>";
+        html += "</div>";
+        html += "<div class='codex-sub-section-body'>";
+        html += "<div id='codexProgressionSheet' class='codex-progression-sheet'>";
+        html += "<div class='tiny' style='color:var(--muted);'>Loading progression sheet...</div>";
+        html += "</div>";
+        html += "</div>";
+        html += "</div>";
+      }
 
       _codexDetailActiveSections.forEach(function (key) {
         var label = getCodexSectionLabel_(key, entityTypeKey);
@@ -5535,6 +5644,10 @@
           var entity = codexCache.entitiesBySeries[skCurrentSeriesId] ? codexCache.entitiesBySeries[skCurrentSeriesId].find(function (e) { return Number(e.id) === _codexActiveEntityId; }) : null;
           if (entity) entityTypeKey = (entity.codex_entity_types || {}).key || entity.entity_type_key || "";
           loadCodexFieldDefinitions(skCurrentSeriesId, _codexActiveEntityId, entityTypeKey);
+        }
+        // Master Codex v2.1.1: Load progression sheet when Sheet tab is selected
+        if (section === "sheet" && _codexActiveEntityId && skCurrentSeriesId) {
+          loadProgressionSheet(skCurrentSeriesId, _codexActiveEntityId);
         }
       });
     }
@@ -8970,7 +9083,7 @@
       html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
       // Property: dropdown of progression entities + custom text option
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Property</label>";
-      var PROP_TYPES = ["stat", "resource", "skill_ability", "class_path", "trait_perk", "progression", "equipment", "item"];
+      var PROP_TYPES = ["stat", "resource", "skill_ability", "class_path", "trait_perk", "stat_set", "progression", "equipment", "item"];
       var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
       var currentPropKey = isEdit ? existingState.property_key || "" : "";
       var currentPropEntityId = isEdit && existingState.property_entity_id ? Number(existingState.property_entity_id) : 0;
@@ -9071,12 +9184,13 @@
           if (!valueWrap) return;
           var propVal = propSelect.value;
           var entityTypeKey = "";
+          var propEntityId = 0;
           if (propVal && propVal.indexOf("entity:") === 0) {
-            var propId = Number(propVal.replace("entity:", ""));
-            var propEntity = entities.find(function (e) { return Number(e.id) === propId; });
+            propEntityId = Number(propVal.replace("entity:", ""));
+            var propEntity = entities.find(function (e) { return Number(e.id) === propEntityId; });
             if (propEntity) entityTypeKey = (propEntity.codex_entity_types || {}).key || "";
           }
-          // Determine input type based on entity type
+          // Determine input type based on entity type (fallback)
           var inputType = "text";
           var placeholder = "Value";
           var typeHint = "";
@@ -9094,7 +9208,7 @@
             placeholder = "e.g. Level 4, Tier 2";
             typeHint = "Class level or tier";
           }
-          // Rebuild value input
+          // Rebuild value input with entity-type fallback
           var newHtml = "";
           if (inputType === "checkbox") {
             newHtml = "<input id='stateEditValue' type='checkbox' " + (currentValue === "true" ? "checked" : "") + " style='margin:0;' />";
@@ -9103,6 +9217,77 @@
           }
           valueWrap.innerHTML = newHtml;
           if (valueTypeLabel) valueTypeLabel.textContent = typeHint;
+          // Now load the entity's field values to get the actual value_type
+          if (propEntityId && typeof supabaseRunner !== "undefined") {
+            supabaseRunner
+              .withSuccessHandler(function (json) {
+                try {
+                  var result = JSON.parse(json);
+                  if (result.ok && result.values) {
+                    // Find value_type field value
+                    var valueTypeVal = null;
+                    result.values.forEach(function (v) {
+                      var def = v.codex_entity_field_definitions || {};
+                      if (def.field_key === "value_type" && v.value_text) {
+                        valueTypeVal = v.value_text;
+                      }
+                    });
+                    if (valueTypeVal) {
+                      // Update input based on actual value_type
+                      var newInputType = "text";
+                      var newPlaceholder = "Value";
+                      var newTypeHint = "Value type: " + valueTypeVal;
+                      switch (valueTypeVal) {
+                        case "integer":
+                        case "decimal":
+                        case "percentage":
+                          newInputType = "number";
+                          newPlaceholder = valueTypeVal === "percentage" ? "0-100" : "Numeric value";
+                          break;
+                        case "boolean":
+                          newInputType = "checkbox";
+                          break;
+                        case "text":
+                          newInputType = "text";
+                          break;
+                        case "rank":
+                          newInputType = "text";
+                          newPlaceholder = "e.g. Rank 1, Tier 2";
+                          break;
+                        case "enum":
+                          newInputType = "text";
+                          newPlaceholder = "Select or type value";
+                          break;
+                        case "calculated":
+                          newInputType = "text";
+                          newPlaceholder = "Calculated value (manual override)";
+                          newTypeHint = "Calculated — enter manually if needed";
+                          break;
+                      }
+                      // Only update if different from current
+                      var currentInput = document.getElementById("stateEditValue");
+                      if (currentInput) {
+                        var needsRebuild = (newInputType === "checkbox") !== (currentInput.type === "checkbox");
+                        if (needsRebuild) {
+                          var rebuildHtml = "";
+                          if (newInputType === "checkbox") {
+                            rebuildHtml = "<input id='stateEditValue' type='checkbox' " + (currentValue === "true" ? "checked" : "") + " style='margin:0;' />";
+                          } else {
+                            rebuildHtml = "<input id='stateEditValue' type='" + newInputType + "' value='" + escapeHtml(currentValue) + "' placeholder='" + newPlaceholder + "' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+                          }
+                          valueWrap.innerHTML = rebuildHtml;
+                        } else {
+                          currentInput.placeholder = newPlaceholder;
+                        }
+                      }
+                      if (valueTypeLabel) valueTypeLabel.textContent = newTypeHint;
+                    }
+                  }
+                } catch (e) { /* ignore, keep entity-type fallback */ }
+              })
+              .withFailureHandler(function () { /* keep entity-type fallback */ })
+              .listCodexEntityFieldValues(propEntityId);
+          }
         });
       }
       // Wire buttons
@@ -9548,5 +9733,188 @@
         var successCount = results.filter(function (r) { return r; }).length;
         if (saveBtn) { saveBtn.textContent = "Saved (" + successCount + ")"; saveBtn.disabled = false; }
         setTimeout(function () { if (saveBtn) saveBtn.textContent = "Save Fields"; }, 2000);
+      });
+    }
+
+    // ============================================================
+    // PROGRESSION SHEET — Read-only character state at a narrative point
+    // ============================================================
+
+    function loadProgressionSheet(seriesId, entityId) {
+      var container = document.getElementById("codexProgressionSheet");
+      if (!container) return;
+      var html = "";
+      // Narrative point selector
+      html += "<div style='display:flex;gap:8px;align-items:end;margin-bottom:12px;flex-wrap:wrap;'>";
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      html += "<select id='sheetBookSelect' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Current state —</option>";
+      var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+      projects.forEach(function (p) {
+        var pid = Number(p.project_id || p.id || 0);
+        html += "<option value='" + pid + "'>" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      html += "<select id='sheetChapterSelect' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>";
+      html += "<button id='sheetLoadBtn' type='button' class='primary' style='font-size:11px;padding:4px 12px;'>Load</button>";
+      html += "</div>";
+      html += "<div id='sheetContent'><div class='tiny' style='color:var(--muted);'>Select a book and chapter, or leave blank for current state.</div></div>";
+      container.innerHTML = html;
+      // Wire book change to load chapters
+      var bookSelect = document.getElementById("sheetBookSelect");
+      var chapterSelect = document.getElementById("sheetChapterSelect");
+      if (bookSelect) {
+        bookSelect.addEventListener("change", function () {
+          var bookId = Number(bookSelect.value || 0);
+          if (!bookId) {
+            chapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+            return;
+          }
+          chapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          codexV2LoadChapters(bookId).then(function (chapters) {
+            chapterSelect.innerHTML = codexV2BuildChapterDropdown("sheetChapterSelect", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+          });
+        });
+      }
+      // Wire load button
+      var loadBtn = document.getElementById("sheetLoadBtn");
+      if (loadBtn) {
+        loadBtn.addEventListener("click", function () {
+          var bookId = Number(bookSelect.value || 0);
+          var chapterId = Number(chapterSelect.value || 0);
+          var chapterSortOrder = null;
+          if (chapterId && bookId) {
+            var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+            var ch = chapters.find(function (c) { return Number(c.id) === chapterId; });
+            if (ch) chapterSortOrder = ch.sort_order;
+          }
+          renderProgressionSheet(seriesId, entityId, bookId, chapterSortOrder);
+        });
+      }
+      // Auto-load current state
+      renderProgressionSheet(seriesId, entityId, 0, null);
+    }
+
+    function renderProgressionSheet(seriesId, entityId, bookId, chapterSortOrder) {
+      var content = document.getElementById("sheetContent");
+      if (!content) return;
+      content.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
+      // Load state at narrative point
+      codexV2GetEntityStateAt(entityId, bookId || null, chapterSortOrder).then(function (states) {
+        // Also load entity info
+        var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+        var entity = entities.find(function (e) { return Number(e.id) === entityId; });
+        var entityName = entity ? entity.name || "Unknown" : "Unknown";
+        var html = "";
+        html += "<div style='font-weight:700;font-size:14px;margin-bottom:12px;'>" + escapeHtml(entityName) + "</div>";
+        if (bookId && chapterSortOrder != null) {
+          var bookMap = {};
+          if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+            appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
+          }
+          var book = bookMap[bookId];
+          html += "<div style='font-size:11px;color:var(--muted);margin-bottom:12px;'>At: " + escapeHtml(book ? book.title : "Book #" + bookId) + " — Chapter " + (chapterSortOrder || "?") + "</div>";
+        } else {
+          html += "<div style='font-size:11px;color:var(--muted);margin-bottom:12px;'>Current state (all records)</div>";
+        }
+        if (!states.length) {
+          html += "<div class='tiny' style='color:var(--muted);'>No state records found.</div>";
+          content.innerHTML = html;
+          return;
+        }
+        // Group states by category
+        var levels = [];
+        var stats = [];
+        var resources = [];
+        var skills = [];
+        var classes = [];
+        var traits = [];
+        var other = [];
+        states.forEach(function (s) {
+          var key = (s.property_key || "").toLowerCase();
+          var entityId = s.property_entity_id;
+          var entityInfo = entityId ? entities.find(function (e) { return Number(e.id) === entityId; }) : null;
+          var typeKey = entityInfo ? (entityInfo.codex_entity_types || {}).key || "" : "";
+          var entry = {
+            name: s.property_key || "Unknown",
+            value: s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—"),
+            entity: entityInfo,
+            typeKey: typeKey
+          };
+          if (key === "level" || key === "level_up") levels.push(entry);
+          else if (typeKey === "stat" || typeKey === "stat_set") stats.push(entry);
+          else if (typeKey === "resource") resources.push(entry);
+          else if (typeKey === "skill_ability") skills.push(entry);
+          else if (typeKey === "class_path") classes.push(entry);
+          else if (typeKey === "trait_perk") traits.push(entry);
+          else other.push(entry);
+        });
+        // Render sections
+        if (levels.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Level</div>";
+          levels.forEach(function (l) {
+            html += "<div style='font-size:13px;font-weight:600;'>" + escapeHtml(String(l.value)) + "</div>";
+          });
+          html += "</div>";
+        }
+        if (stats.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Stats</div>";
+          html += "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;'>";
+          stats.forEach(function (s) {
+            html += "<div style='display:flex;justify-content:space-between;padding:4px 8px;background:#1a1a20;border-radius:4px;font-size:12px;'>";
+            html += "<span>" + escapeHtml(s.name) + "</span>";
+            html += "<span style='font-weight:600;'>" + escapeHtml(String(s.value)) + "</span>";
+            html += "</div>";
+          });
+          html += "</div></div>";
+        }
+        if (resources.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Resources</div>";
+          html += "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;'>";
+          resources.forEach(function (r) {
+            html += "<div style='display:flex;justify-content:space-between;padding:4px 8px;background:#1a1a20;border-radius:4px;font-size:12px;'>";
+            html += "<span>" + escapeHtml(r.name) + "</span>";
+            html += "<span style='font-weight:600;'>" + escapeHtml(String(r.value)) + "</span>";
+            html += "</div>";
+          });
+          html += "</div></div>";
+        }
+        if (classes.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Class</div>";
+          classes.forEach(function (c) {
+            html += "<div style='font-size:12px;'>" + escapeHtml(c.name) + " — " + escapeHtml(String(c.value)) + "</div>";
+          });
+          html += "</div>";
+        }
+        if (skills.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Skills</div>";
+          skills.forEach(function (s) {
+            html += "<div style='font-size:12px;'>" + escapeHtml(s.name) + " — " + escapeHtml(String(s.value)) + "</div>";
+          });
+          html += "</div>";
+        }
+        if (traits.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Traits</div>";
+          traits.forEach(function (t) {
+            html += "<div style='font-size:12px;'>" + escapeHtml(t.name) + " — " + escapeHtml(String(t.value)) + "</div>";
+          });
+          html += "</div>";
+        }
+        if (other.length) {
+          html += "<div style='margin-bottom:12px;'>";
+          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Other</div>";
+          other.forEach(function (o) {
+            html += "<div style='font-size:12px;'>" + escapeHtml(o.name) + " — " + escapeHtml(String(o.value)) + "</div>";
+          });
+          html += "</div>";
+        }
+        content.innerHTML = html;
       });
     }

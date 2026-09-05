@@ -1321,6 +1321,8 @@
       var safeEntityId = Number(entityId || 0);
       if (!safeEntityId) throw new Error('Entity id is required.');
       // Build query: get most recent state for each property at or before the narrative point
+      // Note: LIMIT is set high to avoid silent truncation for long-running characters.
+      // Deduplication happens in-memory by property_key after ordering by effective_from_sort DESC.
       var q = sbClient.from('codex_entity_state')
         .select('*')
         .eq('subject_entity_id', safeEntityId)
@@ -1331,7 +1333,7 @@
       if (chapterSortOrder != null) {
         q = q.or('effective_from_sort.is.null,effective_from_sort.lte.' + Number(chapterSortOrder));
       }
-      q = q.order('effective_from_sort', { ascending: false }).limit(500);
+      q = q.order('effective_from_sort', { ascending: false }).limit(10000);
       return q.then(function (res) {
         if (res.error) throw res.error;
         var rows = res.data || [];

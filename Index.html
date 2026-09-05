@@ -1568,6 +1568,22 @@
               </div>
               <select id="codexRelPanelType" class="codex-detail-field-select"><option value="">Select type...</option></select>
             </div>
+            <!-- Temporal context fields -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+              <div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>
+                <select id='codexRelPanelBook' style='width:100%;font-size:11px;padding:3px 5px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— No book —</option></select></div>
+              <div><label style='font-size:10px;color:var(--muted);display:block;'>Valid From Chapter</label>
+                <select id='codexRelPanelFromChapter' style='width:100%;font-size:11px;padding:3px 5px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>
+              <div><label style='font-size:10px;color:var(--muted);display:block;'>Valid Until Chapter</label>
+                <select id='codexRelPanelToChapter' style='width:100%;font-size:11px;padding:3px 5px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>
+              <div><label style='font-size:10px;color:var(--muted);display:block;'>Context Status</label>
+                <select id='codexRelPanelStatus' style='width:100%;font-size:11px;padding:3px 5px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>
+                  <option value='active'>active</option><option value='ended'>ended</option><option value='planned'>planned</option></select></div>
+            </div>
+            <div style="margin-top:6px;">
+              <label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>
+              <input id='codexRelPanelNotes' type='text' placeholder='Optional notes' style='width:100%;font-size:11px;padding:3px 5px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />
+            </div>
             <div style="display:flex;gap:6px;margin-top:6px;">
               <button id="codexRelPanelSaveBtn" type="button" class="primary" style="font-size:11px;padding:4px 10px;">Add</button>
               <button id="codexRelPanelCancelBtn" type="button" style="font-size:11px;padding:4px 10px;">Cancel</button>
