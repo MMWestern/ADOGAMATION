@@ -8489,37 +8489,68 @@
             var result = JSON.parse(json);
             if (!result.ok || !result.appearances.length) {
               list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No appearances recorded.</div>";
-              return;
-            }
-            // Build book lookup map from appState.projects
-            var bookMap = {};
-            if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
-              appState.projects.forEach(function (p) {
-                var pid = Number(p.project_id || p.id || 0);
-                if (pid) bookMap[pid] = p;
+            } else {
+              // Build book lookup map from appState.projects
+              var bookMap = {};
+              if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+                appState.projects.forEach(function (p) {
+                  var pid = Number(p.project_id || p.id || 0);
+                  if (pid) bookMap[pid] = p;
+                });
+              }
+              var html = "";
+              result.appearances.forEach(function (app) {
+                html += "<div class='codex-appearance-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
+                html += "<div style='flex:1;'>";
+                html += "<span style='font-weight:600;'>" + escapeHtml(app.appearance_type || "appears") + "</span>";
+                if (app.book_id) {
+                  var book = bookMap[Number(app.book_id)];
+                  if (book) {
+                    var seriesName = book.series ? String(book.series).trim() : "";
+                    var bookTitle = book.title ? String(book.title).trim() : "Untitled";
+                    html += " <span style='color:var(--muted);'>in " + escapeHtml(bookTitle);
+                    if (seriesName) html += " <span style='font-size:10px;'>(" + escapeHtml(seriesName) + ")</span>";
+                    html += "</span>";
+                  } else {
+                    html += " <span style='color:var(--muted);'>in book #" + app.book_id + "</span>";
+                  }
+                }
+                if (app.chapter_id) html += " <span style='color:var(--muted);'>chapter " + app.chapter_id + "</span>";
+                if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
+                html += "</div>";
+                html += "<button type='button' class='codex-appearance-edit' data-appearance-id='" + app.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
+                html += "<button type='button' class='codex-appearance-delete' data-appearance-id='" + app.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:none;color:#ef4444;cursor:pointer;' title='Delete'>&times;</button>";
+                html += "</div>";
+              });
+              list.innerHTML = html;
+              // Wire edit/delete buttons
+              list.querySelectorAll(".codex-appearance-edit").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                  var appId = Number(btn.getAttribute("data-appearance-id"));
+                  var app = result.appearances.find(function (a) { return Number(a.id) === appId; });
+                  if (app) showAppearanceEditForm(seriesId, entityId, app);
+                });
+              });
+              list.querySelectorAll(".codex-appearance-delete").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                  var appId = Number(btn.getAttribute("data-appearance-id"));
+                  if (confirm("Delete this appearance?")) {
+                    supabaseRunner
+                      .withSuccessHandler(function () { loadCodexAppearances(seriesId, entityId); })
+                      .withFailureHandler(function (err) { console.error("[codexV2] Delete appearance failed:", err); })
+                      .deleteCodexEntityAppearance(appId);
+                  }
+                });
               });
             }
-            var html = "";
-            result.appearances.forEach(function (app) {
-              html += "<div class='codex-appearance-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;'>";
-              html += "<span style='font-weight:600;'>" + escapeHtml(app.appearance_type || "appears") + "</span>";
-              if (app.book_id) {
-                var book = bookMap[Number(app.book_id)];
-                if (book) {
-                  var seriesName = book.series ? String(book.series).trim() : "";
-                  var bookTitle = book.title ? String(book.title).trim() : "Untitled";
-                  html += " <span style='color:var(--muted);'>in " + escapeHtml(bookTitle);
-                  if (seriesName) html += " <span style='font-size:10px;'>(" + escapeHtml(seriesName) + ")</span>";
-                  html += "</span>";
-                } else {
-                  html += " <span style='color:var(--muted);'>in book #" + app.book_id + "</span>";
-                }
-              }
-              if (app.chapter_id) html += " <span style='color:var(--muted);'>chapter " + app.chapter_id + "</span>";
-              if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
-              html += "</div>";
-            });
-            list.innerHTML = html;
+            // Wire Add button
+            var addBtn = document.getElementById("codexAppearanceAddBtn");
+            if (addBtn && !addBtn._wired) {
+              addBtn._wired = true;
+              addBtn.addEventListener("click", function () {
+                showAppearanceEditForm(seriesId, entityId, null);
+              });
+            }
           } catch (e) {
             list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading appearances.</div>";
           }
@@ -8528,6 +8559,97 @@
           list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading appearances.</div>";
         })
         .listCodexEntityAppearances(seriesId, entityId);
+    }
+
+    function showAppearanceEditForm(seriesId, entityId, existingAppearance) {
+      var list = document.getElementById("codexAppearanceList");
+      if (!list) return;
+      var existing = document.getElementById("codexAppearanceEditForm");
+      if (existing) existing.remove();
+      var isEdit = !!existingAppearance;
+      var APPEARANCE_TYPES = ["appears", "mentioned", "pov", "introduced", "flashback", "dies", "returns", "other"];
+      var html = "<div id='codexAppearanceEditForm' style='margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'>";
+      html += "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>" + (isEdit ? "Edit Appearance" : "Add Appearance") + "</div>";
+      html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
+      // Appearance type
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Type</label>";
+      html += "<select id='appearanceEditType' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      APPEARANCE_TYPES.forEach(function (opt) {
+        var sel = isEdit && existingAppearance.appearance_type === opt ? " selected" : "";
+        html += "<option value='" + opt + "'" + sel + ">" + opt + "</option>";
+      });
+      html += "</select></div>";
+      // Book
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      html += "<select id='appearanceEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select book —</option>";
+      var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+      projects.forEach(function (p) {
+        var pid = Number(p.project_id || p.id || 0);
+        var sel = isEdit && existingAppearance.book_id && pid === Number(existingAppearance.book_id) ? " selected" : "";
+        html += "<option value='" + pid + "'" + sel + ">" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+      });
+      html += "</select></div>";
+      // Chapter
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      html += "<select id='appearanceEditChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      html += "<option value=''>— Select book first —</option>";
+      html += "</select></div>";
+      // Notes
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
+      html += "<input id='appearanceEditNotes' type='text' value='" + escapeHtml(isEdit ? existingAppearance.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      html += "</div>";
+      // Buttons
+      html += "<div style='display:flex;gap:8px;margin-top:10px;'>";
+      html += "<button id='appearanceEditSaveBtn' type='button' class='primary' style='font-size:11px;padding:4px 12px;'>Save</button>";
+      html += "<button id='appearanceEditCancelBtn' type='button' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
+      html += "</div></div>";
+      list.insertAdjacentHTML("afterbegin", html);
+      // Load chapters when book is selected
+      var bookSel = document.getElementById("appearanceEditBook");
+      var chapterSel = document.getElementById("appearanceEditChapter");
+      bookSel.addEventListener("change", function () {
+        var bookId = Number(bookSel.value || 0);
+        if (!bookId) { chapterSel.innerHTML = "<option value=''>— Select book first —</option>"; return; }
+        chapterSel.innerHTML = "<option value=''>Loading...</option>";
+        codexV2LoadChapters(bookId).then(function (chapters) {
+          chapterSel.innerHTML = codexV2BuildChapterDropdown("appearanceEditChapter", chapters, isEdit ? existingAppearance.chapter_id : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+        });
+      });
+      if (isEdit && existingAppearance.book_id) bookSel.dispatchEvent(new Event("change"));
+      // Wire buttons
+      document.getElementById("appearanceEditCancelBtn").addEventListener("click", function () {
+        document.getElementById("codexAppearanceEditForm").remove();
+      });
+      document.getElementById("appearanceEditSaveBtn").addEventListener("click", function () {
+        var appearanceType = document.getElementById("appearanceEditType").value;
+        var bookId = Number(document.getElementById("appearanceEditBook").value || 0);
+        var chapterId = Number(document.getElementById("appearanceEditChapter").value || 0);
+        var notes = document.getElementById("appearanceEditNotes").value.trim();
+        if (!bookId) { alert("Book is required."); return; }
+        var payload = {
+          entity_id: entityId,
+          series_id: seriesId,
+          book_id: bookId,
+          chapter_id: chapterId || null,
+          appearance_type: appearanceType,
+          notes: notes || null,
+          source: "manual"
+        };
+        if (isEdit) payload.id = existingAppearance.id;
+        var saveBtn = document.getElementById("appearanceEditSaveBtn");
+        saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+        supabaseRunner
+          .withSuccessHandler(function () {
+            document.getElementById("codexAppearanceEditForm").remove();
+            loadCodexAppearances(seriesId, entityId);
+          })
+          .withFailureHandler(function (err) {
+            console.error("[codexV2] Save appearance failed:", err);
+            saveBtn.disabled = false; saveBtn.textContent = "Save";
+          })
+          .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
+      });
     }
 
     function loadCodexStateAndEvents(seriesId, entityId) {

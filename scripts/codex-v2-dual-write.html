@@ -96,6 +96,7 @@
     /**
      * Backfill appearances from existing entity_projects.
      * Only backfills unambiguous data: entity linked to a project = entity appears in that book.
+     * IDEMPOTENT: checks for existing records before inserting.
      * Returns a Promise that resolves with the count of backfilled records.
      */
     function codexV2BackfillAppearances(seriesId) {
@@ -105,52 +106,74 @@
           return;
         }
         console.log("[codexV2] Starting appearances backfill for series", seriesId);
-        // Step 1: Load all entities for this series with their project links
+        // Step 1: Load existing appearances to avoid duplicates
         supabaseRunner
-          .withSuccessHandler(function (json) {
+          .withSuccessHandler(function (existingJson) {
             try {
-              var result = JSON.parse(json);
-              if (!result.ok || !result.entities) {
-                reject(new Error("Failed to load entities."));
-                return;
-              }
-              var entities = result.entities;
-              console.log("[codexV2] Found", entities.length, "entities to backfill");
-              // Step 2: For each entity with project links, create appearance records
-              var backfillCount = 0;
-              var promises = [];
-              entities.forEach(function (entity) {
-                var entityId = Number(entity.id);
-                var projectLinks = entity.projectLinks || [];
-                projectLinks.forEach(function (link) {
-                  var pid = Number(link.project_id || link.projectId || 0);
-                  if (pid) {
-                    backfillCount++;
-                    promises.push(new Promise(function (res) {
-                      var payload = {
-                        entity_id: entityId,
-                        series_id: seriesId,
-                        book_id: pid,
-                        appearance_type: "appears",
-                        source: "backfill"
-                      };
-                      supabaseRunner
-                        .withSuccessHandler(function () { res(true); })
-                        .withFailureHandler(function (err) {
-                          console.warn("[codexV2] backfill failed for entity", entityId, "book", pid, err);
-                          res(false);
-                        })
-                        .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
-                    }));
+              var existingResult = JSON.parse(existingJson);
+              var existingKeys = {};
+              (existingResult.appearances || []).forEach(function (a) {
+                existingKeys[Number(a.entity_id) + ':' + Number(a.book_id)] = true;
+              });
+              // Step 2: Load all entities for this series with their project links
+              supabaseRunner
+                .withSuccessHandler(function (json) {
+                  try {
+                    var result = JSON.parse(json);
+                    if (!result.ok || !result.entities) {
+                      reject(new Error("Failed to load entities."));
+                      return;
+                    }
+                    var entities = result.entities;
+                    console.log("[codexV2] Found", entities.length, "entities to backfill");
+                    // Step 3: For each entity with project links, create appearance records (skip existing)
+                    var backfillCount = 0;
+                    var skipCount = 0;
+                    var promises = [];
+                    entities.forEach(function (entity) {
+                      var entityId = Number(entity.id);
+                      var projectLinks = entity.projectLinks || [];
+                      projectLinks.forEach(function (link) {
+                        var pid = Number(link.project_id || link.projectId || 0);
+                        if (!pid) return;
+                        var key = entityId + ':' + pid;
+                        if (existingKeys[key]) {
+                          skipCount++;
+                          return; // Already exists, skip
+                        }
+                        backfillCount++;
+                        promises.push(new Promise(function (res) {
+                          var payload = {
+                            entity_id: entityId,
+                            series_id: seriesId,
+                            book_id: pid,
+                            appearance_type: "appears",
+                            source: "backfill"
+                          };
+                          supabaseRunner
+                            .withSuccessHandler(function () { res(true); })
+                            .withFailureHandler(function (err) {
+                              console.warn("[codexV2] backfill failed for entity", entityId, "book", pid, err);
+                              res(false);
+                            })
+                            .saveCodexEntityAppearance(seriesId, JSON.stringify(payload));
+                        }));
+                      });
+                    });
+                    // Step 4: Wait for all backfill operations to complete
+                    Promise.all(promises).then(function (results) {
+                      var successCount = results.filter(function (r) { return r; }).length;
+                      console.log("[codexV2] Backfill complete:", successCount, "new,", skipCount, "skipped");
+                      resolve({ total: backfillCount, success: successCount, skipped: skipCount });
+                    });
+                  } catch (e) {
+                    reject(e);
                   }
-                });
-              });
-              // Step 3: Wait for all backfill operations to complete
-              Promise.all(promises).then(function (results) {
-                var successCount = results.filter(function (r) { return r; }).length;
-                console.log("[codexV2] Backfill complete:", successCount, "of", backfillCount, "records created");
-                resolve({ total: backfillCount, success: successCount });
-              });
+                })
+                .withFailureHandler(function (err) {
+                  reject(err);
+                })
+                .listCodexEntities(seriesId);
             } catch (e) {
               reject(e);
             }
@@ -158,7 +181,7 @@
           .withFailureHandler(function (err) {
             reject(err);
           })
-          .listCodexEntities(seriesId);
+          .listCodexEntityAppearances(seriesId);
       });
     }
 
