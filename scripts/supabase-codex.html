@@ -1329,7 +1329,7 @@
       var q = sbClient.from('codex_entity_state')
         .select('*')
         .eq('subject_entity_id', safeEntityId)
-        .in('state_status', ['provisional', 'canon']);
+        .in('state_status', ['draft', 'provisional', 'canon']);
       if (chapterSortOrder != null) {
         q = q.or('effective_from_sort.is.null,effective_from_sort.lte.' + Number(chapterSortOrder));
       }
