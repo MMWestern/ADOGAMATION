@@ -8988,7 +8988,7 @@
                 return codexV2LoadChapters(Number(bid));
               });
               Promise.all(chapterPromises).then(function () {
-              // Sort by effective_from_sort ascending (narrative order), then by property name
+              // Sort by effective_from_sort ascending (narrative order), then by property name, then entry_order
               // Fallback: group by book_id, chapter_id when effective_from_sort is null
               var sortedStates = result.states.slice().sort(function (a, b) {
                 var sortA = a.effective_from_sort != null ? Number(a.effective_from_sort) : null;
@@ -9007,10 +9007,13 @@
                 var chA = Number(a.chapter_id || 0);
                 var chB = Number(b.chapter_id || 0);
                 if (chA !== chB) return chA - chB;
-                // Same position: sort by property name
+                // Same position: sort by property name, then entry_order
                 var nameA = (a.property_key || "").toLowerCase();
                 var nameB = (b.property_key || "").toLowerCase();
-                return nameA.localeCompare(nameB);
+                if (nameA !== nameB) return nameA.localeCompare(nameB);
+                var orderA = a.entry_order != null ? Number(a.entry_order) : 1;
+                var orderB = b.entry_order != null ? Number(b.entry_order) : 1;
+                return orderA - orderB;
               });
               var lastBookId = null;
               var lastChapterId = null;
@@ -9039,6 +9042,9 @@
                 html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
                 html += "<div style='flex:1;'>";
                 html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                if (s.entry_order != null && Number(s.entry_order) > 1) {
+                  html += " <span style='font-size:10px;color:var(--muted);'>#" + s.entry_order + "</span>";
+                }
                 html += " <span>= " + escapeHtml(String(value)) + "</span>";
                 if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
                 if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
@@ -9452,6 +9458,7 @@
                           chapter_id: chapterId || null,
                           effective_from_sort: effectiveFromSort,
                           state_status: "draft",
+                          entry_order: 1,
                           notes: "Applied from starting pack"
                         };
                         supabaseRunner
@@ -9552,6 +9559,11 @@
       // Notes
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
       html += "<input id='stateEditNotes' type='text' value='" + escapeHtml(isEdit ? existingState.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+      // Entry Order (for multiple states of same property)
+      var entryOrder = isEdit && existingState.entry_order != null ? Number(existingState.entry_order) : 1;
+      html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Entry Order</label>";
+      html += "<input id='stateEditEntryOrder' type='number' min='1' value='" + entryOrder + "' placeholder='1' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
+      html += "<div class='tiny' style='color:var(--muted);margin-top:2px;'>Use 1 for default. Increase for multiple states of same property.</div></div>";
       html += "</div>";
       // Buttons
       html += "<div style='display:flex;gap:8px;margin-top:10px;'>";
@@ -9739,6 +9751,7 @@
         var chapterId = Number(document.getElementById("stateEditChapter").value || 0);
         var stateStatus = document.getElementById("stateEditStatus").value;
         var notes = document.getElementById("stateEditNotes").value.trim();
+        var entryOrder = Number(document.getElementById("stateEditEntryOrder").value || 1);
         if (!propertyKey && !propertyEntityId) { alert("Property is required."); return; }
         // Cross-book chapter validation
         if (chapterId && bookId) {
@@ -9767,6 +9780,7 @@
           chapter_id: chapterId || null,
           effective_from_sort: effectiveFromSort,
           state_status: stateStatus,
+          entry_order: entryOrder,
           notes: notes || null
         };
         if (isEdit) payload.id = existingState.id;
