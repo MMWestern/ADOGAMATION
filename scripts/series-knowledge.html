@@ -9360,8 +9360,11 @@
                 var resolved = [];
                 Object.keys(stateGroups).forEach(function (key) {
                   var group = stateGroups[key];
-                  // Sort by entry_order descending, keep the first (latest)
+                  // Sort by effective_from_sort DESC (latest chapter first), then entry_order DESC
                   group.sort(function (a, b) {
+                    var sortA = Number(a.effective_from_sort || 0);
+                    var sortB = Number(b.effective_from_sort || 0);
+                    if (sortA !== sortB) return sortB - sortA;
                     return (Number(b.entry_order || 1)) - (Number(a.entry_order || 1));
                   });
                   resolved.push(group[0]);
