@@ -4526,6 +4526,8 @@
       if (!stateList) return;
       chaptersByBook = chaptersByBook || {};
 
+      console.log("[STATE] renderWritingInspectorState called with", rows.length, "rows");
+
       // Group by property_key, then sort by book/chapter and entry_order
       var propGroups = {};
       rows.forEach(function (row) {
@@ -4540,6 +4542,8 @@
 
       Object.keys(propGroups).forEach(function (propKey) {
         var records = propGroups[propKey];
+        console.log("[STATE] Processing property:", propKey, "with", records.length, "records");
+
         // Sort by book_num, chapter_num, entry_order
         records.sort(function (a, b) {
           var aBook = Number(a.book_id || 0);
@@ -4577,6 +4581,7 @@
 
           // Only add if value changed from last chapter
           var valueKey = value + "|" + notes;
+          console.log("[STATE] Row:", { bookNum, chapNum, entryOrder: row.entry_order, value, notes, valueKey, lastValue });
           if (valueKey !== lastValue) {
             if (!resolvedByChapter[chapterKey]) {
               resolvedByChapter[chapterKey] = {
@@ -4595,9 +4600,14 @@
             });
             lastValue = valueKey;
             lastChapterKey = chapterKey;
+            console.log("[STATE] Added entry to chapter", chapterKey);
+          } else {
+            console.log("[STATE] Skipped - same value as last");
           }
         });
       });
+
+      console.log("[STATE] Resolved chapters:", Object.keys(resolvedByChapter).length);
 
       // Sort chapters and render
       var sortedKeys = Object.keys(resolvedByChapter).sort(function (a, b) { return Number(a) - Number(b); });
