@@ -8698,7 +8698,7 @@
                 if (app.chapter_id) {
                   var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(app.book_id)]) ? skCache.chapters[Number(app.book_id)] : [];
                   var chapter = chapters.find(function (c) { return Number(c.id) === Number(app.chapter_id); });
-                  var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) + 1 : 0;
+                  var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
                   var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + app.chapter_id;
                   html += " <span style='color:var(--muted);font-size:10px;'>— " + escapeHtml(chapterLabel) + "</span>";
                 }
@@ -8871,7 +8871,7 @@
                   if (s.chapter_id) {
                     var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(s.book_id)]) ? skCache.chapters[Number(s.book_id)] : [];
                     var chapter = chapters.find(function (c) { return Number(c.id) === Number(s.chapter_id); });
-                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) + 1 : 0;
+                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
                     var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + s.chapter_id;
                     contextText += " — " + chapterLabel;
                   }
@@ -8941,7 +8941,7 @@
                   if (ev.chapter_id) {
                     var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(ev.book_id)]) ? skCache.chapters[Number(ev.book_id)] : [];
                     var chapter = chapters.find(function (c) { return Number(c.id) === Number(ev.chapter_id); });
-                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) + 1 : 0;
+                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
                     var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + ev.chapter_id;
                     contextText += " — " + chapterLabel;
                   }

@@ -357,7 +357,7 @@
       html += "<option value=''>— No chapter —</option>";
       chapters.forEach(function (ch) {
         var sel = selectedId && Number(ch.id) === Number(selectedId) ? " selected" : "";
-        var chapterNum = ch.sort_order != null ? Number(ch.sort_order) + 1 : 0;
+        var chapterNum = ch.sort_order != null ? Number(ch.sort_order) : 0;
         var label = chapterNum > 0 ? "Ch. " + chapterNum + ": " + ch.title : ch.title;
         html += "<option value='" + ch.id + "'" + sel + ">" + escapeHtml(label) + "</option>";
       });
