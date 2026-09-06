@@ -511,26 +511,40 @@
           // Compute global sort for temporal bounds
           var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
           var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, chapterSortOrder) : chapterSortOrder;
+          // Look up relationship type ID by key
+          var relTypeId = null;
           supabaseRunner
-            .withSuccessHandler(function (json) {
+            .withSuccessHandler(function (typesJson) {
               try {
-                var r = JSON.parse(json);
-                if (r.ok && r.connection) {
-                  log.push("Connection: " + relTypeKey + " (id=" + r.connection.id + ")");
-                  callback(r.connection.id);
-                } else { callback(null); }
-              } catch (e) { callback(null); }
+                var typesResult = JSON.parse(typesJson);
+                var types = typesResult.types || [];
+                var match = types.find(function (t) { return t.key === relTypeKey; });
+                if (match) relTypeId = Number(match.id);
+              } catch (e) {}
+              // Now create the connection
+              supabaseRunner
+                .withSuccessHandler(function (json) {
+                  try {
+                    var r = JSON.parse(json);
+                    if (r.ok && r.connection) {
+                      log.push("Connection: " + relTypeKey + " (id=" + r.connection.id + ")");
+                      callback(r.connection.id);
+                    } else { callback(null); }
+                  } catch (e) { callback(null); }
+                })
+                .withFailureHandler(function () { callback(null); })
+                .saveCodexConnection(seriesId, JSON.stringify({
+                  source_entity_id: sourceId,
+                  target_entity_id: targetId,
+                  relationship_type_id: relTypeId,
+                  book_id: bookId || null,
+                  label: relTypeKey,
+                  valid_from_sort: globalSort,
+                  valid_to_sort: null
+                }));
             })
             .withFailureHandler(function () { callback(null); })
-            .saveCodexConnection(seriesId, JSON.stringify({
-              source_entity_id: sourceId,
-              target_entity_id: targetId,
-              relationship_type_id: null,
-              book_id: bookId || null,
-              label: relTypeKey,
-              valid_from_sort: globalSort,
-              valid_to_sort: null
-            }));
+            .listCodexRelationshipTypes();
         }
 
         function endConnection(connectionId, bookId, chapterSortOrder, callback) {
@@ -588,8 +602,8 @@
                                                       resolve({ log: log, created: created });
                                                     };
                                                     if (book2Id) {
-                                                      // B2 Ch1: Strength = 10
-                                                      saveState(patrickId, "Strength", null, 10, book2Id, null, 1, function () {
+                                                      // B2 Ch3: Strength = 10 (supersedes B1 Ch12 STR=8)
+                                                      saveState(patrickId, "Strength", null, 10, book2Id, null, 3, function () {
                                                         // B2 Ch3: Lose sword
                                                         saveEvent(patrickId, "item_lost", swordId, "Lost during dungeon collapse", book2Id, null, function () {
                                                           if (swordConnId) {
