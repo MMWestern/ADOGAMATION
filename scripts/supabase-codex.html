@@ -1337,11 +1337,14 @@
       return q.then(function (res) {
         if (res.error) throw res.error;
         var rows = res.data || [];
-        // Deduplicate: keep most recent record per property_key or property_entity_id
+        // Deduplicate: keep most recent record per property
+        // Prefer property_entity_id for identity (canonical definition)
+        // Fall back to property_key for free-form properties
         var seen = {};
         var result = [];
         rows.forEach(function (r) {
-          var key = r.property_key || ('entity:' + r.property_entity_id);
+          // Use entity ID as primary dedup key, fall back to property_key
+          var key = r.property_entity_id ? ('entity:' + r.property_entity_id) : (r.property_key || ('unknown:' + r.id));
           if (!seen[key]) {
             seen[key] = true;
             result.push(r);
