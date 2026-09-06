@@ -9291,17 +9291,37 @@
               if (!states.length) {
                 html += "<div class='tiny' style='color:var(--muted);margin-bottom:12px;'>No state recorded.</div>";
               } else {
+                // Group states by property_key to detect multiples
+                var stateGroups = {};
                 states.forEach(function (s) {
-                  var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
-                  html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
-                  html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
-                  if (s.entry_order != null && Number(s.entry_order) > 1) {
-                    html += " <span style='font-size:10px;color:var(--muted);'>#" + s.entry_order + "</span>";
+                  var key = s.property_key || "unknown";
+                  if (!stateGroups[key]) stateGroups[key] = [];
+                  stateGroups[key].push(s);
+                });
+                Object.keys(stateGroups).forEach(function (key) {
+                  var group = stateGroups[key];
+                  var isMultiple = group.length > 1;
+                  if (isMultiple) {
+                    html += "<div style='border:1px solid var(--border);border-radius:4px;margin-bottom:8px;overflow:hidden;'>";
+                    html += "<div style='font-size:10px;font-weight:600;color:var(--muted);background:rgba(99,102,241,0.08);padding:4px 8px;'>" + escapeHtml(key) + " (" + group.length + " entries)</div>";
                   }
-                  html += " = " + escapeHtml(String(value));
-                  if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
-                  if (s.notes) html += " <span style='color:var(--muted);font-size:10px;'> — " + escapeHtml(s.notes) + "</span>";
-                  html += "</div>";
+                  group.forEach(function (s) {
+                    var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
+                    html += "<div style='padding:4px 8px;font-size:12px;" + (isMultiple ? "" : "border-bottom:1px solid var(--border);margin-bottom:4px;") + "'>";
+                    if (!isMultiple) {
+                      html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                    }
+                    if (s.entry_order != null && Number(s.entry_order) > 1) {
+                      html += " <span style='font-size:10px;color:#6366f1;font-weight:600;'>#" + s.entry_order + "</span>";
+                    }
+                    html += " = " + escapeHtml(String(value));
+                    if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                    if (s.notes) html += " <span style='color:var(--muted);font-size:10px;'> — " + escapeHtml(s.notes) + "</span>";
+                    html += "</div>";
+                  });
+                  if (isMultiple) {
+                    html += "</div>";
+                  }
                 });
               }
               // Active Relationships section
