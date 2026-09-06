@@ -2343,18 +2343,19 @@
           var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
           var contextStatus = document.getElementById("codexRelPanelStatus") ? document.getElementById("codexRelPanelStatus").value : "active";
           var notes = document.getElementById("codexRelPanelNotes") ? document.getElementById("codexRelPanelNotes").value.trim() : "";
-          // Resolve chapter sort_orders
+          // Resolve chapter sort_orders (series-global position)
           var validFromSort = null;
           var validToSort = null;
           if (bookId) {
+            var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
             var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
             if (fromChapterId) {
               var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
-              if (fromCh) validFromSort = fromCh.sort_order;
+              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, fromCh.sort_order) : fromCh.sort_order;
             }
             if (toChapterId) {
               var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
-              if (toCh) validToSort = toCh.sort_order;
+              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, toCh.sort_order) : toCh.sort_order;
             }
           }
           // Cross-book chapter validation
@@ -2539,18 +2540,19 @@
           var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
           var contextStatus = document.getElementById("codexRelEditStatus") ? document.getElementById("codexRelEditStatus").value : "active";
           var notes = document.getElementById("codexRelEditNotes") ? document.getElementById("codexRelEditNotes").value.trim() : "";
-          // Resolve chapter sort_orders
+          // Resolve chapter sort_orders (series-global position)
           var validFromSort = null;
           var validToSort = null;
           if (bookId) {
+            var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
             var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
             if (fromChapterId) {
               var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
-              if (fromCh) validFromSort = fromCh.sort_order;
+              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, fromCh.sort_order) : fromCh.sort_order;
             }
             if (toChapterId) {
               var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
-              if (toCh) validToSort = toCh.sort_order;
+              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, toCh.sort_order) : toCh.sort_order;
             }
           }
           updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
@@ -9046,7 +9048,11 @@
             if (chapterId) {
               var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
               var ch = chapters.find(function (c) { return Number(c.id) === chapterId; });
-              if (ch) chapterSortOrder = ch.sort_order;
+              if (ch) {
+                // Compute series-global sort position
+                var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+                chapterSortOrder = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
+              }
             }
             var resultsDiv = document.getElementById("viewStateAtResults");
             resultsDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
@@ -9334,12 +9340,15 @@
           var chapterValid = validChapters.some(function (c) { return Number(c.id) === chapterId; });
           if (!chapterValid) { alert("Selected chapter does not belong to the selected book."); return; }
         }
-        // Resolve chapter sort_order for effective_from_sort
+        // Resolve chapter sort_order for effective_from_sort (series-global position)
         var effectiveFromSort = null;
         if (chapterId && bookId) {
           var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
           var chapter = chapters.find(function (c) { return Number(c.id) === chapterId; });
-          if (chapter) effectiveFromSort = chapter.sort_order;
+          if (chapter) {
+            var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+            effectiveFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, chapter.sort_order) : chapter.sort_order;
+          }
         }
         var payload = {
           subject_entity_id: entityId,
@@ -9787,7 +9796,11 @@
           if (chapterId && bookId) {
             var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
             var ch = chapters.find(function (c) { return Number(c.id) === chapterId; });
-            if (ch) chapterSortOrder = ch.sort_order;
+            if (ch) {
+              // Compute series-global sort position
+              var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+              chapterSortOrder = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
+            }
           }
           renderProgressionSheet(seriesId, entityId, bookId, chapterSortOrder);
         });

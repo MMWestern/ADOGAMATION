@@ -1323,13 +1323,13 @@
       // Build query: get most recent state for each property at or before the narrative point
       // Note: LIMIT is set high to avoid silent truncation for long-running characters.
       // Deduplication happens in-memory by property_key after ordering by effective_from_sort DESC.
+      //
+      // IMPORTANT: Do NOT filter by book_id. State persists across books until explicitly superseded.
+      // A character's Strength set in Book 1 should carry forward to Book 2 if not changed.
       var q = sbClient.from('codex_entity_state')
         .select('*')
         .eq('subject_entity_id', safeEntityId)
         .in('state_status', ['provisional', 'canon']);
-      if (bookId) {
-        q = q.or('book_id.is.null,book_id.eq.' + Number(bookId));
-      }
       if (chapterSortOrder != null) {
         q = q.or('effective_from_sort.is.null,effective_from_sort.lte.' + Number(chapterSortOrder));
       }

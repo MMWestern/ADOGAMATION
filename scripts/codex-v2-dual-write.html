@@ -6,6 +6,53 @@
     window.codexV2DeprecationAudit = codexV2DeprecationAudit;
 
     /**
+     * Compute a series-global narrative sort position.
+     * Combines book_number (from projects table) with chapter sort_order
+     * to create a unique, ordered position across the entire series.
+     *
+     * Formula: (bookNumber * 10000) + chapterSortOrder
+     *
+     * This ensures:
+     *   B1 Ch1  = 1 * 10000 + 1  = 10001
+     *   B1 Ch12 = 1 * 10000 + 12 = 10012
+     *   B2 Ch1  = 2 * 10000 + 1  = 20001
+     *   B2 Ch3  = 2 * 10000 + 3  = 20003
+     *
+     * If bookNumber is not available, falls back to chapterSortOrder alone.
+     * If neither is available, returns null.
+     */
+    function codexV2GlobalSort(bookNumber, chapterSortOrder) {
+      var bookNum = Number(bookNumber);
+      var chapterSort = Number(chapterSortOrder);
+      if (!Number.isFinite(bookNum) || bookNum <= 0) {
+        // No book number available, use chapter sort alone (legacy behavior)
+        return Number.isFinite(chapterSort) ? chapterSort : null;
+      }
+      if (!Number.isFinite(chapterSort)) {
+        // No chapter sort, use book number * 10000 (beginning of book)
+        return bookNum * 10000;
+      }
+      return (bookNum * 10000) + chapterSort;
+    }
+
+    /**
+     * Get the book_number for a given project_id.
+     * Looks up from appState.projects.
+     * Returns the book_number as a number, or 0 if not found.
+     */
+    function codexV2GetBookNumber(projectId) {
+      if (typeof appState === "undefined" || !Array.isArray(appState.projects)) return 0;
+      var project = appState.projects.find(function (p) { return Number(p.project_id || p.id) === Number(projectId); });
+      if (!project) return 0;
+      var bn = project.b_number || project.book_number || "";
+      var num = Number(bn);
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    window.codexV2GlobalSort = codexV2GlobalSort;
+    window.codexV2GetBookNumber = codexV2GetBookNumber;
+
+    /**
      * Record an entity appearance when an entity is linked to a project/book.
      * Called from saveCodexEntityProjects and entity save paths.
      */
@@ -417,8 +464,11 @@
             })
             .saveCodexEntity(seriesId, 0, JSON.stringify({ name: name, entity_type_key: typeKey, scope: "series", custom_data: {} }));
         }
-        function saveState(entityId, propertyKey, valueText, valueNumber, bookId, chapterId, sortOrder, callback) {
+        function saveState(entityId, propertyKey, valueText, valueNumber, bookId, chapterId, localSortOrder, callback) {
           console.log("[pilot] Saving state:", propertyKey, "=", valueNumber != null ? valueNumber : valueText);
+          // Compute series-global sort position
+          var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+          var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, localSortOrder) : localSortOrder;
           var payload = {
             subject_entity_id: entityId,
             property_key: propertyKey,
@@ -427,7 +477,7 @@
             series_id: seriesId,
             book_id: bookId || null,
             chapter_id: chapterId || null,
-            effective_from_sort: sortOrder,
+            effective_from_sort: globalSort,
             state_status: "canon",
             notes: "Pilot data"
           };
@@ -471,8 +521,8 @@
               source_entity_id: sourceId,
               target_entity_id: targetId,
               relationship_type_id: null,
-              label: relTypeKey,
-              book_id: bookId || null
+              book_id: bookId || null,
+              label: relTypeKey
             }));
         }
         // Create entities sequentially
@@ -563,10 +613,16 @@
         console.log("[pilot] Starting verification for Patrick (id=" + patrickId + ")");
         var results = [];
 
-        // Helper to query state at a narrative point
-        function queryState(label, bookId, chapterSortOrder) {
+        // Compute global sort positions for each book
+        var book1Num = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(book1Id) : 1;
+        var book2Num = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(book2Id) : 2;
+
+        // Helper to query state at a narrative point using global sort
+        function queryState(label, bookId, localChapterSortOrder) {
           return new Promise(function (res) {
-            codexV2GetEntityStateAt(patrickId, bookId, chapterSortOrder).then(function (states) {
+            var bookNum = bookId === book1Id ? book1Num : book2Num;
+            var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, localChapterSortOrder) : localChapterSortOrder;
+            codexV2GetEntityStateAt(patrickId, null, globalSort).then(function (states) {
               var stateMap = {};
               states.forEach(function (s) {
                 var val = s.value_number != null ? s.value_number : s.value_text || "?";
@@ -579,10 +635,12 @@
           });
         }
 
-        // Helper to query relationships at a narrative point
-        function queryRelationships(label, chapterSortOrder) {
+        // Helper to query relationships at a narrative point using global sort
+        function queryRelationships(label, bookId, localChapterSortOrder) {
           return new Promise(function (res) {
-            codexV2GetActiveConnectionsAt(patrickId, chapterSortOrder).then(function (connections) {
+            var bookNum = bookId === book1Id ? book1Num : book2Num;
+            var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, localChapterSortOrder) : localChapterSortOrder;
+            codexV2GetActiveConnectionsAt(patrickId, globalSort).then(function (connections) {
               var rels = connections.map(function (c) {
                 var otherName = c.source_entity_id === patrickId
                   ? (c.target || {}).name || "Unknown"
@@ -597,25 +655,23 @@
           });
         }
 
-        // Run queries sequentially
-        // Note: We use sort_order values as narrative anchors
-        // Book 1 sort_order 1 = Chapter 1, sort_order 7 = Chapter 7, sort_order 12 = Chapter 12
+        // Run queries sequentially using global sort positions
         queryState("Book 1 Ch 1 (sort=1)", book1Id, 1).then(function () {
           return queryState("Book 1 Ch 5 (sort=5)", book1Id, 5);
         }).then(function () {
-          return queryRelationships("Book 1 Ch 5 (sort=5)", 5);
+          return queryRelationships("Book 1 Ch 5 (sort=5)", book1Id, 5);
         }).then(function () {
           return queryState("Book 1 Ch 7 (sort=7)", book1Id, 7);
         }).then(function () {
-          return queryRelationships("Book 1 Ch 7 (sort=7)", 7);
+          return queryRelationships("Book 1 Ch 7 (sort=7)", book1Id, 7);
         }).then(function () {
           return queryState("Book 1 Ch 12 (sort=12)", book1Id, 12);
         }).then(function () {
-          return queryRelationships("Book 1 Ch 12 (sort=12)", 12);
+          return queryRelationships("Book 1 Ch 12 (sort=12)", book1Id, 12);
         }).then(function () {
           if (book2Id) {
             return queryState("Book 2 Ch 2 (sort=2)", book2Id, 2).then(function () {
-              return queryRelationships("Book 2 Ch 2 (sort=2)", 2);
+              return queryRelationships("Book 2 Ch 2 (sort=2)", book2Id, 2);
             }).then(function () {
               return queryState("Book 2 Ch 3 (sort=3)", book2Id, 3);
             }).then(function () {
