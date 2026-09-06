@@ -4481,7 +4481,7 @@
 
       supabaseRunner
         .withSuccessHandler(function (result) {
-          var items = (result && result.ok !== false && Array.isArray(result.rows)) ? result.rows : [];
+          var items = (result && result.ok !== false && Array.isArray(result.states)) ? result.states : [];
           if (!items.length) {
             stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No state records.</div>";
             return;
