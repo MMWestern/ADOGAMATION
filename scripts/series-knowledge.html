@@ -8981,6 +8981,13 @@
               if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
                 appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
               }
+              // Preload chapters for all books that have state records
+              var bookIds = {};
+              result.states.forEach(function (s) { if (s.book_id) bookIds[Number(s.book_id)] = true; });
+              var chapterPromises = Object.keys(bookIds).map(function (bid) {
+                return codexV2LoadChapters(Number(bid));
+              });
+              Promise.all(chapterPromises).then(function () {
               // Sort by effective_from_sort ascending (narrative order), then by property name
               var sortedStates = result.states.slice().sort(function (a, b) {
                 var sortA = a.effective_from_sort != null ? Number(a.effective_from_sort) : 999999;
@@ -9035,6 +9042,7 @@
                   });
                 });
               }
+              }); // end Promise.all.then
             }
           } catch (e) {
             if (stateList) stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
