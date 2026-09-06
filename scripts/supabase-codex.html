@@ -1337,15 +1337,15 @@
       return q.then(function (res) {
         if (res.error) throw res.error;
         var rows = res.data || [];
-        // Deduplicate: keep most recent record per property at each narrative point
-        // Use property + effective_from_sort as key to allow multiple states for same property
-        // at different narrative points, and multiple entries at same point (with entry_order)
+        // Deduplicate: keep most recent record per property+entry_order combination
+        // This allows multiple states for same property (different entry_orders)
+        // while still deduplicating across narrative points (keep most recent per entry_order)
         var seen = {};
         var result = [];
         rows.forEach(function (r) {
           var propKey = r.property_entity_id ? ('entity:' + r.property_entity_id) : (r.property_key || ('unknown:' + r.id));
-          var sortKey = r.effective_from_sort != null ? String(r.effective_from_sort) : 'null';
-          var dedupKey = propKey + '|' + sortKey + '|' + (r.entry_order || 0);
+          var entryOrder = r.entry_order != null ? Number(r.entry_order) : 1;
+          var dedupKey = propKey + '|' + entryOrder;
           if (!seen[dedupKey]) {
             seen[dedupKey] = true;
             result.push(r);
