@@ -4304,9 +4304,10 @@
         var seriesId = selected ? Number(selected.series_id || 0) : 0;
         var connections = skCache.connections[seriesId] || [];
         var parentMap = {};
+        // Only use active located_in connections (exclude ended ones)
         connections.forEach(function (c) {
           var relType = c.codex_relationship_types || {};
-          if (relType.key === "located_in") {
+          if (relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended") {
             parentMap[Number(c.source_entity_id)] = Number(c.target_entity_id);
           }
         });

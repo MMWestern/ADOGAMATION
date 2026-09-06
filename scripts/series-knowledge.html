@@ -1925,9 +1925,18 @@
             var targetName = String(target.name || "Unknown").trim();
             var relLabel = String(conn.label || relType.forward_label || "related to").trim();
             var desc = String(conn.description || "").substring(0, 60);
+            // Temporal status badge
+            var statusBadge = "";
+            if (conn.context_status === "ended") {
+              statusBadge = " <span style='font-size:9px;padding:1px 4px;border-radius:3px;background:#ef4444;color:white;'>ENDED</span>";
+            } else if (conn.context_status === "planned") {
+              statusBadge = " <span style='font-size:9px;padding:1px 4px;border-radius:3px;background:#f59e0b;color:white;'>PLANNED</span>";
+            } else if (conn.valid_from_sort != null || conn.valid_to_sort != null) {
+              statusBadge = " <span style='font-size:9px;padding:1px 4px;border-radius:3px;background:#6366f1;color:white;'>TEMPORAL</span>";
+            }
             return "<div class='world-entity-card" + active + "' data-sk-conn-id='" + conn.id + "'>" +
                 "<div class='world-entity-card-header'>" +
-                    "<div class='world-entity-card-name'>" + escapeHtml(sourceName) + " → " + escapeHtml(relLabel) + " → " + escapeHtml(targetName) + "</div>" +
+                    "<div class='world-entity-card-name'>" + escapeHtml(sourceName) + " → " + escapeHtml(relLabel) + " → " + escapeHtml(targetName) + statusBadge + "</div>" +
                 "</div>" +
                 (desc ? "<div class='world-entity-card-snippet'>" + escapeHtml(desc) + "</div>" : "") +
             "</div>";
@@ -2641,10 +2650,10 @@
       var parentLocSelect = document.getElementById("codexDetailParentLocation");
       var newParentId = parentLocSelect ? Number(parentLocSelect.value || 0) : 0;
       var connections = skCache.connections[seriesId] || [];
-      // Find existing located_in connection for this entity
+      // Find existing ACTIVE located_in connection for this entity (exclude ended)
       var existingConn = connections.find(function (c) {
         var relType = c.codex_relationship_types || {};
-        return Number(c.source_entity_id) === entityId && relType.key === "located_in";
+        return Number(c.source_entity_id) === entityId && relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended";
       });
       var existingParentId = existingConn ? Number(existingConn.target_entity_id || 0) : 0;
       // If no change, skip
@@ -3977,9 +3986,10 @@
     function buildLocationParentMap(seriesId) {
       var parentMap = {};
       var connections = skCache.connections[seriesId] || [];
+      // Only use active located_in connections (exclude ended ones)
       connections.forEach(function (c) {
         var relType = c.codex_relationship_types || {};
-        if (relType.key === "located_in") {
+        if (relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended") {
           parentMap[Number(c.source_entity_id)] = Number(c.target_entity_id);
         }
       });
@@ -5475,9 +5485,10 @@
         var parentLocSelect = document.getElementById("codexDetailParentLocation");
         if (parentLocSelect) {
           var connections = skCurrentSeriesId ? (skCache.connections[skCurrentSeriesId] || []) : [];
+          // Find the ACTIVE located_in connection (exclude ended)
           var locatedInConn = connections.find(function (c) {
             var relType = c.codex_relationship_types || {};
-            return Number(c.source_entity_id) === Number(entity.id) && relType.key === "located_in";
+            return Number(c.source_entity_id) === Number(entity.id) && relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended";
           });
           if (locatedInConn) {
             parentLocSelect.value = String(locatedInConn.target_entity_id || "");
