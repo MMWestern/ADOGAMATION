@@ -5499,6 +5499,7 @@
       }
       html += "<button type='button' id='codexStateAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add State</button>";
       html += "<button type='button' id='codexEventAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add Event</button>";
+      html += "<button type='button' id='codexStateDeleteAllBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;color:#ef4444;'>Delete All</button>";
       html += "</div>";
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
@@ -8982,7 +8983,14 @@
               if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
                 appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
               }
-              result.states.forEach(function (s) {
+              // Sort by property name, then by effective_from_sort ascending
+              var sortedStates = result.states.slice().sort(function (a, b) {
+                var nameA = (a.property_key || "").toLowerCase();
+                var nameB = (b.property_key || "").toLowerCase();
+                if (nameA !== nameB) return nameA.localeCompare(nameB);
+                return (a.effective_from_sort || 0) - (b.effective_from_sort || 0);
+              });
+              sortedStates.forEach(function (s) {
                 var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
                 html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
                 html += "<div style='flex:1;'>";
@@ -9114,6 +9122,53 @@
         addStateBtn._wired = true;
         addStateBtn.addEventListener("click", function () {
           showStateEditForm(seriesId, entityId, null);
+        });
+      }
+      // Wire Delete All button
+      var deleteAllBtn = document.getElementById("codexStateDeleteAllBtn");
+      if (deleteAllBtn && !deleteAllBtn._wired) {
+        deleteAllBtn._wired = true;
+        deleteAllBtn.addEventListener("click", function () {
+          if (!confirm("Delete ALL state records for this entity? This cannot be undone.")) return;
+          if (!confirm("Are you sure? This will delete all state history for this entity.")) return;
+          // Load current states and delete them
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              try {
+                var result = JSON.parse(json);
+                if (!result.ok || !result.states.length) {
+                  alert("No state records to delete.");
+                  return;
+                }
+                var count = result.states.length;
+                var deleted = 0;
+                result.states.forEach(function (s) {
+                  supabaseRunner
+                    .withSuccessHandler(function () {
+                      deleted++;
+                      if (deleted === count) {
+                        loadCodexStateAndEvents(seriesId, entityId);
+                        alert("Deleted " + deleted + " state records.");
+                      }
+                    })
+                    .withFailureHandler(function (err) {
+                      console.error("[codexV2] Delete state failed:", err);
+                      deleted++;
+                      if (deleted === count) {
+                        loadCodexStateAndEvents(seriesId, entityId);
+                        alert("Deleted " + deleted + " state records (some may have failed).");
+                      }
+                    })
+                    .deleteCodexEntityState(s.id);
+                });
+              } catch (e) {
+                alert("Error loading states for deletion.");
+              }
+            })
+            .withFailureHandler(function () {
+              alert("Error loading states for deletion.");
+            })
+            .listCodexEntityState(seriesId, entityId);
         });
       }
       // Wire Add Event button
