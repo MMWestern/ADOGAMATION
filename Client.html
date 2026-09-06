@@ -4447,6 +4447,140 @@
       }) || null;
       if (el.writingInspectorCodexTitle) el.writingInspectorCodexTitle.textContent = match ? match.title : "Nothing selected";
       if (el.writingInspectorCodexBody) el.writingInspectorCodexBody.textContent = match ? (match.body || "No details yet.") : "Pick a codex entry from the left to keep it in view while you write.";
+
+      // Load state/progression data for selected entry
+      var stateSection = document.getElementById("writingInspectorStateSection");
+      var stateList = document.getElementById("writingInspectorStateList");
+      if (!match || !stateSection || !stateList) {
+        if (stateSection) stateSection.hidden = true;
+        return;
+      }
+
+      var parts = String(match.key || "").split("::");
+      var entityId = Number(parts[1] || 0);
+      if (!entityId) {
+        stateSection.hidden = true;
+        return;
+      }
+
+      var selectedProject = project || getSelectedProject();
+      var seriesId = Number(selectedProject && selectedProject.series_id || 0);
+      if (!seriesId) {
+        stateSection.hidden = true;
+        return;
+      }
+
+      stateSection.hidden = false;
+      stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>Loading state...</div>";
+
+      loadWritingInspectorState(seriesId, entityId, stateList, stateSection);
+    }
+
+    function loadWritingInspectorState(seriesId, entityId, stateList, stateSection) {
+      if (!stateList || !stateSection) return;
+
+      supabaseRunner
+        .withSuccessHandler(function (result) {
+          var items = (result && result.ok !== false && Array.isArray(result.rows)) ? result.rows : [];
+          if (!items.length) {
+            stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No state records.</div>";
+            return;
+          }
+
+          // Preload chapters for all books in the results
+          var bookIds = [];
+          items.forEach(function (r) {
+            var bid = Number(r.book_id || 0);
+            if (bid && bookIds.indexOf(bid) === -1) bookIds.push(bid);
+          });
+
+          var pending = bookIds.length;
+          if (!pending) {
+            renderWritingInspectorState(items, stateList, {});
+            return;
+          }
+
+          var chaptersByBook = {};
+          bookIds.forEach(function (bid) {
+            codexV2LoadChapters(bid).then(function (chapters) {
+              chaptersByBook[bid] = chapters || [];
+              pending--;
+              if (pending <= 0) renderWritingInspectorState(items, stateList, chaptersByBook);
+            });
+          });
+        })
+        .withFailureHandler(function (err) {
+          console.error("[CODEX] loadWritingInspectorState failed:", err);
+          stateList.innerHTML = "<div class='muted' style='padding:4px 0;color:#f87171;'>Error loading state.</div>";
+        })
+        .listCodexEntityState(seriesId, entityId);
+    }
+
+    function renderWritingInspectorState(rows, stateList, chaptersByBook) {
+      if (!stateList) return;
+      chaptersByBook = chaptersByBook || {};
+
+      // Group by book+chapter, then sort by property name, entry_order
+      var groups = {};
+      rows.forEach(function (row) {
+        var bookId = Number(row.book_id || 0);
+        var chapterId = Number(row.chapter_id || 0);
+        var bookNum = codexV2GetBookNumber(bookId);
+        var chapters = chaptersByBook[bookId] || [];
+        var chapNum = chapterId ? codexV2GetChapterNumber(chapters, chapterId) : 0;
+        var chapLabel = chapterId ? codexV2GetChapterLabel(chapters, chapterId) : "";
+        var sortKey = (bookNum * 10000 + chapNum) + "::" + (row.property_name || row.property_entity_id || "");
+        if (!groups[sortKey]) {
+          groups[sortKey] = {
+            bookNum: bookNum,
+            chapNum: chapNum,
+            chapLabel: chapLabel,
+            propertyName: row.property_name || "",
+            rows: []
+          };
+        }
+        groups[sortKey].rows.push(row);
+      });
+
+      var sortedKeys = Object.keys(groups).sort();
+      var html = "";
+      var currentBook = null;
+
+      sortedKeys.forEach(function (key) {
+        var group = groups[key];
+        var groupBook = group.bookNum;
+
+        // Add chapter header when book changes
+        if (groupBook !== currentBook) {
+          currentBook = groupBook;
+          html += "<div style='font-size:11px;font-weight:600;color:#a5b4fc;padding:6px 0 2px;border-bottom:1px solid #303038;margin-bottom:4px;'>" +
+            escapeHtml(group.chapLabel || "Book " + groupBook) + "</div>";
+        }
+
+        // Sort rows by entry_order
+        group.rows.sort(function (a, b) {
+          return (a.entry_order || 1) - (b.entry_order || 1);
+        });
+
+        group.rows.forEach(function (row) {
+          var propName = escapeHtml(row.property_name || "Property " + row.property_entity_id);
+          var propValue = escapeHtml(row.property_value || "");
+          var propType = escapeHtml(row.property_type || "");
+          var entryOrder = row.entry_order || 1;
+          var orderBadge = entryOrder > 1 ? " <span style='font-size:10px;color:#777884;'>#" + entryOrder + "</span>" : "";
+          var statusBadge = row.state_status && row.state_status !== "canon"
+            ? " <span style='font-size:10px;color:#f59e0b;'>" + escapeHtml(row.state_status) + "</span>"
+            : "";
+
+          html += "<div style='padding:3px 0;border-bottom:1px solid #252530;'>" +
+            "<div style='font-size:12px;color:#e2e8f0;'>" + propName + orderBadge + statusBadge + "</div>" +
+            (propValue ? "<div style='font-size:11px;color:#777884;margin-left:8px;'>" + propValue + (propType ? " <span style='color:#5f6971;'>(" + propType + ")</span>" : "") + "</div>" : "") +
+            (row.notes ? "<div style='font-size:11px;color:#5f6971;margin-left:8px;font-style:italic;'>" + escapeHtml(row.notes) + "</div>" : "") +
+            "</div>";
+        });
+      });
+
+      stateList.innerHTML = html || "<div class='muted' style='padding:4px 0;'>No state records.</div>";
     }
 
     function getChapterActMap() {
