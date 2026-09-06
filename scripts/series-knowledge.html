@@ -2119,6 +2119,24 @@
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           relHtml += "<div class='codex-rel-item-bottom'>";
           relHtml += "<span class='codex-rel-label'>" + escapeHtml(label) + "</span>";
+          // Master Codex v2: Show temporal status if temporal bounds exist
+          if (c.valid_from_sort != null || c.valid_to_sort != null || c.context_status) {
+            var statusText = "";
+            var statusColor = "#3a3a42";
+            if (c.context_status === "ended") {
+              statusText = "ENDED";
+              statusColor = "#ef4444";
+            } else if (c.context_status === "planned") {
+              statusText = "PLANNED";
+              statusColor = "#f59e0b";
+            } else if (c.valid_from_sort != null || c.valid_to_sort != null) {
+              statusText = "TEMPORAL";
+              statusColor = "#6366f1";
+            }
+            if (statusText) {
+              relHtml += " <span style='font-size:9px;padding:1px 4px;border-radius:3px;background:" + statusColor + ";color:white;margin-left:4px;'>" + statusText + "</span>";
+            }
+          }
           // Master Codex v2: Show book/chapter context if available
           if (c.book_id || c.chapter_id) {
             relHtml += "<span class='codex-rel-context' style='font-size:10px;color:var(--muted);margin-left:6px;'>";

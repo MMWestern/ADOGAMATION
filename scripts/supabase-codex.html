@@ -387,7 +387,7 @@
           if (parsed.notes) contextUpdates.notes = String(parsed.notes);
           if (parsed.created_source) contextUpdates.created_source = String(parsed.created_source);
           if (Object.keys(contextUpdates).length > 0 && typeof codexV2UpdateConnectionContext === "function") {
-            codexV2UpdateConnectionContext(savedId, contextUpdates.book_id, contextUpdates.chapter_id, contextUpdates.context_status, contextUpdates.notes);
+            codexV2UpdateConnectionContext(savedId, contextUpdates);
           }
         }
         return JSON.stringify({ ok: true, connection: saved });

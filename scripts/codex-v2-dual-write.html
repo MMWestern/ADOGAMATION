@@ -123,16 +123,18 @@
      * Dual-write connection with context fields.
      * Called from saveCodexConnection when book/chapter context is available.
      */
-    function codexV2UpdateConnectionContext(connectionId, bookId, chapterId, status, notes) {
+    function codexV2UpdateConnectionContext(connectionId, contextData) {
       if (typeof CODEX_V2_DUAL_WRITE === "undefined" || !CODEX_V2_DUAL_WRITE) return;
-      if (!connectionId) return;
-      // The connection is already saved by the caller — we just need to update the new context fields
-      // This is done via a direct update since the connection already exists
+      if (!connectionId || !contextData) return;
+      // Forward all temporal context fields to the connection
       var updates = {};
-      if (bookId) updates.book_id = bookId;
-      if (chapterId) updates.chapter_id = chapterId;
-      if (status) updates.context_status = status;
-      if (notes) updates.notes = notes;
+      if (contextData.book_id) updates.book_id = contextData.book_id;
+      if (contextData.chapter_id) updates.chapter_id = contextData.chapter_id;
+      if (contextData.valid_from_sort != null) updates.valid_from_sort = contextData.valid_from_sort;
+      if (contextData.valid_to_sort != null) updates.valid_to_sort = contextData.valid_to_sort;
+      if (contextData.context_status) updates.context_status = contextData.context_status;
+      if (contextData.notes) updates.notes = contextData.notes;
+      if (contextData.created_source) updates.created_source = contextData.created_source;
       if (Object.keys(updates).length === 0) return;
       supabaseRunner
         .withSuccessHandler(function () {})
