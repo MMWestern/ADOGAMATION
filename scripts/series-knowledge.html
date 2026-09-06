@@ -9012,23 +9012,35 @@
                 var nameB = (b.property_key || "").toLowerCase();
                 return nameA.localeCompare(nameB);
               });
+              var lastBookId = null;
+              var lastChapterId = null;
               sortedStates.forEach(function (s) {
+                // Add chapter section header when book/chapter changes
+                var sBookId = Number(s.book_id || 0);
+                var sChapterId = Number(s.chapter_id || 0);
+                if (sBookId !== lastBookId || sChapterId !== lastChapterId) {
+                  lastBookId = sBookId;
+                  lastChapterId = sChapterId;
+                  var sectionLabel = "";
+                  if (sBookId) {
+                    var book = bookMap[sBookId];
+                    sectionLabel = book ? book.title : "Book #" + sBookId;
+                    if (sChapterId) {
+                      var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[sBookId]) ? skCache.chapters[sBookId] : [];
+                      var chapterLabel = typeof codexV2GetChapterLabel === "function" ? codexV2GetChapterLabel(chapters, sChapterId) : "Ch." + sChapterId;
+                      sectionLabel += " — " + chapterLabel;
+                    }
+                  } else {
+                    sectionLabel = "No book/chapter";
+                  }
+                  html += "<div style='font-size:11px;font-weight:700;color:#6366f1;background:rgba(99,102,241,0.08);padding:6px 8px;margin-top:8px;margin-bottom:4px;border-radius:4px;'>" + escapeHtml(sectionLabel) + "</div>";
+                }
                 var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
                 html += "<div class='codex-state-item' style='padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;'>";
                 html += "<div style='flex:1;'>";
                 html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
                 html += " <span>= " + escapeHtml(String(value)) + "</span>";
                 if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
-                if (s.book_id) {
-                  var book = bookMap[Number(s.book_id)];
-                  var contextText = book ? book.title : "Book #" + s.book_id;
-                  if (s.chapter_id) {
-                    var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(s.book_id)]) ? skCache.chapters[Number(s.book_id)] : [];
-                    var chapterLabel = typeof codexV2GetChapterLabel === "function" ? codexV2GetChapterLabel(chapters, Number(s.chapter_id)) : "Ch." + s.chapter_id;
-                    contextText += " — " + chapterLabel;
-                  }
-                  html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(contextText) + "</span>";
-                }
                 if (s.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(s.notes) + "</span>";
                 html += "</div>";
                 html += "<button type='button' class='codex-state-edit' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;' title='Edit'>&#9998;</button>";
@@ -9371,8 +9383,51 @@
                     vhtml += "<span style='font-weight:600;'>" + escapeHtml(String(value)) + "</span>";
                     vhtml += "</div>";
                   });
-                  vhtml += "<div style='margin-top:8px;font-size:10px;color:var(--muted);'>Use '+ Add State' to apply these values to the character.</div>";
+                  vhtml += "<div style='margin-top:8px;display:flex;gap:6px;'>";
+                  vhtml += "<button type='button' id='codexPackApplyAllBtn' class='primary' style='font-size:11px;padding:4px 12px;'>Apply All to Character</button>";
+                  vhtml += "<div class='tiny' style='color:var(--muted);line-height:28px;'>or use '+ Add State' for individual values</div>";
+                  vhtml += "</div>";
                   valuesDiv.innerHTML = vhtml;
+                  // Wire Apply All button
+                  var applyBtn = document.getElementById("codexPackApplyAllBtn");
+                  if (applyBtn) {
+                    applyBtn.addEventListener("click", function () {
+                      applyBtn.disabled = true;
+                      applyBtn.textContent = "Applying...";
+                      var applied = 0;
+                      var total = states.length;
+                      states.forEach(function (s) {
+                        var payload = {
+                          subject_entity_id: entityId,
+                          property_entity_id: s.property_entity_id || null,
+                          property_key: s.property_key || "",
+                          value_text: s.value_text || null,
+                          value_number: s.value_number != null ? s.value_number : null,
+                          series_id: seriesId,
+                          state_status: "draft",
+                          notes: "Applied from starting pack"
+                        };
+                        supabaseRunner
+                          .withSuccessHandler(function () {
+                            applied++;
+                            if (applied === total) {
+                              applyBtn.textContent = "Applied " + applied + " values!";
+                              loadCodexStateAndEvents(seriesId, entityId);
+                              setTimeout(function () { panel.style.display = "none"; }, 1500);
+                            }
+                          })
+                          .withFailureHandler(function (err) {
+                            console.error("[codexV2] Apply pack value failed:", err);
+                            applied++;
+                            if (applied === total) {
+                              applyBtn.textContent = "Applied " + applied + " values (some failed)";
+                              loadCodexStateAndEvents(seriesId, entityId);
+                            }
+                          })
+                          .saveCodexEntityState(seriesId, JSON.stringify(payload));
+                      });
+                    });
+                  }
                 });
               });
             });
