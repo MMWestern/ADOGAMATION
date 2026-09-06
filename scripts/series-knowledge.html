@@ -9352,6 +9352,22 @@
             html += "<div style='font-size:11px;font-weight:700;'>Starting State from Packs</div>";
             html += "<button type='button' id='codexStartingStateClose' style='font-size:10px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>&times;</button>";
             html += "</div>";
+            // Book and chapter selection for applying values
+            html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;'>";
+            html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Apply to Book</label>";
+            html += "<select id='codexPackBookSelect' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+            html += "<option value=''>— Select book —</option>";
+            var projects = (typeof appState !== "undefined" && Array.isArray(appState.projects)) ? appState.projects.filter(function (p) { return Number(p.series_id) === seriesId; }) : [];
+            projects.forEach(function (p) {
+              var pid = Number(p.project_id || p.id || 0);
+              html += "<option value='" + pid + "'>" + escapeHtml(p.title || "Book #" + pid) + "</option>";
+            });
+            html += "</select></div>";
+            html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Apply to Chapter</label>";
+            html += "<select id='codexPackChapterSelect' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+            html += "<option value=''>— Select book first —</option>";
+            html += "</select></div>";
+            html += "</div>";
             html += "<div style='font-size:10px;color:var(--muted);margin-bottom:8px;'>Select a pack to view its suggested starting values.</div>";
             html += "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;'>";
             packs.forEach(function (pack) {
@@ -9363,6 +9379,22 @@
             // Wire close button
             var closeBtn = document.getElementById("codexStartingStateClose");
             if (closeBtn) closeBtn.addEventListener("click", function () { panel.style.display = "none"; });
+            // Wire book dropdown to load chapters
+            var packBookSelect = document.getElementById("codexPackBookSelect");
+            var packChapterSelect = document.getElementById("codexPackChapterSelect");
+            if (packBookSelect && packChapterSelect) {
+              packBookSelect.addEventListener("change", function () {
+                var bookId = Number(packBookSelect.value || 0);
+                if (!bookId) {
+                  packChapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+                  return;
+                }
+                packChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+                codexV2LoadChapters(bookId).then(function (chapters) {
+                  packChapterSelect.innerHTML = codexV2BuildChapterDropdown("codexPackChapterSelect", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+                });
+              });
+            }
             // Wire pack buttons
             panel.querySelectorAll(".codex-pack-btn").forEach(function (btn) {
               btn.addEventListener("click", function () {
@@ -9392,6 +9424,18 @@
                   var applyBtn = document.getElementById("codexPackApplyAllBtn");
                   if (applyBtn) {
                     applyBtn.addEventListener("click", function () {
+                      var bookId = packBookSelect ? Number(packBookSelect.value || 0) : 0;
+                      var chapterId = packChapterSelect ? Number(packChapterSelect.value || 0) : 0;
+                      // Compute effective_from_sort from chapter
+                      var effectiveFromSort = null;
+                      if (bookId && chapterId) {
+                        var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+                        var chapter = chapters.find(function (c) { return Number(c.id) === chapterId; });
+                        if (chapter) {
+                          var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+                          effectiveFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, chapter.sort_order) : chapter.sort_order;
+                        }
+                      }
                       applyBtn.disabled = true;
                       applyBtn.textContent = "Applying...";
                       var applied = 0;
@@ -9404,6 +9448,9 @@
                           value_text: s.value_text || null,
                           value_number: s.value_number != null ? s.value_number : null,
                           series_id: seriesId,
+                          book_id: bookId || null,
+                          chapter_id: chapterId || null,
+                          effective_from_sort: effectiveFromSort,
                           state_status: "draft",
                           notes: "Applied from starting pack"
                         };
