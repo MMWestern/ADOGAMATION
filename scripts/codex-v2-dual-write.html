@@ -380,6 +380,95 @@
     window.codexV2BuildChapterDropdown = codexV2BuildChapterDropdown;
     window.codexV2GetChapterTitle = codexV2GetChapterTitle;
 
+    // ============================================================
+    // STARTING PACK SYSTEM
+    // ============================================================
+
+    /**
+     * Find applicable starting packs for a character/creature.
+     * Looks at the entity's Species, System, Class/Path connections
+     * and finds packs linked via 'applies_to' relationship.
+     * Returns Promise resolving with array of pack entities.
+     */
+    function codexV2FindApplicablePacks(seriesId, entityId) {
+      return new Promise(function (resolve) {
+        if (!seriesId || !entityId) { resolve([]); return; }
+        var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+        var connections = (typeof skCache !== "undefined" && skCache.connections && skCache.connections[seriesId]) ? skCache.connections[seriesId] : [];
+        // Find entity's linked classification entities (Species, System, Class, etc.)
+        var linkedEntityIds = [];
+        connections.forEach(function (c) {
+          if (c.deleted_at) return;
+          var isSource = Number(c.source_entity_id) === entityId;
+          var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+          if (otherId) linkedEntityIds.push(otherId);
+        });
+        // Also check entity_link field values for Species, System, etc.
+        var entity = entities.find(function (e) { return Number(e.id) === entityId; });
+        if (entity && entity.custom_data) {
+          // Field values would need to be loaded separately; for now use connections
+        }
+        // Find packs that apply_to any of the linked entities
+        var packs = [];
+        var seenPackIds = {};
+        connections.forEach(function (c) {
+          if (c.deleted_at) return;
+          var relType = c.codex_relationship_types || {};
+          if (relType.key !== "applies_to") return;
+          var sourceId = Number(c.source_entity_id);
+          var targetId = Number(c.target_entity_id);
+          // applies_to: pack -> classification entity
+          // Check if the target is one of the linked entities
+          if (linkedEntityIds.indexOf(targetId) !== -1 || targetId === entityId) {
+            if (!seenPackIds[sourceId]) {
+              seenPackIds[sourceId] = true;
+              var pack = entities.find(function (e) { return Number(e.id) === sourceId; });
+              if (pack) packs.push(pack);
+            }
+          }
+        });
+        // Also find packs that apply_to the entity's type
+        var entityTypeKey = entity ? (entity.codex_entity_types || {}).key || "" : "";
+        connections.forEach(function (c) {
+          if (c.deleted_at) return;
+          var relType = c.codex_relationship_types || {};
+          if (relType.key !== "applies_to") return;
+          var sourceId = Number(c.source_entity_id);
+          var targetId = Number(c.target_entity_id);
+          // Check if target is the entity itself
+          if (targetId === entityId && !seenPackIds[sourceId]) {
+            seenPackIds[sourceId] = true;
+            var pack = entities.find(function (e) { return Number(e.id) === sourceId; });
+            if (pack) packs.push(pack);
+          }
+        });
+        resolve(packs);
+      });
+    }
+
+    /**
+     * Load suggested state values from a starting pack.
+     * Pack state records are stored as codex_entity_state where subject_entity_id = packId.
+     * Returns Promise resolving with array of {property_key, property_entity_id, value_text, value_number}.
+     */
+    function codexV2LoadPackValues(packId) {
+      return new Promise(function (resolve) {
+        if (!packId) { resolve([]); return; }
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              resolve(result.ok ? result.states : []);
+            } catch (e) { resolve([]); }
+          })
+          .withFailureHandler(function () { resolve([]); })
+          .listCodexEntityState(0, packId); // seriesId=0 to get all, entityId=packId
+      });
+    }
+
+    window.codexV2FindApplicablePacks = codexV2FindApplicablePacks;
+    window.codexV2LoadPackValues = codexV2LoadPackValues;
+
     /**
      * Get entity state at a specific narrative point.
      * Returns a Promise that resolves with array of state records.

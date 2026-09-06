@@ -5483,11 +5483,15 @@
       html += "<span class='codex-sub-section-title'>State / Progression</span>";
       html += "<div style='display:flex;gap:6px;'>";
       html += "<button type='button' id='codexStateViewAtBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;color:var(--muted);'>View State At...</button>";
+      if (entityTypeKey === "character" || entityTypeKey === "creature") {
+        html += "<button type='button' id='codexStartingStateBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;color:var(--muted);'>Starting State</button>";
+      }
       html += "<button type='button' id='codexStateAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add State</button>";
       html += "<button type='button' id='codexEventAddBtn' class='codex-sub-section-add-btn' style='font-size:11px;padding:2px 8px;'>+ Add Event</button>";
       html += "</div>";
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
+      html += "<div id='codexStartingStatePanel' style='display:none;margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'></div>";
       html += "<div id='codexStateViewAtPanel' style='display:none;margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);'></div>";
       html += "<div id='codexStateList' class='codex-state-list'>";
       html += "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
@@ -9223,6 +9227,62 @@
                 });
               }
               resultsDiv.innerHTML = html;
+            });
+          });
+        });
+      }
+      // Wire Starting State button
+      var startingStateBtn = document.getElementById("codexStartingStateBtn");
+      if (startingStateBtn && !startingStateBtn._wired) {
+        startingStateBtn._wired = true;
+        startingStateBtn.addEventListener("click", function () {
+          var panel = document.getElementById("codexStartingStatePanel");
+          if (!panel) return;
+          if (panel.style.display !== "none") {
+            panel.style.display = "none";
+            return;
+          }
+          panel.style.display = "block";
+          panel.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading applicable packs...</div>";
+          // Find applicable packs
+          codexV2FindApplicablePacks(seriesId, entityId).then(function (packs) {
+            if (!packs.length) {
+              panel.innerHTML = "<div class='tiny' style='color:var(--muted);'>No starting packs found for this entity's classifications.</div>";
+              return;
+            }
+            var html = "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>Starting State from Packs</div>";
+            html += "<div style='font-size:10px;color:var(--muted);margin-bottom:8px;'>Select a pack to view its suggested starting values.</div>";
+            html += "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;'>";
+            packs.forEach(function (pack) {
+              html += "<button type='button' class='codex-pack-btn' data-pack-id='" + pack.id + "' style='font-size:11px;padding:4px 8px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;cursor:pointer;'>" + escapeHtml(pack.name || "Pack") + "</button>";
+            });
+            html += "</div>";
+            html += "<div id='codexPackValues' style='margin-top:8px;'></div>";
+            panel.innerHTML = html;
+            // Wire pack buttons
+            panel.querySelectorAll(".codex-pack-btn").forEach(function (btn) {
+              btn.addEventListener("click", function () {
+                var packId = Number(btn.getAttribute("data-pack-id"));
+                var valuesDiv = document.getElementById("codexPackValues");
+                if (!valuesDiv) return;
+                valuesDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading pack values...</div>";
+                codexV2LoadPackValues(packId).then(function (states) {
+                  if (!states.length) {
+                    valuesDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>No starting values in this pack.</div>";
+                    return;
+                  }
+                  var vhtml = "<div style='font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;'>Suggested values:</div>";
+                  states.forEach(function (s) {
+                    var value = s.value_number != null ? s.value_number : s.value_text || "?";
+                    vhtml += "<div style='padding:3px 0;font-size:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;'>";
+                    vhtml += "<span>" + escapeHtml(s.property_key || "property") + "</span>";
+                    vhtml += "<span style='font-weight:600;'>" + escapeHtml(String(value)) + "</span>";
+                    vhtml += "</div>";
+                  });
+                  vhtml += "<div style='margin-top:8px;font-size:10px;color:var(--muted);'>Use '+ Add State' to apply these values to the character.</div>";
+                  valuesDiv.innerHTML = vhtml;
+                });
+              });
             });
           });
         });
