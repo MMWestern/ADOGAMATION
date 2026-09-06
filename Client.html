@@ -4480,34 +4480,40 @@
       if (!stateList || !stateSection) return;
 
       supabaseRunner
-        .withSuccessHandler(function (result) {
-          var items = (result && result.ok !== false && Array.isArray(result.states)) ? result.states : [];
-          if (!items.length) {
-            stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No state records.</div>";
-            return;
-          }
+        .withSuccessHandler(function (json) {
+          try {
+            var result = typeof json === 'string' ? JSON.parse(json) : json;
+            var items = (result && result.ok !== false && Array.isArray(result.states)) ? result.states : [];
+            if (!items.length) {
+              stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No state records.</div>";
+              return;
+            }
 
-          // Preload chapters for all books in the results
-          var bookIds = [];
-          items.forEach(function (r) {
-            var bid = Number(r.book_id || 0);
-            if (bid && bookIds.indexOf(bid) === -1) bookIds.push(bid);
-          });
-
-          var pending = bookIds.length;
-          if (!pending) {
-            renderWritingInspectorState(items, stateList, {});
-            return;
-          }
-
-          var chaptersByBook = {};
-          bookIds.forEach(function (bid) {
-            codexV2LoadChapters(bid).then(function (chapters) {
-              chaptersByBook[bid] = chapters || [];
-              pending--;
-              if (pending <= 0) renderWritingInspectorState(items, stateList, chaptersByBook);
+            // Preload chapters for all books in the results
+            var bookIds = [];
+            items.forEach(function (r) {
+              var bid = Number(r.book_id || 0);
+              if (bid && bookIds.indexOf(bid) === -1) bookIds.push(bid);
             });
-          });
+
+            var pending = bookIds.length;
+            if (!pending) {
+              renderWritingInspectorState(items, stateList, {});
+              return;
+            }
+
+            var chaptersByBook = {};
+            bookIds.forEach(function (bid) {
+              codexV2LoadChapters(bid).then(function (chapters) {
+                chaptersByBook[bid] = chapters || [];
+                pending--;
+                if (pending <= 0) renderWritingInspectorState(items, stateList, chaptersByBook);
+              });
+            });
+          } catch (e) {
+            console.error("[CODEX] loadWritingInspectorState parse error:", e);
+            stateList.innerHTML = "<div class='muted' style='padding:4px 0;color:#f87171;'>Error loading state.</div>";
+          }
         })
         .withFailureHandler(function (err) {
           console.error("[CODEX] loadWritingInspectorState failed:", err);
