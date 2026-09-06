@@ -4526,120 +4526,95 @@
       if (!stateList) return;
       chaptersByBook = chaptersByBook || {};
 
-      console.log("[STATE] renderWritingInspectorState called with", rows.length, "rows");
+      // Step 1: Group entries by (chapterKey, propertyKey)
+      var chapterGroups = {}; // chapterKey -> { bookNum, chapNum, chapLabel, props: { propKey -> [entries] } }
+      var allPropKeys = {};
 
-      // Group by property_key, then sort by book/chapter and entry_order
-      var propGroups = {};
       rows.forEach(function (row) {
+        var bookId = Number(row.book_id || 0);
+        var chapterId = Number(row.chapter_id || 0);
+        var bookNum = codexV2GetBookNumber(bookId);
+        var chapters = chaptersByBook[bookId] || [];
+        var chapNum = chapterId ? codexV2GetChapterNumber(chapters, chapterId) : 0;
+        var chapLabel = chapterId ? codexV2GetChapterLabel(chapters, chapterId) : "";
+        var chapterKey = (bookNum * 10000 + chapNum);
         var propKey = row.property_key || "unknown";
-        if (!propGroups[propKey]) propGroups[propKey] = [];
-        propGroups[propKey].push(row);
+
+        allPropKeys[propKey] = true;
+
+        if (!chapterGroups[chapterKey]) {
+          chapterGroups[chapterKey] = {
+            bookNum: bookNum,
+            chapNum: chapNum,
+            chapLabel: chapLabel,
+            props: {}
+          };
+        }
+        if (!chapterGroups[chapterKey].props[propKey]) {
+          chapterGroups[chapterKey].props[propKey] = [];
+        }
+        chapterGroups[chapterKey].props[propKey].push(row);
       });
 
-      // Resolve state: for each property, keep only the latest value at each chapter
-      // Latest value from previous chapter carries forward
-      var resolvedByChapter = {}; // chapterKey -> { bookNum, chapNum, chapLabel, entries: [] }
-
-      Object.keys(propGroups).forEach(function (propKey) {
-        var records = propGroups[propKey];
-        console.log("[STATE] Processing property:", propKey, "with", records.length, "records");
-
-        // Sort by book_num, chapter_num, entry_order
-        records.sort(function (a, b) {
-          var aBook = Number(a.book_id || 0);
-          var bBook = Number(b.book_id || 0);
-          var aBookNum = codexV2GetBookNumber(aBook);
-          var bBookNum = codexV2GetBookNumber(bBook);
-          if (aBookNum !== bBookNum) return aBookNum - bBookNum;
-
-          var aChapters = chaptersByBook[aBook] || [];
-          var bChapters = chaptersByBook[bBook] || [];
-          var aChap = Number(a.chapter_id || 0);
-          var bChap = Number(b.chapter_id || 0);
-          var aChapNum = aChap ? codexV2GetChapterNumber(aChapters, aChap) : 0;
-          var bChapNum = bChap ? codexV2GetChapterNumber(bChapters, bChap) : 0;
-          if (aChapNum !== bChapNum) return aChapNum - bChapNum;
-
-          return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
-        });
-
-        // Track last seen value for this property
-        var lastValue = null;
-        var lastChapterKey = null;
-
-        records.forEach(function (row) {
-          var bookId = Number(row.book_id || 0);
-          var chapterId = Number(row.chapter_id || 0);
-          var bookNum = codexV2GetBookNumber(bookId);
-          var chapters = chaptersByBook[bookId] || [];
-          var chapNum = chapterId ? codexV2GetChapterNumber(chapters, chapterId) : 0;
-          var chapLabel = chapterId ? codexV2GetChapterLabel(chapters, chapterId) : "";
-          var chapterKey = (bookNum * 10000 + chapNum);
-
-          var value = row.value_number != null ? String(row.value_number) : (row.value_text || "");
-          var notes = row.notes || "";
-
-          // Only add if value changed from last chapter
-          var valueKey = value + "|" + notes;
-          console.log("[STATE] Row:", { bookNum, chapNum, entryOrder: row.entry_order, value, notes, valueKey, lastValue });
-          if (valueKey !== lastValue) {
-            if (!resolvedByChapter[chapterKey]) {
-              resolvedByChapter[chapterKey] = {
-                bookNum: bookNum,
-                chapNum: chapNum,
-                chapLabel: chapLabel,
-                entries: []
-              };
-            }
-            resolvedByChapter[chapterKey].entries.push({
-              propKey: propKey,
-              value: value,
-              notes: notes,
-              entryOrder: row.entry_order || 1,
-              status: row.state_status || "canon"
-            });
-            lastValue = valueKey;
-            lastChapterKey = chapterKey;
-            console.log("[STATE] Added entry to chapter", chapterKey);
-          } else {
-            console.log("[STATE] Skipped - same value as last");
-          }
+      // Step 2: Sort all entries within each (chapter, property) by entry_order
+      Object.keys(chapterGroups).forEach(function (chapterKey) {
+        var chapter = chapterGroups[chapterKey];
+        Object.keys(chapter.props).forEach(function (propKey) {
+          chapter.props[propKey].sort(function (a, b) {
+            return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
+          });
         });
       });
 
-      console.log("[STATE] Resolved chapters:", Object.keys(resolvedByChapter).length);
-
-      // Sort chapters and render
-      var sortedKeys = Object.keys(resolvedByChapter).sort(function (a, b) { return Number(a) - Number(b); });
+      // Step 3: Build resolved display - track last value per property
+      var lastValues = {}; // propKey -> { value, notes }
+      var sortedChapterKeys = Object.keys(chapterGroups).sort(function (a, b) { return Number(a) - Number(b); });
       var html = "";
 
-      sortedKeys.forEach(function (key) {
-        var chapter = resolvedByChapter[key];
+      sortedChapterKeys.forEach(function (chapterKey) {
+        var chapter = chapterGroups[chapterKey];
 
         // Chapter header
         html += "<div style='font-size:11px;font-weight:600;color:#a5b4fc;padding:6px 0 2px;border-bottom:1px solid #303038;margin-bottom:4px;'>" +
           escapeHtml(chapter.chapLabel || "Book " + chapter.bookNum) + "</div>";
 
-        // Sort entries by property name, then entry_order
-        chapter.entries.sort(function (a, b) {
-          if (a.propKey !== b.propKey) return a.propKey.localeCompare(b.propKey);
-          return a.entryOrder - b.entryOrder;
+        // Get all property keys for this chapter
+        var propKeys = Object.keys(chapter.props).sort();
+
+        // For properties not in this chapter, carry forward from last chapter
+        Object.keys(allPropKeys).forEach(function (propKey) {
+          if (!chapter.props[propKey] && lastValues[propKey]) {
+            // Carry forward - add to this chapter
+            var carried = lastValues[propKey];
+            html += "<div style='padding:3px 0;border-bottom:1px solid #252530;'>" +
+              "<div style='font-size:12px;color:#e2e8f0;'>" + escapeHtml(propKey) + "</div>" +
+              (carried.value ? "<div style='font-size:11px;color:#777884;margin-left:8px;'>" + escapeHtml(carried.value) + "</div>" : "") +
+              (carried.notes ? "<div style='font-size:11px;color:#5f6971;margin-left:8px;font-style:italic;'>" + escapeHtml(carried.notes) + "</div>" : "") +
+              "</div>";
+          }
         });
 
-        chapter.entries.forEach(function (entry) {
-          var propName = escapeHtml(entry.propKey);
-          var propValue = escapeHtml(entry.value);
-          var entryOrder = entry.entryOrder;
-          var orderBadge = entryOrder > 1 ? " <span style='font-size:10px;color:#777884;'>#" + entryOrder + "</span>" : "";
-          var statusBadge = entry.status && entry.status !== "canon"
-            ? " <span style='font-size:10px;color:#f59e0b;'>" + escapeHtml(entry.status) + "</span>"
-            : "";
+        // Show all entries for properties that have updates in this chapter
+        propKeys.forEach(function (propKey) {
+          var entries = chapter.props[propKey];
+          entries.forEach(function (row) {
+            var value = row.value_number != null ? String(row.value_number) : (row.value_text || "");
+            var notes = row.notes || "";
+            var entryOrder = row.entry_order || 1;
+            var orderBadge = entryOrder > 1 ? " <span style='font-size:10px;color:#777884;'>#" + entryOrder + "</span>" : "";
+            var statusBadge = row.state_status && row.state_status !== "canon"
+              ? " <span style='font-size:10px;color:#f59e0b;'>" + escapeHtml(row.state_status) + "</span>"
+              : "";
 
-          html += "<div style='padding:3px 0;border-bottom:1px solid #252530;'>" +
-            "<div style='font-size:12px;color:#e2e8f0;'>" + propName + orderBadge + statusBadge + "</div>" +
-            (propValue ? "<div style='font-size:11px;color:#777884;margin-left:8px;'>" + propValue + "</div>" : "") +
-            (entry.notes ? "<div style='font-size:11px;color:#5f6971;margin-left:8px;font-style:italic;'>" + escapeHtml(entry.notes) + "</div>" : "") +
-            "</div>";
+            html += "<div style='padding:3px 0;border-bottom:1px solid #252530;'>" +
+              "<div style='font-size:12px;color:#e2e8f0;'>" + escapeHtml(propKey) + orderBadge + statusBadge + "</div>" +
+              (value ? "<div style='font-size:11px;color:#777884;margin-left:8px;'>" + escapeHtml(value) + "</div>" : "") +
+              (notes ? "<div style='font-size:11px;color:#5f6971;margin-left:8px;font-style:italic;'>" + escapeHtml(notes) + "</div>" : "") +
+              "</div>";
+
+            // Update last value for this property
+            lastValues[propKey] = { value: value, notes: notes };
+          });
         });
       });
 
