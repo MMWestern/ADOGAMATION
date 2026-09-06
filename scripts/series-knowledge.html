@@ -9266,7 +9266,7 @@
                 var valuesDiv = document.getElementById("codexPackValues");
                 if (!valuesDiv) return;
                 valuesDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading pack values...</div>";
-                codexV2LoadPackValues(packId).then(function (states) {
+                codexV2LoadPackValues(seriesId, packId).then(function (states) {
                   if (!states.length) {
                     valuesDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>No starting values in this pack.</div>";
                     return;

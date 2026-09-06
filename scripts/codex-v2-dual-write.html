@@ -454,9 +454,9 @@
      * Pack state records are stored as codex_entity_state where subject_entity_id = packId.
      * Returns Promise resolving with array of {property_key, property_entity_id, value_text, value_number}.
      */
-    function codexV2LoadPackValues(packId) {
+    function codexV2LoadPackValues(seriesId, packId) {
       return new Promise(function (resolve) {
-        if (!packId) { resolve([]); return; }
+        if (!seriesId || !packId) { resolve([]); return; }
         supabaseRunner
           .withSuccessHandler(function (json) {
             try {
@@ -465,7 +465,7 @@
             } catch (e) { resolve([]); }
           })
           .withFailureHandler(function () { resolve([]); })
-          .listCodexEntityState(0, packId); // seriesId=0 to get all, entityId=packId
+          .listCodexEntityState(seriesId, packId);
       });
     }
 
