@@ -5398,6 +5398,17 @@
         html += "</select></div>";
       }
       html += "</div>"; // field-group
+      // Classifications display for characters/creatures
+      if (entityTypeKey === "character" || entityTypeKey === "creature") {
+        var classFields = ["species", "culture", "family", "profession", "background", "organisation", "progression_system"];
+        var classLabels = { species: "Species", culture: "Culture", family: "Family / House", profession: "Profession", background: "Background", organisation: "Organisation", progression_system: "System" };
+        var classHtml = "";
+        // Check entity_link field values for classifications
+        // These are loaded asynchronously, so we'll render a placeholder and fill it
+        html += "<div id='codexClassificationsDisplay' style='margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;'>";
+        html += "<div class='tiny' style='color:var(--muted);'>Loading classifications...</div>";
+        html += "</div>";
+      }
       html += "</div>"; // header-meta
       html += "</div>"; // header
 
@@ -9247,10 +9258,14 @@
           // Find applicable packs
           codexV2FindApplicablePacks(seriesId, entityId).then(function (packs) {
             if (!packs.length) {
-              panel.innerHTML = "<div class='tiny' style='color:var(--muted);'>No starting packs found for this entity's classifications.</div>";
+              panel.innerHTML = "<div style='display:flex;justify-content:space-between;align-items:center;'><div class='tiny' style='color:var(--muted);'>No starting packs found for this entity's classifications.</div><button type='button' id='codexStartingStateClose' style='font-size:10px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>&times;</button></div>";
+              document.getElementById("codexStartingStateClose").addEventListener("click", function () { panel.style.display = "none"; });
               return;
             }
-            var html = "<div style='font-size:11px;font-weight:700;margin-bottom:8px;'>Starting State from Packs</div>";
+            var html = "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>";
+            html += "<div style='font-size:11px;font-weight:700;'>Starting State from Packs</div>";
+            html += "<button type='button' id='codexStartingStateClose' style='font-size:10px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>&times;</button>";
+            html += "</div>";
             html += "<div style='font-size:10px;color:var(--muted);margin-bottom:8px;'>Select a pack to view its suggested starting values.</div>";
             html += "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;'>";
             packs.forEach(function (pack) {
@@ -9259,6 +9274,9 @@
             html += "</div>";
             html += "<div id='codexPackValues' style='margin-top:8px;'></div>";
             panel.innerHTML = html;
+            // Wire close button
+            var closeBtn = document.getElementById("codexStartingStateClose");
+            if (closeBtn) closeBtn.addEventListener("click", function () { panel.style.display = "none"; });
             // Wire pack buttons
             panel.querySelectorAll(".codex-pack-btn").forEach(function (btn) {
               btn.addEventListener("click", function () {
