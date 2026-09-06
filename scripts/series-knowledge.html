@@ -8989,10 +8989,25 @@
               });
               Promise.all(chapterPromises).then(function () {
               // Sort by effective_from_sort ascending (narrative order), then by property name
+              // Fallback: group by book_id, chapter_id when effective_from_sort is null
               var sortedStates = result.states.slice().sort(function (a, b) {
-                var sortA = a.effective_from_sort != null ? Number(a.effective_from_sort) : 999999;
-                var sortB = b.effective_from_sort != null ? Number(b.effective_from_sort) : 999999;
-                if (sortA !== sortB) return sortA - sortB;
+                var sortA = a.effective_from_sort != null ? Number(a.effective_from_sort) : null;
+                var sortB = b.effective_from_sort != null ? Number(b.effective_from_sort) : null;
+                // If both have effective_from_sort, compare directly
+                if (sortA != null && sortB != null) {
+                  if (sortA !== sortB) return sortA - sortB;
+                }
+                // If only one has it, it comes first
+                if (sortA != null && sortB == null) return -1;
+                if (sortA == null && sortB != null) return 1;
+                // Both null: sort by book_id, then chapter_id
+                var bookA = Number(a.book_id || 0);
+                var bookB = Number(b.book_id || 0);
+                if (bookA !== bookB) return bookA - bookB;
+                var chA = Number(a.chapter_id || 0);
+                var chB = Number(b.chapter_id || 0);
+                if (chA !== chB) return chA - chB;
+                // Same position: sort by property name
                 var nameA = (a.property_key || "").toLowerCase();
                 var nameB = (b.property_key || "").toLowerCase();
                 return nameA.localeCompare(nameB);
