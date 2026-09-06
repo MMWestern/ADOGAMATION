@@ -9168,20 +9168,57 @@
             }
             var resultsDiv = document.getElementById("viewStateAtResults");
             resultsDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
-            codexV2GetEntityStateAt(entityId, bookId, chapterSortOrder).then(function (states) {
+            // Query state and active relationships in parallel
+            Promise.all([
+              codexV2GetEntityStateAt(entityId, bookId, chapterSortOrder),
+              codexV2GetActiveConnectionsAt(entityId, chapterSortOrder)
+            ]).then(function (results) {
+              var states = results[0];
+              var connections = results[1];
+              var html = "";
+              // State section
+              html += "<div style='font-size:11px;font-weight:700;margin-bottom:6px;'>State at this point:</div>";
               if (!states.length) {
-                resultsDiv.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded at this narrative point.</div>";
-                return;
+                html += "<div class='tiny' style='color:var(--muted);margin-bottom:12px;'>No state recorded.</div>";
+              } else {
+                states.forEach(function (s) {
+                  var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
+                  html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
+                  html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                  html += " = " + escapeHtml(String(value));
+                  if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                  html += "</div>";
+                });
               }
-              var html = "<div style='font-size:11px;font-weight:700;margin-bottom:6px;'>State at this point:</div>";
-              states.forEach(function (s) {
-                var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
-                html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
-                html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
-                html += " = " + escapeHtml(String(value));
-                if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
-                html += "</div>";
-              });
+              // Active Relationships section
+              html += "<div style='font-size:11px;font-weight:700;margin-top:12px;margin-bottom:6px;'>Active Relationships:</div>";
+              if (!connections.length) {
+                html += "<div class='tiny' style='color:var(--muted);'>No active relationships at this point.</div>";
+              } else {
+                // Group by relationship label
+                var groups = {};
+                connections.forEach(function (c) {
+                  var isSource = Number(c.source_entity_id) === entityId;
+                  var relType = c.codex_relationship_types || {};
+                  var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
+                  var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+                  var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+                  var otherEntity = entities.find(function (e) { return Number(e.id) === otherId; });
+                  var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Entity #" + otherId;
+                  if (!groups[label]) groups[label] = [];
+                  groups[label].push({ name: otherName, id: otherId });
+                });
+                Object.keys(groups).sort().forEach(function (label) {
+                  html += "<div style='margin-bottom:8px;'>";
+                  html += "<div style='font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>" + escapeHtml(label) + "</div>";
+                  groups[label].forEach(function (item) {
+                    html += "<div style='padding:3px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
+                    html += "— " + escapeHtml(item.name);
+                    html += "</div>";
+                  });
+                  html += "</div>";
+                });
+              }
               resultsDiv.innerHTML = html;
             });
           });
@@ -9925,9 +9962,13 @@
       var content = document.getElementById("sheetContent");
       if (!content) return;
       content.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
-      // Load state at narrative point
-      codexV2GetEntityStateAt(entityId, bookId || null, chapterSortOrder).then(function (states) {
-        // Also load entity info
+      // Load state and active relationships in parallel
+      Promise.all([
+        codexV2GetEntityStateAt(entityId, bookId || null, chapterSortOrder),
+        codexV2GetActiveConnectionsAt(entityId, chapterSortOrder)
+      ]).then(function (results) {
+        var states = results[0];
+        var connections = results[1];
         var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
         var entity = entities.find(function (e) { return Number(e.id) === entityId; });
         var entityName = entity ? entity.name || "Unknown" : "Unknown";
@@ -9942,11 +9983,6 @@
           html += "<div style='font-size:11px;color:var(--muted);margin-bottom:12px;'>At: " + escapeHtml(book ? book.title : "Book #" + bookId) + " — Chapter " + (chapterSortOrder || "?") + "</div>";
         } else {
           html += "<div style='font-size:11px;color:var(--muted);margin-bottom:12px;'>Current state (all records)</div>";
-        }
-        if (!states.length) {
-          html += "<div class='tiny' style='color:var(--muted);'>No state records found.</div>";
-          content.innerHTML = html;
-          return;
         }
         // Group states by category
         var levels = [];
@@ -10040,6 +10076,34 @@
           });
           html += "</div>";
         }
+        // Active Relationships section
+        html += "<div style='margin-top:16px;padding-top:12px;border-top:1px solid var(--border);'>";
+        html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;'>Active Relationships</div>";
+        if (!connections.length) {
+          html += "<div class='tiny' style='color:var(--muted);'>No active relationships at this point.</div>";
+        } else {
+          // Group by relationship label
+          var relGroups = {};
+          connections.forEach(function (c) {
+            var isSource = Number(c.source_entity_id) === entityId;
+            var relType = c.codex_relationship_types || {};
+            var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
+            var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+            var otherEntity = entities.find(function (e) { return Number(e.id) === otherId; });
+            var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Entity #" + otherId;
+            if (!relGroups[label]) relGroups[label] = [];
+            relGroups[label].push({ name: otherName, id: otherId });
+          });
+          Object.keys(relGroups).sort().forEach(function (label) {
+            html += "<div style='margin-bottom:8px;'>";
+            html += "<div style='font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>" + escapeHtml(label) + "</div>";
+            relGroups[label].forEach(function (item) {
+              html += "<div style='font-size:12px;padding:2px 0;'>— " + escapeHtml(item.name) + "</div>";
+            });
+            html += "</div>";
+          });
+        }
+        html += "</div>";
         content.innerHTML = html;
       });
     }
