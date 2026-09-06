@@ -9295,8 +9295,12 @@
                   var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
                   html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);'>";
                   html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
+                  if (s.entry_order != null && Number(s.entry_order) > 1) {
+                    html += " <span style='font-size:10px;color:var(--muted);'>#" + s.entry_order + "</span>";
+                  }
                   html += " = " + escapeHtml(String(value));
                   if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
+                  if (s.notes) html += " <span style='color:var(--muted);font-size:10px;'> — " + escapeHtml(s.notes) + "</span>";
                   html += "</div>";
                 });
               }
