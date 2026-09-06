@@ -1022,8 +1022,66 @@
                         el.skCodexInspectorArchetypeBadge.style.display = "none";
                     }
                 }
+                // Load state data for this entity
+                loadSkCodexInspectorState(seriesId, entityId);
             })
             .catch(function () {});
+    }
+
+    function loadSkCodexInspectorState(seriesId, entityId) {
+        var stateList = document.getElementById("skCodexInspectorStateList");
+        if (!stateList) return;
+        stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading state...</div>";
+        supabaseRunner
+            .withSuccessHandler(function (json) {
+                try {
+                    var result = JSON.parse(json);
+                    if (!result.ok || !result.states.length) {
+                        stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No state recorded.</div>";
+                        return;
+                    }
+                    // Build book lookup map
+                    var bookMap = {};
+                    if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+                        appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
+                    }
+                    // Group by property and render
+                    var html = "";
+                    var groups = {};
+                    result.states.forEach(function (s) {
+                        var key = s.property_key || "unknown";
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(s);
+                    });
+                    Object.keys(groups).forEach(function (key) {
+                        var group = groups[key];
+                        var isMultiple = group.length > 1;
+                        if (isMultiple) {
+                            html += "<div style='border:1px solid var(--border);border-radius:4px;margin-bottom:6px;overflow:hidden;'>";
+                            html += "<div style='font-size:10px;font-weight:600;color:var(--muted);background:rgba(99,102,241,0.08);padding:3px 6px;'>" + escapeHtml(key) + " (" + group.length + ")</div>";
+                        }
+                        group.forEach(function (s) {
+                            var value = s.value_number != null ? s.value_number : s.value_text || "?";
+                            html += "<div style='padding:3px 6px;font-size:11px;" + (isMultiple ? "" : "border-bottom:1px solid var(--border);margin-bottom:4px;") + "'>";
+                            if (!isMultiple) html += "<span style='font-weight:600;'>" + escapeHtml(key) + "</span>";
+                            if (s.entry_order != null && Number(s.entry_order) > 1) {
+                                html += " <span style='font-size:9px;color:#6366f1;'>#" + s.entry_order + "</span>";
+                            }
+                            html += " = " + escapeHtml(String(value));
+                            if (s.notes) html += " <span style='color:var(--muted);font-size:9px;'> — " + escapeHtml(s.notes) + "</span>";
+                            html += "</div>";
+                        });
+                        if (isMultiple) html += "</div>";
+                    });
+                    stateList.innerHTML = html;
+                } catch (e) {
+                    stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
+                }
+            })
+            .withFailureHandler(function () {
+                stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
+            })
+            .listCodexEntityState(seriesId, entityId);
     }
 
     function saveSkCodexInspector() {
