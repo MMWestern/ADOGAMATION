@@ -395,7 +395,7 @@
         if (!seriesId || !entityId) { resolve([]); return; }
         var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
         var connections = (typeof skCache !== "undefined" && skCache.connections && skCache.connections[seriesId]) ? skCache.connections[seriesId] : [];
-        // Find entity's linked classification entities (Species, System, Class, etc.)
+        // Find entity's linked entities from connections
         var linkedEntityIds = [];
         connections.forEach(function (c) {
           if (c.deleted_at) return;
@@ -403,47 +403,50 @@
           var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
           if (otherId) linkedEntityIds.push(otherId);
         });
-        // Also check entity_link field values for Species, System, etc.
-        var entity = entities.find(function (e) { return Number(e.id) === entityId; });
-        if (entity && entity.custom_data) {
-          // Field values would need to be loaded separately; for now use connections
-        }
-        // Find packs that apply_to any of the linked entities
-        var packs = [];
-        var seenPackIds = {};
-        connections.forEach(function (c) {
-          if (c.deleted_at) return;
-          var relType = c.codex_relationship_types || {};
-          if (relType.key !== "applies_to") return;
-          var sourceId = Number(c.source_entity_id);
-          var targetId = Number(c.target_entity_id);
-          // applies_to: pack -> classification entity
-          // Check if the target is one of the linked entities
-          if (linkedEntityIds.indexOf(targetId) !== -1 || targetId === entityId) {
-            if (!seenPackIds[sourceId]) {
-              seenPackIds[sourceId] = true;
-              var pack = entities.find(function (e) { return Number(e.id) === sourceId; });
-              if (pack) packs.push(pack);
-            }
-          }
-        });
-        // Also find packs that apply_to the entity's type
-        var entityTypeKey = entity ? (entity.codex_entity_types || {}).key || "" : "";
-        connections.forEach(function (c) {
-          if (c.deleted_at) return;
-          var relType = c.codex_relationship_types || {};
-          if (relType.key !== "applies_to") return;
-          var sourceId = Number(c.source_entity_id);
-          var targetId = Number(c.target_entity_id);
-          // Check if target is the entity itself
-          if (targetId === entityId && !seenPackIds[sourceId]) {
+        // Also load entity_link field values to find linked classification entities
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            try {
+              var result = JSON.parse(json);
+              if (result.ok && result.values) {
+                result.values.forEach(function (v) {
+                  if (v.linked_entity_id) {
+                    linkedEntityIds.push(Number(v.linked_entity_id));
+                  }
+                });
+              }
+            } catch (e) {}
+            // Now find packs that apply_to any of the linked entities
+            findPacksForLinkedEntities(entities, connections, linkedEntityIds, entityId, resolve);
+          })
+          .withFailureHandler(function () {
+            // Fallback: use only connections
+            findPacksForLinkedEntities(entities, connections, linkedEntityIds, entityId, resolve);
+          })
+          .listCodexEntityFieldValues(entityId);
+      });
+    }
+
+    function findPacksForLinkedEntities(entities, connections, linkedEntityIds, entityId, resolve) {
+      var packs = [];
+      var seenPackIds = {};
+      // Find packs linked via applies_to to any of the entity's linked entities
+      connections.forEach(function (c) {
+        if (c.deleted_at) return;
+        var relType = c.codex_relationship_types || {};
+        if (relType.key !== "applies_to") return;
+        var sourceId = Number(c.source_entity_id);
+        var targetId = Number(c.target_entity_id);
+        // applies_to: pack -> classification entity
+        if (linkedEntityIds.indexOf(targetId) !== -1 || targetId === entityId) {
+          if (!seenPackIds[sourceId]) {
             seenPackIds[sourceId] = true;
             var pack = entities.find(function (e) { return Number(e.id) === sourceId; });
             if (pack) packs.push(pack);
           }
-        });
-        resolve(packs);
+        }
       });
+      resolve(packs);
     }
 
     /**
