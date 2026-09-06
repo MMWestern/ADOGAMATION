@@ -506,8 +506,11 @@
             .withFailureHandler(function (err) { log.push("EVENT FAILED: " + eventType + " - " + err); console.error("[pilot] Event failed:", eventType, err); callback(); })
             .saveCodexProgressionEvent(seriesId, JSON.stringify(payload));
         }
-        function saveConnection(sourceId, targetId, relTypeKey, bookId, callback) {
+        function saveConnection(sourceId, targetId, relTypeKey, bookId, chapterSortOrder, callback) {
           console.log("[pilot] Saving connection:", relTypeKey);
+          // Compute global sort for temporal bounds
+          var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+          var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, chapterSortOrder) : chapterSortOrder;
           supabaseRunner
             .withSuccessHandler(function (json) {
               try {
@@ -524,7 +527,22 @@
               target_entity_id: targetId,
               relationship_type_id: null,
               book_id: bookId || null,
-              label: relTypeKey
+              label: relTypeKey,
+              valid_from_sort: globalSort,
+              valid_to_sort: null
+            }));
+        }
+
+        function endConnection(connectionId, bookId, chapterSortOrder, callback) {
+          console.log("[pilot] Ending connection:", connectionId);
+          var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+          var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, chapterSortOrder) : chapterSortOrder;
+          supabaseRunner
+            .withSuccessHandler(function () { log.push("Connection ended: " + connectionId); callback(); })
+            .withFailureHandler(function () { callback(null); })
+            .updateCodexConnectionContext(connectionId, JSON.stringify({
+              valid_to_sort: globalSort,
+              context_status: "ended"
             }));
         }
         // Create entities sequentially
@@ -555,7 +573,7 @@
                                     saveState(patrickId, "Strength", null, 6, book1Id, null, 1, function () {
                                       // Book 1 Chapter 7: Acquire Goblin Sword
                                       saveEvent(patrickId, "item_acquired", swordId, "Defeated goblin boss", book1Id, null, function () {
-                                        saveConnection(patrickId, swordId, "owns", book1Id, function () {
+                                        saveConnection(patrickId, swordId, "owns", book1Id, 7, function (swordConnId) {
                                           // Book 1 Chapter 12: Level 3, STR 8, Fireball Rank 1
                                           saveState(patrickId, "Level", null, 3, book1Id, null, 12, function () {
                                             saveState(patrickId, "Strength", null, 8, book1Id, null, 12, function () {
@@ -570,8 +588,18 @@
                                                       resolve({ log: log, created: created });
                                                     };
                                                     if (book2Id) {
-                                                      saveEvent(patrickId, "item_lost", swordId, "Lost during dungeon collapse", book2Id, null, function () {
-                                                        finish();
+                                                      // B2 Ch1: Strength = 10
+                                                      saveState(patrickId, "Strength", null, 10, book2Id, null, 1, function () {
+                                                        // B2 Ch3: Lose sword
+                                                        saveEvent(patrickId, "item_lost", swordId, "Lost during dungeon collapse", book2Id, null, function () {
+                                                          if (swordConnId) {
+                                                            endConnection(swordConnId, book2Id, 3, function () {
+                                                              finish();
+                                                            });
+                                                          } else {
+                                                            finish();
+                                                          }
+                                                        });
                                                       });
                                                     } else {
                                                       finish();
@@ -677,7 +705,7 @@
             }).then(function () {
               return queryState("Book 2 Ch 3 (sort=3)", book2Id, 3);
             }).then(function () {
-              return queryRelationships("Book 2 Ch 3 (sort=3)", 3);
+              return queryRelationships("Book 2 Ch 3 (sort=3)", book2Id, 3);
             });
           }
         }).then(function () {
