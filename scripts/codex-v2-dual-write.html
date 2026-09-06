@@ -346,20 +346,41 @@
     }
 
     /**
+     * Get chapter number from its position in the sorted chapter list.
+     * The sort_order field is a timestamp, not a chapter number.
+     * Chapter number is derived from position in the sorted list (1-indexed).
+     */
+    function codexV2GetChapterNumber(chapters, chapterId) {
+      if (!chapters || !chapterId) return 0;
+      // Chapters are already sorted by sort_order
+      for (var i = 0; i < chapters.length; i++) {
+        if (Number(chapters[i].id) === Number(chapterId)) return i + 1;
+      }
+      return 0;
+    }
+
+    /**
+     * Get chapter display label: "Ch. 3: Title" or just "Title" if no position found.
+     */
+    function codexV2GetChapterLabel(chapters, chapterId) {
+      if (!chapters || !chapterId) return "";
+      var chapter = chapters.find(function (c) { return Number(c.id) === Number(chapterId); });
+      if (!chapter) return "Ch." + chapterId;
+      var num = codexV2GetChapterNumber(chapters, chapterId);
+      return num > 0 ? "Ch. " + num + ": " + chapter.title : chapter.title;
+    }
+
+    /**
      * Build a chapter dropdown HTML string.
-     * @param {string} selectId - The id for the select element
-     * @param {Array} chapters - Array of {id, title, sort_order}
-     * @param {number} selectedId - Currently selected chapter id
-     * @param {string} style - Optional inline style
-     * @returns {string} HTML string
+     * Uses position in sorted list as chapter number (not sort_order).
      */
     function codexV2BuildChapterDropdown(selectId, chapters, selectedId, style) {
       var s = style || "width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;";
       var html = "<select id='" + selectId + "' style='" + s + "'>";
       html += "<option value=''>— No chapter —</option>";
-      chapters.forEach(function (ch) {
+      chapters.forEach(function (ch, idx) {
         var sel = selectedId && Number(ch.id) === Number(selectedId) ? " selected" : "";
-        var chapterNum = ch.sort_order != null ? Number(ch.sort_order) : 0;
+        var chapterNum = idx + 1;
         var label = chapterNum > 0 ? "Ch. " + chapterNum + ": " + ch.title : ch.title;
         html += "<option value='" + ch.id + "'" + sel + ">" + escapeHtml(label) + "</option>";
       });
@@ -379,6 +400,8 @@
     window.codexV2LoadChapters = codexV2LoadChapters;
     window.codexV2BuildChapterDropdown = codexV2BuildChapterDropdown;
     window.codexV2GetChapterTitle = codexV2GetChapterTitle;
+    window.codexV2GetChapterNumber = codexV2GetChapterNumber;
+    window.codexV2GetChapterLabel = codexV2GetChapterLabel;
 
     // ============================================================
     // STARTING PACK SYSTEM

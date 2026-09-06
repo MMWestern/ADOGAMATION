@@ -8822,9 +8822,7 @@
                 }
                 if (app.chapter_id) {
                   var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(app.book_id)]) ? skCache.chapters[Number(app.book_id)] : [];
-                  var chapter = chapters.find(function (c) { return Number(c.id) === Number(app.chapter_id); });
-                  var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
-                  var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + app.chapter_id;
+                  var chapterLabel = typeof codexV2GetChapterLabel === "function" ? codexV2GetChapterLabel(chapters, Number(app.chapter_id)) : "Ch." + app.chapter_id;
                   html += " <span style='color:var(--muted);font-size:10px;'>— " + escapeHtml(chapterLabel) + "</span>";
                 }
                 if (app.notes) html += " <span style='color:var(--muted);'>— " + escapeHtml(app.notes) + "</span>";
@@ -8983,12 +8981,14 @@
               if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
                 appState.projects.forEach(function (p) { bookMap[Number(p.project_id || p.id || 0)] = p; });
               }
-              // Sort by property name, then by effective_from_sort ascending
+              // Sort by effective_from_sort ascending (narrative order), then by property name
               var sortedStates = result.states.slice().sort(function (a, b) {
+                var sortA = a.effective_from_sort != null ? Number(a.effective_from_sort) : 999999;
+                var sortB = b.effective_from_sort != null ? Number(b.effective_from_sort) : 999999;
+                if (sortA !== sortB) return sortA - sortB;
                 var nameA = (a.property_key || "").toLowerCase();
                 var nameB = (b.property_key || "").toLowerCase();
-                if (nameA !== nameB) return nameA.localeCompare(nameB);
-                return (a.effective_from_sort || 0) - (b.effective_from_sort || 0);
+                return nameA.localeCompare(nameB);
               });
               sortedStates.forEach(function (s) {
                 var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
@@ -9002,9 +9002,7 @@
                   var contextText = book ? book.title : "Book #" + s.book_id;
                   if (s.chapter_id) {
                     var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(s.book_id)]) ? skCache.chapters[Number(s.book_id)] : [];
-                    var chapter = chapters.find(function (c) { return Number(c.id) === Number(s.chapter_id); });
-                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
-                    var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + s.chapter_id;
+                    var chapterLabel = typeof codexV2GetChapterLabel === "function" ? codexV2GetChapterLabel(chapters, Number(s.chapter_id)) : "Ch." + s.chapter_id;
                     contextText += " — " + chapterLabel;
                   }
                   html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(contextText) + "</span>";
@@ -9072,9 +9070,7 @@
                   var contextText = book ? book.title : "Book #" + ev.book_id;
                   if (ev.chapter_id) {
                     var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[Number(ev.book_id)]) ? skCache.chapters[Number(ev.book_id)] : [];
-                    var chapter = chapters.find(function (c) { return Number(c.id) === Number(ev.chapter_id); });
-                    var chapterNum = chapter && chapter.sort_order != null ? Number(chapter.sort_order) : 0;
-                    var chapterLabel = chapter ? (chapterNum > 0 ? "Ch. " + chapterNum + ": " + chapter.title : chapter.title) : "Ch." + ev.chapter_id;
+                    var chapterLabel = typeof codexV2GetChapterLabel === "function" ? codexV2GetChapterLabel(chapters, Number(ev.chapter_id)) : "Ch." + ev.chapter_id;
                     contextText += " — " + chapterLabel;
                   }
                   html += " <span style='color:var(--muted);font-size:10px;'>in " + escapeHtml(contextText) + "</span>";
