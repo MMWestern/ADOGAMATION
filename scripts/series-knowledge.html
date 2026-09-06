@@ -2299,21 +2299,26 @@
         addBtn.addEventListener("click", function () {
           addForm.hidden = false;
           addBtn.hidden = true;
-          // Populate book dropdown
-          var bookSelect = document.getElementById("codexRelPanelBook");
-          if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
-            bookSelect.innerHTML = "<option value=''>— No book —</option>";
-            appState.projects.forEach(function (p) {
-              var pid = Number(p.project_id || p.id || 0);
-              if (!pid) return;
-              var projectSeriesId = Number(p.series_id || 0);
-              if (projectSeriesId !== seriesId) return;
-              var opt = document.createElement("option");
-              opt.value = pid;
-              opt.textContent = p.title || "Book #" + pid;
-              bookSelect.appendChild(opt);
-            });
-          }
+          // Populate both book dropdowns
+          var fromBookSelect = document.getElementById("codexRelPanelFromBook");
+          var toBookSelect = document.getElementById("codexRelPanelToBook");
+          [fromBookSelect, toBookSelect].forEach(function (bookSelect) {
+            if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+              bookSelect.innerHTML = bookSelect.id === "codexRelPanelFromBook"
+                ? "<option value=''>— No book —</option>"
+                : "<option value=''>— No end —</option>";
+              appState.projects.forEach(function (p) {
+                var pid = Number(p.project_id || p.id || 0);
+                if (!pid) return;
+                var projectSeriesId = Number(p.series_id || 0);
+                if (projectSeriesId !== seriesId) return;
+                var opt = document.createElement("option");
+                opt.value = pid;
+                opt.textContent = p.title || "Book #" + pid;
+                bookSelect.appendChild(opt);
+              });
+            }
+          });
         });
         cancelBtn.addEventListener("click", function () {
           addForm.hidden = true;
@@ -2322,34 +2327,47 @@
           if (targetBtn) targetBtn.textContent = "Select entity...";
           if (typeSelect) typeSelect.value = "";
           // Clear temporal fields
-          var bookSel = document.getElementById("codexRelPanelBook");
+          var fromBookSel = document.getElementById("codexRelPanelFromBook");
+          var toBookSel = document.getElementById("codexRelPanelToBook");
           var fromCh = document.getElementById("codexRelPanelFromChapter");
           var toCh = document.getElementById("codexRelPanelToChapter");
           var notesIn = document.getElementById("codexRelPanelNotes");
-          if (bookSel) bookSel.value = "";
+          if (fromBookSel) fromBookSel.value = "";
+          if (toBookSel) toBookSel.value = "";
           if (fromCh) fromCh.innerHTML = "<option value=''>— Select book —</option>";
           if (toCh) toCh.innerHTML = "<option value=''>— Select book —</option>";
           if (notesIn) notesIn.value = "";
         });
 
-        // Load chapters when book changes
-        var bookSelect = document.getElementById("codexRelPanelBook");
+        // Load chapters independently for each book dropdown
+        var fromBookSelect = document.getElementById("codexRelPanelFromBook");
+        var toBookSelect = document.getElementById("codexRelPanelToBook");
         var fromChapterSelect = document.getElementById("codexRelPanelFromChapter");
         var toChapterSelect = document.getElementById("codexRelPanelToChapter");
-        if (bookSelect) {
-          bookSelect.addEventListener("change", function () {
-            var bookId = Number(bookSelect.value || 0);
+        if (fromBookSelect) {
+          fromBookSelect.addEventListener("change", function () {
+            var bookId = Number(fromBookSelect.value || 0);
             if (!bookId) {
               if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
-              if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
               return;
             }
             if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>Loading...</option>";
-            if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
             codexV2LoadChapters(bookId).then(function (chapters) {
               var fromHtml = codexV2BuildChapterDropdown("codexRelPanelFromChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
-              var toHtml = codexV2BuildChapterDropdown("codexRelPanelToChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
               if (fromChapterSelect) fromChapterSelect.innerHTML = fromHtml;
+            });
+          });
+        }
+        if (toBookSelect) {
+          toBookSelect.addEventListener("change", function () {
+            var bookId = Number(toBookSelect.value || 0);
+            if (!bookId) {
+              if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+              return;
+            }
+            if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+            codexV2LoadChapters(bookId).then(function (chapters) {
+              var toHtml = codexV2BuildChapterDropdown("codexRelPanelToChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
               if (toChapterSelect) toChapterSelect.innerHTML = toHtml;
             });
           });
@@ -2364,39 +2382,45 @@
           var curSeriesId = Number(skCurrentSeriesId || 0);
           var curEntityId = Number(_codexActiveEntityId || 0);
           if (!curSeriesId || !curEntityId) return;
-          // Read temporal fields
-          var bookId = bookSelect ? Number(bookSelect.value || 0) : 0;
+          // Read temporal fields - independent book selectors
+          var fromBookId = fromBookSelect ? Number(fromBookSelect.value || 0) : 0;
+          var toBookId = toBookSelect ? Number(toBookSelect.value || 0) : 0;
           var fromChapterId = fromChapterSelect ? Number(fromChapterSelect.value || 0) : 0;
           var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
           var contextStatus = document.getElementById("codexRelPanelStatus") ? document.getElementById("codexRelPanelStatus").value : "active";
           var notes = document.getElementById("codexRelPanelNotes") ? document.getElementById("codexRelPanelNotes").value.trim() : "";
-          // Resolve chapter sort_orders (series-global position)
+          // Resolve chapter sort_orders independently for each side
           var validFromSort = null;
           var validToSort = null;
-          if (bookId) {
-            var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
-            var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+          // Valid From
+          if (fromBookId) {
+            var fromBookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(fromBookId) : 0;
+            var fromChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[fromBookId]) ? skCache.chapters[fromBookId] : [];
             if (fromChapterId) {
-              var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
-              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, fromCh.sort_order) : fromCh.sort_order;
+              var fromCh = fromChapters.find(function (c) { return Number(c.id) === fromChapterId; });
+              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(fromBookNum, fromCh.sort_order) : fromCh.sort_order;
+              // Validate chapter belongs to book
+              if (!fromChapters.some(function (c) { return Number(c.id) === fromChapterId; })) {
+                alert("Valid From chapter does not belong to the selected book."); return;
+              }
             }
+          }
+          // Valid Until
+          if (toBookId) {
+            var toBookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(toBookId) : 0;
+            var toChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[toBookId]) ? skCache.chapters[toBookId] : [];
             if (toChapterId) {
-              var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
-              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, toCh.sort_order) : toCh.sort_order;
+              var toCh = toChapters.find(function (c) { return Number(c.id) === toChapterId; });
+              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(toBookNum, toCh.sort_order) : toCh.sort_order;
+              // Validate chapter belongs to book
+              if (!toChapters.some(function (c) { return Number(c.id) === toChapterId; })) {
+                alert("Valid Until chapter does not belong to the selected book."); return;
+              }
             }
           }
-          // Cross-book chapter validation
-          if (fromChapterId && bookId) {
-            var validChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
-            if (!validChapters.some(function (c) { return Number(c.id) === fromChapterId; })) {
-              alert("Valid From chapter does not belong to the selected book."); return;
-            }
-          }
-          if (toChapterId && bookId) {
-            var validChapters2 = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
-            if (!validChapters2.some(function (c) { return Number(c.id) === toChapterId; })) {
-              alert("Valid Until chapter does not belong to the selected book."); return;
-            }
+          // Validate temporal bounds
+          if (validFromSort != null && validToSort != null && validToSort <= validFromSort) {
+            alert("Valid Until must be later than Valid From."); return;
           }
           saveEntityConnection(curSeriesId, curEntityId, targetId, typeId, function () {
             addForm.hidden = true;
@@ -2405,12 +2429,13 @@
             if (targetBtn) targetBtn.textContent = "Select entity...";
             if (typeSelect) typeSelect.value = "";
             // Clear temporal fields
-            if (bookSelect) bookSelect.value = "";
+            if (fromBookSelect) fromBookSelect.value = "";
+            if (toBookSelect) toBookSelect.value = "";
             if (fromChapterSelect) fromChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
             if (toChapterSelect) toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
             if (document.getElementById("codexRelPanelNotes")) document.getElementById("codexRelPanelNotes").value = "";
             loadAndRenderEntityRelationships(curSeriesId, curEntityId);
-          }, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
+          }, fromBookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
         });
       }
 
@@ -2477,16 +2502,26 @@
       formHtml += "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;'>";
       formHtml += "<select id='codexRelEditType' class='codex-detail-field-select' style='flex:1;min-width:150px;'><option value=''>Select type...</option></select>";
       formHtml += "</div>";
-      // Book and chapter context
-      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;'>";
+      // Valid From section
+      formHtml += "<div style='margin-top:8px;'>";
+      formHtml += "<div style='font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;'>Valid From</div>";
+      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
       formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
-      formHtml += "<select id='codexRelEditBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— No book —</option></select></div>";
-      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Valid From Chapter</label>";
-      formHtml += "<select id='codexRelEditFromChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book first —</option></select></div>";
-      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Valid Until Chapter</label>";
-      formHtml += "<select id='codexRelEditToChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book first —</option></select></div>";
-      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Context Status</label>";
-      formHtml += "<select id='codexRelEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+      formHtml += "<select id='codexRelEditFromBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— No book —</option></select></div>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      formHtml += "<select id='codexRelEditFromChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>";
+      formHtml += "</div></div>";
+      // Valid Until section
+      formHtml += "<div style='margin-top:8px;'>";
+      formHtml += "<div style='font-size:10px;font-weight:600;color:var(--muted);margin-bottom:4px;'>Valid Until</div>";
+      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Book</label>";
+      formHtml += "<select id='codexRelEditToBook' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— No end —</option></select></div>";
+      formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
+      formHtml += "<select id='codexRelEditToChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>";
+      formHtml += "</div></div>";
+      // Status and notes
+      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;'>";
       ["active", "ended", "planned"].forEach(function (s) {
         var sel = conn && conn.context_status === s ? " selected" : "";
         formHtml += "<option value='" + s + "'" + sel + ">" + s + "</option>";
@@ -2503,7 +2538,8 @@
       formHtml += "</div></div>";
       listEl.insertAdjacentHTML("afterend", formHtml);
       var typeSelect = document.getElementById("codexRelEditType");
-      var bookSelect = document.getElementById("codexRelEditBook");
+      var fromBookSelect = document.getElementById("codexRelEditFromBook");
+      var toBookSelect = document.getElementById("codexRelEditToBook");
       var fromChapterSelect = document.getElementById("codexRelEditFromChapter");
       var toChapterSelect = document.getElementById("codexRelEditToChapter");
       var saveBtn = document.getElementById("codexRelEditSaveBtn");
@@ -2523,66 +2559,107 @@
           })
           .catch(function () {});
       }
-      // Populate book dropdown (only books in current series)
-      if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
-        appState.projects.forEach(function (p) {
-          var pid = Number(p.project_id || p.id || 0);
-          if (!pid) return;
-          var projectSeriesId = Number(p.series_id || 0);
-          if (projectSeriesId !== seriesId) return;
-          var opt = document.createElement("option");
-          opt.value = pid;
-          opt.textContent = p.title || "Book #" + pid;
-          if (conn && conn.book_id && pid === Number(conn.book_id)) opt.selected = true;
-          bookSelect.appendChild(opt);
-        });
-      }
-      // Load chapters when book changes
-      if (bookSelect) {
-        bookSelect.addEventListener("change", function () {
-          var bookId = Number(bookSelect.value || 0);
+      // Populate both book dropdowns (only books in current series)
+      [fromBookSelect, toBookSelect].forEach(function (bookSelect) {
+        if (bookSelect && typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+          appState.projects.forEach(function (p) {
+            var pid = Number(p.project_id || p.id || 0);
+            if (!pid) return;
+            var projectSeriesId = Number(p.series_id || 0);
+            if (projectSeriesId !== seriesId) return;
+            var opt = document.createElement("option");
+            opt.value = pid;
+            opt.textContent = p.title || "Book #" + pid;
+            // Pre-select existing book for "from" side
+            if (bookSelect === fromBookSelect && conn && conn.book_id && pid === Number(conn.book_id)) opt.selected = true;
+            bookSelect.appendChild(opt);
+          });
+        }
+      });
+      // Load chapters independently for each book dropdown
+      if (fromBookSelect) {
+        fromBookSelect.addEventListener("change", function () {
+          var bookId = Number(fromBookSelect.value || 0);
           if (!bookId) {
-            fromChapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
-            toChapterSelect.innerHTML = "<option value=''>— Select book first —</option>";
+            fromChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
             return;
           }
           fromChapterSelect.innerHTML = "<option value=''>Loading...</option>";
-          toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
           codexV2LoadChapters(bookId).then(function (chapters) {
-            var fromHtml = codexV2BuildChapterDropdown("codexRelEditFromChapter", chapters, conn ? conn.valid_from_chapter : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
-            var toHtml = codexV2BuildChapterDropdown("codexRelEditToChapter", chapters, conn ? conn.valid_to_chapter : 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
-            fromChapterSelect.innerHTML = fromHtml;
-            toChapterSelect.innerHTML = toHtml;
+            fromChapterSelect.innerHTML = codexV2BuildChapterDropdown("codexRelEditFromChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
           });
         });
-        // If editing and has book, trigger load
-        if (conn && conn.book_id) bookSelect.dispatchEvent(new Event("change"));
+        // Trigger initial load if existing book
+        if (conn && conn.book_id) fromBookSelect.dispatchEvent(new Event("change"));
+      }
+      if (toBookSelect) {
+        toBookSelect.addEventListener("change", function () {
+          var bookId = Number(toBookSelect.value || 0);
+          if (!bookId) {
+            toChapterSelect.innerHTML = "<option value=''>— Select book —</option>";
+            return;
+          }
+          toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
+          codexV2LoadChapters(bookId).then(function (chapters) {
+            toChapterSelect.innerHTML = codexV2BuildChapterDropdown("codexRelEditToChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+          });
+        });
+        // Trigger initial load if existing valid_to_sort (need to find which book it belongs to)
+        if (conn && conn.valid_to_sort) {
+          // Find which book the valid_to_sort belongs to by checking all books
+          if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+            appState.projects.forEach(function (p) {
+              var pid = Number(p.project_id || p.id || 0);
+              if (!pid || Number(p.series_id || 0) !== seriesId) return;
+              var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(pid) : 0;
+              // Check if any chapter in this book has the matching sort_order
+              codexV2LoadChapters(pid).then(function (chapters) {
+                chapters.forEach(function (ch) {
+                  var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
+                  if (globalSort === conn.valid_to_sort) {
+                    toBookSelect.value = String(pid);
+                    toBookSelect.dispatchEvent(new Event("change"));
+                    // Wait for chapters to load then select the right one
+                    setTimeout(function () {
+                      toChapterSelect.value = String(ch.id);
+                    }, 100);
+                  }
+                });
+              });
+            });
+          }
+        }
       }
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
           var newTypeId = typeSelect ? Number(typeSelect.value || 0) : 0;
           if (!newTypeId) { setStatus("Select a relationship type.", "error"); return; }
-          var bookId = bookSelect ? Number(bookSelect.value || 0) : 0;
+          var fromBookId = fromBookSelect ? Number(fromBookSelect.value || 0) : 0;
+          var toBookId = toBookSelect ? Number(toBookSelect.value || 0) : 0;
           var fromChapterId = fromChapterSelect ? Number(fromChapterSelect.value || 0) : 0;
           var toChapterId = toChapterSelect ? Number(toChapterSelect.value || 0) : 0;
           var contextStatus = document.getElementById("codexRelEditStatus") ? document.getElementById("codexRelEditStatus").value : "active";
           var notes = document.getElementById("codexRelEditNotes") ? document.getElementById("codexRelEditNotes").value.trim() : "";
-          // Resolve chapter sort_orders (series-global position)
+          // Resolve chapter sort_orders independently
           var validFromSort = null;
           var validToSort = null;
-          if (bookId) {
-            var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
-            var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[bookId]) ? skCache.chapters[bookId] : [];
+          if (fromBookId) {
+            var fromBookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(fromBookId) : 0;
+            var fromChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[fromBookId]) ? skCache.chapters[fromBookId] : [];
             if (fromChapterId) {
-              var fromCh = chapters.find(function (c) { return Number(c.id) === fromChapterId; });
-              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, fromCh.sort_order) : fromCh.sort_order;
-            }
-            if (toChapterId) {
-              var toCh = chapters.find(function (c) { return Number(c.id) === toChapterId; });
-              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, toCh.sort_order) : toCh.sort_order;
+              var fromCh = fromChapters.find(function (c) { return Number(c.id) === fromChapterId; });
+              if (fromCh) validFromSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(fromBookNum, fromCh.sort_order) : fromCh.sort_order;
             }
           }
-          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, bookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
+          if (toBookId) {
+            var toBookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(toBookId) : 0;
+            var toChapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[toBookId]) ? skCache.chapters[toBookId] : [];
+            if (toChapterId) {
+              var toCh = toChapters.find(function (c) { return Number(c.id) === toChapterId; });
+              if (toCh) validToSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(toBookNum, toCh.sort_order) : toCh.sort_order;
+            }
+          }
+          updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, fromBookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
           var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
           if (form) form.remove();
         });
