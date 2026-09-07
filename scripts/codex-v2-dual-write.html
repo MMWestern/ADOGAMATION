@@ -53,6 +53,100 @@
     window.codexV2GetBookNumber = codexV2GetBookNumber;
 
     /**
+     * Get canonical property identity for state resolution.
+     * Uses property_entity_id when a canonical property exists,
+     * falls back to normalized property_key.
+     *
+     * This ensures that two records with the same canonical entity
+     * are treated as the same property, even if property_key differs.
+     *
+     * Example:
+     *   property_entity_id = STR-UUID, property_key = "strength" → "entity:STR-UUID"
+     *   property_entity_id = STR-UUID, property_key = "Strength" → "entity:STR-UUID" (same!)
+     *   property_entity_id = null, property_key = "mood" → "key:mood"
+     */
+    function codexV2GetPropertyIdentity(row) {
+      if (row && row.property_entity_id) {
+        return "entity:" + String(row.property_entity_id);
+      }
+      return "key:" + String((row && row.property_key) || "").trim().toLowerCase();
+    }
+
+    window.codexV2GetPropertyIdentity = codexV2GetPropertyIdentity;
+
+    /**
+     * Shared state resolver used by State History, State At, and Progression Sheet.
+     *
+     * Modes:
+     *   'history'    — all recorded transitions, no deduplication, chronological
+     *   'stateAt'    — latest record per canonical property at/before target
+     *   'progression' — same as stateAt but with category grouping
+     *
+     * Uses canonical property identity (property_entity_id preferred, property_key fallback).
+     * Excludes template records from narrative queries.
+     *
+     * @param {Array} rows — raw state records from database
+     * @param {Object} options — { mode: 'history'|'stateAt'|'progression' }
+     * @returns {Array} resolved state records
+     */
+    function codexV2ResolveState(rows, options) {
+      var mode = (options && options.mode) || 'stateAt';
+      var safeRows = Array.isArray(rows) ? rows : [];
+
+      // Exclude template records from narrative queries
+      var narrative = safeRows.filter(function (r) {
+        return r.state_status !== 'template';
+      });
+
+      if (mode === 'history') {
+        // History: return all records sorted chronologically
+        return narrative.sort(function (a, b) {
+          var sortA = Number(a.effective_from_sort || 0);
+          var sortB = Number(b.effective_from_sort || 0);
+          if (sortA !== sortB) return sortA - sortB;
+          var orderA = Number(a.entry_order || 1);
+          var orderB = Number(b.entry_order || 1);
+          if (orderA !== orderB) return orderA - orderB;
+          return String(a.property_key || "").localeCompare(String(b.property_key || ""));
+        });
+      }
+
+      // stateAt / progression: deduplicate by canonical property identity
+      // Group by property identity
+      var groups = {};
+      narrative.forEach(function (row) {
+        var identity = codexV2GetPropertyIdentity(row);
+        if (!groups[identity]) groups[identity] = [];
+        groups[identity].push(row);
+      });
+
+      // For each property, keep only the latest record
+      // Sort by effective_from_sort DESC, then entry_order DESC
+      var resolved = [];
+      Object.keys(groups).forEach(function (identity) {
+        var group = groups[identity];
+        group.sort(function (a, b) {
+          var sortA = Number(a.effective_from_sort || 0);
+          var sortB = Number(b.effective_from_sort || 0);
+          if (sortA !== sortB) return sortB - sortA;
+          var orderA = Number(a.entry_order || 1);
+          var orderB = Number(b.entry_order || 1);
+          return orderB - orderA;
+        });
+        resolved.push(group[0]);
+      });
+
+      // Sort resolved by property_key for display
+      resolved.sort(function (a, b) {
+        return String(a.property_key || "").localeCompare(String(b.property_key || ""));
+      });
+
+      return resolved;
+    }
+
+    window.codexV2ResolveState = codexV2ResolveState;
+
+    /**
      * Record an entity appearance when an entity is linked to a project/book.
      * Called from saveCodexEntityProjects and entity save paths.
      */

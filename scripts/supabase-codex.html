@@ -1168,11 +1168,30 @@
         chapter_id: parsed.chapter_id ? Number(parsed.chapter_id) : null,
         effective_from_sort: parsed.effective_from_sort != null ? Number(parsed.effective_from_sort) : null,
         effective_to_sort: parsed.effective_to_sort != null ? Number(parsed.effective_to_sort) : null,
+        entry_order: parsed.entry_order != null ? Number(parsed.entry_order) : 1,
         state_status: String(parsed.state_status || 'draft').trim(),
         source_reference: parsed.source_reference ? String(parsed.source_reference).trim() : null,
         notes: parsed.notes ? String(parsed.notes).trim() : null
       };
       if (!payload.subject_entity_id) throw new Error('Subject entity id is required.');
+
+      // Auto-compute effective_from_sort from book/chapter if not provided
+      // This prevents accidental NULL temporal position for narrative state
+      if (payload.effective_from_sort == null && payload.state_status !== 'template') {
+        if (payload.book_id && payload.chapter_id) {
+          // Try to compute from cached chapters
+          var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[payload.book_id]) || [];
+          var chapter = chapters.find(function (c) { return Number(c.id) === Number(payload.chapter_id); });
+          if (chapter && typeof codexV2GetBookNumber === "function" && typeof codexV2GlobalSort === "function") {
+            var bookNum = codexV2GetBookNumber(payload.book_id);
+            var sortVal = codexV2GlobalSort(bookNum, chapter.sort_order);
+            if (sortVal != null) {
+              payload.effective_from_sort = sortVal;
+            }
+          }
+        }
+      }
+
       if (stateId) payload.id = stateId;
       var op = stateId
         ? sbClient.from('codex_entity_state').update(payload).eq('id', stateId).select().single()
@@ -1322,10 +1341,12 @@
       if (!safeEntityId) throw new Error('Entity id is required.');
       // Build query: get most recent state for each property at or before the narrative point
       // Note: LIMIT is set high to avoid silent truncation for long-running characters.
-      // Deduplication happens in-memory by property_key after ordering by effective_from_sort DESC.
+      // Deduplication happens in-memory after ordering by effective_from_sort DESC.
       //
       // IMPORTANT: Do NOT filter by book_id. State persists across books until explicitly superseded.
       // A character's Strength set in Book 1 should carry forward to Book 2 if not changed.
+      //
+      // EXCLUDES template records (Starting Pack defaults) — these are not narrative state.
       var q = sbClient.from('codex_entity_state')
         .select('*')
         .eq('subject_entity_id', safeEntityId)
@@ -1336,7 +1357,10 @@
       q = q.order('effective_from_sort', { ascending: false }).limit(10000);
       return q.then(function (res) {
         if (res.error) throw res.error;
-        var rows = res.data || [];
+        var rows = (res.data || []).filter(function (r) {
+          // Exclude template records from narrative state queries
+          return r.state_status !== 'template';
+        });
         // Sort by property name, then entry_order, then effective_from_sort
         rows.sort(function (a, b) {
           var nameA = (a.property_key || "").toLowerCase();

@@ -4448,7 +4448,7 @@
       if (el.writingInspectorCodexTitle) el.writingInspectorCodexTitle.textContent = match ? match.title : "Nothing selected";
       if (el.writingInspectorCodexBody) el.writingInspectorCodexBody.textContent = match ? (match.body || "No details yet.") : "Pick a codex entry from the left to keep it in view while you write.";
 
-      // Load state/progression data for selected entry
+      // Load contextual state for selected entry
       var stateSection = document.getElementById("writingInspectorStateSection");
       var stateList = document.getElementById("writingInspectorStateList");
       if (!match || !stateSection || !stateList) {
@@ -4473,72 +4473,213 @@
       stateSection.hidden = false;
       stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>Loading state...</div>";
 
-      loadWritingInspectorState(seriesId, entityId, stateList, stateSection);
+      loadWritingInspectorContextual(seriesId, entityId, selectedProject, stateList, stateSection);
     }
 
-    function loadWritingInspectorState(seriesId, entityId, stateList, stateSection) {
+    /**
+     * Get the current writing chapter's narrative sort order.
+     * Returns null if no chapter context is available.
+     */
+    function getWritingChapterSortOrder() {
+      var scope = String(appState.writingWorkspace.scope || "");
+      if (!scope) return null;
+      var outline = appState.writingWorkspace.outline;
+      if (!outline) return null;
+      var chapterSortOrder = null;
+      (outline.acts || []).forEach(function (act) {
+        (act.children || []).forEach(function (ch) {
+          if (ch.id === scope) chapterSortOrder = ch.sortOrder;
+        });
+      });
+      if (chapterSortOrder == null) return null;
+      var project = getSelectedProject();
+      if (!project) return null;
+      var bookNum = codexV2GetBookNumber(project.project_id || project.id);
+      return codexV2GlobalSort(bookNum, chapterSortOrder);
+    }
+
+    /**
+     * Get current writing chapter info for display.
+     */
+    function getWritingChapterInfo() {
+      var scope = String(appState.writingWorkspace.scope || "");
+      if (!scope) return null;
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var segment = scope ? segments.find(function (s) { return s.key === scope; }) : null;
+      if (!segment) return null;
+      var project = getSelectedProject();
+      if (!project) return null;
+      var bookNum = codexV2GetBookNumber(project.project_id || project.id);
+      // Get chapter number from segment index
+      var segIdx = segments.findIndex(function (s) { return s.key === scope; });
+      return {
+        key: segment.key,
+        title: segment.title,
+        chapterNum: segIdx >= 0 ? segIdx + 1 : 0,
+        bookId: project.project_id || project.id,
+        bookNum: bookNum,
+        sortOrder: getWritingChapterSortOrder()
+      };
+    }
+
+    /**
+     * Load chapter-contextual state for the Writing Inspector.
+     * Shows: Current State, Active Relationships, Changes This Chapter
+     */
+    function loadWritingInspectorContextual(seriesId, entityId, project, stateList, stateSection) {
       if (!stateList || !stateSection) return;
 
-      supabaseRunner
-        .withSuccessHandler(function (json) {
-          try {
-            var result = typeof json === 'string' ? JSON.parse(json) : json;
-            var items = (result && result.ok !== false && Array.isArray(result.states)) ? result.states : [];
-            if (!items.length) {
-              stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No state records.</div>";
-              return;
-            }
+      var chapterInfo = getWritingChapterInfo();
+      var chapterSortOrder = chapterInfo ? chapterInfo.sortOrder : null;
 
-            // Preload chapters for all books in the results
-            var bookIds = [];
-            items.forEach(function (r) {
-              var bid = Number(r.book_id || 0);
-              if (bid && bookIds.indexOf(bid) === -1) bookIds.push(bid);
-            });
+      if (chapterSortOrder == null) {
+        // No chapter context available — show explicit message, NOT full history
+        stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>No chapter context selected. Select a chapter to view contextual State.</div>";
+        return;
+      }
 
-            var pending = bookIds.length;
-            if (!pending) {
-              renderWritingInspectorState(items, stateList, {});
-              return;
-            }
-
-            var chaptersByBook = {};
-            bookIds.forEach(function (bid) {
-              codexV2LoadChapters(bid).then(function (chapters) {
-                chaptersByBook[bid] = chapters || [];
-                pending--;
-                if (pending <= 0) renderWritingInspectorState(items, stateList, chaptersByBook);
-              });
-            });
-          } catch (e) {
-            console.error("[CODEX] loadWritingInspectorState parse error:", e);
-            stateList.innerHTML = "<div class='muted' style='padding:4px 0;color:#f87171;'>Error loading state.</div>";
-          }
-        })
-        .withFailureHandler(function (err) {
-          console.error("[CODEX] loadWritingInspectorState failed:", err);
-          stateList.innerHTML = "<div class='muted' style='padding:4px 0;color:#f87171;'>Error loading state.</div>";
-        })
-        .listCodexEntityState(seriesId, entityId);
+      // Load state at current chapter + active relationships in parallel
+      Promise.all([
+        codexV2GetEntityStateAt(entityId, project.project_id || project.id, chapterSortOrder),
+        codexV2GetActiveConnectionsAt(entityId, chapterSortOrder)
+      ]).then(function (results) {
+        var states = results[0] || [];
+        var connections = results[1] || [];
+        renderWritingInspectorContextual(states, connections, chapterInfo, seriesId, entityId, stateList);
+      }).catch(function (err) {
+        console.error("[CODEX] loadWritingInspectorContextual failed:", err);
+        stateList.innerHTML = "<div class='muted' style='padding:4px 0;color:#f87171;'>Error loading state.</div>";
+      });
     }
 
-    function renderWritingInspectorState(rows, stateList, chaptersByBook) {
+    /**
+     * Render contextual state: Classification, Current State, Active Relationships, Changes This Chapter
+     */
+    function renderWritingInspectorContextual(states, connections, chapterInfo, seriesId, entityId, stateList) {
       if (!stateList) return;
-      chaptersByBook = chaptersByBook || {};
 
-      // Step 1: Group entries by (chapterKey, propertyKey)
-      var chapterGroups = {}; // chapterKey -> { bookNum, chapNum, chapLabel, props: { propKey -> [entries] } }
-      var allPropKeys = {};
+      var html = "";
 
-      rows.forEach(function (row) {
-        var bookId = Number(row.book_id || 0);
-        var chapterId = Number(row.chapter_id || 0);
-        var bookNum = codexV2GetBookNumber(bookId);
-        var chapters = chaptersByBook[bookId] || [];
-        var chapNum = chapterId ? codexV2GetChapterNumber(chapters, chapterId) : 0;
-        var chapLabel = chapterId ? codexV2GetChapterLabel(chapters, chapterId) : "";
-        var chapterKey = (bookNum * 10000 + chapNum);
-        var propKey = row.property_key || "unknown";
+      // Chapter header
+      var chapLabel = chapterInfo.bookNum > 0
+        ? "Book " + chapterInfo.bookNum + ", Ch. " + chapterInfo.chapterNum
+        : "Ch. " + chapterInfo.chapterNum;
+      html += "<div style='font-size:11px;font-weight:600;color:#a5b4fc;margin-bottom:8px;'>" + escapeHtml(chapLabel) + (chapterInfo.title ? ": " + escapeHtml(chapterInfo.title) : "") + "</div>";
+
+      // --- CLASSIFICATION ---
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+      var entity = entities.find(function (e) { return Number(e.id) === Number(entityId); });
+      if (entity) {
+        var custom = entity.custom_data || {};
+        var classFields = [];
+        // Role (from custom_data)
+        var role = String(custom.sub_type || custom.role_archetype || "").trim();
+        if (role) classFields.push({ label: "Role", value: role });
+        // Archetype
+        var archetype = String(custom.archetype || "").trim();
+        if (archetype) classFields.push({ label: "Archetype", value: archetype });
+        // Profession
+        var profession = String(custom.profession || "").trim();
+        if (profession) classFields.push({ label: "Profession", value: profession });
+        // Background
+        var background = String(custom.background || "").trim();
+        if (background) classFields.push({ label: "Background", value: background });
+
+        // Entity link fields (Species, Culture, Family, Organisation, Progression System)
+        var entityLinks = (typeof codexCache !== "undefined" && codexCache.fieldValues && codexCache.fieldValues[entityId]) || {};
+        var linkFields = ["species", "culture", "family", "organisation", "progression_system"];
+        linkFields.forEach(function (key) {
+          var val = entityLinks[key];
+          if (val && val.value_text) classFields.push({ label: key.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }), value: val.value_text });
+        });
+
+        if (classFields.length) {
+          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>CLASSIFICATION</div>";
+          classFields.forEach(function (f) {
+            html += "<div style='padding:2px 0;font-size:11px;'>" +
+              "<span style='color:#777884;'>" + escapeHtml(f.label) + ":</span> " +
+              "<span style='color:#e2e8f0;'>" + escapeHtml(f.value) + "</span>" +
+              "</div>";
+          });
+        }
+      }
+
+      // --- CURRENT STATE ---
+      // Use shared resolver for deduplication (latest per canonical property)
+      var resolved = typeof codexV2ResolveState === "function"
+        ? codexV2ResolveState(states, { mode: 'stateAt' })
+        : [];
+
+      if (resolved.length) {
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>CURRENT STATE</div>";
+        resolved.forEach(function (s) {
+          var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
+          html += "<div style='padding:2px 0;font-size:12px;'>" +
+            "<span style='color:#e2e8f0;'>" + escapeHtml(s.property_key || "property") + "</span>" +
+            "<span style='color:#777884;'>: " + escapeHtml(value) + "</span>" +
+            "</div>";
+        });
+      }
+
+      // --- ACTIVE RELATIONSHIPS ---
+      if (connections.length) {
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>ACTIVE RELATIONSHIPS</div>";
+        connections.forEach(function (c) {
+          var isSource = Number(c.source_entity_id) === entityId;
+          var relType = c.codex_relationship_types || {};
+          var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
+          var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
+          var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+          var otherEntity = entities.find(function (e) { return Number(e.id) === otherId; });
+          var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Entity #" + otherId;
+          html += "<div style='padding:2px 0;font-size:11px;'>" +
+            "<span style='color:#777884;'>" + escapeHtml(label) + "</span> " +
+            "<span style='color:#e2e8f0;'>" + escapeHtml(otherName) + "</span>" +
+            "</div>";
+        });
+      }
+
+      // --- CHANGES THIS CHAPTER ---
+      // Filter to only records in the current chapter
+      var chapterStates = states.filter(function (s) {
+        return Number(s.effective_from_sort || 0) === Number(chapterInfo.sortOrder || 0);
+      });
+
+      if (chapterStates.length) {
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>CHANGES THIS CHAPTER</div>";
+
+        // Group by property identity
+        var changeGroups = {};
+        chapterStates.forEach(function (s) {
+          var identity = typeof codexV2GetPropertyIdentity === "function" ? codexV2GetPropertyIdentity(s) : (s.property_key || "unknown");
+          if (!changeGroups[identity]) changeGroups[identity] = { propKey: s.property_key || "unknown", entries: [] };
+          changeGroups[identity].entries.push(s);
+        });
+
+        Object.keys(changeGroups).forEach(function (identity) {
+          var group = changeGroups[identity];
+          // Sort entries by entry_order
+          group.entries.sort(function (a, b) {
+            return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
+          });
+
+          // Show as chain: 10 → 15 → 20
+          var values = group.entries.map(function (e) {
+            return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
+          });
+          var chain = values.join(" → ");
+          html += "<div style='padding:2px 0;font-size:11px;'>" +
+            "<span style='color:#e2e8f0;'>" + escapeHtml(group.propKey) + "</span>" +
+            "<span style='color:#777884;'>: " + escapeHtml(chain) + "</span>" +
+            "</div>";
+        });
+      } else {
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>CHANGES THIS CHAPTER</div>";
+        html += "<div style='font-size:11px;color:#5f6971;'>No state changes this chapter.</div>";
+      }
+
+      stateList.innerHTML = html;
+    }
 
         allPropKeys[propKey] = true;
 

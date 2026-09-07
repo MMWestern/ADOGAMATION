@@ -9634,8 +9634,19 @@
       // Status
       html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Status</label>";
       html += "<select id='stateEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
-      ["draft", "provisional", "canon", "deprecated"].forEach(function (opt) {
+      // Check if this is a pack entity (system_rule with starting_pack: true)
+      var isPackEntity = false;
+      if (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) {
+        var entity = codexCache.entitiesBySeries[seriesId].find(function (e) { return Number(e.id) === Number(entityId); });
+        if (entity && (entity.codex_entity_types || {}).key === "system_rule") {
+          var cd = entity.custom_data || {};
+          if (cd.starting_pack) isPackEntity = true;
+        }
+      }
+      var statusOptions = ["draft", "provisional", "canon", "deprecated", "template"];
+      statusOptions.forEach(function (opt) {
         var sel = isEdit && existingState.state_status === opt ? " selected" : "";
+        if (!isEdit && isPackEntity && opt === "template") sel = " selected";
         html += "<option value='" + opt + "'" + sel + ">" + opt + "</option>";
       });
       html += "</select></div>";
