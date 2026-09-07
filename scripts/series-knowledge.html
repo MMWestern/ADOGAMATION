@@ -9362,6 +9362,36 @@
                   if (s.notes) html += " <span style='color:var(--muted);font-size:10px;'> — " + escapeHtml(s.notes) + "</span>";
                   html += "</div>";
                 });
+
+                // Show changes in this chapter if chapterSortOrder is specified
+                if (chapterSortOrder != null) {
+                  var chapterStates = states.filter(function (s) {
+                    return Number(s.effective_from_sort || 0) === Number(chapterSortOrder);
+                  });
+                  if (chapterStates.length > 1 || (chapterStates.length === 1 && resolved.length > 0 && chapterStates[0].entry_order > 1)) {
+                    html += "<div style='font-size:11px;font-weight:700;margin-top:12px;margin-bottom:6px;'>Changes this chapter:</div>";
+                    var changeGroups = {};
+                    chapterStates.forEach(function (s) {
+                      var identity = typeof codexV2GetPropertyIdentity === "function" ? codexV2GetPropertyIdentity(s) : (s.property_key || "unknown");
+                      if (!changeGroups[identity]) changeGroups[identity] = { propKey: s.property_key || "unknown", entries: [] };
+                      changeGroups[identity].entries.push(s);
+                    });
+                    Object.keys(changeGroups).forEach(function (identity) {
+                      var group = changeGroups[identity];
+                      group.entries.sort(function (a, b) {
+                        return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
+                      });
+                      var values = group.entries.map(function (e) {
+                        return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
+                      });
+                      var chain = values.join(" → ");
+                      html += "<div style='padding:2px 0;font-size:11px;'>" +
+                        "<span style='color:#e2e8f0;'>" + escapeHtml(group.propKey) + "</span>" +
+                        "<span style='color:#777884;'>: " + escapeHtml(chain) + "</span>" +
+                        "</div>";
+                    });
+                  }
+                }
               }
               // Active Relationships section
               html += "<div style='font-size:11px;font-weight:700;margin-top:12px;margin-bottom:6px;'>Active Relationships:</div>";
@@ -10425,6 +10455,37 @@
             html += "<div style='font-size:12px;'>" + escapeHtml(o.name) + " — " + escapeHtml(String(o.value)) + "</div>";
           });
           html += "</div>";
+        }
+        // Changes This Chapter (only when a specific chapter is selected)
+        if (chapterSortOrder != null) {
+          var chapterStates = states.filter(function (s) {
+            return Number(s.effective_from_sort || 0) === Number(chapterSortOrder);
+          });
+          if (chapterStates.length) {
+            html += "<div style='margin-top:16px;padding-top:12px;border-top:1px solid var(--border);'>";
+            html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;'>Changes This Chapter</div>";
+            var changeGroups = {};
+            chapterStates.forEach(function (s) {
+              var identity = typeof codexV2GetPropertyIdentity === "function" ? codexV2GetPropertyIdentity(s) : (s.property_key || "unknown");
+              if (!changeGroups[identity]) changeGroups[identity] = { propKey: s.property_key || "unknown", entries: [] };
+              changeGroups[identity].entries.push(s);
+            });
+            Object.keys(changeGroups).forEach(function (identity) {
+              var group = changeGroups[identity];
+              group.entries.sort(function (a, b) {
+                return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
+              });
+              var values = group.entries.map(function (e) {
+                return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
+              });
+              var chain = values.join(" → ");
+              html += "<div style='padding:2px 0;font-size:11px;'>" +
+                "<span style='color:#e2e8f0;'>" + escapeHtml(group.propKey) + "</span>" +
+                "<span style='color:#777884;'>: " + escapeHtml(chain) + "</span>" +
+                "</div>";
+            });
+            html += "</div>";
+          }
         }
         // Active Relationships section
         html += "<div style='margin-top:16px;padding-top:12px;border-top:1px solid var(--border);'>";
