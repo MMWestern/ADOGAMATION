@@ -9349,30 +9349,10 @@
               if (!states.length) {
                 html += "<div class='tiny' style='color:var(--muted);margin-bottom:12px;'>No state recorded.</div>";
               } else {
-                // Group states by property_key, then keep only the latest entry (highest entry_order)
-                var stateGroups = {};
-                states.forEach(function (s) {
-                  var key = s.property_key || "unknown";
-                  if (!stateGroups[key]) stateGroups[key] = [];
-                  stateGroups[key].push(s);
-                });
-                // Resolve to latest entry per property
-                var resolved = [];
-                Object.keys(stateGroups).forEach(function (key) {
-                  var group = stateGroups[key];
-                  // Sort by effective_from_sort DESC (latest chapter first), then entry_order DESC
-                  group.sort(function (a, b) {
-                    var sortA = Number(a.effective_from_sort || 0);
-                    var sortB = Number(b.effective_from_sort || 0);
-                    if (sortA !== sortB) return sortB - sortA;
-                    return (Number(b.entry_order || 1)) - (Number(a.entry_order || 1));
-                  });
-                  resolved.push(group[0]);
-                });
-                // Sort resolved by property_key
-                resolved.sort(function (a, b) {
-                  return (a.property_key || "").localeCompare(b.property_key || "");
-                });
+                // Use shared resolver for deduplication (latest per canonical property)
+                var resolved = typeof codexV2ResolveState === "function"
+                  ? codexV2ResolveState(states, { mode: 'stateAt' })
+                  : states;
                 resolved.forEach(function (s) {
                   var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
                   html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);margin-bottom:4px;'>";
@@ -10349,7 +10329,12 @@
         } else {
           html += "<div style='font-size:11px;color:var(--muted);margin-bottom:12px;'>Current state (all records)</div>";
         }
-        // Group states by category
+        // Resolve state: deduplicate by canonical property identity
+        var resolved = typeof codexV2ResolveState === "function"
+          ? codexV2ResolveState(states, { mode: 'progression' })
+          : states;
+
+        // Group resolved states by category
         var levels = [];
         var stats = [];
         var resources = [];
@@ -10357,7 +10342,7 @@
         var classes = [];
         var traits = [];
         var other = [];
-        states.forEach(function (s) {
+        resolved.forEach(function (s) {
           var key = (s.property_key || "").toLowerCase();
           var entityId = s.property_entity_id;
           var entityInfo = entityId ? entities.find(function (e) { return Number(e.id) === entityId; }) : null;
