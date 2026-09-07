@@ -4483,19 +4483,14 @@
     function getWritingChapterSortOrder() {
       var scope = String(appState.writingWorkspace.scope || "");
       if (!scope) return null;
-      var outline = appState.writingWorkspace.outline;
-      if (!outline) return null;
-      var chapterSortOrder = null;
-      (outline.acts || []).forEach(function (act) {
-        (act.children || []).forEach(function (ch) {
-          if (ch.id === scope) chapterSortOrder = ch.sortOrder;
-        });
-      });
-      if (chapterSortOrder == null) return null;
+      var segments = Array.isArray(appState.writingWorkspace.segments) ? appState.writingWorkspace.segments : [];
+      var segment = scope ? segments.find(function (s) { return s.key === scope; }) : null;
+      if (!segment) return null;
       var project = getSelectedProject();
       if (!project) return null;
       var bookNum = codexV2GetBookNumber(project.project_id || project.id);
-      return codexV2GlobalSort(bookNum, chapterSortOrder);
+      // segment.sortOrder is 1-based (matches database sort_order)
+      return codexV2GlobalSort(bookNum, segment.sortOrder);
     }
 
     /**
@@ -4510,15 +4505,13 @@
       var project = getSelectedProject();
       if (!project) return null;
       var bookNum = codexV2GetBookNumber(project.project_id || project.id);
-      // Get chapter number from segment index
-      var segIdx = segments.findIndex(function (s) { return s.key === scope; });
       return {
         key: segment.key,
         title: segment.title,
-        chapterNum: segIdx >= 0 ? segIdx + 1 : 0,
+        chapterNum: segment.sortOrder, // 1-based
         bookId: project.project_id || project.id,
         bookNum: bookNum,
-        sortOrder: getWritingChapterSortOrder()
+        sortOrder: codexV2GlobalSort(bookNum, segment.sortOrder)
       };
     }
 
