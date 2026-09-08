@@ -4604,14 +4604,81 @@
         : [];
 
       if (resolved.length) {
-        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>CURRENT STATE</div>";
+        // Categorize into stats, resources, and other
+        var statDefs = {
+          strength: { abbr: "STR", cls: "stat-str" },
+          intelligence: { abbr: "INT", cls: "stat-int" },
+          dexterity: { abbr: "DEX", cls: "stat-dex" },
+          constitution: { abbr: "CON", cls: "stat-con" },
+          charisma: { abbr: "CHA", cls: "stat-cha" },
+          wisdom: { abbr: "WIS", cls: "stat-wis" }
+        };
+        var resourceDefs = {
+          health: { abbr: "HP", cls: "res-health" },
+          mana: { abbr: "MP", cls: "res-mana" },
+          stamina: { abbr: "STA", cls: "res-stamina" },
+          xp: { abbr: "XP", cls: "res-xp" },
+          experience: { abbr: "XP", cls: "res-xp" }
+        };
+
+        var stats = [];
+        var resources = [];
+        var other = [];
+
         resolved.forEach(function (s) {
+          var key = (s.property_key || "").toLowerCase();
           var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
-          html += "<div style='padding:2px 0;font-size:12px;'>" +
-            "<span style='color:#e2e8f0;'>" + escapeHtml(s.property_key || "property") + "</span>" +
-            "<span style='color:#777884;'>: " + escapeHtml(value) + "</span>" +
-            "</div>";
+          var entry = { key: key, value: value, propKey: s.property_key || "property" };
+
+          if (statDefs[key]) {
+            entry.abbr = statDefs[key].abbr;
+            entry.cls = statDefs[key].cls;
+            stats.push(entry);
+          } else if (resourceDefs[key]) {
+            entry.abbr = resourceDefs[key].abbr;
+            entry.cls = resourceDefs[key].cls;
+            resources.push(entry);
+          } else {
+            other.push(entry);
+          }
         });
+
+        // Render stats in a row
+        if (stats.length) {
+          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>STATS</div>";
+          html += "<div class='stat-box-group'>";
+          stats.forEach(function (s) {
+            html += "<div class='stat-box " + s.cls + "'>" +
+              "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
+              "</div>";
+          });
+          html += "</div>";
+        }
+
+        // Render resources in a row
+        if (resources.length) {
+          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>RESOURCES</div>";
+          html += "<div class='stat-box-group'>";
+          resources.forEach(function (r) {
+            html += "<div class='stat-box " + r.cls + "'>" +
+              "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
+              "</div>";
+          });
+          html += "</div>";
+        }
+
+        // Render other as list
+        if (other.length) {
+          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>OTHER</div>";
+          other.forEach(function (o) {
+            html += "<div style='padding:2px 0;font-size:11px;'>" +
+              "<span style='color:#e2e8f0;'>" + escapeHtml(o.propKey) + "</span>" +
+              "<span style='color:#777884;'>: " + escapeHtml(o.value) + "</span>" +
+              "</div>";
+          });
+        }
       }
 
       // --- ACTIVE RELATIONSHIPS ---

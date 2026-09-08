@@ -3315,6 +3315,64 @@
       padding: 4px 0;
     }
 
+    /* RPG-style stat boxes */
+    .stat-box-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 44px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      background: #1a1a20;
+      border: 1px solid #3a3a42;
+    }
+    .stat-box-abbr {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .stat-box-value {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1;
+      color: #e2e8f0;
+    }
+    .stat-box-label {
+      font-size: 8px;
+      color: #777884;
+      margin-top: 2px;
+      text-align: center;
+      line-height: 1;
+    }
+
+    /* Stat type colors */
+    .stat-str .stat-box-abbr { color: #ef4444; } /* Red - Strength */
+    .stat-int .stat-box-abbr { color: #818cf8; } /* Indigo - Intelligence */
+    .stat-dex .stat-box-abbr { color: #34d399; } /* Emerald - Dexterity */
+    .stat-con .stat-box-abbr { color: #f59e0b; } /* Amber - Constitution */
+    .stat-cha .stat-box-abbr { color: #f472b6; } /* Pink - Charisma */
+    .stat-wis .stat-box-abbr { color: #60a5fa; } /* Blue - Wisdom */
+
+    /* Resource colors */
+    .res-health .stat-box-abbr { color: #ef4444; } /* Red */
+    .res-health .stat-box-value { color: #fca5a5; }
+    .res-mana .stat-box-abbr { color: #60a5fa; } /* Blue */
+    .res-mana .stat-box-value { color: #93c5fd; }
+    .res-stamina .stat-box-abbr { color: #34d399; } /* Green */
+    .res-stamina .stat-box-value { color: #6ee7b7; }
+    .res-xp .stat-box-abbr { color: #f59e0b; } /* Amber */
+    .res-xp .stat-box-value { color: #fcd34d; }
+    .res-default .stat-box-abbr { color: #a5b4fc; } /* Default purple */
+
     .writing-inspector-state-list::-webkit-scrollbar {
       width: 6px;
     }
