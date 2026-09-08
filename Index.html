@@ -1715,16 +1715,26 @@
             </div>
           </div>
 
-          <div class="writing-inspector-card writing-inspector-bottom-card">
-            <div class="tiny writing-inspector-label">Selected Codex Entry</div>
-            <div id="writingInspectorCodexTitle" class="writing-inspector-title">Nothing selected</div>
-            <div id="writingInspectorCodexBody" class="writing-inspector-copy">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
-            <div id="writingInspectorStateSection" hidden>
-              <!-- Sticky HUD for stats/resources -->
-              <div id="writingInspectorHud" class="writing-inspector-hud"></div>
-              <!-- Scrollable content for relationships and changes -->
-              <div id="writingInspectorStateList" class="writing-inspector-state-list"></div>
+          <div class="writing-inspector-card writing-inspector-bottom-card" style="height:320px;display:flex;flex-direction:column;">
+            <div class="tiny writing-inspector-label" style="flex-shrink:0;">Selected Codex Entry</div>
+            <div id="writingInspectorStateSection" hidden style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+              <!-- Top: Two-column layout -->
+              <div class="writing-inspector-two-col" style="flex-shrink:0;display:flex;gap:12px;padding-bottom:8px;border-bottom:1px solid #303038;">
+                <!-- Left: Title + Classification -->
+                <div class="writing-inspector-left" style="flex:1;min-width:0;">
+                  <div id="writingInspectorCodexTitle" class="writing-inspector-title" style="font-size:14px;font-weight:700;margin-bottom:4px;">Nothing selected</div>
+                  <div id="writingInspectorClassification" style="font-size:11px;color:#777884;"></div>
+                </div>
+                <!-- Right: Stats HUD -->
+                <div class="writing-inspector-right" style="flex-shrink:0;">
+                  <div id="writingInspectorHud" class="writing-inspector-hud" style="padding:0;border:none;margin:0;background:transparent;"></div>
+                </div>
+              </div>
+              <!-- Bottom: Scrollable content -->
+              <div id="writingInspectorStateList" class="writing-inspector-state-list" style="flex:1;overflow-y:auto;margin-top:8px;"></div>
             </div>
+            <!-- Fallback when no entity selected -->
+            <div id="writingInspectorCodexBody" class="writing-inspector-copy" style="flex:1;">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
           </div>
         </div>
 

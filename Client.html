@@ -4445,14 +4445,17 @@
       var match = entries.find(function (entry) {
         return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || "");
       }) || null;
+      // Update title in left column
       if (el.writingInspectorCodexTitle) el.writingInspectorCodexTitle.textContent = match ? match.title : "Nothing selected";
-      if (el.writingInspectorCodexBody) el.writingInspectorCodexBody.textContent = match ? (match.body || "No details yet.") : "Pick a codex entry from the left to keep it in view while you write.";
 
       // Load contextual state for selected entry
       var stateSection = document.getElementById("writingInspectorStateSection");
       var stateList = document.getElementById("writingInspectorStateList");
+      var codexBody = document.getElementById("writingInspectorCodexBody");
+
       if (!match || !stateSection || !stateList) {
         if (stateSection) stateSection.hidden = true;
+        if (codexBody) codexBody.style.display = "";
         return;
       }
 
@@ -4460,6 +4463,7 @@
       var entityId = Number(parts[1] || 0);
       if (!entityId) {
         stateSection.hidden = true;
+        if (codexBody) codexBody.style.display = "";
         return;
       }
 
@@ -4467,10 +4471,12 @@
       var seriesId = Number(selectedProject && selectedProject.series_id || 0);
       if (!seriesId) {
         stateSection.hidden = true;
+        if (codexBody) codexBody.style.display = "";
         return;
       }
 
       stateSection.hidden = false;
+      if (codexBody) codexBody.style.display = "none";
       stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>Loading state...</div>";
 
       loadWritingInspectorContextual(seriesId, entityId, selectedProject, stateList, stateSection);
@@ -4546,56 +4552,44 @@
     }
 
     /**
-     * Render contextual state: Classification, Current State, Active Relationships, Changes This Chapter
-     * Stats/Resources go in sticky HUD, everything else in scrollable list
+     * Render contextual state: Classification (left), Stats (right HUD), Relationships/Changes (scrollable)
      */
     function renderWritingInspectorContextual(states, connections, chapterInfo, seriesId, entityId, stateList) {
       if (!stateList) return;
 
       var hud = document.getElementById("writingInspectorHud");
+      var classEl = document.getElementById("writingInspectorClassification");
       var hudHtml = "";
+      var classHtml = "";
       var html = "";
 
-      // Chapter header
+      // Chapter header in scrollable area
       var chapLabel = chapterInfo.bookNum > 0
         ? "Book " + chapterInfo.bookNum + ", Ch. " + chapterInfo.chapterNum
         : "Ch. " + chapterInfo.chapterNum;
-      html += "<div style='font-size:11px;font-weight:600;color:#a5b4fc;margin-bottom:8px;'>" + escapeHtml(chapLabel) + (chapterInfo.title ? ": " + escapeHtml(chapterInfo.title) : "") + "</div>";
+      html += "<div style='font-size:10px;font-weight:600;color:#a5b4fc;margin-bottom:6px;'>" + escapeHtml(chapLabel) + (chapterInfo.title ? ": " + escapeHtml(chapterInfo.title) : "") + "</div>";
 
-      // --- CLASSIFICATION ---
+      // --- CLASSIFICATION (left column) ---
       var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
       var entity = entities.find(function (e) { return Number(e.id) === Number(entityId); });
       if (entity) {
         var custom = entity.custom_data || {};
         var classFields = [];
         var role = String(custom.sub_type || custom.role_archetype || "").trim();
-        if (role) classFields.push({ label: "Role", value: role });
-        var archetype = String(custom.archetype || "").trim();
-        if (archetype) classFields.push({ label: "Archetype", value: archetype });
-        var profession = String(custom.profession || "").trim();
-        if (profession) classFields.push({ label: "Profession", value: profession });
-        var background = String(custom.background || "").trim();
-        if (background) classFields.push({ label: "Background", value: background });
-
+        if (role) classFields.push(role);
+        var species = "";
         var entityLinks = (typeof codexCache !== "undefined" && codexCache.fieldValues && codexCache.fieldValues[entityId]) || {};
-        var linkFields = ["species", "culture", "family", "organisation", "progression_system"];
-        linkFields.forEach(function (key) {
-          var val = entityLinks[key];
-          if (val && val.value_text) classFields.push({ label: key.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }), value: val.value_text });
-        });
+        if (entityLinks.species && entityLinks.species.value_text) species = entityLinks.species.value_text;
+        if (species) classFields.push(species);
+        var archetype = String(custom.archetype || "").trim();
+        if (archetype) classFields.push(archetype);
 
         if (classFields.length) {
-          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>CLASSIFICATION</div>";
-          classFields.forEach(function (f) {
-            html += "<div style='padding:2px 0;font-size:11px;'>" +
-              "<span style='color:#777884;'>" + escapeHtml(f.label) + ":</span> " +
-              "<span style='color:#e2e8f0;'>" + escapeHtml(f.value) + "</span>" +
-              "</div>";
-          });
+          classHtml = classFields.join(" · ");
         }
       }
 
-      // --- CURRENT STATE (Stats/Resources in HUD, Other in list) ---
+      // --- CURRENT STATE (Stats/Resources in HUD, Other in scrollable) ---
       var resolved = typeof codexV2ResolveState === "function"
         ? codexV2ResolveState(states, { mode: 'stateAt' })
         : [];
@@ -4639,40 +4633,36 @@
           }
         });
 
-        // Stats and Resources go into HUD (sticky)
-        if (stats.length || resources.length) {
-          if (stats.length) {
-            hudHtml += "<div style='font-size:9px;font-weight:600;color:#777884;margin-bottom:3px;'>STATS</div>";
-            hudHtml += "<div class='stat-box-group'>";
-            stats.forEach(function (s) {
-              hudHtml += "<div class='stat-box " + s.cls + "'>" +
-                "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
-                "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
-                "</div>";
-            });
-            hudHtml += "</div>";
-          }
+        // Stats and Resources go into HUD (right column)
+        if (stats.length) {
+          hudHtml += "<div class='stat-box-group'>";
+          stats.forEach(function (s) {
+            hudHtml += "<div class='stat-box " + s.cls + "'>" +
+              "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
+              "</div>";
+          });
+          hudHtml += "</div>";
+        }
 
-          if (resources.length) {
-            hudHtml += "<div style='font-size:9px;font-weight:600;color:#777884;margin-bottom:3px;margin-top:6px;'>RESOURCES</div>";
-            hudHtml += "<div class='stat-box-group'>";
-            resources.forEach(function (r) {
-              hudHtml += "<div class='stat-box " + r.cls + "'>" +
-                "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
-                "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
-                "</div>";
-            });
-            hudHtml += "</div>";
-          }
+        if (resources.length) {
+          if (stats.length) hudHtml += "<div style='height:4px;'></div>";
+          hudHtml += "<div class='stat-box-group'>";
+          resources.forEach(function (r) {
+            hudHtml += "<div class='stat-box " + r.cls + "'>" +
+              "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
+              "</div>";
+          });
+          hudHtml += "</div>";
         }
 
         // Other properties in scrollable list
         if (other.length) {
-          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>OTHER STATE</div>";
           other.forEach(function (o) {
-            html += "<div style='padding:2px 0;font-size:11px;'>" +
-              "<span style='color:#e2e8f0;'>" + escapeHtml(o.propKey) + "</span>" +
-              "<span style='color:#777884;'>: " + escapeHtml(o.value) + "</span>" +
+            html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;'>" +
+              "<span style='color:#777884;'>" + escapeHtml(o.propKey) + "</span>" +
+              "<span style='color:#e2e8f0;'>" + escapeHtml(o.value) + "</span>" +
               "</div>";
           });
         }
@@ -4680,17 +4670,16 @@
 
       // --- ACTIVE RELATIONSHIPS ---
       if (connections.length) {
-        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>ACTIVE RELATIONSHIPS</div>";
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>Relationships</div>";
         connections.forEach(function (c) {
           var isSource = Number(c.source_entity_id) === entityId;
           var relType = c.codex_relationship_types || {};
           var label = isSource ? (c.label || relType.forward_label || relType.key || "Related") : (c.inverse_label || relType.inverse_label || c.label || relType.forward_label || "Related");
           var otherId = isSource ? Number(c.target_entity_id) : Number(c.source_entity_id);
-          var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
           var otherEntity = entities.find(function (e) { return Number(e.id) === otherId; });
           var otherName = otherEntity ? (otherEntity.name || "Unnamed") : "Entity #" + otherId;
-          html += "<div style='padding:2px 0;font-size:11px;'>" +
-            "<span style='color:#777884;'>" + escapeHtml(label) + "</span> " +
+          html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;'>" +
+            "<span style='color:#777884;'>" + escapeHtml(label) + "</span>" +
             "<span style='color:#e2e8f0;'>" + escapeHtml(otherName) + "</span>" +
             "</div>";
         });
@@ -4702,7 +4691,7 @@
       });
 
       if (chapterStates.length) {
-        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>CHANGES THIS CHAPTER</div>";
+        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>Changes This Chapter</div>";
 
         var changeGroups = {};
         chapterStates.forEach(function (s) {
@@ -4720,17 +4709,15 @@
             return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
           });
           var chain = values.join(" → ");
-          html += "<div style='padding:2px 0;font-size:11px;'>" +
-            "<span style='color:#e2e8f0;'>" + escapeHtml(group.propKey) + "</span>" +
-            "<span style='color:#777884;'>: " + escapeHtml(chain) + "</span>" +
+          html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;'>" +
+            "<span style='color:#777884;'>" + escapeHtml(group.propKey) + "</span>" +
+            "<span style='color:#e2e8f0;'>" + escapeHtml(chain) + "</span>" +
             "</div>";
         });
-      } else {
-        html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>CHANGES THIS CHAPTER</div>";
-        html += "<div style='font-size:11px;color:#5f6971;'>No state changes this chapter.</div>";
       }
 
-      // Render HUD and list
+      // Render
+      if (classEl) classEl.textContent = classHtml;
       if (hud) hud.innerHTML = hudHtml;
       stateList.innerHTML = html;
     }
