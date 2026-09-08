@@ -4571,23 +4571,28 @@
         : "Ch. " + chapterInfo.chapterNum;
       html += "<div style='font-size:10px;font-weight:600;color:#a5b4fc;margin-bottom:6px;'>" + escapeHtml(chapLabel) + (chapterInfo.title ? ": " + escapeHtml(chapterInfo.title) : "") + "</div>";
 
-      // --- CLASSIFICATION (left column) ---
+      // --- CLASSIFICATION (left column as pills) ---
       var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
       var entity = entities.find(function (e) { return Number(e.id) === Number(entityId); });
       if (entity) {
         var custom = entity.custom_data || {};
-        var classFields = [];
+        var classPills = [];
         var role = String(custom.sub_type || custom.role_archetype || "").trim();
-        if (role) classFields.push(role);
+        if (role) classPills.push(role);
+        var archetype = String(custom.archetype || "").trim();
+        if (archetype && archetype !== role) classPills.push(archetype);
         var species = "";
         var entityLinks = (typeof codexCache !== "undefined" && codexCache.fieldValues && codexCache.fieldValues[entityId]) || {};
         if (entityLinks.species && entityLinks.species.value_text) species = entityLinks.species.value_text;
-        if (species) classFields.push(species);
-        var archetype = String(custom.archetype || "").trim();
-        if (archetype) classFields.push(archetype);
+        if (species) classPills.push(species);
+        var culture = "";
+        if (entityLinks.culture && entityLinks.culture.value_text) culture = entityLinks.culture.value_text;
+        if (culture) classPills.push(culture);
 
-        if (classFields.length) {
-          classHtml = classFields.join(" · ");
+        if (classPills.length) {
+          classPills.forEach(function (pill) {
+            classHtml += "<span class='writing-codex-entry-pill badge-color-" + badgeColorIndex(pill) + "'>" + escapeHtml(pill) + "</span>";
+          });
         }
       }
 
@@ -4719,7 +4724,7 @@
       }
 
       // Render
-      if (classEl) classEl.textContent = classHtml;
+      if (classEl) classEl.innerHTML = classHtml;
       if (hud) hud.innerHTML = hudHtml;
       stateList.innerHTML = html;
     }
