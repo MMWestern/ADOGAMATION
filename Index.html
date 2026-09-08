@@ -1720,7 +1720,9 @@
             <div id="writingInspectorCodexTitle" class="writing-inspector-title">Nothing selected</div>
             <div id="writingInspectorCodexBody" class="writing-inspector-copy">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
             <div id="writingInspectorStateSection" hidden>
-              <div class="tiny writing-inspector-label" style="margin-top:8px;">State / Progression</div>
+              <!-- Sticky HUD for stats/resources -->
+              <div id="writingInspectorHud" class="writing-inspector-hud"></div>
+              <!-- Scrollable content for relationships and changes -->
               <div id="writingInspectorStateList" class="writing-inspector-state-list"></div>
             </div>
           </div>

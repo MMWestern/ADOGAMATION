@@ -4547,10 +4547,13 @@
 
     /**
      * Render contextual state: Classification, Current State, Active Relationships, Changes This Chapter
+     * Stats/Resources go in sticky HUD, everything else in scrollable list
      */
     function renderWritingInspectorContextual(states, connections, chapterInfo, seriesId, entityId, stateList) {
       if (!stateList) return;
 
+      var hud = document.getElementById("writingInspectorHud");
+      var hudHtml = "";
       var html = "";
 
       // Chapter header
@@ -4565,20 +4568,15 @@
       if (entity) {
         var custom = entity.custom_data || {};
         var classFields = [];
-        // Role (from custom_data)
         var role = String(custom.sub_type || custom.role_archetype || "").trim();
         if (role) classFields.push({ label: "Role", value: role });
-        // Archetype
         var archetype = String(custom.archetype || "").trim();
         if (archetype) classFields.push({ label: "Archetype", value: archetype });
-        // Profession
         var profession = String(custom.profession || "").trim();
         if (profession) classFields.push({ label: "Profession", value: profession });
-        // Background
         var background = String(custom.background || "").trim();
         if (background) classFields.push({ label: "Background", value: background });
 
-        // Entity link fields (Species, Culture, Family, Organisation, Progression System)
         var entityLinks = (typeof codexCache !== "undefined" && codexCache.fieldValues && codexCache.fieldValues[entityId]) || {};
         var linkFields = ["species", "culture", "family", "organisation", "progression_system"];
         linkFields.forEach(function (key) {
@@ -4597,14 +4595,12 @@
         }
       }
 
-      // --- CURRENT STATE ---
-      // Use shared resolver for deduplication (latest per canonical property)
+      // --- CURRENT STATE (Stats/Resources in HUD, Other in list) ---
       var resolved = typeof codexV2ResolveState === "function"
         ? codexV2ResolveState(states, { mode: 'stateAt' })
         : [];
 
       if (resolved.length) {
-        // Categorize into stats, resources, and other
         var statDefs = {
           strength: { abbr: "STR", cls: "stat-str" },
           intelligence: { abbr: "INT", cls: "stat-int" },
@@ -4643,35 +4639,36 @@
           }
         });
 
-        // Render stats in a row
-        if (stats.length) {
-          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;'>STATS</div>";
-          html += "<div class='stat-box-group'>";
-          stats.forEach(function (s) {
-            html += "<div class='stat-box " + s.cls + "'>" +
-              "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
-              "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
-              "</div>";
-          });
-          html += "</div>";
+        // Stats and Resources go into HUD (sticky)
+        if (stats.length || resources.length) {
+          if (stats.length) {
+            hudHtml += "<div style='font-size:9px;font-weight:600;color:#777884;margin-bottom:3px;'>STATS</div>";
+            hudHtml += "<div class='stat-box-group'>";
+            stats.forEach(function (s) {
+              hudHtml += "<div class='stat-box " + s.cls + "'>" +
+                "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
+                "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
+                "</div>";
+            });
+            hudHtml += "</div>";
+          }
+
+          if (resources.length) {
+            hudHtml += "<div style='font-size:9px;font-weight:600;color:#777884;margin-bottom:3px;margin-top:6px;'>RESOURCES</div>";
+            hudHtml += "<div class='stat-box-group'>";
+            resources.forEach(function (r) {
+              hudHtml += "<div class='stat-box " + r.cls + "'>" +
+                "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
+                "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
+                "</div>";
+            });
+            hudHtml += "</div>";
+          }
         }
 
-        // Render resources in a row
-        if (resources.length) {
-          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>RESOURCES</div>";
-          html += "<div class='stat-box-group'>";
-          resources.forEach(function (r) {
-            html += "<div class='stat-box " + r.cls + "'>" +
-              "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
-              "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
-              "</div>";
-          });
-          html += "</div>";
-        }
-
-        // Render other as list
+        // Other properties in scrollable list
         if (other.length) {
-          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>OTHER</div>";
+          html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-bottom:4px;margin-top:8px;'>OTHER STATE</div>";
           other.forEach(function (o) {
             html += "<div style='padding:2px 0;font-size:11px;'>" +
               "<span style='color:#e2e8f0;'>" + escapeHtml(o.propKey) + "</span>" +
@@ -4700,7 +4697,6 @@
       }
 
       // --- CHANGES THIS CHAPTER ---
-      // Filter to only records in the current chapter
       var chapterStates = states.filter(function (s) {
         return Number(s.effective_from_sort || 0) === Number(chapterInfo.sortOrder || 0);
       });
@@ -4708,7 +4704,6 @@
       if (chapterStates.length) {
         html += "<div style='font-size:10px;font-weight:600;color:#777884;margin-top:8px;margin-bottom:4px;'>CHANGES THIS CHAPTER</div>";
 
-        // Group by property identity
         var changeGroups = {};
         chapterStates.forEach(function (s) {
           var identity = typeof codexV2GetPropertyIdentity === "function" ? codexV2GetPropertyIdentity(s) : (s.property_key || "unknown");
@@ -4718,12 +4713,9 @@
 
         Object.keys(changeGroups).forEach(function (identity) {
           var group = changeGroups[identity];
-          // Sort entries by entry_order
           group.entries.sort(function (a, b) {
             return (Number(a.entry_order || 1)) - (Number(b.entry_order || 1));
           });
-
-          // Show as chain: 10 → 15 → 20
           var values = group.entries.map(function (e) {
             return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
           });
@@ -4738,6 +4730,8 @@
         html += "<div style='font-size:11px;color:#5f6971;'>No state changes this chapter.</div>";
       }
 
+      // Render HUD and list
+      if (hud) hud.innerHTML = hudHtml;
       stateList.innerHTML = html;
     }
 
