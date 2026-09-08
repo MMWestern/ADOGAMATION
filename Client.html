@@ -4445,17 +4445,19 @@
       var match = entries.find(function (entry) {
         return String(entry.key || "") === String(appState.writingWorkspace.selectedCodexKey || "");
       }) || null;
-      // Update title in left column
+      // Update title and description in left column
       if (el.writingInspectorCodexTitle) el.writingInspectorCodexTitle.textContent = match ? match.title : "Nothing selected";
+      var codexBody = document.getElementById("writingInspectorCodexBody");
+      if (codexBody) codexBody.textContent = match ? (match.body || "") : "";
 
       // Load contextual state for selected entry
       var stateSection = document.getElementById("writingInspectorStateSection");
       var stateList = document.getElementById("writingInspectorStateList");
-      var codexBody = document.getElementById("writingInspectorCodexBody");
+      var emptyBody = document.getElementById("writingInspectorEmptyBody");
 
       if (!match || !stateSection || !stateList) {
         if (stateSection) stateSection.hidden = true;
-        if (codexBody) codexBody.style.display = "";
+        if (emptyBody) emptyBody.style.display = "";
         return;
       }
 
@@ -4463,7 +4465,7 @@
       var entityId = Number(parts[1] || 0);
       if (!entityId) {
         stateSection.hidden = true;
-        if (codexBody) codexBody.style.display = "";
+        if (emptyBody) emptyBody.style.display = "";
         return;
       }
 
@@ -4471,12 +4473,12 @@
       var seriesId = Number(selectedProject && selectedProject.series_id || 0);
       if (!seriesId) {
         stateSection.hidden = true;
-        if (codexBody) codexBody.style.display = "";
+        if (emptyBody) emptyBody.style.display = "";
         return;
       }
 
       stateSection.hidden = false;
-      if (codexBody) codexBody.style.display = "none";
+      if (emptyBody) emptyBody.style.display = "none";
       stateList.innerHTML = "<div class='muted' style='padding:4px 0;'>Loading state...</div>";
 
       loadWritingInspectorContextual(seriesId, entityId, selectedProject, stateList, stateSection);
