@@ -147,6 +147,91 @@
     window.codexV2ResolveState = codexV2ResolveState;
 
     /**
+     * Stat and resource definitions for RPG-style display.
+     * Used by Writing Inspector, View State At, and Progression Sheet.
+     */
+    var codexV2StatDefs = {
+      strength: { abbr: "STR", cls: "stat-str" },
+      intelligence: { abbr: "INT", cls: "stat-int" },
+      dexterity: { abbr: "DEX", cls: "stat-dex" },
+      constitution: { abbr: "CON", cls: "stat-con" },
+      charisma: { abbr: "CHA", cls: "stat-cha" },
+      wisdom: { abbr: "WIS", cls: "stat-wis" }
+    };
+    var codexV2ResourceDefs = {
+      health: { abbr: "HP", cls: "res-health" },
+      mana: { abbr: "MP", cls: "res-mana" },
+      stamina: { abbr: "STA", cls: "res-stamina" },
+      xp: { abbr: "XP", cls: "res-xp" },
+      experience: { abbr: "XP", cls: "res-xp" }
+    };
+
+    window.codexV2StatDefs = codexV2StatDefs;
+    window.codexV2ResourceDefs = codexV2ResourceDefs;
+
+    /**
+     * Categorize resolved state into stats, resources, and other.
+     * Returns { stats: [], resources: [], other: [] }
+     */
+    function codexV2CategorizeState(resolved) {
+      var stats = [];
+      var resources = [];
+      var other = [];
+      (resolved || []).forEach(function (s) {
+        var key = (s.property_key || "").toLowerCase();
+        var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
+        var entry = { key: key, value: value, propKey: s.property_key || "property" };
+        if (codexV2StatDefs[key]) {
+          entry.abbr = codexV2StatDefs[key].abbr;
+          entry.cls = codexV2StatDefs[key].cls;
+          stats.push(entry);
+        } else if (codexV2ResourceDefs[key]) {
+          entry.abbr = codexV2ResourceDefs[key].abbr;
+          entry.cls = codexV2ResourceDefs[key].cls;
+          resources.push(entry);
+        } else {
+          other.push(entry);
+        }
+      });
+      return { stats: stats, resources: resources, other: other };
+    }
+
+    window.codexV2CategorizeState = codexV2CategorizeState;
+
+    /**
+     * Render stat boxes HTML for a categorized state.
+     * Input: { stats: [], resources: [] }
+     * Returns HTML string with stat-box-group divs.
+     */
+    function codexV2RenderStatBoxes(categorized) {
+      var html = "";
+      if (categorized.stats.length) {
+        html += "<div class='stat-box-group'>";
+        categorized.stats.forEach(function (s) {
+          html += "<div class='stat-box " + s.cls + "'>" +
+            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(s.abbr) : s.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(s.value) : s.value) + "</div>" +
+            "</div>";
+        });
+        html += "</div>";
+      }
+      if (categorized.resources.length) {
+        if (categorized.stats.length) html += "<div style='height:4px;'></div>";
+        html += "<div class='stat-box-group'>";
+        categorized.resources.forEach(function (r) {
+          html += "<div class='stat-box " + r.cls + "'>" +
+            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(r.abbr) : r.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(r.value) : r.value) + "</div>" +
+            "</div>";
+        });
+        html += "</div>";
+      }
+      return html;
+    }
+
+    window.codexV2RenderStatBoxes = codexV2RenderStatBoxes;
+
+    /**
      * Record an entity appearance when an entity is linked to a project/book.
      * Called from saveCodexEntityProjects and entity save paths.
      */

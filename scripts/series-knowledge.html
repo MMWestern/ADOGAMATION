@@ -9345,7 +9345,6 @@
               var connections = results[1];
               var html = "";
               // State section
-              html += "<div style='font-size:11px;font-weight:700;margin-bottom:6px;'>State at this point:</div>";
               if (!states.length) {
                 html += "<div class='tiny' style='color:var(--muted);margin-bottom:12px;'>No state recorded.</div>";
               } else {
@@ -9353,15 +9352,26 @@
                 var resolved = typeof codexV2ResolveState === "function"
                   ? codexV2ResolveState(states, { mode: 'stateAt' })
                   : states;
-                resolved.forEach(function (s) {
-                  var value = s.value_number != null ? s.value_number : s.value_text || (s.value_json ? JSON.stringify(s.value_json) : "—");
-                  html += "<div style='padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);margin-bottom:4px;'>";
-                  html += "<span style='font-weight:600;'>" + escapeHtml(s.property_key || "property") + "</span>";
-                  html += " = " + escapeHtml(String(value));
-                  if (s.state_status) html += " <span style='color:var(--muted);'>[" + escapeHtml(s.state_status) + "]</span>";
-                  if (s.notes) html += " <span style='color:var(--muted);font-size:10px;'> — " + escapeHtml(s.notes) + "</span>";
-                  html += "</div>";
-                });
+
+                // Categorize into stats, resources, other
+                var categorized = typeof codexV2CategorizeState === "function"
+                  ? codexV2CategorizeState(resolved)
+                  : { stats: [], resources: [], other: resolved.map(function (s) { return { propKey: s.property_key, value: s.value_number != null ? String(s.value_number) : (s.value_text || "—") }; }) };
+
+                // Render stats/resources as boxes
+                if (categorized.stats.length || categorized.resources.length) {
+                  html += "<div style='margin-bottom:12px;'>" + (typeof codexV2RenderStatBoxes === "function" ? codexV2RenderStatBoxes(categorized) : "") + "</div>";
+                }
+
+                // Render other as list
+                if (categorized.other.length) {
+                  categorized.other.forEach(function (o) {
+                    html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);'>" +
+                      "<span style='color:#e2e8f0;'>" + escapeHtml(o.propKey) + "</span>" +
+                      "<span style='color:#777884;'>" + escapeHtml(o.value) + "</span>" +
+                      "</div>";
+                  });
+                }
 
                 // Show changes in this chapter if chapterSortOrder is specified
                 if (chapterSortOrder != null) {
@@ -9385,9 +9395,9 @@
                         return e.value_number != null ? String(e.value_number) : (e.value_text || "?");
                       });
                       var chain = values.join(" → ");
-                      html += "<div style='padding:2px 0;font-size:11px;'>" +
+                      html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;'>" +
                         "<span style='color:#e2e8f0;'>" + escapeHtml(group.propKey) + "</span>" +
-                        "<span style='color:#777884;'>: " + escapeHtml(chain) + "</span>" +
+                        "<span style='color:#777884;'>" + escapeHtml(chain) + "</span>" +
                         "</div>";
                     });
                   }
@@ -10364,16 +10374,28 @@
           ? codexV2ResolveState(states, { mode: 'progression' })
           : states;
 
-        // Group resolved states by category
+        // Use shared categorization for stats/resources
+        var categorized = typeof codexV2CategorizeState === "function"
+          ? codexV2CategorizeState(resolved)
+          : { stats: [], resources: [], other: [] };
+
+        // Render stats and resources as stat boxes
+        if (categorized.stats.length || categorized.resources.length) {
+          html += "<div style='margin-bottom:16px;'>" + (typeof codexV2RenderStatBoxes === "function" ? codexV2RenderStatBoxes(categorized) : "") + "</div>";
+        }
+
+        // Categorize remaining by entity type
         var levels = [];
-        var stats = [];
-        var resources = [];
         var skills = [];
         var classes = [];
         var traits = [];
         var other = [];
         resolved.forEach(function (s) {
           var key = (s.property_key || "").toLowerCase();
+          // Skip if already categorized as stat/resource
+          if ((typeof codexV2StatDefs !== "undefined" && codexV2StatDefs[key]) ||
+              (typeof codexV2ResourceDefs !== "undefined" && codexV2ResourceDefs[key])) return;
+
           var entityId = s.property_entity_id;
           var entityInfo = entityId ? entities.find(function (e) { return Number(e.id) === entityId; }) : null;
           var typeKey = entityInfo ? (entityInfo.codex_entity_types || {}).key || "" : "";
@@ -10384,13 +10406,12 @@
             typeKey: typeKey
           };
           if (key === "level" || key === "level_up") levels.push(entry);
-          else if (typeKey === "stat" || typeKey === "stat_set") stats.push(entry);
-          else if (typeKey === "resource") resources.push(entry);
           else if (typeKey === "skill_ability") skills.push(entry);
           else if (typeKey === "class_path") classes.push(entry);
           else if (typeKey === "trait_perk") traits.push(entry);
           else other.push(entry);
         });
+
         // Render sections
         if (levels.length) {
           html += "<div style='margin-bottom:12px;'>";
@@ -10399,30 +10420,6 @@
             html += "<div style='font-size:13px;font-weight:600;'>" + escapeHtml(String(l.value)) + "</div>";
           });
           html += "</div>";
-        }
-        if (stats.length) {
-          html += "<div style='margin-bottom:12px;'>";
-          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Stats</div>";
-          html += "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;'>";
-          stats.forEach(function (s) {
-            html += "<div style='display:flex;justify-content:space-between;padding:4px 8px;background:#1a1a20;border-radius:4px;font-size:12px;'>";
-            html += "<span>" + escapeHtml(s.name) + "</span>";
-            html += "<span style='font-weight:600;'>" + escapeHtml(String(s.value)) + "</span>";
-            html += "</div>";
-          });
-          html += "</div></div>";
-        }
-        if (resources.length) {
-          html += "<div style='margin-bottom:12px;'>";
-          html += "<div style='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;'>Resources</div>";
-          html += "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;'>";
-          resources.forEach(function (r) {
-            html += "<div style='display:flex;justify-content:space-between;padding:4px 8px;background:#1a1a20;border-radius:4px;font-size:12px;'>";
-            html += "<span>" + escapeHtml(r.name) + "</span>";
-            html += "<span style='font-weight:600;'>" + escapeHtml(String(r.value)) + "</span>";
-            html += "</div>";
-          });
-          html += "</div></div>";
         }
         if (classes.length) {
           html += "<div style='margin-bottom:12px;'>";
