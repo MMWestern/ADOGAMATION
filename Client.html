@@ -4602,6 +4602,9 @@
         : [];
 
       if (resolved.length) {
+        // Debug: log all property keys
+        console.log("[HUD] All property keys:", resolved.map(function (s) { return s.property_key; }));
+
         // Use shared categorization and rendering
         var categorized = typeof codexV2CategorizeState === "function"
           ? codexV2CategorizeState(resolved)
