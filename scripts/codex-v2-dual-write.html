@@ -165,15 +165,21 @@
       xp: { abbr: "XP", cls: "res-xp" },
       experience: { abbr: "XP", cls: "res-xp" }
     };
+    var codexV2LevelDefs = {
+      level: { abbr: "LVL", cls: "stat-lvl" },
+      level_up: { abbr: "LVL", cls: "stat-lvl" }
+    };
 
     window.codexV2StatDefs = codexV2StatDefs;
     window.codexV2ResourceDefs = codexV2ResourceDefs;
+    window.codexV2LevelDefs = codexV2LevelDefs;
 
     /**
-     * Categorize resolved state into stats, resources, and other.
-     * Returns { stats: [], resources: [], other: [] }
+     * Categorize resolved state into level, stats, resources, and other.
+     * Returns { level: [], stats: [], resources: [], other: [] }
      */
     function codexV2CategorizeState(resolved) {
+      var level = [];
       var stats = [];
       var resources = [];
       var other = [];
@@ -181,7 +187,11 @@
         var key = (s.property_key || "").toLowerCase();
         var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
         var entry = { key: key, value: value, propKey: s.property_key || "property" };
-        if (codexV2StatDefs[key]) {
+        if (codexV2LevelDefs[key]) {
+          entry.abbr = codexV2LevelDefs[key].abbr;
+          entry.cls = codexV2LevelDefs[key].cls;
+          level.push(entry);
+        } else if (codexV2StatDefs[key]) {
           entry.abbr = codexV2StatDefs[key].abbr;
           entry.cls = codexV2StatDefs[key].cls;
           stats.push(entry);
@@ -193,18 +203,30 @@
           other.push(entry);
         }
       });
-      return { stats: stats, resources: resources, other: other };
+      return { level: level, stats: stats, resources: resources, other: other };
     }
 
     window.codexV2CategorizeState = codexV2CategorizeState;
 
     /**
      * Render stat boxes HTML for a categorized state.
-     * Input: { stats: [], resources: [] }
+     * Input: { level: [], stats: [], resources: [] }
      * Returns HTML string with stat-box-group divs.
      */
     function codexV2RenderStatBoxes(categorized) {
       var html = "";
+      // Level box (larger, on its own row)
+      if (categorized.level && categorized.level.length) {
+        html += "<div class='stat-box-group' style='margin-bottom:6px;'>";
+        categorized.level.forEach(function (l) {
+          html += "<div class='stat-box stat-box-level " + l.cls + "'>" +
+            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(l.abbr) : l.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(l.value) : l.value) + "</div>" +
+            "</div>";
+        });
+        html += "</div>";
+      }
+      // Stats row
       if (categorized.stats.length) {
         html += "<div class='stat-box-group'>";
         categorized.stats.forEach(function (s) {
