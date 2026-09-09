@@ -4602,71 +4602,19 @@
         : [];
 
       if (resolved.length) {
-        var statDefs = {
-          strength: { abbr: "STR", cls: "stat-str" },
-          intelligence: { abbr: "INT", cls: "stat-int" },
-          dexterity: { abbr: "DEX", cls: "stat-dex" },
-          constitution: { abbr: "CON", cls: "stat-con" },
-          charisma: { abbr: "CHA", cls: "stat-cha" },
-          wisdom: { abbr: "WIS", cls: "stat-wis" }
-        };
-        var resourceDefs = {
-          health: { abbr: "HP", cls: "res-health" },
-          mana: { abbr: "MP", cls: "res-mana" },
-          stamina: { abbr: "STA", cls: "res-stamina" },
-          xp: { abbr: "XP", cls: "res-xp" },
-          experience: { abbr: "XP", cls: "res-xp" }
-        };
+        // Use shared categorization and rendering
+        var categorized = typeof codexV2CategorizeState === "function"
+          ? codexV2CategorizeState(resolved)
+          : { level: [], stats: [], resources: [], other: resolved.map(function (s) { return { propKey: s.property_key, value: s.value_number != null ? String(s.value_number) : (s.value_text || "—") }; }) };
 
-        var stats = [];
-        var resources = [];
-        var other = [];
-
-        resolved.forEach(function (s) {
-          var key = (s.property_key || "").toLowerCase();
-          var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
-          var entry = { key: key, value: value, propKey: s.property_key || "property" };
-
-          if (statDefs[key]) {
-            entry.abbr = statDefs[key].abbr;
-            entry.cls = statDefs[key].cls;
-            stats.push(entry);
-          } else if (resourceDefs[key]) {
-            entry.abbr = resourceDefs[key].abbr;
-            entry.cls = resourceDefs[key].cls;
-            resources.push(entry);
-          } else {
-            other.push(entry);
-          }
-        });
-
-        // Stats and Resources go into HUD (right column)
-        if (stats.length) {
-          hudHtml += "<div class='stat-box-group'>";
-          stats.forEach(function (s) {
-            hudHtml += "<div class='stat-box " + s.cls + "'>" +
-              "<div class='stat-box-abbr'>" + escapeHtml(s.abbr) + "</div>" +
-              "<div class='stat-box-value'>" + escapeHtml(s.value) + "</div>" +
-              "</div>";
-          });
-          hudHtml += "</div>";
-        }
-
-        if (resources.length) {
-          if (stats.length) hudHtml += "<div style='height:4px;'></div>";
-          hudHtml += "<div class='stat-box-group'>";
-          resources.forEach(function (r) {
-            hudHtml += "<div class='stat-box " + r.cls + "'>" +
-              "<div class='stat-box-abbr'>" + escapeHtml(r.abbr) + "</div>" +
-              "<div class='stat-box-value'>" + escapeHtml(r.value) + "</div>" +
-              "</div>";
-          });
-          hudHtml += "</div>";
+        // Stats/Resources/Level go into HUD (right column)
+        if (categorized.stats.length || categorized.resources.length || (categorized.level && categorized.level.length)) {
+          hudHtml += typeof codexV2RenderStatBoxes === "function" ? codexV2RenderStatBoxes(categorized) : "";
         }
 
         // Other properties in scrollable list
-        if (other.length) {
-          other.forEach(function (o) {
+        if (categorized.other.length) {
+          categorized.other.forEach(function (o) {
             html += "<div style='padding:2px 0;font-size:11px;display:flex;justify-content:space-between;'>" +
               "<span style='color:#777884;'>" + escapeHtml(o.propKey) + "</span>" +
               "<span style='color:#e2e8f0;'>" + escapeHtml(o.value) + "</span>" +
