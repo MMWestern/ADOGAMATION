@@ -187,8 +187,14 @@
     /**
      * Get stat color class based on entity name.
      * Fixed colors for known stats, auto-assigned for custom.
+     * Returns class name, not inline color.
      */
-    function codexV2GetStatColorClass(name) {
+    function codexV2GetStatColorClass(name, entity) {
+      // Check for custom color in entity color field
+      if (entity && entity.color) {
+        // Return inline style class - will be handled separately
+        return "stat-custom";
+      }
       var s = String(name || "").trim().toLowerCase();
       var knownColors = {
         strength: "stat-str",
@@ -260,9 +266,10 @@
 
           if (typeKey === "stat" || typeKey === "stat_set") {
             entry.abbr = codexV2GenerateAbbr(entityName);
-            entry.cls = codexV2GetStatColorClass(entityName);
+            entry.cls = codexV2GetStatColorClass(entityName, entity);
             entry.fullName = entityName;
             entry.description = entity.description || "";
+            entry.customColor = entity.color || null;
             stats.push(entry);
             return;
           } else if (typeKey === "resource") {
@@ -344,7 +351,8 @@
         categorized.stats.forEach(function (s) {
           var tooltip = s.fullName || s.propKey || "";
           if (s.description) tooltip += ": " + s.description;
-          html += "<div class='stat-box " + s.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+          var style = s.customColor ? " style='--stat-color:" + codexV2EscapeAttr(s.customColor) + "'" : "";
+          html += "<div class='stat-box " + s.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'" + style + ">" +
             "<div class='stat-box-abbr'>" + codexV2EscapeAttr(s.abbr) + "</div>" +
             "<div class='stat-box-value'>" + codexV2EscapeAttr(s.value) + "</div>" +
             "</div>";

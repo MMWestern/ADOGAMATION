@@ -3370,16 +3370,23 @@
     .stat-lvl .stat-box-abbr { color: #c084fc; } /* Purple - Level */
     .stat-lvl .stat-box-value { color: #e9d5ff; }
 
-    /* Level box - larger */
-    .stat-box-level {
-      width: 56px;
-      height: 60px;
+    /* Custom stat color - uses CSS variable */
+    .stat-custom .stat-box-abbr { color: var(--stat-color, #a5b4fc); }
+    .stat-custom .stat-box-value { color: var(--stat-color, #e2e8f0); }
+
+    /* Level box - larger (higher specificity) */
+    .stat-box-group .stat-box.stat-box-level,
+    .stat-box.stat-box-level {
+      width: 60px;
+      height: 66px;
     }
-    .stat-box-level .stat-box-abbr {
-      font-size: 11px;
+    .stat-box-group .stat-box.stat-box-level .stat-box-abbr,
+    .stat-box.stat-box-level .stat-box-abbr {
+      font-size: 12px;
     }
-    .stat-box-level .stat-box-value {
-      font-size: 22px;
+    .stat-box-group .stat-box.stat-box-level .stat-box-value,
+    .stat-box.stat-box-level .stat-box-value {
+      font-size: 24px;
     }
 
     /* Resource colors */
