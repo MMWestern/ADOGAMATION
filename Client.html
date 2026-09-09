@@ -4602,8 +4602,8 @@
         : [];
 
       if (resolved.length) {
-        // Debug: log all property keys
-        console.log("[HUD] All property keys:", resolved.map(function (s) { return s.property_key; }));
+        // Debug: log all property keys and entity IDs
+        console.log("[HUD] All entries:", resolved.map(function (s) { return { key: s.property_key, entityId: s.property_entity_id, value: s.value_number || s.value_text }; }));
 
         // Use shared categorization and rendering
         var categorized = typeof codexV2CategorizeState === "function"
