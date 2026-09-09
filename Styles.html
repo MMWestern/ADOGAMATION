@@ -3370,23 +3370,27 @@
     .stat-lvl .stat-box-abbr { color: #c084fc; } /* Purple - Level */
     .stat-lvl .stat-box-value { color: #e9d5ff; }
 
-    /* Custom stat color - uses CSS variable */
+    /* Custom stat color - only affects abbreviation, not value */
     .stat-custom .stat-box-abbr { color: var(--stat-color, #a5b4fc); }
-    .stat-custom .stat-box-value { color: var(--stat-color, #e2e8f0); }
+    .stat-custom .stat-box-value { color: #e2e8f0; } /* Always default white */
 
     /* Level box - larger (higher specificity) */
     .stat-box-group .stat-box.stat-box-level,
     .stat-box.stat-box-level {
-      width: 60px;
-      height: 66px;
+      width: 64px;
+      height: 72px;
+      min-width: 64px;
+      min-height: 72px;
     }
     .stat-box-group .stat-box.stat-box-level .stat-box-abbr,
     .stat-box.stat-box-level .stat-box-abbr {
       font-size: 12px;
+      margin-bottom: 6px;
     }
     .stat-box-group .stat-box.stat-box-level .stat-box-value,
     .stat-box.stat-box-level .stat-box-value {
-      font-size: 24px;
+      font-size: 26px;
+      color: #e2e8f0; /* Always default white */
     }
 
     /* Resource colors */
