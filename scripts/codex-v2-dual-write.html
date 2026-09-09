@@ -148,7 +148,7 @@
 
     /**
      * Stat and resource definitions for RPG-style display.
-     * Used by Writing Inspector, View State At, and Progression Sheet.
+     * Used as fallback when property_entity_id is not available.
      */
     var codexV2StatDefs = {
       strength: { abbr: "STR", cls: "stat-str" },
@@ -175,18 +175,107 @@
     window.codexV2LevelDefs = codexV2LevelDefs;
 
     /**
-     * Categorize resolved state into level, stats, resources, and other.
-     * Returns { level: [], stats: [], resources: [], other: [] }
+     * Generate 3-letter abbreviation from entity name.
+     * "Strength" → "STR", "Intelligence" → "INT", "Health" → "HEA"
      */
-    function codexV2CategorizeState(resolved) {
+    function codexV2GenerateAbbr(name) {
+      var s = String(name || "").trim();
+      if (s.length <= 3) return s.toUpperCase();
+      return s.substring(0, 3).toUpperCase();
+    }
+
+    /**
+     * Get stat color class based on entity name.
+     * Fixed colors for known stats, auto-assigned for custom.
+     */
+    function codexV2GetStatColorClass(name) {
+      var s = String(name || "").trim().toLowerCase();
+      var knownColors = {
+        strength: "stat-str",
+        intelligence: "stat-int",
+        dexterity: "stat-dex",
+        constitution: "stat-con",
+        charisma: "stat-cha",
+        wisdom: "stat-wis"
+      };
+      if (knownColors[s]) return knownColors[s];
+      // For unknown stats, assign color based on name hash
+      var hash = 0;
+      for (var i = 0; i < s.length; i++) hash += s.charCodeAt(i);
+      var colors = ["stat-str", "stat-int", "stat-dex", "stat-con", "stat-cha", "stat-wis"];
+      return colors[hash % colors.length];
+    }
+
+    /**
+     * Get resource color class based on entity name.
+     */
+    function codexV2GetResourceColorClass(name) {
+      var s = String(name || "").trim().toLowerCase();
+      var knownColors = {
+        health: "res-health",
+        mana: "res-mana",
+        stamina: "res-stamina",
+        xp: "res-xp",
+        experience: "res-xp"
+      };
+      if (knownColors[s]) return knownColors[s];
+      return "res-default";
+    }
+
+    window.codexV2GenerateAbbr = codexV2GenerateAbbr;
+    window.codexV2GetStatColorClass = codexV2GetStatColorClass;
+    window.codexV2GetResourceColorClass = codexV2GetResourceColorClass;
+
+    /**
+     * Categorize resolved state into level, stats, resources, and other.
+     * Uses entity type when property_entity_id is available, falls back to hardcoded maps.
+     *
+     * @param {Array} resolved - resolved state records
+     * @param {Array} entities - entity lookup array (optional, for entity type-based categorization)
+     * @returns {Object} { level: [], stats: [], resources: [], other: [] }
+     */
+    function codexV2CategorizeState(resolved, entities) {
       var level = [];
       var stats = [];
       var resources = [];
       var other = [];
+
+      // Build entity lookup map for fast access
+      var entityMap = {};
+      (entities || []).forEach(function (e) {
+        entityMap[Number(e.id)] = e;
+      });
+
       (resolved || []).forEach(function (s) {
         var key = (s.property_key || "").toLowerCase();
         var value = s.value_number != null ? String(s.value_number) : (s.value_text || "—");
         var entry = { key: key, value: value, propKey: s.property_key || "property" };
+
+        // Try entity type-based categorization first
+        if (s.property_entity_id && entityMap[Number(s.property_entity_id)]) {
+          var entity = entityMap[Number(s.property_entity_id)];
+          var typeInfo = entity.codex_entity_types || {};
+          var typeKey = typeInfo.key || "";
+          var entityName = entity.name || s.property_key || "Unknown";
+
+          if (typeKey === "stat" || typeKey === "stat_set") {
+            entry.abbr = codexV2GenerateAbbr(entityName);
+            entry.cls = codexV2GetStatColorClass(entityName);
+            entry.fullName = entityName;
+            entry.description = entity.description || "";
+            stats.push(entry);
+            return;
+          } else if (typeKey === "resource") {
+            entry.abbr = codexV2GenerateAbbr(entityName);
+            entry.cls = codexV2GetResourceColorClass(entityName);
+            entry.fullName = entityName;
+            entry.description = entity.description || "";
+            resources.push(entry);
+            return;
+          }
+        }
+
+        // Fallback to hardcoded maps (backward compatibility)
         if (codexV2LevelDefs[key]) {
           entry.abbr = codexV2LevelDefs[key].abbr;
           entry.cls = codexV2LevelDefs[key].cls;
@@ -200,51 +289,88 @@
           entry.cls = codexV2ResourceDefs[key].cls;
           resources.push(entry);
         } else {
-          other.push(entry);
+          // Unknown property - check if it looks like a level
+          if (key === "level" || key === "level_up") {
+            entry.abbr = "LVL";
+            entry.cls = "stat-lvl";
+            level.push(entry);
+          } else {
+            other.push(entry);
+          }
         }
       });
+
       return { level: level, stats: stats, resources: resources, other: other };
     }
 
     window.codexV2CategorizeState = codexV2CategorizeState;
 
     /**
+     * Escape HTML for safe attribute rendering.
+     * Falls back to simple replacement if escapeHtml is not available.
+     */
+    function codexV2EscapeAttr(str) {
+      if (typeof escapeHtml === "function") return escapeHtml(str);
+      return String(str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    /**
      * Render stat boxes HTML for a categorized state.
-     * Input: { level: [], stats: [], resources: [] }
-     * Returns HTML string with stat-box-group divs.
+     * Includes hover tooltips showing full name and description.
+     *
+     * @param {Object} categorized - { level: [], stats: [], resources: [] }
+     * @returns {string} HTML string with stat-box-group divs
      */
     function codexV2RenderStatBoxes(categorized) {
       var html = "";
+
       // Level box (larger, on its own row)
       if (categorized.level && categorized.level.length) {
         html += "<div class='stat-box-group' style='margin-bottom:6px;'>";
         categorized.level.forEach(function (l) {
-          html += "<div class='stat-box stat-box-level " + l.cls + "'>" +
-            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(l.abbr) : l.abbr) + "</div>" +
-            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(l.value) : l.value) + "</div>" +
+          var tooltip = l.fullName || l.propKey || "";
+          if (l.description) tooltip += ": " + l.description;
+          html += "<div class='stat-box stat-box-level " + l.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+            "<div class='stat-box-abbr'>" + codexV2EscapeAttr(l.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + codexV2EscapeAttr(l.value) + "</div>" +
             "</div>";
         });
         html += "</div>";
       }
+
       // Stats row
       if (categorized.stats.length) {
         html += "<div class='stat-box-group'>";
         categorized.stats.forEach(function (s) {
-          html += "<div class='stat-box " + s.cls + "'>" +
-            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(s.abbr) : s.abbr) + "</div>" +
-            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(s.value) : s.value) + "</div>" +
+          var tooltip = s.fullName || s.propKey || "";
+          if (s.description) tooltip += ": " + s.description;
+          html += "<div class='stat-box " + s.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+            "<div class='stat-box-abbr'>" + codexV2EscapeAttr(s.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + codexV2EscapeAttr(s.value) + "</div>" +
             "</div>";
         });
         html += "</div>";
       }
+
+      // Resources row
       if (categorized.resources.length) {
         if (categorized.stats.length) html += "<div style='height:4px;'></div>";
         html += "<div class='stat-box-group'>";
         categorized.resources.forEach(function (r) {
-          html += "<div class='stat-box " + r.cls + "'>" +
-            "<div class='stat-box-abbr'>" + (typeof escapeHtml === "function" ? escapeHtml(r.abbr) : r.abbr) + "</div>" +
-            "<div class='stat-box-value'>" + (typeof escapeHtml === "function" ? escapeHtml(r.value) : r.value) + "</div>" +
+          var tooltip = r.fullName || r.propKey || "";
+          if (r.description) tooltip += ": " + r.description;
+          html += "<div class='stat-box " + r.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+            "<div class='stat-box-abbr'>" + codexV2EscapeAttr(r.abbr) + "</div>" +
+            "<div class='stat-box-value'>" + codexV2EscapeAttr(r.value) + "</div>" +
             "</div>";
+        });
+        html += "</div>";
+      }
+
+      return html;
+    }
+
+    window.codexV2RenderStatBoxes = codexV2RenderStatBoxes;
         });
         html += "</div>";
       }

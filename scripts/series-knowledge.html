@@ -9353,9 +9353,12 @@
                   ? codexV2ResolveState(states, { mode: 'stateAt' })
                   : states;
 
+                // Get entities for entity type-based categorization
+                var viewEntities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+
                 // Categorize into stats, resources, other
                 var categorized = typeof codexV2CategorizeState === "function"
-                  ? codexV2CategorizeState(resolved)
+                  ? codexV2CategorizeState(resolved, viewEntities)
                   : { stats: [], resources: [], other: resolved.map(function (s) { return { propKey: s.property_key, value: s.value_number != null ? String(s.value_number) : (s.value_text || "—") }; }) };
 
                 // Render stats/resources as boxes
@@ -10374,9 +10377,9 @@
           ? codexV2ResolveState(states, { mode: 'progression' })
           : states;
 
-        // Use shared categorization for stats/resources
+        // Use shared categorization for stats/resources (pass entities for entity type-based categorization)
         var categorized = typeof codexV2CategorizeState === "function"
-          ? codexV2CategorizeState(resolved)
+          ? codexV2CategorizeState(resolved, entities)
           : { stats: [], resources: [], other: [] };
 
         // Render stats and resources as stat boxes

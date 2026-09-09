@@ -4602,9 +4602,9 @@
         : [];
 
       if (resolved.length) {
-        // Use shared categorization and rendering
+        // Use shared categorization and rendering (pass entities for entity type-based categorization)
         var categorized = typeof codexV2CategorizeState === "function"
-          ? codexV2CategorizeState(resolved)
+          ? codexV2CategorizeState(resolved, entities)
           : { level: [], stats: [], resources: [], other: resolved.map(function (s) { return { propKey: s.property_key, value: s.value_number != null ? String(s.value_number) : (s.value_text || "—") }; }) };
 
         // Stats/Resources/Level go into HUD (right column)
