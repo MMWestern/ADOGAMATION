@@ -4602,20 +4602,10 @@
         : [];
 
       if (resolved.length) {
-        // Debug: log all property keys and entity IDs
-        console.log("[HUD] All entries:", resolved.map(function (s) { return { key: s.property_key, entityId: s.property_entity_id, value: s.value_number || s.value_text }; }));
-
         // Use shared categorization and rendering
         var categorized = typeof codexV2CategorizeState === "function"
           ? codexV2CategorizeState(resolved)
           : { level: [], stats: [], resources: [], other: resolved.map(function (s) { return { propKey: s.property_key, value: s.value_number != null ? String(s.value_number) : (s.value_text || "—") }; }) };
-
-        console.log("[HUD] Resolved state:", resolved.length, "entries");
-        console.log("[HUD] Categorized:", categorized);
-        console.log("[HUD] Level:", categorized.level ? categorized.level.length : 0);
-        console.log("[HUD] Stats:", categorized.stats.length);
-        console.log("[HUD] Resources:", categorized.resources.length);
-        console.log("[HUD] Other:", categorized.other.length);
 
         // Stats/Resources/Level go into HUD (right column)
         if (categorized.stats.length || categorized.resources.length || (categorized.level && categorized.level.length)) {
