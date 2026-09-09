@@ -339,21 +339,35 @@
     function codexV2RenderStatBoxes(categorized) {
       var html = "";
 
-      // Level box (larger, on its own row)
-      if (categorized.level && categorized.level.length) {
+      // Level + Resources row (top)
+      if ((categorized.level && categorized.level.length) || categorized.resources.length) {
         html += "<div class='stat-box-group' style='margin-bottom:6px;'>";
-        categorized.level.forEach(function (l) {
-          var tooltip = l.fullName || l.propKey || "";
-          if (l.description) tooltip += ": " + l.description;
-          html += "<div class='stat-box stat-box-level " + l.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
-            "<div class='stat-box-abbr'>" + codexV2EscapeAttr(l.abbr) + "</div>" +
-            "<div class='stat-box-value'>" + codexV2EscapeAttr(l.value) + "</div>" +
-            "</div>";
-        });
+        // Level box first (larger)
+        if (categorized.level && categorized.level.length) {
+          categorized.level.forEach(function (l) {
+            var tooltip = l.fullName || l.propKey || "";
+            if (l.description) tooltip += ": " + l.description;
+            html += "<div class='stat-box stat-box-level " + l.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+              "<div class='stat-box-abbr'>" + codexV2EscapeAttr(l.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + codexV2EscapeAttr(l.value) + "</div>" +
+              "</div>";
+          });
+        }
+        // Resources next to level
+        if (categorized.resources.length) {
+          categorized.resources.forEach(function (r) {
+            var tooltip = r.fullName || r.propKey || "";
+            if (r.description) tooltip += ": " + r.description;
+            html += "<div class='stat-box " + r.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
+              "<div class='stat-box-abbr'>" + codexV2EscapeAttr(r.abbr) + "</div>" +
+              "<div class='stat-box-value'>" + codexV2EscapeAttr(r.value) + "</div>" +
+              "</div>";
+          });
+        }
         html += "</div>";
       }
 
-      // Stats row
+      // Stats row (bottom)
       if (categorized.stats.length) {
         html += "<div class='stat-box-group'>";
         categorized.stats.forEach(function (s) {
@@ -363,21 +377,6 @@
           html += "<div class='stat-box " + s.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'" + style + ">" +
             "<div class='stat-box-abbr'>" + codexV2EscapeAttr(s.abbr) + "</div>" +
             "<div class='stat-box-value'>" + codexV2EscapeAttr(s.value) + "</div>" +
-            "</div>";
-        });
-        html += "</div>";
-      }
-
-      // Resources row
-      if (categorized.resources.length) {
-        if (categorized.stats.length) html += "<div style='height:4px;'></div>";
-        html += "<div class='stat-box-group'>";
-        categorized.resources.forEach(function (r) {
-          var tooltip = r.fullName || r.propKey || "";
-          if (r.description) tooltip += ": " + r.description;
-          html += "<div class='stat-box " + r.cls + "' title='" + codexV2EscapeAttr(tooltip) + "'>" +
-            "<div class='stat-box-abbr'>" + codexV2EscapeAttr(r.abbr) + "</div>" +
-            "<div class='stat-box-value'>" + codexV2EscapeAttr(r.value) + "</div>" +
             "</div>";
         });
         html += "</div>";
