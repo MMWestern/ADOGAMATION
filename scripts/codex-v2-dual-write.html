@@ -264,7 +264,15 @@
           var typeKey = typeInfo.key || "";
           var entityName = entity.name || s.property_key || "Unknown";
 
-          if (typeKey === "stat" || typeKey === "stat_set") {
+          // Check for Level (by name or property_key)
+          if (key === "level" || key === "level_up" || entityName.toLowerCase() === "level") {
+            entry.abbr = "LVL";
+            entry.cls = "stat-lvl";
+            entry.fullName = entityName;
+            entry.description = entity.description || "";
+            level.push(entry);
+            return;
+          } else if (typeKey === "stat" || typeKey === "stat_set") {
             entry.abbr = codexV2GenerateAbbr(entityName);
             entry.cls = codexV2GetStatColorClass(entityName, entity);
             entry.fullName = entityName;
