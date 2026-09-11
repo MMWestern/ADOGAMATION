@@ -2186,10 +2186,9 @@
           relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (c.relationship_type_id || relType.id || 0) + "'>";
           relHtml += thumbHtml;
           relHtml += "<div class='codex-rel-item-content'>";
-          // Line 1: Entity name + relationship label + temporal pill
+          // Line 1: Entity name + temporal pill
           relHtml += "<div style='display:flex;align-items:center;gap:6px;flex-wrap:wrap;'>";
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
-          relHtml += "<span class='codex-rel-label' style='font-size:10px;color:var(--muted);'>" + escapeHtml(label) + "</span>";
           // Temporal status pill
           if (c.valid_from_sort != null || c.valid_to_sort != null || c.context_status) {
             var statusText = "";
@@ -2209,24 +2208,45 @@
             }
           }
           relHtml += "</div>";
-          // Line 2: Book + Chapter context (if available)
-          if (c.book_id || c.chapter_id) {
-            relHtml += "<div style='font-size:10px;color:var(--muted);'>";
-            if (c.book_id) {
-              var book = appState.projects ? appState.projects.find(function (p) { return Number(p.project_id || p.id) === Number(c.book_id); }) : null;
-              if (book) {
-                relHtml += escapeHtml(book.title || "Book #" + c.book_id);
-              } else {
-                relHtml += "Book #" + c.book_id;
-              }
+          // Line 2: Relationship label
+          relHtml += "<div style='font-size:10px;color:#a5b4fc;font-weight:500;'>" + escapeHtml(label) + "</div>";
+          // Line 3: Valid from/to context
+          if (c.valid_from_sort != null || c.valid_to_sort != null || c.book_id) {
+            relHtml += "<div style='font-size:10px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;'>";
+            // Valid From
+            if (c.valid_from_sort != null) {
+              var fromBook = c.book_id ? (appState.projects ? appState.projects.find(function (p) { return Number(p.project_id || p.id) === Number(c.book_id); }) : null) : null;
+              var fromChapters = c.book_id && skCache.chapters ? (skCache.chapters[c.book_id] || []) : [];
+              var fromChapter = c.chapter_id ? fromChapters.find(function (ch) { return Number(ch.id) === Number(c.chapter_id); }) : null;
+              var fromChIdx = fromChapter ? fromChapters.findIndex(function (ch) { return Number(ch.id) === Number(c.chapter_id); }) : -1;
+              relHtml += "<span>From: " + escapeHtml(fromBook ? fromBook.title || "Book" : "Book");
+              if (fromChIdx >= 0) relHtml += " Ch." + (fromChIdx + 1);
+              relHtml += "</span>";
             }
-            if (c.chapter_id) {
-              // Get chapter number from cache
-              var chapters = (typeof skCache !== "undefined" && skCache.chapters && skCache.chapters[c.book_id]) ? skCache.chapters[c.book_id] : [];
-              var chIdx = chapters.findIndex(function (ch) { return Number(ch.id) === Number(c.chapter_id); });
-              if (chIdx >= 0) {
-                relHtml += " · Ch. " + (chIdx + 1);
+            // Valid To
+            if (c.valid_to_sort != null) {
+              // Find the book/chapter that matches valid_to_sort
+              var toLabel = "";
+              if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
+                appState.projects.forEach(function (p) {
+                  if (toLabel) return;
+                  var pid = Number(p.project_id || p.id || 0);
+                  if (!pid || Number(p.series_id || 0) !== seriesId) return;
+                  var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(pid) : 0;
+                  var chaps = skCache.chapters ? (skCache.chapters[pid] || []) : [];
+                  chaps.forEach(function (ch, idx) {
+                    var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
+                    if (globalSort === c.valid_to_sort) {
+                      toLabel = (p.title || "Book") + " Ch." + (idx + 1);
+                    }
+                  });
+                });
               }
+              relHtml += "<span>To: " + escapeHtml(toLabel || "End") + "</span>";
+            } else if (c.book_id && !c.valid_from_sort) {
+              // Just book context, no temporal
+              var book = appState.projects ? appState.projects.find(function (p) { return Number(p.project_id || p.id) === Number(c.book_id); }) : null;
+              if (book) relHtml += "<span>" + escapeHtml(book.title || "Book") + "</span>";
             }
             relHtml += "</div>";
           }
