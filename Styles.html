@@ -18190,9 +18190,6 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     /* Entity relationship panel */
     .codex-rel-group {
       margin-bottom: 8px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
     }
     .codex-rel-group-header {
       font-size: 10px;
@@ -18201,7 +18198,12 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       text-transform: uppercase;
       letter-spacing: 0.5px;
       padding: 4px 0 2px;
-      width: 100%;
+    }
+    .codex-rel-group-items {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      align-items: start;
     }
     .codex-rel-item {
       display: flex;
@@ -18215,9 +18217,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       border: 1px solid rgba(58, 58, 66, 0.6);
       font-size: 11px;
       box-sizing: border-box;
-      flex: 1 1 calc(50% - 3px);
       min-width: 0;
-      max-width: calc(50% - 3px);
       overflow: hidden;
       transition: border-color 0.15s ease, background 0.15s ease;
     }
