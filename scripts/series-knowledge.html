@@ -2552,8 +2552,8 @@
     function showRelEditForm(seriesId, entityId, connectionId, currentTypeId) {
       var listEl = document.getElementById("codexRelPanelList");
       if (!listEl) return;
-      // Remove any existing edit form
-      var existing = listEl.querySelector(".codex-rel-edit-form");
+      // Remove any existing edit form (it's a sibling after listEl)
+      var existing = document.querySelector(".codex-rel-edit-form");
       if (existing) existing.remove();
       // Find existing connection for pre-fill
       var connections = skCache.connections[seriesId] || [];
@@ -2581,14 +2581,14 @@
       formHtml += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Chapter</label>";
       formHtml += "<select id='codexRelEditToChapter' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'><option value=''>— Select book —</option></select></div>";
       formHtml += "</div></div>";
-      // Status and notes
-      formHtml += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;'>";
+      // Status dropdown
+      formHtml += "<div style='margin-top:8px;'><label style='font-size:10px;color:var(--muted);display:block;'>Status</label>";
+      formHtml += "<select id='codexRelEditStatus' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
       ["active", "ended", "planned"].forEach(function (s) {
         var sel = conn && conn.context_status === s ? " selected" : "";
         formHtml += "<option value='" + s + "'" + sel + ">" + s + "</option>";
       });
       formHtml += "</select></div>";
-      formHtml += "</div>";
       // Notes
       formHtml += "<div style='margin-top:8px;'><label style='font-size:10px;color:var(--muted);display:block;'>Notes</label>";
       formHtml += "<input id='codexRelEditNotes' type='text' value='" + escapeHtml(conn ? conn.notes || "" : "") + "' placeholder='Optional notes' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
@@ -2605,6 +2605,7 @@
       var toChapterSelect = document.getElementById("codexRelEditToChapter");
       var saveBtn = document.getElementById("codexRelEditSaveBtn");
       var cancelBtn = document.getElementById("codexRelEditCancelBtn");
+      console.log("[REL] Form inserted, saveBtn:", saveBtn, "cancelBtn:", cancelBtn);
       // Populate relationship types
       if (typeSelect) {
         callAppsScriptJson("listCodexRelationshipTypes", [])
