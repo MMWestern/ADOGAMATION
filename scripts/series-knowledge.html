@@ -2183,7 +2183,7 @@
           var thumbHtml = imgUrl
             ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
-          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (relType.id || 0) + "'>";
+          relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (c.relationship_type_id || relType.id || 0) + "'>";
           relHtml += thumbHtml;
           relHtml += "<div class='codex-rel-item-content'>";
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
