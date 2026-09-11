@@ -2127,6 +2127,9 @@
     function loadAndRenderEntityRelationships(seriesId, entityId) {
       var listEl = document.getElementById("codexRelPanelList");
       if (!listEl) return;
+      // Remove any existing edit forms before re-rendering
+      var existingForms = document.querySelectorAll(".codex-rel-edit-form");
+      existingForms.forEach(function (f) { f.remove(); });
       var connections = skCache.connections[seriesId] || [];
       var allEntities = codexCache.entitiesBySeries[seriesId] || [];
       var entityMap = {};
@@ -2718,13 +2721,14 @@
             }
           }
           updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, fromBookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
-          var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
+          // Remove form immediately (before re-render)
+          var form = document.querySelector(".codex-rel-edit-form");
           if (form) form.remove();
         });
       }
       if (cancelBtn) {
         cancelBtn.addEventListener("click", function () {
-          var form = listEl.parentNode.querySelector(".codex-rel-edit-form");
+          var form = document.querySelector(".codex-rel-edit-form");
           if (form) form.remove();
         });
       }
