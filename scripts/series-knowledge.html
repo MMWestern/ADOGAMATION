@@ -2615,9 +2615,10 @@
               var opt = document.createElement("option");
               opt.value = t.id;
               opt.textContent = t.forward_label || t.key;
-              if (Number(t.id) === currentTypeId) opt.selected = true;
               typeSelect.appendChild(opt);
             });
+            // Set selected value AFTER all options are added
+            if (currentTypeId) typeSelect.value = String(currentTypeId);
           })
           .catch(function () {});
       }
@@ -2632,10 +2633,12 @@
             var opt = document.createElement("option");
             opt.value = pid;
             opt.textContent = p.title || "Book #" + pid;
-            // Pre-select existing book for "from" side
-            if (bookSelect === fromBookSelect && conn && conn.book_id && pid === Number(conn.book_id)) opt.selected = true;
             bookSelect.appendChild(opt);
           });
+          // Pre-select existing book for "from" side
+          if (bookSelect === fromBookSelect && conn && conn.book_id) {
+            fromBookSelect.value = String(conn.book_id);
+          }
         }
       });
       // Load chapters independently for each book dropdown
@@ -2649,6 +2652,10 @@
           fromChapterSelect.innerHTML = "<option value=''>Loading...</option>";
           codexV2LoadChapters(bookId).then(function (chapters) {
             fromChapterSelect.innerHTML = codexV2BuildChapterDropdown("codexRelEditFromChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+            // Pre-select existing chapter if this is the right book
+            if (conn && conn.book_id && Number(conn.book_id) === bookId && conn.chapter_id) {
+              fromChapterSelect.value = String(conn.chapter_id);
+            }
           });
         });
         // Trigger initial load if existing book
@@ -2664,27 +2671,32 @@
           toChapterSelect.innerHTML = "<option value=''>Loading...</option>";
           codexV2LoadChapters(bookId).then(function (chapters) {
             toChapterSelect.innerHTML = codexV2BuildChapterDropdown("codexRelEditToChapter", chapters, 0).replace(/<select[^>]*>/, "").replace(/<\/select>/, "");
+            // Check if valid_to_sort matches any chapter in this book
+            if (conn && conn.valid_to_sort) {
+              var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(bookId) : 0;
+              chapters.forEach(function (ch) {
+                var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
+                if (globalSort === conn.valid_to_sort) {
+                  toChapterSelect.value = String(ch.id);
+                }
+              });
+            }
           });
         });
-        // Trigger initial load if existing valid_to_sort (need to find which book it belongs to)
+        // Trigger initial load if existing valid_to_sort
         if (conn && conn.valid_to_sort) {
-          // Find which book the valid_to_sort belongs to by checking all books
+          // Find which book the valid_to_sort belongs to
           if (typeof appState !== "undefined" && Array.isArray(appState.projects)) {
             appState.projects.forEach(function (p) {
               var pid = Number(p.project_id || p.id || 0);
               if (!pid || Number(p.series_id || 0) !== seriesId) return;
               var bookNum = typeof codexV2GetBookNumber === "function" ? codexV2GetBookNumber(pid) : 0;
-              // Check if any chapter in this book has the matching sort_order
               codexV2LoadChapters(pid).then(function (chapters) {
                 chapters.forEach(function (ch) {
                   var globalSort = typeof codexV2GlobalSort === "function" ? codexV2GlobalSort(bookNum, ch.sort_order) : ch.sort_order;
                   if (globalSort === conn.valid_to_sort) {
                     toBookSelect.value = String(pid);
                     toBookSelect.dispatchEvent(new Event("change"));
-                    // Wait for chapters to load then select the right one
-                    setTimeout(function () {
-                      toChapterSelect.value = String(ch.id);
-                    }, 100);
                   }
                 });
               });
