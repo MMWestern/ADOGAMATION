@@ -2194,6 +2194,7 @@
         var group = groups[typeKey];
         relHtml += "<div class='codex-rel-group'>";
         relHtml += "<div class='codex-rel-group-header'>" + escapeHtml(group.label) + "</div>";
+        relHtml += "<div class='codex-rel-group-items'>";
         group.items.forEach(function (item) {
           var c = item.conn;
           var otherEntity = item.otherEntity;
@@ -2281,7 +2282,8 @@
           relHtml += "</div>";
           relHtml += "</div>";
         });
-        relHtml += "</div>";
+        relHtml += "</div>"; // close codex-rel-group-items
+        relHtml += "</div>"; // close codex-rel-group
       });
       listEl.innerHTML = relHtml;
 

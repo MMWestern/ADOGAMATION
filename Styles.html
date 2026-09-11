@@ -18190,9 +18190,6 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     /* Entity relationship panel */
     .codex-rel-group {
       margin-bottom: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
     }
     .codex-rel-group-header {
       font-size: 10px;
@@ -18201,7 +18198,11 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       text-transform: uppercase;
       letter-spacing: 0.5px;
       padding: 4px 0 2px;
-      grid-column: 1 / -1;
+    }
+    .codex-rel-group-items {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
     }
     .codex-rel-list {
       display: flex;
