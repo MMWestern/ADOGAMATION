@@ -18200,12 +18200,14 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       padding: 4px 0 2px;
     }
     .codex-rel-group-items {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-wrap: wrap;
       gap: 6px;
     }
-    .codex-rel-group-items > * {
+    .codex-rel-group-items > .codex-rel-item {
+      flex: 1 1 calc(50% - 3px);
       min-width: 0;
+      max-width: calc(50% - 3px);
     }
     .codex-rel-list {
       display: flex;
