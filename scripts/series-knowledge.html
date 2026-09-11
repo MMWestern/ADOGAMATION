@@ -2722,14 +2722,24 @@
           }
           updateEntityConnectionType(seriesId, connectionId, newTypeId, entityId, fromBookId, fromChapterId, toChapterId, validFromSort, validToSort, contextStatus, notes);
           // Remove form immediately (before re-render)
+          console.log("[REL] Save clicked, looking for form...");
           var form = document.querySelector(".codex-rel-edit-form");
-          if (form) form.remove();
+          console.log("[REL] Found form:", form);
+          if (form) {
+            form.remove();
+            console.log("[REL] Form removed");
+          }
         });
       }
       if (cancelBtn) {
         cancelBtn.addEventListener("click", function () {
+          console.log("[REL] Cancel clicked, looking for form...");
           var form = document.querySelector(".codex-rel-edit-form");
-          if (form) form.remove();
+          console.log("[REL] Found form:", form);
+          if (form) {
+            form.remove();
+            console.log("[REL] Form removed");
+          }
         });
       }
     }
