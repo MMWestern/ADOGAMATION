@@ -2208,10 +2208,11 @@
             ? "<img class='codex-rel-thumb' src='" + escapeHtml(imgUrl) + "' alt='' />"
             : "<div class='codex-rel-thumb-placeholder'>" + icon + "</div>";
           relHtml += "<div class='codex-rel-item codex-rel-clickable' data-connection-id='" + c.id + "' data-entity-id='" + item.otherId + "' data-rel-type-id='" + (c.relationship_type_id || relType.id || 0) + "'>";
+          relHtml += "<div style='display:flex;gap:6px;align-items:flex-start;'>";
           relHtml += thumbHtml;
-          relHtml += "<div class='codex-rel-item-content'>";
+          relHtml += "<div style='flex:1;min-width:0;'>";
           // Line 1: Entity name + temporal pill
-          relHtml += "<div style='display:flex;align-items:center;gap:6px;flex-wrap:wrap;'>";
+          relHtml += "<div style='display:flex;align-items:center;gap:4px;flex-wrap:wrap;'>";
           relHtml += "<span class='codex-rel-name'>" + escapeHtml(otherName) + "</span>";
           // Temporal status pill
           if (c.valid_from_sort != null || c.valid_to_sort != null || c.context_status) {
@@ -2278,9 +2279,9 @@
           relHtml += "<button type='button' class='codex-rel-edit' data-connection-id='" + c.id + "' title='Edit'>&#9998;</button>";
           relHtml += "<button type='button' class='codex-rel-remove' data-connection-id='" + c.id + "' title='Remove'>&times;</button>";
           relHtml += "</div>";
-          relHtml += "</div>";
-          relHtml += "</div>";
-          relHtml += "</div>";
+          relHtml += "</div>"; // close content wrapper
+          relHtml += "</div>"; // close inner flex
+          relHtml += "</div>"; // close codex-rel-item
         });
         relHtml += "</div>"; // close codex-rel-group-items
         relHtml += "</div>"; // close codex-rel-group
