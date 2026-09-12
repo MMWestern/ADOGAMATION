@@ -9545,14 +9545,27 @@
                 var fieldValues = (result && result.ok !== false && Array.isArray(result.values)) ? result.values : [];
                 console.log("[STARTING STATE] Field values:", fieldValues.length, fieldValues);
                 var speciesId = 0;
+                var speciesName = "";
                 fieldValues.forEach(function (fv) {
                   var def = fv.codex_entity_field_definitions || {};
-                  console.log("[STARTING STATE] Field:", def.field_key, "target:", fv.target_entity_id, "value_text:", fv.value_text, "full:", fv);
                   if (def.field_key === 'species') {
-                    speciesId = fv.target_entity_id ? Number(fv.target_entity_id) : (fv.value_text ? Number(fv.value_text) : 0);
+                    if (fv.target_entity_id) {
+                      speciesId = Number(fv.target_entity_id);
+                    } else if (fv.value_text) {
+                      speciesName = String(fv.value_text).trim();
+                    }
                   }
                 });
-                console.log("[STARTING STATE] Species ID:", speciesId);
+
+                // If we have species name but no ID, look up entity by name
+                if (!speciesId && speciesName) {
+                  var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+                  var speciesEntity = entities.find(function (e) {
+                    var typeKey = (e.codex_entity_types || {}).key || "";
+                    return typeKey === "species" && String(e.name || "").toLowerCase() === speciesName.toLowerCase();
+                  });
+                  if (speciesEntity) speciesId = Number(speciesEntity.id);
+                }
 
                 if (!speciesId) {
                   panel.innerHTML = "<div style='display:flex;justify-content:space-between;align-items:center;'><div class='tiny' style='color:var(--muted);'>No Species linked to this character. Link a Species first to use Starting State.</div><button type='button' id='codexStartingStateClose' style='font-size:10px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>&times;</button></div>";
