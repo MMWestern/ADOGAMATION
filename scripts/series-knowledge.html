@@ -1160,163 +1160,214 @@
         var existingKeys = {};
         baseStats.forEach(function (s) { existingKeys[s.property_key] = true; });
 
-        // Build display with inline editing
+        // Categorize into stats and resources using shared helper
+        var categorized = typeof codexV2CategorizeState === "function"
+          ? codexV2CategorizeState(baseStats, entities)
+          : { level: [], stats: [], resources: [], other: baseStats.map(function (s) { return { propKey: s.property_key, value: s.value_number || s.value_text || "1" }; }) };
+
         var html = "";
 
-        if (baseStats.length) {
-          html += "<div style='display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;'>";
-          html += "<div style='font-size:10px;font-weight:600;color:var(--muted);'>Stat</div>";
-          html += "<div style='font-size:10px;font-weight:600;color:var(--muted);'>Value</div>";
-          html += "<div></div>";
-
-          baseStats.forEach(function (s) {
-            var value = s.value_number != null ? String(s.value_number) : (s.value_text || "1");
-            html += "<div style='font-size:12px;color:#e2e8f0;'>" + escapeHtml(s.property_key || "property") + "</div>";
-            html += "<div style='display:flex;align-items:center;gap:4px;'>";
-            html += "<input type='number' class='codex-base-stat-input' data-state-id='" + s.id + "' data-prop-key='" + escapeHtml(s.property_key || "") + "' value='" + escapeHtml(value) + "' style='width:60px;font-size:12px;padding:2px 4px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#a5b4fc;text-align:center;' />";
+        // Render stat boxes with editable inputs
+        if (categorized.stats.length || categorized.resources.length || (categorized.level && categorized.level.length)) {
+          // Level boxes
+          if (categorized.level && categorized.level.length) {
+            html += "<div class='stat-box-group' style='margin-bottom:6px;'>";
+            categorized.level.forEach(function (l) {
+              html += renderEditableStatBox(l, baseStats);
+            });
             html += "</div>";
-            html += "<button type='button' class='codex-base-stat-delete' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 4px;background:transparent;border:1px solid #3a3a42;border-radius:3px;color:#999;cursor:pointer;' title='Remove'>&times;</button>";
-          });
+          }
 
-          html += "</div>";
-          html += "<div style='margin-top:8px;display:flex;gap:6px;'>";
-          html += "<button type='button' id='codexBaseStatsSaveAll' class='primary' style='font-size:11px;padding:4px 12px;'>Save All</button>";
-          html += "<button type='button' id='codexBaseStatsAddAll' style='font-size:11px;padding:4px 12px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>Add All Stats</button>";
-          html += "</div>";
-        } else {
-          html += "<div class='tiny' style='color:var(--muted);margin-bottom:8px;'>No base stats defined.</div>";
-          html += "<button type='button' id='codexBaseStatsAddAll' style='font-size:11px;padding:4px 12px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>Add All Stats</button>";
+          // Stats row
+          if (categorized.stats.length) {
+            html += "<div class='stat-box-group'>";
+            categorized.stats.forEach(function (s) {
+              html += renderEditableStatBox(s, baseStats);
+            });
+            html += "</div>";
+          }
+
+          // Resources row
+          if (categorized.resources.length) {
+            if (categorized.stats.length) html += "<div style='height:4px;'></div>";
+            html += "<div class='stat-box-group'>";
+            categorized.resources.forEach(function (r) {
+              html += renderEditableStatBox(r, baseStats);
+            });
+            html += "</div>";
+          }
         }
+
+        // Other properties (not stats/resources)
+        if (categorized.other && categorized.other.length) {
+          html += "<div style='margin-top:8px;font-size:10px;font-weight:600;color:var(--muted);'>Other</div>";
+          html += "<div style='display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;'>";
+          categorized.other.forEach(function (o) {
+            var state = baseStats.find(function (s) { return s.property_key === o.propKey; });
+            var stateId = state ? state.id : 0;
+            html += "<div style='font-size:12px;color:#e2e8f0;'>" + escapeHtml(o.propKey) + "</div>";
+            html += "<input type='number' class='codex-base-stat-input' data-state-id='" + stateId + "' data-prop-key='" + escapeHtml(o.propKey) + "' value='" + escapeHtml(o.value) + "' style='width:60px;font-size:12px;padding:2px 4px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#a5b4fc;text-align:center;' />";
+            html += "<button type='button' class='codex-base-stat-delete' data-state-id='" + stateId + "' style='font-size:10px;padding:2px 4px;background:transparent;border:1px solid #3a3a42;border-radius:3px;color:#999;cursor:pointer;' title='Remove'>&times;</button>";
+          });
+          html += "</div>";
+        }
+
+        // Action buttons
+        html += "<div style='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;'>";
+        if (baseStats.length) {
+          html += "<button type='button' id='codexBaseStatsSaveAll' class='primary' style='font-size:11px;padding:4px 12px;'>Save All</button>";
+        }
+        html += "<button type='button' id='codexBaseStatsAddAll' style='font-size:11px;padding:4px 12px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>Add All Stats</button>";
+        html += "<button type='button' id='codexBaseStatsAddBtn' style='font-size:11px;padding:4px 12px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>+ Add Stat</button>";
+        html += "</div>";
 
         statsList.innerHTML = html;
 
         // Wire Save All button
-        var saveAllBtn = document.getElementById("codexBaseStatsSaveAll");
-        if (saveAllBtn) {
-          saveAllBtn.addEventListener("click", function () {
-            var inputs = statsList.querySelectorAll(".codex-base-stat-input");
-            var toSave = [];
-            inputs.forEach(function (input) {
-              var stateId = Number(input.getAttribute("data-state-id") || 0);
-              var propKey = input.getAttribute("data-prop-key") || "";
-              var value = input.value.trim();
-              if (stateId && value) {
-                var valueNum = Number(value);
-                var isNum = !isNaN(valueNum) && String(valueNum) === value;
-                toSave.push({
-                  id: stateId,
-                  property_key: propKey,
-                  value_text: isNum ? null : value,
-                  value_number: isNum ? valueNum : null
-                });
-              }
-            });
-
-            if (!toSave.length) return;
-
-            saveAllBtn.disabled = true;
-            saveAllBtn.textContent = "Saving...";
-            var saved = 0;
-            var total = toSave.length;
-
-            toSave.forEach(function (item) {
-              var payload = {
-                id: item.id,
-                property_key: item.property_key,
-                value_text: item.value_text,
-                value_number: item.value_number
-              };
-              supabaseRunner
-                .withSuccessHandler(function () {
-                  saved++;
-                  if (saved === total) {
-                    saveAllBtn.textContent = "Saved!";
-                    loadSpeciesBaseStatsDetail(seriesId, entityId);
-                  }
-                })
-                .withFailureHandler(function (err) {
-                  console.error("[codexV2] Save stat failed:", err);
-                  saved++;
-                  if (saved === total) {
-                    saveAllBtn.textContent = "Save All";
-                    saveAllBtn.disabled = false;
-                  }
-                })
-                .saveCodexEntityState(seriesId, JSON.stringify(payload));
-            });
-          });
-        }
+        wireBaseStatsSaveAll(seriesId, entityId, statsList);
 
         // Wire Add All Stats button
-        var addAllBtn = document.getElementById("codexBaseStatsAddAll");
-        if (addAllBtn) {
-          addAllBtn.addEventListener("click", function () {
-            // Find stats that aren't already defined
-            var missing = propEntities.filter(function (e) {
-              return !existingKeys[e.name];
-            });
-
-            if (!missing.length) {
-              alert("All stats are already defined.");
-              return;
-            }
-
-            addAllBtn.disabled = true;
-            addAllBtn.textContent = "Adding...";
-            var added = 0;
-            var total = missing.length;
-
-            missing.forEach(function (e) {
-              var payload = {
-                subject_entity_id: entityId,
-                property_entity_id: e.id,
-                property_key: e.name || "",
-                value_text: null,
-                value_number: 1,
-                series_id: seriesId,
-                state_status: "canon",
-                entry_order: 1,
-                notes: "Species base stat"
-              };
-              supabaseRunner
-                .withSuccessHandler(function () {
-                  added++;
-                  if (added === total) {
-                    addAllBtn.textContent = "Added!";
-                    loadSpeciesBaseStatsDetail(seriesId, entityId);
-                  }
-                })
-                .withFailureHandler(function (err) {
-                  console.error("[codexV2] Add stat failed:", err);
-                  added++;
-                  if (added === total) {
-                    addAllBtn.textContent = "Add All Stats";
-                    addAllBtn.disabled = false;
-                  }
-                })
-                .saveCodexEntityState(seriesId, JSON.stringify(payload));
-            });
-          });
-        }
+        wireBaseStatsAddAll(seriesId, entityId, existingKeys, propEntities);
 
         // Wire delete buttons
-        statsList.querySelectorAll(".codex-base-stat-delete").forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var stateId = Number(btn.getAttribute("data-state-id"));
-            if (!stateId) return;
-            if (!confirm("Remove this base stat?")) return;
-            supabaseRunner
-              .withSuccessHandler(function () {
-                loadSpeciesBaseStatsDetail(seriesId, entityId);
-              })
-              .withFailureHandler(function (err) {
-                console.error("[codexV2] Delete base stat failed:", err);
-              })
-              .deleteCodexEntityState(stateId);
-          });
+        wireBaseStatsDeleteButtons(seriesId, entityId, statsList);
+    }
+
+    function renderEditableStatBox(entry, baseStats) {
+      var state = baseStats.find(function (s) { return s.property_key === entry.propKey; });
+      var stateId = state ? state.id : 0;
+      var tooltip = entry.fullName || entry.propKey || "";
+      if (entry.description) tooltip += ": " + entry.description;
+      return "<div class='stat-box " + entry.cls + "' title='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(tooltip) : tooltip) + "'>" +
+        "<div class='stat-box-abbr'>" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.abbr) : entry.abbr) + "</div>" +
+        "<input type='number' class='codex-base-stat-input stat-box-value-input' data-state-id='" + stateId + "' data-prop-key='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.propKey) : entry.propKey) + "' value='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.value) : entry.value) + "' style='width:100%;font-size:15px;font-weight:800;line-height:1;color:#e2e8f0;background:transparent;border:none;text-align:center;padding:0;margin:0;'>" +
+        "</div>";
+    }
+
+    function wireBaseStatsSaveAll(seriesId, entityId, statsList) {
+      var saveAllBtn = document.getElementById("codexBaseStatsSaveAll");
+      if (!saveAllBtn) return;
+      saveAllBtn.addEventListener("click", function () {
+        var inputs = statsList.querySelectorAll(".codex-base-stat-input");
+        var toSave = [];
+        inputs.forEach(function (input) {
+          var stateId = Number(input.getAttribute("data-state-id") || 0);
+          var propKey = input.getAttribute("data-prop-key") || "";
+          var value = input.value.trim();
+          if (stateId && value) {
+            var valueNum = Number(value);
+            var isNum = !isNaN(valueNum) && String(valueNum) === value;
+            toSave.push({
+              id: stateId,
+              property_key: propKey,
+              value_text: isNum ? null : value,
+              value_number: isNum ? valueNum : null
+            });
+          }
         });
 
-        wireBaseStatsAddButtonDetail(seriesId, entityId, baseStats);
+        if (!toSave.length) return;
+
+        saveAllBtn.disabled = true;
+        saveAllBtn.textContent = "Saving...";
+        var saved = 0;
+        var total = toSave.length;
+
+        toSave.forEach(function (item) {
+          var payload = {
+            id: item.id,
+            property_key: item.property_key,
+            value_text: item.value_text,
+            value_number: item.value_number
+          };
+          supabaseRunner
+            .withSuccessHandler(function () {
+              saved++;
+              if (saved === total) {
+                saveAllBtn.textContent = "Saved!";
+                setTimeout(function () { loadSpeciesBaseStatsDetail(seriesId, entityId); }, 500);
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error("[codexV2] Save stat failed:", err);
+              saved++;
+              if (saved === total) {
+                saveAllBtn.textContent = "Save All";
+                saveAllBtn.disabled = false;
+              }
+            })
+            .saveCodexEntityState(seriesId, JSON.stringify(payload));
+        });
+      });
+    }
+
+    function wireBaseStatsAddAll(seriesId, entityId, existingKeys, propEntities) {
+      var addAllBtn = document.getElementById("codexBaseStatsAddAll");
+      if (!addAllBtn) return;
+      addAllBtn.addEventListener("click", function () {
+        var missing = propEntities.filter(function (e) {
+          return !existingKeys[e.name];
+        });
+
+        if (!missing.length) {
+          alert("All stats are already defined.");
+          return;
+        }
+
+        addAllBtn.disabled = true;
+        addAllBtn.textContent = "Adding...";
+        var added = 0;
+        var total = missing.length;
+
+        missing.forEach(function (e) {
+          var payload = {
+            subject_entity_id: entityId,
+            property_entity_id: e.id,
+            property_key: e.name || "",
+            value_text: null,
+            value_number: 1,
+            series_id: seriesId,
+            state_status: "canon",
+            entry_order: 1,
+            notes: "Species base stat"
+          };
+          supabaseRunner
+            .withSuccessHandler(function () {
+              added++;
+              if (added === total) {
+                addAllBtn.textContent = "Added!";
+                setTimeout(function () { loadSpeciesBaseStatsDetail(seriesId, entityId); }, 500);
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error("[codexV2] Add stat failed:", err);
+              added++;
+              if (added === total) {
+                addAllBtn.textContent = "Add All Stats";
+                addAllBtn.disabled = false;
+              }
+            })
+            .saveCodexEntityState(seriesId, JSON.stringify(payload));
+        });
+      });
+    }
+
+    function wireBaseStatsDeleteButtons(seriesId, entityId, statsList) {
+      statsList.querySelectorAll(".codex-base-stat-delete").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var stateId = Number(btn.getAttribute("data-state-id"));
+          if (!stateId) return;
+          if (!confirm("Remove this base stat?")) return;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              loadSpeciesBaseStatsDetail(seriesId, entityId);
+            })
+            .withFailureHandler(function (err) {
+              console.error("[codexV2] Delete base stat failed:", err);
+            })
+            .deleteCodexEntityState(stateId);
+        });
+      });
     }
 
     function wireBaseStatsAddButtonDetail(seriesId, entityId, existingStats) {

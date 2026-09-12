@@ -3374,6 +3374,31 @@
     .stat-custom .stat-box-abbr { color: var(--stat-color, #a5b4fc); }
     .stat-custom .stat-box-value { color: #e2e8f0; } /* Always default white */
 
+    /* Editable stat box input */
+    .stat-box-value-input {
+      width: 100%;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1;
+      color: #e2e8f0;
+      background: transparent;
+      border: none;
+      text-align: center;
+      padding: 0;
+      margin: 0;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .stat-box-value-input::-webkit-inner-spin-button,
+    .stat-box-value-input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .stat-box-value-input:focus {
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 4px;
+    }
+
     /* Level box - larger (higher specificity) */
     .stat-box-group .stat-box.stat-box-level,
     .stat-box.stat-box-level {
