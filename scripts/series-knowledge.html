@@ -1154,7 +1154,7 @@
             var typeKey = (e.codex_entity_types || {}).key || "";
             return typeKey === "stat" || typeKey === "resource";
         });
-        propEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || ""); });
+        propEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
 
         // Find which stats are already defined
         var existingKeys = {};
