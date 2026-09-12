@@ -1553,6 +1553,16 @@
                 <div class='tiny' style='color:var(--muted);'>Select an entity to view state.</div>
               </div>
             </div>
+            <!-- Base Stats section (species entities only) -->
+            <div id="skCodexBaseStatsSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);" hidden>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label class="label" style="margin:0;">Base Stats (Species Defaults)</label>
+                <button type='button' id='skCodexBaseStatsAddBtn' style='font-size:10px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>+ Add Stat</button>
+              </div>
+              <div id="skCodexBaseStatsList" style="font-size:12px;">
+                <div class='tiny' style='color:var(--muted);'>No base stats defined.</div>
+              </div>
+            </div>
             <div class="world-entity-form-actions">
               <button id="skCodexInspectorCancelButton" type="button">Cancel</button>
               <button id="skCodexInspectorGenerateButton" type="button">Generate Image</button>

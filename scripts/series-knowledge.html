@@ -1024,6 +1024,16 @@
                 }
                 // Load state data for this entity
                 loadSkCodexInspectorState(seriesId, entityId);
+                // Show Base Stats section for species entities
+                var baseStatsSection = document.getElementById("skCodexBaseStatsSection");
+                if (baseStatsSection) {
+                    if (_skCodexInspectorType === "species") {
+                        baseStatsSection.hidden = false;
+                        loadSpeciesBaseStats(seriesId, entityId);
+                    } else {
+                        baseStatsSection.hidden = true;
+                    }
+                }
             })
             .catch(function () {});
     }
@@ -1082,6 +1092,166 @@
                 stateList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading state.</div>";
             })
             .listCodexEntityState(seriesId, entityId);
+    }
+
+    function loadSpeciesBaseStats(seriesId, entityId) {
+        var statsList = document.getElementById("skCodexBaseStatsList");
+        if (!statsList) return;
+        statsList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading base stats...</div>";
+
+        // Load state records for the species entity
+        supabaseRunner
+            .withSuccessHandler(function (json) {
+                try {
+                    var result = JSON.parse(json);
+                    var states = (result && result.ok !== false && Array.isArray(result.states)) ? result.states : [];
+                    renderSpeciesBaseStats(seriesId, entityId, states, statsList);
+                } catch (e) {
+                    statsList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading base stats.</div>";
+                }
+            })
+            .withFailureHandler(function () {
+                statsList.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading base stats.</div>";
+            })
+            .listCodexEntityState(seriesId, entityId);
+    }
+
+    function renderSpeciesBaseStats(seriesId, entityId, states, statsList) {
+        if (!statsList) return;
+
+        // Filter to only stats and resources (exclude templates)
+        var baseStats = states.filter(function (s) {
+            return s.state_status !== 'template' && s.property_key;
+        });
+
+        if (!baseStats.length) {
+            statsList.innerHTML = "<div class='tiny' style='color:var(--muted);'>No base stats defined. Click '+ Add Stat' to add default values.</div>";
+            wireBaseStatsAddButton(seriesId, entityId, []);
+            return;
+        }
+
+        var html = "<div style='display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;'>";
+        html += "<div style='font-size:10px;font-weight:600;color:var(--muted);'>Stat</div>";
+        html += "<div style='font-size:10px;font-weight:600;color:var(--muted);'>Value</div>";
+        html += "<div></div>";
+
+        baseStats.forEach(function (s) {
+            var value = s.value_number != null ? String(s.value_number) : (s.value_text || "");
+            html += "<div style='font-size:12px;color:#e2e8f0;'>" + escapeHtml(s.property_key || "property") + "</div>";
+            html += "<div style='font-size:12px;color:#a5b4fc;font-weight:600;'>" + escapeHtml(value) + "</div>";
+            html += "<button type='button' class='codex-base-stat-delete' data-state-id='" + s.id + "' style='font-size:10px;padding:2px 4px;background:transparent;border:1px solid #3a3a42;border-radius:3px;color:#999;cursor:pointer;' title='Remove'>&times;</button>";
+        });
+
+        html += "</div>";
+        statsList.innerHTML = html;
+
+        // Wire delete buttons
+        statsList.querySelectorAll(".codex-base-stat-delete").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var stateId = Number(btn.getAttribute("data-state-id"));
+                if (!stateId) return;
+                if (!confirm("Remove this base stat?")) return;
+                supabaseRunner
+                    .withSuccessHandler(function () {
+                        loadSpeciesBaseStats(seriesId, entityId);
+                    })
+                    .withFailureHandler(function (err) {
+                        console.error("[codexV2] Delete base stat failed:", err);
+                    })
+                    .deleteCodexEntityState(stateId);
+            });
+        });
+
+        wireBaseStatsAddButton(seriesId, entityId, baseStats);
+    }
+
+    function wireBaseStatsAddButton(seriesId, entityId, existingStats) {
+        var addBtn = document.getElementById("skCodexBaseStatsAddBtn");
+        if (!addBtn || addBtn._wired) return;
+        addBtn._wired = true;
+        addBtn.addEventListener("click", function () {
+            var panel = document.getElementById("skCodexBaseStatsList");
+            if (!panel) return;
+
+            // Show add form
+            var html = "<div style='margin-top:8px;padding:8px;border:1px solid #3a3a42;border-radius:6px;background:#1a1a20;'>";
+            html += "<div style='font-size:11px;font-weight:600;margin-bottom:8px;'>Add Base Stat</div>";
+            html += "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>";
+            // Property dropdown (show stat/resource entities)
+            html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Property</label>";
+            html += "<select id='baseStatProperty' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;'>";
+            html += "<option value=''>— Select —</option>";
+            var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+            var propEntities = entities.filter(function (e) {
+                var typeKey = (e.codex_entity_types || {}).key || "";
+                return typeKey === "stat" || typeKey === "resource" || typeKey === "skill_ability";
+            });
+            propEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+            propEntities.forEach(function (e) {
+                html += "<option value='" + e.id + "'>" + escapeHtml(e.name || "Unnamed") + "</option>";
+            });
+            html += "</select></div>";
+            // Value input
+            html += "<div><label style='font-size:10px;color:var(--muted);display:block;'>Default Value</label>";
+            html += "<input id='baseStatValue' type='text' placeholder='e.g. 5' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' /></div>";
+            html += "</div>";
+            html += "<div style='display:flex;gap:6px;margin-top:8px;'>";
+            html += "<button type='button' id='baseStatSaveBtn' class='primary' style='font-size:11px;padding:4px 12px;'>Save</button>";
+            html += "<button type='button' id='baseStatCancelBtn' style='font-size:11px;padding:4px 12px;'>Cancel</button>";
+            html += "</div></div>";
+
+            // Insert form before existing stats
+            var formDiv = document.createElement("div");
+            formDiv.id = "baseStatAddForm";
+            formDiv.innerHTML = html;
+            panel.insertBefore(formDiv, panel.firstChild);
+
+            // Wire save button
+            document.getElementById("baseStatSaveBtn").addEventListener("click", function () {
+                var propSelect = document.getElementById("baseStatProperty");
+                var valueInput = document.getElementById("baseStatValue");
+                var propId = propSelect ? Number(propSelect.value || 0) : 0;
+                var value = valueInput ? valueInput.value.trim() : "";
+                if (!propId) { alert("Select a property."); return; }
+                if (!value) { alert("Enter a value."); return; }
+
+                // Find property entity for key
+                var propEntity = entities.find(function (e) { return Number(e.id) === propId; });
+                var propKey = propEntity ? propEntity.name || "" : "";
+
+                // Determine if value is numeric
+                var valueNum = Number(value);
+                var isNum = !isNaN(valueNum) && String(valueNum) === value;
+
+                var payload = {
+                    subject_entity_id: entityId,
+                    property_entity_id: propId,
+                    property_key: propKey,
+                    value_text: isNum ? null : value,
+                    value_number: isNum ? valueNum : null,
+                    series_id: seriesId,
+                    state_status: "canon",
+                    entry_order: 1,
+                    notes: "Species base stat"
+                };
+
+                supabaseRunner
+                    .withSuccessHandler(function () {
+                        formDiv.remove();
+                        loadSpeciesBaseStats(seriesId, entityId);
+                    })
+                    .withFailureHandler(function (err) {
+                        console.error("[codexV2] Save base stat failed:", err);
+                        alert("Failed to save: " + (err && err.message ? err.message : err));
+                    })
+                    .saveCodexEntityState(seriesId, JSON.stringify(payload));
+            });
+
+            // Wire cancel button
+            document.getElementById("baseStatCancelBtn").addEventListener("click", function () {
+                formDiv.remove();
+            });
+        });
     }
 
     function saveSkCodexInspector() {
