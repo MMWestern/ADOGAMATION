@@ -1026,6 +1026,7 @@
                 loadSkCodexInspectorState(seriesId, entityId);
                 // Show Base Stats section for species entities
                 var baseStatsSection = document.getElementById("skCodexBaseStatsSection");
+                console.log("[BASE STATS] Entity type:", _skCodexInspectorType, "Section found:", !!baseStatsSection);
                 if (baseStatsSection) {
                     if (_skCodexInspectorType === "species") {
                         baseStatsSection.hidden = false;
