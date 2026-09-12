@@ -1243,6 +1243,7 @@
       if (entry.description) tooltip += ": " + entry.description;
       var escAttr = typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr : function(s) { return String(s || ""); };
       return "<div class='stat-box " + entry.cls + "' title='" + escAttr(tooltip) + "'>" +
+        "<button type='button' class='stat-box-remove codex-base-stat-delete' data-state-id='" + stateId + "'>&times;</button>" +
         "<div class='stat-box-abbr'>" + escAttr(entry.abbr) + "</div>" +
         "<div class='stat-box-value-row'>" +
         "<button type='button' class='stat-box-btn stat-box-minus' data-input-id='stat-input-" + stateId + "'>&minus;</button>" +
@@ -1292,6 +1293,8 @@
             var isNum = !isNaN(valueNum) && String(valueNum) === value;
             toSave.push({
               id: stateId,
+              subject_entity_id: entityId,
+              series_id: seriesId,
               property_key: propKey,
               value_text: isNum ? null : value,
               value_number: isNum ? valueNum : null
@@ -1309,6 +1312,8 @@
         toSave.forEach(function (item) {
           var payload = {
             id: item.id,
+            subject_entity_id: entityId,
+            series_id: seriesId,
             property_key: item.property_key,
             value_text: item.value_text,
             value_number: item.value_number
