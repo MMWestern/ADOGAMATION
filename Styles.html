@@ -3375,8 +3375,15 @@
     .stat-custom .stat-box-value { color: #e2e8f0; } /* Always default white */
 
     /* Editable stat box input */
-    .stat-box-value-input {
+    .stat-box-value-row {
+      display: flex;
+      align-items: center;
+      gap: 2px;
       width: 100%;
+    }
+    .stat-box-value-input {
+      flex: 1;
+      min-width: 0;
       font-size: 15px;
       font-weight: 800;
       line-height: 1;
@@ -3397,6 +3404,29 @@
     .stat-box-value-input:focus {
       background: rgba(99, 102, 241, 0.1);
       border-radius: 4px;
+    }
+    .stat-box-btn {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 0;
+      margin: 0;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      color: #a5a5ad;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .stat-box-btn:hover {
+      background: rgba(99, 102, 241, 0.2);
+      color: #e2e8f0;
     }
 
     /* Level box - larger (higher specificity) */

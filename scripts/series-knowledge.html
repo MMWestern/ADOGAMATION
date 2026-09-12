@@ -1231,6 +1231,9 @@
 
         // Wire delete buttons
         wireBaseStatsDeleteButtons(seriesId, entityId, statsList);
+
+        // Wire +/- buttons on stat boxes
+        wireStatBoxButtons();
     }
 
     function renderEditableStatBox(entry, baseStats) {
@@ -1238,10 +1241,40 @@
       var stateId = state ? state.id : 0;
       var tooltip = entry.fullName || entry.propKey || "";
       if (entry.description) tooltip += ": " + entry.description;
-      return "<div class='stat-box " + entry.cls + "' title='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(tooltip) : tooltip) + "'>" +
-        "<div class='stat-box-abbr'>" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.abbr) : entry.abbr) + "</div>" +
-        "<input type='number' class='codex-base-stat-input stat-box-value-input' data-state-id='" + stateId + "' data-prop-key='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.propKey) : entry.propKey) + "' value='" + (typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr(entry.value) : entry.value) + "' style='width:100%;font-size:15px;font-weight:800;line-height:1;color:#e2e8f0;background:transparent;border:none;text-align:center;padding:0;margin:0;'>" +
+      var escAttr = typeof codexV2EscapeAttr === "function" ? codexV2EscapeAttr : function(s) { return String(s || ""); };
+      return "<div class='stat-box " + entry.cls + "' title='" + escAttr(tooltip) + "'>" +
+        "<div class='stat-box-abbr'>" + escAttr(entry.abbr) + "</div>" +
+        "<div class='stat-box-value-row'>" +
+        "<button type='button' class='stat-box-btn stat-box-minus' data-input-id='stat-input-" + stateId + "'>&minus;</button>" +
+        "<input type='number' id='stat-input-" + stateId + "' class='codex-base-stat-input stat-box-value-input' data-state-id='" + stateId + "' data-prop-key='" + escAttr(entry.propKey) + "' value='" + escAttr(entry.value) + "' />" +
+        "<button type='button' class='stat-box-btn stat-box-plus' data-input-id='stat-input-" + stateId + "'>&plus;</button>" +
+        "</div>" +
         "</div>";
+    }
+
+    function wireStatBoxButtons() {
+      // Wire minus buttons
+      document.querySelectorAll(".stat-box-minus").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var inputId = btn.getAttribute("data-input-id");
+          var input = document.getElementById(inputId);
+          if (input) {
+            var val = Number(input.value || 0);
+            input.value = Math.max(0, val - 1);
+          }
+        });
+      });
+      // Wire plus buttons
+      document.querySelectorAll(".stat-box-plus").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var inputId = btn.getAttribute("data-input-id");
+          var input = document.getElementById(inputId);
+          if (input) {
+            var val = Number(input.value || 0);
+            input.value = val + 1;
+          }
+        });
+      });
     }
 
     function wireBaseStatsSaveAll(seriesId, entityId, statsList) {
