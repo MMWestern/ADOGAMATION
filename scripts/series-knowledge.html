@@ -907,9 +907,10 @@
         _skCodexInspectorType = type || "";
         _skCodexInspectorId = Number(id || 0);
         _skCodexInspectorIsNew = !_skCodexInspectorId;
+        console.log("[INSPECTOR] Opening type:", type, "id:", id);
         if (el.skCodexInspectorId) el.skCodexInspectorId.value = String(_skCodexInspectorId);
         if (el.skCodexInspectorType) el.skCodexInspectorType.value = _skCodexInspectorType;
-        var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", continuity: "Continuity", other: "Other", maps: "Map", magic_systems: "Magic System" };
+        var typeLabels = { characters: "Character", locations: "Location", objects: "Object", lore: "Lore", subplots: "Subplot", continuity: "Continuity", other: "Other", maps: "Map", magic_systems: "Magic System", species: "Species", stat: "Stat", resource: "Resource", system_rule: "System Rule" };
         if (el.skCodexInspectorTypeLabel) el.skCodexInspectorTypeLabel.textContent = typeLabels[type] || type || "Entity";
         if (el.skCodexInspectorDeleteButton) el.skCodexInspectorDeleteButton.hidden = _skCodexInspectorIsNew;
         if (el.skCodexInspectorSaveButton) el.skCodexInspectorSaveButton.textContent = _skCodexInspectorIsNew ? "Create " + (typeLabels[type] || "Entry") : "Save Changes";
