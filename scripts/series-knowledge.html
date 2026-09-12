@@ -9541,9 +9541,7 @@
             .withSuccessHandler(function (json) {
               try {
                 var result = typeof json === 'string' ? JSON.parse(json) : json;
-                console.log("[STARTING STATE] Field values result:", result);
                 var fieldValues = (result && result.ok !== false && Array.isArray(result.values)) ? result.values : [];
-                console.log("[STARTING STATE] Field values:", fieldValues.length, fieldValues);
                 var speciesId = 0;
                 var speciesName = "";
                 fieldValues.forEach(function (fv) {
