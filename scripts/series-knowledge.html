@@ -9547,9 +9547,9 @@
                 var speciesId = 0;
                 fieldValues.forEach(function (fv) {
                   var def = fv.codex_entity_field_definitions || {};
-                  console.log("[STARTING STATE] Field:", def.field_key, "target:", fv.target_entity_id);
-                  if (def.field_key === 'species' && fv.target_entity_id) {
-                    speciesId = Number(fv.target_entity_id);
+                  console.log("[STARTING STATE] Field:", def.field_key, "target:", fv.target_entity_id, "value_text:", fv.value_text, "full:", fv);
+                  if (def.field_key === 'species') {
+                    speciesId = fv.target_entity_id ? Number(fv.target_entity_id) : (fv.value_text ? Number(fv.value_text) : 0);
                   }
                 });
                 console.log("[STARTING STATE] Species ID:", speciesId);
