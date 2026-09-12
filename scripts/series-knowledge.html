@@ -9541,14 +9541,18 @@
             .withSuccessHandler(function (json) {
               try {
                 var result = typeof json === 'string' ? JSON.parse(json) : json;
+                console.log("[STARTING STATE] Field values result:", result);
                 var fieldValues = (result && result.ok !== false && Array.isArray(result.values)) ? result.values : [];
+                console.log("[STARTING STATE] Field values:", fieldValues.length, fieldValues);
                 var speciesId = 0;
                 fieldValues.forEach(function (fv) {
                   var def = fv.codex_entity_field_definitions || {};
+                  console.log("[STARTING STATE] Field:", def.field_key, "target:", fv.target_entity_id);
                   if (def.field_key === 'species' && fv.target_entity_id) {
                     speciesId = Number(fv.target_entity_id);
                   }
                 });
+                console.log("[STARTING STATE] Species ID:", speciesId);
 
                 if (!speciesId) {
                   panel.innerHTML = "<div style='display:flex;justify-content:space-between;align-items:center;'><div class='tiny' style='color:var(--muted);'>No Species linked to this character. Link a Species first to use Starting State.</div><button type='button' id='codexStartingStateClose' style='font-size:10px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>&times;</button></div>";
