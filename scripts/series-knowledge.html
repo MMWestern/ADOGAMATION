@@ -6220,8 +6220,8 @@
       // Entity type pill
       html += "<span class='codex-entity-detail-type-badge'>" + escapeHtml(typeInfo.name_singular || typeName) + "</span>";
       // Sub-type breadcrumb (for all entity types with sub-types)
-      if (treeItem && treeItem.subTypes && subTypeValue) {
-        console.log("[BREADCRUMB] subTypeValue:", subTypeValue, "treeItem.subTypes:", JSON.stringify(treeItem.subTypes));
+      var subTypeForBreadcrumb = String(customData.sub_type || customData.role_archetype || "").trim();
+      if (treeItem && treeItem.subTypes && subTypeForBreadcrumb) {
         var breadcrumbPath = [];
         // Find the sub-type path in the tree
         function findSubTypePath(nodes, target, path) {
@@ -6232,15 +6232,14 @@
             if (nodeLabel.toLowerCase() === target.toLowerCase()) {
               return currentPath;
             }
-            if (typeof node === 'object' && node.subTypes && node.subTypes.length > 0) {
+            if (typeof node === 'object' && Array.isArray(node.subTypes) && node.subTypes.length > 0) {
               var found = findSubTypePath(node.subTypes, target, currentPath);
               if (found) return found;
             }
           }
           return null;
         }
-        breadcrumbPath = findSubTypePath(treeItem.subTypes, subTypeValue, []);
-        console.log("[BREADCRUMB] breadcrumbPath:", JSON.stringify(breadcrumbPath));
+        breadcrumbPath = findSubTypePath(treeItem.subTypes, subTypeForBreadcrumb, []);
         if (breadcrumbPath && breadcrumbPath.length > 0) {
           breadcrumbPath.forEach(function (crumb, i) {
             if (i > 0) html += "<span style='color:#5f6971;font-size:10px;margin:0 2px;'>›</span>";
