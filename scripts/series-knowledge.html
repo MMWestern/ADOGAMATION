@@ -5315,8 +5315,11 @@
             optionsHtml += "</button>";
             optionsHtml += "<div class='writing-codex-new-entry-children' hidden>";
             subTypes.forEach(function (st) {
-              optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(st) + "' type='button'>";
-              optionsHtml += "<span>" + escapeHtml(st) + "</span>";
+              var stLabel = typeof st === 'string' ? st : (st.label || st.key || st.name || "");
+              var stValue = typeof st === 'string' ? st : (st.label || st.key || st.name || "");
+              if (!stLabel) return;
+              optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(stValue) + "' type='button'>";
+              optionsHtml += "<span>" + escapeHtml(stLabel) + "</span>";
               optionsHtml += "</button>";
             });
             optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='' type='button'>";
