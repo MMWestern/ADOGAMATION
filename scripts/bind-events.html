@@ -2108,7 +2108,7 @@
             } else if (val === "full-novel" || val === "full-outline") {
               appState.chatContext = { type: val, selected: [] };
               var label = item.querySelector(".context-title");
-              el.chatContextButton.textContent = (label ? label.textContent.trim() : val) + " \u02C5";
+              el.chatContextButton.textContent = (label ? label.textContent.trim() : val) + " ▾";
               el.chatContextMenu.hidden = true;
               if (typeof renderChatContextPills === "function") renderChatContextPills();
             } else if (val === "acts" || val === "chapters" || val === "scenes" || val === "codex") {
@@ -2130,6 +2130,8 @@
             if (val === "clear") {
               item.style.color = ctx ? "#686872" : "#3a3a42";
               item.style.cursor = ctx ? "pointer" : "not-allowed";
+            } else if (ctx && ctx.multi && ctx.multi[val] && ctx.multi[val].length > 0) {
+              item.style.background = "#222229";
             } else if (ctx && ctx.type === val) {
               item.style.background = "#222229";
             } else {
@@ -2191,7 +2193,11 @@
           });
         }
 
-        var selected = (appState.chatContext && appState.chatContext.type === type) ? (appState.chatContext.selected || []) : [];
+        // Get selected items for this type from multi-type context
+        var selected = [];
+        if (appState.chatContext && appState.chatContext.multi && appState.chatContext.multi[type]) {
+          selected = appState.chatContext.multi[type] || [];
+        }
         var html = "<div class='context-back' data-context='back'><span>←</span> Back</div>";
         // Add "Select All" option for codex
         if (type === "codex" && items.length > 0) {
@@ -2215,39 +2221,48 @@
             var id = el2.getAttribute("data-sub-id");
             var subType = el2.getAttribute("data-sub-type");
             
+            // Initialize multi-type context if needed
+            if (!appState.chatContext || !appState.chatContext.multi) {
+              appState.chatContext = { multi: {} };
+            }
+            if (!appState.chatContext.multi[type]) {
+              appState.chatContext.multi[type] = [];
+            }
+            
             // Handle "Select All" for codex
             if (subType === "codex-select-all") {
-              if (!appState.chatContext || appState.chatContext.type !== "codex") {
-                appState.chatContext = { type: "codex", selected: [] };
-              }
-              // Toggle: if all are selected, deselect all; otherwise select all
               var allIds = items.map(function (item) { return item.id; });
-              var allSelected = allIds.every(function (id) { return appState.chatContext.selected.indexOf(id) !== -1; });
+              var allSelected = allIds.every(function (id) { return appState.chatContext.multi[type].indexOf(id) !== -1; });
               if (allSelected) {
-                appState.chatContext.selected = [];
+                appState.chatContext.multi[type] = [];
               } else {
-                appState.chatContext.selected = allIds.slice();
+                appState.chatContext.multi[type] = allIds.slice();
               }
             } else {
               // Normal toggle behavior
-              if (!appState.chatContext || appState.chatContext.type !== type) {
-                appState.chatContext = { type: type, selected: [] };
-              }
-              var idx = appState.chatContext.selected.indexOf(id);
+              var idx = appState.chatContext.multi[type].indexOf(id);
               if (idx === -1) {
-                appState.chatContext.selected.push(id);
+                appState.chatContext.multi[type].push(id);
               } else {
-                appState.chatContext.selected.splice(idx, 1);
+                appState.chatContext.multi[type].splice(idx, 1);
               }
             }
             
-            if (appState.chatContext.selected.length === 0) {
+            // Clean up empty arrays
+            if (appState.chatContext.multi[type].length === 0) {
+              delete appState.chatContext.multi[type];
+            }
+            
+            // Update button text
+            var totalSelected = 0;
+            Object.values(appState.chatContext.multi).forEach(function (arr) { totalSelected += arr.length; });
+            if (totalSelected === 0) {
               appState.chatContext = null;
               el.chatContextButton.textContent = "+ Context";
             } else {
-              var label = type.charAt(0).toUpperCase() + type.slice(1) + " (" + appState.chatContext.selected.length + " selected)";
-              el.chatContextButton.textContent = label + " ▾";
+              el.chatContextButton.textContent = "Context (" + totalSelected + " selected) ▾";
             }
+            
             if (typeof renderChatContextPills === "function") renderChatContextPills();
             showContextSubMenu(type);
           });

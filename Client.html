@@ -7913,35 +7913,48 @@
       var outline = (typeof getPlanOutline === "function") ? getPlanOutline() : { acts: [] };
       var acts = outline.acts || [];
       var pills = [];
-      if (ctx.type === "full-novel") {
-        pills.push({ id: "full-novel", label: "Full Novel Text" });
-      } else if (ctx.type === "full-outline") {
-        pills.push({ id: "full-outline", label: "Full Outline" });
-      } else if (ctx.type === "acts") {
-        (ctx.selected || []).forEach(function (id) {
-          var a = acts.find(function (x) { return x.id === id; });
-          pills.push({ id: id, label: a ? (a.title || "Untitled Act") : id });
-        });
-      } else if (ctx.type === "chapters") {
-        var chapterNum = 0;
-        (ctx.selected || []).forEach(function (id) {
-          var found = null;
-          acts.forEach(function (a) { 
-            (a.children || []).forEach(function (ch) { 
-              chapterNum++;
-              if (ch.id === id) found = "Ch. " + chapterNum + ": " + (ch.title || "Untitled"); 
-            }); 
+      
+      // Handle legacy single-type context
+      if (ctx.type && !ctx.multi) {
+        if (ctx.type === "full-novel") {
+          pills.push({ id: "full-novel", label: "Full Novel Text", type: "full-novel" });
+        } else if (ctx.type === "full-outline") {
+          pills.push({ id: "full-outline", label: "Full Outline", type: "full-outline" });
+        } else if (ctx.type === "chapters") {
+          var chapterNum = 0;
+          (ctx.selected || []).forEach(function (id) {
+            var found = null;
+            acts.forEach(function (a) {
+              (a.children || []).forEach(function (ch) {
+                chapterNum++;
+                if (ch.id === id) found = "Ch. " + chapterNum + ": " + (ch.title || "Untitled");
+              });
+            });
+            pills.push({ id: id, label: found || id, type: "chapters" });
           });
-          pills.push({ id: id, label: found || id });
-        });
-      } else if (ctx.type === "scenes") {
-        (ctx.selected || []).forEach(function (id) {
-          var found = null;
-          acts.forEach(function (a) { (a.children || []).forEach(function (ch) { (ch.children || []).forEach(function (s) { if (s.id === id) found = (ch.title || "Chapter") + " \u203A " + (s.title || "Untitled Scene"); }); }); });
-          pills.push({ id: id, label: found || id });
-        });
-      } else if (ctx.type === "codex") {
-        // Dynamic codex category labels from entity types
+        } else if (ctx.type === "scenes") {
+          (ctx.selected || []).forEach(function (id) {
+            var found = null;
+            acts.forEach(function (a) { (a.children || []).forEach(function (ch) { (ch.children || []).forEach(function (s) { if (s.id === id) found = (ch.title || "Chapter") + " › " + (s.title || "Untitled Scene"); }); }); });
+            pills.push({ id: id, label: found || id, type: "scenes" });
+          });
+        } else if (ctx.type === "codex") {
+          var seriesId = Number(getSelectedProject && getSelectedProject() && getSelectedProject().series_id || 0);
+          var entities = seriesId && codexCache.entitiesBySeries ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+          var catLabels = {};
+          entities.forEach(function (e) {
+            var typeInfo = e.codex_entity_types || {};
+            if (typeInfo.key) catLabels[typeInfo.key] = typeInfo.name_plural || typeInfo.name || typeInfo.key;
+          });
+          (ctx.selected || []).forEach(function (id) {
+            pills.push({ id: id, label: catLabels[id] || id, type: "codex" });
+          });
+        }
+      }
+      
+      // Handle multi-type context
+      if (ctx.multi) {
+        // Dynamic codex category labels
         var seriesId = Number(getSelectedProject && getSelectedProject() && getSelectedProject().series_id || 0);
         var entities = seriesId && codexCache.entitiesBySeries ? (codexCache.entitiesBySeries[seriesId] || []) : [];
         var catLabels = {};
@@ -7949,23 +7962,58 @@
           var typeInfo = e.codex_entity_types || {};
           if (typeInfo.key) catLabels[typeInfo.key] = typeInfo.name_plural || typeInfo.name || typeInfo.key;
         });
-        (ctx.selected || []).forEach(function (id) {
-          pills.push({ id: id, label: catLabels[id] || id });
+        
+        Object.keys(ctx.multi).forEach(function (type) {
+          var selected = ctx.multi[type] || [];
+          selected.forEach(function (id) {
+            var label = id;
+            if (type === "chapters") {
+              var chapterNum = 0;
+              acts.forEach(function (a) {
+                (a.children || []).forEach(function (ch) {
+                  chapterNum++;
+                  if (ch.id === id) label = "Ch. " + chapterNum + ": " + (ch.title || "Untitled");
+                });
+              });
+            } else if (type === "scenes") {
+              acts.forEach(function (a) { (a.children || []).forEach(function (ch) { (ch.children || []).forEach(function (s) { if (s.id === id) label = (ch.title || "Chapter") + " › " + (s.title || "Untitled Scene"); }); }); });
+            } else if (type === "codex") {
+              label = catLabels[id] || id;
+            }
+            pills.push({ id: id, label: label, type: type });
+          });
         });
       }
+      
       if (!pills.length) {
         el.chatContextPills.hidden = true;
         return;
       }
+      
       var html = "";
+      // Remove All button
+      html += "<div class='context-pill context-pill-remove-all' style='background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);cursor:pointer;' title='Remove all selections'>" +
+        "<span>✕ Remove All</span></div>";
       pills.forEach(function (p) {
-        html += "<div class='context-pill' data-pill-id='" + p.id + "' data-pill-type='" + ctx.type + "'>" +
+        html += "<div class='context-pill' data-pill-id='" + p.id + "' data-pill-type='" + p.type + "'>" +
           "<span>" + escapeHtml(p.label) + "</span>" +
           "<span class='context-pill-remove' data-pill-remove=''>&times;</span></div>";
       });
       el.chatContextPills.innerHTML = html;
       el.chatContextPills.hidden = false;
-      // remove handler via delegation
+      
+      // Remove All handler
+      var removeAllBtn = el.chatContextPills.querySelector(".context-pill-remove-all");
+      if (removeAllBtn) {
+        removeAllBtn.addEventListener("click", function () {
+          appState.chatContext = null;
+          if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
+          renderChatContextPills();
+          if (el.chatContextMenu) el.chatContextMenu.hidden = true;
+        });
+      }
+      
+      // Individual remove handler via delegation
       if (!el.chatContextPills._listenerAttached) {
         el.chatContextPills.addEventListener("click", function (e) {
           var removeBtn = e.target.closest("[data-pill-remove]");
@@ -7974,11 +8022,32 @@
           if (!pill) return;
           var id = pill.getAttribute("data-pill-id");
           var type = pill.getAttribute("data-pill-type");
+          
           if (type === "full-novel" || type === "full-outline") {
             appState.chatContext = null;
             if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
-          } else if (type === "acts" || type === "chapters" || type === "scenes" || type === "codex") {
-            if (!appState.chatContext || appState.chatContext.type !== type) return;
+          } else if (appState.chatContext && appState.chatContext.multi) {
+            // Multi-type context
+            if (appState.chatContext.multi[type]) {
+              var idx = appState.chatContext.multi[type].indexOf(id);
+              if (idx !== -1) {
+                appState.chatContext.multi[type].splice(idx, 1);
+              }
+              if (appState.chatContext.multi[type].length === 0) {
+                delete appState.chatContext.multi[type];
+              }
+            }
+            var totalSelected = 0;
+            Object.values(appState.chatContext.multi).forEach(function (arr) { totalSelected += arr.length; });
+            if (totalSelected === 0) {
+              appState.chatContext = null;
+              if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
+            } else {
+              if (el.chatContextButton) el.chatContextButton.textContent = "Context (" + totalSelected + " selected) ▾";
+            }
+          } else if (appState.chatContext && appState.chatContext.type) {
+            // Legacy single-type context
+            if (appState.chatContext.type !== type) return;
             var idx = appState.chatContext.selected.indexOf(id);
             if (idx !== -1) {
               appState.chatContext.selected.splice(idx, 1);
@@ -7988,7 +8057,7 @@
               if (el.chatContextButton) el.chatContextButton.textContent = "+ Context";
             } else {
               var label = type.charAt(0).toUpperCase() + type.slice(1) + " (" + appState.chatContext.selected.length + " selected)";
-              if (el.chatContextButton) el.chatContextButton.textContent = label + " \u02C5";
+              if (el.chatContextButton) el.chatContextButton.textContent = label + " ▾";
             }
           }
           renderChatContextPills();
@@ -8388,79 +8457,132 @@
     }
 
     function buildChatContextContent(context) {
-      if (!context || !context.type) return "";
+      if (!context) return "";
       var outline = (typeof getPlanOutline === "function") ? getPlanOutline() : { acts: [] };
       var acts = outline.acts || [];
       var segments = appState.writingWorkspace.segments || [];
+      var parts = [];
 
-      if (context.type === "full-novel") {
-        var draftText = appState.writingWorkspace.draftText || "";
-        return draftText.trim() ? draftText : "Full novel text not available yet.";
-      }
-
-      if (context.type === "full-outline") {
-        return formatOutlineForContext(acts);
-      }
-
-      if (context.type === "acts") {
-        var sel = context.selected || [];
-        var matched = acts.filter(function (a) { return sel.indexOf(a.id) !== -1; });
-        if (!matched.length) return "";
-        return "Selected Acts:\n" + matched.map(function (a) {
-          var chs = (a.children || []).map(function (ch) { return "  - " + (ch.title || "Untitled Chapter"); }).join("\n");
-          return (a.title || "Untitled Act") + (chs ? "\n" + chs : "");
-        }).join("\n\n");
-      }
-
-      if (context.type === "chapters") {
-        var selCh = context.selected || [];
-        var chLines = [];
-        var chapterNum = 0;
-        acts.forEach(function (a) {
-          (a.children || []).forEach(function (ch) {
-            chapterNum++;
-            if (selCh.indexOf(ch.id) !== -1) {
-              chLines.push("Ch. " + chapterNum + ": " + (ch.title || "Untitled"));
-            }
-          });
-        });
-        return chLines.length ? "Selected Chapters:\n" + chLines.join("\n") : "";
-      }
-
-      if (context.type === "scenes") {
-        var selSc = context.selected || [];
-        var scLines = [];
-        acts.forEach(function (a) {
-          (a.children || []).forEach(function (ch) {
-            (ch.children || []).forEach(function (s) {
-              if (selSc.indexOf(s.id) !== -1) {
-                scLines.push((ch.title || "Chapter") + " \u203A " + (s.title || "Untitled Scene"));
+      // Handle legacy single-type context
+      if (context.type && !context.multi) {
+        if (context.type === "full-novel") {
+          var draftText = appState.writingWorkspace.draftText || "";
+          return draftText.trim() ? draftText : "Full novel text not available yet.";
+        }
+        if (context.type === "full-outline") {
+          return formatOutlineForContext(acts);
+        }
+        if (context.type === "acts") {
+          var sel = context.selected || [];
+          var matched = acts.filter(function (a) { return sel.indexOf(a.id) !== -1; });
+          if (!matched.length) return "";
+          return "Selected Acts:\n" + matched.map(function (a) {
+            var chs = (a.children || []).map(function (ch) { return "  - " + (ch.title || "Untitled Chapter"); }).join("\n");
+            return (a.title || "Untitled Act") + (chs ? "\n" + chs : "");
+          }).join("\n\n");
+        }
+        if (context.type === "chapters") {
+          var selCh = context.selected || [];
+          var chLines = [];
+          var chapterNum = 0;
+          acts.forEach(function (a) {
+            (a.children || []).forEach(function (ch) {
+              chapterNum++;
+              if (selCh.indexOf(ch.id) !== -1) {
+                chLines.push("Ch. " + chapterNum + ": " + (ch.title || "Untitled"));
               }
             });
           });
-        });
-        return scLines.length ? "Selected Scenes:\n" + scLines.join("\n") : "";
+          return chLines.length ? "Selected Chapters:\n" + chLines.join("\n") : "";
+        }
+        if (context.type === "scenes") {
+          var selSc = context.selected || [];
+          var scLines = [];
+          acts.forEach(function (a) {
+            (a.children || []).forEach(function (ch) {
+              (ch.children || []).forEach(function (s) {
+                if (selSc.indexOf(s.id) !== -1) {
+                  scLines.push((ch.title || "Chapter") + " › " + (s.title || "Untitled Scene"));
+                }
+              });
+            });
+          });
+          return scLines.length ? "Selected Scenes:\n" + scLines.join("\n") : "";
+        }
+        if (context.type === "codex") {
+          var selCat = context.selected || [];
+          if (!selCat.length) return "";
+          var project = getSelectedProject();
+          var seriesId = Number(project && project.series_id || 0);
+          if (!seriesId) return "No series selected for codex context.";
+          var codexParts = [];
+          selCat.forEach(function (catKey) {
+            var entities = (typeof getCodexEntitiesForType_ === "function") ? getCodexEntitiesForType_(seriesId, catKey) : [];
+            if (entities.length) {
+              codexParts.push(catKey.charAt(0).toUpperCase() + catKey.slice(1) + ":");
+              entities.forEach(function (e) {
+                var name = e.name || "Untitled";
+                var desc = e.description || e.summary || "";
+                codexParts.push("  - " + name + (desc ? ": " + desc : ""));
+              });
+            }
+          });
+          return codexParts.length ? "Codex Entries:\n" + codexParts.join("\n") : "No codex entries found for selected categories.";
+        }
+        return "";
       }
 
-      if (context.type === "codex") {
-        var selCat = context.selected || [];
-        if (!selCat.length) return "";
-        var project = getSelectedProject();
-        var seriesId = Number(project && project.series_id || 0);
-        if (!seriesId) return "No series selected for codex context.";
-        var parts = [];
-        selCat.forEach(function (catKey) {
-          var entities = (typeof getCodexEntitiesForType_ === "function") ? getCodexEntitiesForType_(seriesId, catKey) : [];
-          if (entities.length) {
-            parts.push(catKey.charAt(0).toUpperCase() + catKey.slice(1) + ":");
-            entities.forEach(function (e) {
-              var name = e.name || "Untitled";
-              var desc = e.description || e.summary || "";
-              parts.push("  - " + name + (desc ? ": " + desc : ""));
+      // Handle multi-type context
+      if (context.multi) {
+        Object.keys(context.multi).forEach(function (type) {
+          var selected = context.multi[type] || [];
+          if (!selected.length) return;
+
+          if (type === "chapters") {
+            var chLines = [];
+            var chapterNum = 0;
+            acts.forEach(function (a) {
+              (a.children || []).forEach(function (ch) {
+                chapterNum++;
+                if (selected.indexOf(ch.id) !== -1) {
+                  chLines.push("Ch. " + chapterNum + ": " + (ch.title || "Untitled"));
+                }
+              });
             });
+            if (chLines.length) parts.push("Selected Chapters:\n" + chLines.join("\n"));
+          } else if (type === "scenes") {
+            var scLines = [];
+            acts.forEach(function (a) {
+              (a.children || []).forEach(function (ch) {
+                (ch.children || []).forEach(function (s) {
+                  if (selected.indexOf(s.id) !== -1) {
+                    scLines.push((ch.title || "Chapter") + " › " + (s.title || "Untitled Scene"));
+                  }
+                });
+              });
+            });
+            if (scLines.length) parts.push("Selected Scenes:\n" + scLines.join("\n"));
+          } else if (type === "codex") {
+            var project = getSelectedProject();
+            var seriesId = Number(project && project.series_id || 0);
+            if (seriesId) {
+              var codexParts = [];
+              selected.forEach(function (catKey) {
+                var entities = (typeof getCodexEntitiesForType_ === "function") ? getCodexEntitiesForType_(seriesId, catKey) : [];
+                if (entities.length) {
+                  codexParts.push(catKey.charAt(0).toUpperCase() + catKey.slice(1) + ":");
+                  entities.forEach(function (e) {
+                    var name = e.name || "Untitled";
+                    var desc = e.description || e.summary || "";
+                    codexParts.push("  - " + name + (desc ? ": " + desc : ""));
+                  });
+                }
+              });
+              if (codexParts.length) parts.push("Codex Entries:\n" + codexParts.join("\n"));
+            }
           }
         });
-        return parts.length ? "Codex Entries:\n" + parts.join("\n") : "No codex entries found for selected categories.";
+        return parts.join("\n\n");
       }
 
       return "";
