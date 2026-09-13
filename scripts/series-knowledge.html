@@ -11247,6 +11247,7 @@
                 // Build nested dropdown using tree definition
                 function buildNestedOptions(nodes, entitiesByLabel, depth) {
                   var opts = "";
+                  var prefix = depth > 0 ? "\u00A0\u00A0".repeat(depth) + "\u2514\u00A0" : "";
                   nodes.forEach(function (node) {
                     var label = typeof node === 'string' ? node : (node.label || node.key || node.name || "");
                     var children = (typeof node === 'object' && Array.isArray(node.subTypes)) ? node.subTypes : [];
@@ -11254,23 +11255,28 @@
                     var matchingEntities = entitiesByLabel[label.toLowerCase()] || [];
                     
                     if (hasChildren || matchingEntities.length > 0) {
-                      var indent = "  ".repeat(depth);
-                      if (hasChildren && matchingEntities.length === 0) {
-                        // Parent node with children - render as optgroup
-                        opts += "<optgroup label='" + escapeHtml(indent + label) + "'>";
+                      if (hasChildren) {
+                        // Parent node - render as optgroup with children
+                        opts += "<optgroup label='" + escapeHtml(prefix + label) + "'>";
+                        // Add entities at this level
+                        if (matchingEntities.length > 0) {
+                          matchingEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+                          matchingEntities.forEach(function (e) {
+                            var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
+                            opts += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+                          });
+                        }
+                        // Add children
                         opts += buildNestedOptions(children, entitiesByLabel, depth + 1);
                         opts += "</optgroup>";
-                      } else if (matchingEntities.length > 0) {
-                        // Node with entities - render as optgroup with entities
-                        opts += "<optgroup label='" + escapeHtml(indent + label) + "'>";
+                      } else {
+                        // Leaf node with entities - render as optgroup
+                        opts += "<optgroup label='" + escapeHtml(prefix + label) + "'>";
                         matchingEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
                         matchingEntities.forEach(function (e) {
                           var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
                           opts += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
                         });
-                        if (hasChildren) {
-                          opts += buildNestedOptions(children, entitiesByLabel, depth + 1);
-                        }
                         opts += "</optgroup>";
                       }
                     }
