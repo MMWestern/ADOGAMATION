@@ -4897,58 +4897,41 @@
     function renderNestedSubTypeGroups(entities, item, subTypes) {
       // Flatten sub-types to get all possible values
       var flatList = typeof codexV2FlattenSubTypes === "function" ? codexV2FlattenSubTypes(subTypes) : [];
-      var flatMap = {};
-      flatList.forEach(function (ft) { flatMap[ft.label.toLowerCase()] = ft; });
-
-      // Group entities by their sub-type hierarchy
+      
+      // Group entities by their sub_type
       var groups = {};
-      flatList.forEach(function (ft) { groups[ft.fullLabel] = []; });
-      groups["Uncategorized"] = [];
+      flatList.forEach(function (ft) { groups[ft.label.toLowerCase()] = []; });
+      groups["uncategorized"] = [];
 
       entities.forEach(function (entity) {
         var custom = entity.custom_data || {};
-        var subType = String(custom.sub_type || custom.role_archetype || "").trim();
+        var subType = String(custom.sub_type || custom.role_archetype || "").trim().toLowerCase();
         
         if (!subType) {
-          groups["Uncategorized"].push(entity);
+          groups["uncategorized"].push(entity);
           return;
         }
 
-        // Try to match against flattened sub-types
+        // Match against flat list by label (case-insensitive)
         var match = flatList.find(function (ft) {
-          return ft.label.toLowerCase() === subType.toLowerCase();
+          return ft.label.toLowerCase() === subType;
         });
 
         if (match) {
-          groups[match.fullLabel].push(entity);
+          groups[match.label.toLowerCase()].push(entity);
         } else {
-          groups["Uncategorized"].push(entity);
+          groups["uncategorized"].push(entity);
         }
       });
 
       // Render the tree structure
       var html = "";
-      var renderedGroups = {};
-
-      // Render top-level sub-types
       subTypes.forEach(function (st) {
-        var label = typeof st === 'string' ? st : (st.label || st.key || "");
-        var fullLabel = label;
-        var list = groups[fullLabel] || [];
-        
-        if (typeof st === 'object' && st.subTypes && st.subTypes.length > 0) {
-          // This sub-type has nested sub-types
-          html += renderNestedSubTypeTree(st, groups, item, 0);
-        } else {
-          // Leaf sub-type
-          if (list.length) {
-            html += renderSubTypeGroup(label, list, item, 0);
-          }
-        }
+        html += renderSubTypeNode(st, groups, item, 0);
       });
 
       // Render uncategorized
-      var uncategorized = groups["Uncategorized"] || [];
+      var uncategorized = groups["uncategorized"] || [];
       if (uncategorized.length) {
         html += renderSubTypeGroup("Uncategorized", uncategorized, item, 0);
       }
@@ -4956,28 +4939,25 @@
       return html;
     }
 
-    function renderNestedSubTypeTree(subType, groups, item, depth) {
+    function renderSubTypeNode(subType, groups, item, depth) {
       var label = typeof subType === 'string' ? subType : (subType.label || subType.key || "");
-      var fullLabel = label;
-      var html = "";
-
-      // Count entities in this sub-type and all children
-      var totalCount = 0;
-      var directCount = (groups[fullLabel] || []).length;
+      var children = (typeof subType === 'object' && Array.isArray(subType.subTypes)) ? subType.subTypes : [];
+      var hasChildren = children.length > 0;
       
-      // Count children
-      if (subType.subTypes && subType.subTypes.length) {
-        subType.subTypes.forEach(function (child) {
-          var childLabel = typeof child === 'string' ? child : (child.label || child.key || "");
-          var childFullLabel = fullLabel + " > " + childLabel;
-          totalCount += (groups[childFullLabel] || []).length;
-        });
-      }
-      totalCount += directCount;
+      // Get entities for this node
+      var directEntities = groups[label.toLowerCase()] || [];
+      
+      // Count all entities (direct + children)
+      var totalCount = directEntities.length;
+      children.forEach(function (child) {
+        var childLabel = typeof child === 'string' ? child : (child.label || child.key || "");
+        totalCount += (groups[childLabel.toLowerCase()] || []).length;
+      });
 
       if (totalCount === 0) return "";
 
-      // Render group header
+      // Render this node
+      var html = "";
       html += "<div class='writing-codex-group codex-subtype-group' data-subtype='" + escapeHtml(label) + "' data-depth='" + depth + "'>";
       html += "<div class='writing-codex-group-header codex-subtype-header' style='padding-left:" + (8 + depth * 16) + "px;'>";
       html += "<div class='writing-codex-group-header-left'>";
@@ -4991,15 +4971,14 @@
       html += "<div class='writing-codex-group-list'>";
 
       // Direct entities
-      var directEntities = groups[fullLabel] || [];
       directEntities.forEach(function (entity) {
         html += renderCodexEntityEntry(entity, item);
       });
 
-      // Nested sub-types
-      if (subType.subTypes && subType.subTypes.length) {
-        subType.subTypes.forEach(function (child) {
-          html += renderNestedSubTypeTree(child, groups, item, depth + 1);
+      // Children (recursive)
+      if (hasChildren) {
+        children.forEach(function (child) {
+          html += renderSubTypeNode(child, groups, item, depth + 1);
         });
       }
 
