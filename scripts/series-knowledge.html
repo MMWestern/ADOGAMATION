@@ -6209,7 +6209,7 @@
       }
       html += "<div class='codex-entity-detail-header-meta'>";
       html += "<div class='codex-detail-header-top'>";
-      html += "<span class='codex-entity-detail-type-badge'>" + escapeHtml(typeInfo.name_singular || typeName) + "</span>";
+      // Color selector first
       html += "<div class='codex-detail-color-wrap'>";
       html += "<button type='button' class='codex-detail-color-dot' id='codexDetailColorTrigger' data-color='" + escapeHtml(color) + "' style='background:" + (color || "#3a3a42") + ";' title='Color tag'></button>";
       html += "<div class='codex-detail-color-dropdown' id='codexDetailColorDropdown' hidden>";
@@ -6217,6 +6217,38 @@
         html += "<button type='button' class='codex-detail-color-option' data-color='" + c + "' style='background:" + (c || "#3a3a42") + ";'" + (c === color ? " data-selected='1'" : "") + "></button>";
       });
       html += "</div></div>";
+      // Entity type pill
+      html += "<span class='codex-entity-detail-type-badge'>" + escapeHtml(typeInfo.name_singular || typeName) + "</span>";
+      // Sub-type breadcrumb (for all entity types with sub-types)
+      if (treeItem && treeItem.subTypes && subTypeValue) {
+        var breadcrumbPath = [];
+        // Find the sub-type path in the tree
+        function findSubTypePath(nodes, target, path) {
+          for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            var nodeLabel = typeof node === 'string' ? node : (node.label || node.key || node.name || "");
+            var currentPath = path.concat([nodeLabel]);
+            if (nodeLabel.toLowerCase() === target.toLowerCase()) {
+              return currentPath;
+            }
+            if (typeof node === 'object' && node.subTypes && node.subTypes.length > 0) {
+              var found = findSubTypePath(node.subTypes, target, currentPath);
+              if (found) return found;
+            }
+          }
+          return null;
+        }
+        breadcrumbPath = findSubTypePath(treeItem.subTypes, subTypeValue, []);
+        if (breadcrumbPath && breadcrumbPath.length > 0) {
+          breadcrumbPath.forEach(function (crumb, i) {
+            if (i > 0) html += "<span style='color:#5f6971;font-size:10px;margin:0 2px;'>›</span>";
+            var isLast = i === breadcrumbPath.length - 1;
+            var pillClass = isLast ? "sk-entity-role-badge badge-color-" + badgeColorIndex(crumb) : "sk-entity-role-badge";
+            var pillStyle = isLast ? "" : " style='background:rgba(100,100,120,0.2);border:1px solid rgba(100,100,120,0.3);'";
+            html += "<span class='" + pillClass + "'" + pillStyle + ">" + escapeHtml(crumb) + "</span>";
+          });
+        }
+      }
       // Location breadcrumb
       if (entityTypeKey === "location" && entity.id && skCurrentSeriesId) {
         var breadcrumbPath = buildLocationBreadcrumbPath(entity.id, skCurrentSeriesId);
@@ -6256,9 +6288,12 @@
         }
       }
       html += "</div>";
+      // Badges row (only for characters - role/archetype)
       html += "<div class='sk-badges-row' id='codexDetailBadges'>";
-      if (roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
-      if (archetype && archetype !== roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      if (entityTypeKey === "character") {
+        if (roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+        if (archetype && archetype !== roleArchetype) html += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      }
       html += "</div>";
       html += "<div class='codex-detail-field-group'>";
       html += "<div class='codex-detail-field-wrap' style='grid-column:1/-1;'>";
@@ -6270,14 +6305,11 @@
       var subTypeOptions = [];
       var subTypeDropdownOptions = [];
       if (treeItem && treeItem.subTypes) {
-        console.log("[SUBTYPE] treeItem.subTypes:", JSON.stringify(treeItem.subTypes));
         // Always use the dropdown builder for consistent handling
         if (typeof codexV2BuildSubTypeDropdownOptions === "function") {
           subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
-          console.log("[SUBTYPE] subTypeDropdownOptions:", JSON.stringify(subTypeDropdownOptions));
           subTypeOptions = subTypeDropdownOptions.map(function (opt) { return String(opt.value || ""); });
         } else {
-          console.log("[SUBTYPE] codexV2BuildSubTypeDropdownOptions not available");
           // Fallback: extract labels from mixed array
           subTypeOptions = [];
           treeItem.subTypes.forEach(function (st) {
