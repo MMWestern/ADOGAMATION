@@ -4834,6 +4834,28 @@
 
     function renderSubTypeGroups(entities, item) {
       var subTypes = item.subTypes || [];
+      if (!subTypes.length) {
+        // No sub-types defined, render all entities in a flat list
+        var html = "";
+        entities.forEach(function (entity) {
+          html += renderCodexEntityEntry(entity, item);
+        });
+        return html;
+      }
+
+      // Check if sub-types are nested (objects with subTypes) or flat (strings)
+      var hasNested = subTypes.some(function (st) { return typeof st === 'object' && st.subTypes && st.subTypes.length > 0; });
+
+      if (!hasNested) {
+        // Flat sub-types (original behavior)
+        return renderFlatSubTypeGroups(entities, item, subTypes);
+      }
+
+      // Nested sub-types
+      return renderNestedSubTypeGroups(entities, item, subTypes);
+    }
+
+    function renderFlatSubTypeGroups(entities, item, subTypes) {
       var groups = {};
       subTypes.forEach(function (st) { groups[st] = []; });
       groups["Uncategorized"] = [];
@@ -4843,12 +4865,10 @@
         if (st && groups[st]) {
           groups[st].push(entity);
         } else {
-          // Unrecognized or empty sub_type goes to Uncategorized
           groups["Uncategorized"].push(entity);
         }
       });
       var html = "";
-      // Render sub-types that have entities, plus "Uncategorized" if it has entities
       var order = subTypes.concat(["Uncategorized"]);
       order.forEach(function (st) {
         var list = groups[st] || [];
@@ -4871,6 +4891,143 @@
         html += "</div>";
         html += "</div>";
       });
+      return html;
+    }
+
+    function renderNestedSubTypeGroups(entities, item, subTypes) {
+      // Flatten sub-types to get all possible values
+      var flatList = typeof codexV2FlattenSubTypes === "function" ? codexV2FlattenSubTypes(subTypes) : [];
+      var flatMap = {};
+      flatList.forEach(function (ft) { flatMap[ft.label.toLowerCase()] = ft; });
+
+      // Group entities by their sub-type hierarchy
+      var groups = {};
+      flatList.forEach(function (ft) { groups[ft.fullLabel] = []; });
+      groups["Uncategorized"] = [];
+
+      entities.forEach(function (entity) {
+        var custom = entity.custom_data || {};
+        var subType = String(custom.sub_type || custom.role_archetype || "").trim();
+        
+        if (!subType) {
+          groups["Uncategorized"].push(entity);
+          return;
+        }
+
+        // Try to match against flattened sub-types
+        var match = flatList.find(function (ft) {
+          return ft.label.toLowerCase() === subType.toLowerCase();
+        });
+
+        if (match) {
+          groups[match.fullLabel].push(entity);
+        } else {
+          groups["Uncategorized"].push(entity);
+        }
+      });
+
+      // Render the tree structure
+      var html = "";
+      var renderedGroups = {};
+
+      // Render top-level sub-types
+      subTypes.forEach(function (st) {
+        var label = typeof st === 'string' ? st : (st.label || st.key || "");
+        var fullLabel = label;
+        var list = groups[fullLabel] || [];
+        
+        if (typeof st === 'object' && st.subTypes && st.subTypes.length > 0) {
+          // This sub-type has nested sub-types
+          html += renderNestedSubTypeTree(st, groups, item, 0);
+        } else {
+          // Leaf sub-type
+          if (list.length) {
+            html += renderSubTypeGroup(label, list, item, 0);
+          }
+        }
+      });
+
+      // Render uncategorized
+      var uncategorized = groups["Uncategorized"] || [];
+      if (uncategorized.length) {
+        html += renderSubTypeGroup("Uncategorized", uncategorized, item, 0);
+      }
+
+      return html;
+    }
+
+    function renderNestedSubTypeTree(subType, groups, item, depth) {
+      var label = typeof subType === 'string' ? subType : (subType.label || subType.key || "");
+      var fullLabel = label;
+      var html = "";
+
+      // Count entities in this sub-type and all children
+      var totalCount = 0;
+      var directCount = (groups[fullLabel] || []).length;
+      
+      // Count children
+      if (subType.subTypes && subType.subTypes.length) {
+        subType.subTypes.forEach(function (child) {
+          var childLabel = typeof child === 'string' ? child : (child.label || child.key || "");
+          var childFullLabel = fullLabel + " > " + childLabel;
+          totalCount += (groups[childFullLabel] || []).length;
+        });
+      }
+      totalCount += directCount;
+
+      if (totalCount === 0) return "";
+
+      // Render group header
+      html += "<div class='writing-codex-group codex-subtype-group' data-subtype='" + escapeHtml(label) + "' data-depth='" + depth + "'>";
+      html += "<div class='writing-codex-group-header codex-subtype-header' style='padding-left:" + (8 + depth * 16) + "px;'>";
+      html += "<div class='writing-codex-group-header-left'>";
+      html += "<span class='writing-codex-group-title' style='font-size:" + (11 - depth) + "px;'>" + escapeHtml(label) + "</span>";
+      html += "</div>";
+      html += "<div class='writing-codex-group-header-right'>";
+      html += "<span class='writing-codex-group-count'>" + totalCount + "</span>";
+      html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+      html += "</div>";
+      html += "</div>";
+      html += "<div class='writing-codex-group-list'>";
+
+      // Direct entities
+      var directEntities = groups[fullLabel] || [];
+      directEntities.forEach(function (entity) {
+        html += renderCodexEntityEntry(entity, item);
+      });
+
+      // Nested sub-types
+      if (subType.subTypes && subType.subTypes.length) {
+        subType.subTypes.forEach(function (child) {
+          html += renderNestedSubTypeTree(child, groups, item, depth + 1);
+        });
+      }
+
+      html += "</div>";
+      html += "</div>";
+
+      return html;
+    }
+
+    function renderSubTypeGroup(label, entities, item, depth) {
+      if (!entities.length) return "";
+      var html = "";
+      html += "<div class='writing-codex-group codex-subtype-group' data-subtype='" + escapeHtml(label) + "' data-depth='" + depth + "'>";
+      html += "<div class='writing-codex-group-header codex-subtype-header' style='padding-left:" + (8 + depth * 16) + "px;'>";
+      html += "<div class='writing-codex-group-header-left'>";
+      html += "<span class='writing-codex-group-title' style='font-size:" + (11 - depth) + "px;'>" + escapeHtml(label) + "</span>";
+      html += "</div>";
+      html += "<div class='writing-codex-group-header-right'>";
+      html += "<span class='writing-codex-group-count'>" + entities.length + "</span>";
+      html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+      html += "</div>";
+      html += "</div>";
+      html += "<div class='writing-codex-group-list'>";
+      entities.forEach(function (entity) {
+        html += renderCodexEntityEntry(entity, item);
+      });
+      html += "</div>";
+      html += "</div>";
       return html;
     }
 
@@ -5967,16 +6124,36 @@
       // Sub-type field — available for all entity types
       var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
       var subTypeOptions = [];
-      if (treeItem && treeItem.subTypes) subTypeOptions = treeItem.subTypes;
+      var subTypeDropdownOptions = [];
+      if (treeItem && treeItem.subTypes) {
+        // Check if sub-types are nested (objects) or flat (strings)
+        var hasNested = treeItem.subTypes.some(function (st) { return typeof st === 'object' && st.subTypes && st.subTypes.length > 0; });
+        if (hasNested && typeof codexV2BuildSubTypeDropdownOptions === "function") {
+          // Nested sub-types - use helper to build dropdown options with indentation
+          subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
+          subTypeOptions = subTypeDropdownOptions.map(function (opt) { return opt.value; });
+        } else {
+          // Flat sub-types (original behavior)
+          subTypeOptions = treeItem.subTypes;
+        }
+      }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
       if (entityTypeKey !== "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Sub-type</label>";
         if (subTypeOptions.length) {
           html += "<select id='codexDetailSubType' class='codex-detail-field-select'><option value=''>Select sub-type...</option>";
-          subTypeOptions.forEach(function (st) {
-            html += "<option value='" + escapeHtml(st) + "'" + (st === subTypeValue ? " selected" : "") + ">" + escapeHtml(st) + "</option>";
-          });
+          if (subTypeDropdownOptions.length) {
+            // Nested sub-types with indentation
+            subTypeDropdownOptions.forEach(function (opt) {
+              html += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === subTypeValue ? " selected" : "") + ">" + escapeHtml(opt.label) + "</option>";
+            });
+          } else {
+            // Flat sub-types
+            subTypeOptions.forEach(function (st) {
+              html += "<option value='" + escapeHtml(st) + "'" + (st === subTypeValue ? " selected" : "") + ">" + escapeHtml(st) + "</option>";
+            });
+          }
           html += "<option value='_custom'" + (!subTypeValue || subTypeOptions.indexOf(subTypeValue) === -1 ? " selected" : "") + ">Custom...</option>";
           html += "</select>";
           html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='" + (subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? "" : "display:none;") + "margin-top:4px;' value='" + escapeHtml(subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? subTypeValue : "") + "' />";

@@ -388,6 +388,107 @@
     window.codexV2RenderStatBoxes = codexV2RenderStatBoxes;
 
     /**
+     * Flatten nested sub-types into a flat list for dropdown options.
+     * Supports both string subTypes and object subTypes with nested children.
+     *
+     * @param {Array} subTypes - Array of strings or objects with optional subTypes
+     * @param {string} prefix - Internal use for recursion
+     * @returns {Array} Flat list of { key, label, fullLabel, depth }
+     */
+    function codexV2FlattenSubTypes(subTypes, prefix) {
+      prefix = prefix || "";
+      var result = [];
+      if (!Array.isArray(subTypes)) return result;
+
+      subTypes.forEach(function (st) {
+        var label = typeof st === 'string' ? st : (st.label || st.key || "");
+        var key = typeof st === 'string' ? st.toLowerCase().replace(/\s+/g, '_') : (st.key || st.label || "").toLowerCase().replace(/\s+/g, '_');
+        var fullLabel = prefix ? prefix + " > " + label : label;
+        var depth = prefix ? prefix.split(" > ").length : 0;
+
+        result.push({ key: key, label: label, fullLabel: fullLabel, depth: depth });
+
+        // Recursively add nested sub-types
+        if (typeof st === 'object' && st.subTypes && st.subTypes.length > 0) {
+          var nested = codexV2FlattenSubTypes(st.subTypes, fullLabel);
+          result = result.concat(nested);
+        }
+      });
+
+      return result;
+    }
+
+    /**
+     * Build dropdown options from nested sub-types with indentation.
+     *
+     * @param {Array} subTypes - Array of strings or objects with optional subTypes
+     * @param {number} depth - Internal use for recursion
+     * @returns {Array} Array of { value, label, depth }
+     */
+    function codexV2BuildSubTypeDropdownOptions(subTypes, depth) {
+      depth = depth || 0;
+      var options = [];
+      if (!Array.isArray(subTypes)) return options;
+
+      subTypes.forEach(function (st) {
+        var label = typeof st === 'string' ? st : (st.label || st.key || "");
+        var indent = "  ".repeat(depth);
+        var optionLabel = indent + label;
+
+        options.push({ value: label, label: optionLabel, depth: depth });
+
+        // Recursively add nested sub-types
+        if (typeof st === 'object' && st.subTypes && st.subTypes.length > 0) {
+          var nested = codexV2BuildSubTypeDropdownOptions(st.subTypes, depth + 1);
+          options = options.concat(nested);
+        }
+      });
+
+      return options;
+    }
+
+    /**
+     * Match an entity to its sub-type hierarchy.
+     * Returns the full label path (e.g., "Humanoid > Elf > Green Elf").
+     *
+     * @param {Object} entity - Entity object with custom_data
+     * @param {Array} subTypes - Array of sub-type definitions
+     * @returns {string|null} Full label path or null if no match
+     */
+    function codexV2MatchEntityToSubType(entity, subTypes) {
+      var subType = entity && entity.custom_data && entity.custom_data.sub_type ? entity.custom_data.sub_type : "";
+      if (!subType) return null;
+
+      // Try to match against flattened sub-types
+      var flatList = codexV2FlattenSubTypes(subTypes);
+      var match = flatList.find(function (item) {
+        return item.label.toLowerCase() === subType.toLowerCase() ||
+               item.fullLabel.toLowerCase() === subType.toLowerCase();
+      });
+
+      return match ? match.fullLabel : subType;
+    }
+
+    /**
+     * Get the leaf sub-type (deepest level) from a hierarchy array or sub_type string.
+     *
+     * @param {Array} subTypeHierarchy - Array of sub-type strings (e.g., ["Humanoid", "Elf", "Green Elf"])
+     * @param {string} subType - Fallback sub_type string
+     * @returns {string} Leaf sub-type
+     */
+    function codexV2GetLeafSubType(subTypeHierarchy, subType) {
+      if (Array.isArray(subTypeHierarchy) && subTypeHierarchy.length > 0) {
+        return subTypeHierarchy[subTypeHierarchy.length - 1];
+      }
+      return subType || "";
+    }
+
+    window.codexV2FlattenSubTypes = codexV2FlattenSubTypes;
+    window.codexV2BuildSubTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions;
+    window.codexV2MatchEntityToSubType = codexV2MatchEntityToSubType;
+    window.codexV2GetLeafSubType = codexV2GetLeafSubType;
+
+    /**
      * Record an entity appearance when an entity is linked to a project/book.
      * Called from saveCodexEntityProjects and entity save paths.
      */
