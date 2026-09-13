@@ -6222,11 +6222,14 @@
       var subTypeOptions = [];
       var subTypeDropdownOptions = [];
       if (treeItem && treeItem.subTypes) {
+        console.log("[SUBTYPE] treeItem.subTypes:", JSON.stringify(treeItem.subTypes));
         // Always use the dropdown builder for consistent handling
         if (typeof codexV2BuildSubTypeDropdownOptions === "function") {
           subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
+          console.log("[SUBTYPE] subTypeDropdownOptions:", JSON.stringify(subTypeDropdownOptions));
           subTypeOptions = subTypeDropdownOptions.map(function (opt) { return String(opt.value || ""); });
         } else {
+          console.log("[SUBTYPE] codexV2BuildSubTypeDropdownOptions not available");
           // Fallback: extract labels from mixed array
           subTypeOptions = [];
           treeItem.subTypes.forEach(function (st) {
@@ -6238,6 +6241,7 @@
             }
           });
         }
+        console.log("[SUBTYPE] subTypeOptions:", JSON.stringify(subTypeOptions));
       }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
       if (entityTypeKey !== "character") {
