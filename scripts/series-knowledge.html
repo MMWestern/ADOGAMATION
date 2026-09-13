@@ -5487,38 +5487,46 @@
       return html;
     }
 
-    function renderSubTypeTree(subTypes, catIdx, itemIdx, isBase, depth) {
+    function renderSubTypeTree(subTypes, catIdx, itemIdx, isBase, depth, parentPath) {
       var html = "";
-      if (!Array.isArray(subTypes) || !subTypes.length) return html;
+      if (!Array.isArray(subTypes)) subTypes = [];
+      parentPath = parentPath || "";
 
       subTypes.forEach(function (st, stIdx) {
         var isObject = typeof st === 'object' && st !== null;
         var label = isObject ? (st.label || st.key || "") : st;
         var children = isObject && Array.isArray(st.subTypes) ? st.subTypes : [];
         var hasChildren = children.length > 0;
+        var currentPath = parentPath ? parentPath + "." + stIdx : String(stIdx);
 
-        html += "<div class='preset-tree-subtype-node' data-depth='" + depth + "' style='padding-left:" + (depth * 16) + "px;margin-bottom:2px;'>";
+        html += "<div class='preset-tree-subtype-node' data-depth='" + depth + "' data-path='" + currentPath + "' style='padding-left:" + (depth * 16) + "px;margin-bottom:2px;'>";
         html += "<span style='display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#29292d;border-radius:4px;font-size:11px;color:#f2f2f4;'>";
         if (hasChildren) {
           html += "<span style='font-size:8px;color:#777884;'>▼</span>";
+        } else {
+          html += "<span style='font-size:8px;color:#777884;'>•</span>";
         }
         html += escapeHtml(label);
         if (isBase) {
-          html += "<button class='preset-tree-remove-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-st-idx='" + stIdx + "' data-depth='" + depth + "' type='button' style='font-size:10px;color:#ef4444;padding:0 2px;background:transparent;border:none;cursor:pointer;' title='Remove sub-type'>&times;</button>";
+          html += "<button class='preset-tree-remove-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-path='" + currentPath + "' type='button' style='font-size:10px;color:#ef4444;padding:0 2px;background:transparent;border:none;cursor:pointer;' title='Remove sub-type'>&times;</button>";
         }
         html += "</span>";
+        // Always show "Add child" button next to each node
+        if (isBase) {
+          html += " <button class='preset-tree-add-subtype-child' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-path='" + currentPath + "' type='button' style='font-size:9px;padding:1px 4px;background:transparent;border:1px dashed #3a3a42;border-radius:3px;color:#7fa7d9;cursor:pointer;' title='Add child to " + escapeHtml(label) + "'>+child</button>";
+        }
         html += "</div>";
 
         // Render children recursively
         if (hasChildren) {
-          html += renderSubTypeTree(children, catIdx, itemIdx, isBase, depth + 1);
+          html += renderSubTypeTree(children, catIdx, itemIdx, isBase, depth + 1, currentPath);
         }
       });
 
-      // Add child button at this depth (only for base presets)
+      // Add button at this depth (only for base presets)
       if (isBase) {
         html += "<div style='padding-left:" + (depth * 16) + "px;margin-top:2px;'>";
-        html += "<button class='preset-tree-add-subtype-child' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-depth='" + depth + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px dashed #3a3a42;border-radius:4px;color:#7fa7d9;cursor:pointer;'>+ Add</button>";
+        html += "<button class='preset-tree-add-subtype' data-cat-idx='" + catIdx + "' data-item-idx='" + itemIdx + "' data-parent-path='" + parentPath + "' type='button' style='font-size:10px;padding:2px 6px;background:transparent;border:1px dashed #3a3a42;border-radius:4px;color:#7fa7d9;cursor:pointer;'>+ Add</button>";
         html += "</div>";
       }
 
@@ -5601,12 +5609,25 @@
           if (e.target.classList.contains("preset-tree-add-subtype")) {
             var catIdx = Number(e.target.getAttribute("data-cat-idx"));
             var itemIdx = Number(e.target.getAttribute("data-item-idx"));
+            var parentPath = e.target.getAttribute("data-parent-path") || "";
             if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
             var input = container.querySelector(".preset-tree-subtype-input[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
             if (!input || !input.value.trim()) return;
             var item = treeDef[catIdx].items[itemIdx];
             if (!item.subTypes) item.subTypes = [];
-            item.subTypes.push(input.value.trim());
+            
+            if (parentPath) {
+              // Add to specific parent node
+              var parent = getSubTypeByPath(item.subTypes, parentPath.split(".").map(Number));
+              if (parent && typeof parent === 'object') {
+                if (!parent.subTypes) parent.subTypes = [];
+                parent.subTypes.push(input.value.trim());
+              }
+            } else {
+              // Add at top level
+              item.subTypes.push(input.value.trim());
+            }
+            input.value = "";
             container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
             // Re-open the sub-types section after re-render
             var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
@@ -5617,23 +5638,18 @@
           if (e.target.classList.contains("preset-tree-add-subtype-child")) {
             var catIdx = Number(e.target.getAttribute("data-cat-idx"));
             var itemIdx = Number(e.target.getAttribute("data-item-idx"));
-            var depth = Number(e.target.getAttribute("data-depth"));
-            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+            var path = e.target.getAttribute("data-path");
+            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx] || !path) return;
             var item = treeDef[catIdx].items[itemIdx];
-            var name = prompt("Add sub-type at depth " + (depth + 1) + ":");
+            var name = prompt("Add child sub-type:");
             if (!name) return;
+            
             // Find the parent node and add child
-            var parentPath = findSubTypeParentPath(e.target, container);
-            if (parentPath) {
-              var parent = getSubTypeByPath(item.subTypes, parentPath);
-              if (parent && typeof parent === 'object') {
-                if (!parent.subTypes) parent.subTypes = [];
-                parent.subTypes.push(name);
-              }
-            } else {
-              // Add at top level
-              if (!item.subTypes) item.subTypes = [];
-              item.subTypes.push(name);
+            var pathParts = path.split(".").map(Number);
+            var parent = getSubTypeByPath(item.subTypes, pathParts);
+            if (parent && typeof parent === 'object') {
+              if (!parent.subTypes) parent.subTypes = [];
+              parent.subTypes.push(name);
             }
             container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
             var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
@@ -5646,21 +5662,13 @@
           if (e.target.classList.contains("preset-tree-remove-subtype")) {
             var catIdx = Number(e.target.getAttribute("data-cat-idx"));
             var itemIdx = Number(e.target.getAttribute("data-item-idx"));
-            var stIdx = Number(e.target.getAttribute("data-st-idx"));
-            var depth = Number(e.target.getAttribute("data-depth") || 0);
-            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx]) return;
+            var path = e.target.getAttribute("data-path");
+            if (!treeDef[catIdx] || !treeDef[catIdx].items[itemIdx] || !path) return;
             var item = treeDef[catIdx].items[itemIdx];
             
-            // Find the path to this sub-type in the tree
-            var path = findSubTypePath(e.target, container);
-            if (path) {
-              removeSubTypeByPath(item.subTypes, path);
-            } else {
-              // Fallback: remove by index at top level
-              if (item.subTypes) {
-                item.subTypes.splice(stIdx, 1);
-              }
-            }
+            // Remove by path
+            var pathParts = path.split(".").map(Number);
+            removeSubTypeByPath(item.subTypes, pathParts);
             container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
             var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
             if (subtypesSection) subtypesSection.style.display = "block";
@@ -5688,41 +5696,7 @@
       }
     }
 
-    // Helper: Find path to sub-type node in the tree
-    function findSubTypePath(element, container) {
-      var path = [];
-      var node = element.closest('.preset-tree-subtype-node');
-      while (node) {
-        var parent = node.parentElement;
-        if (!parent || !parent.classList.contains('preset-tree-subtypes-tree')) {
-          // Find the index of this node among siblings at the same depth
-          var siblings = parent.querySelectorAll(':scope > .preset-tree-subtype-node');
-          var idx = Array.from(siblings).indexOf(node);
-          if (idx >= 0) path.unshift(idx);
-        }
-        node = parent.closest('.preset-tree-subtype-node');
-      }
-      return path.length > 0 ? path : null;
-    }
-
-    // Helper: Find parent path for adding child
-    function findSubTypeParentPath(element, container) {
-      var node = element.closest('.preset-tree-subtype-node');
-      if (!node) return null;
-      var path = [];
-      while (node) {
-        var parent = node.parentElement;
-        if (!parent || !parent.classList.contains('preset-tree-subtypes-tree')) {
-          var siblings = parent.querySelectorAll(':scope > .preset-tree-subtype-node');
-          var idx = Array.from(siblings).indexOf(node);
-          if (idx >= 0) path.unshift(idx);
-        }
-        node = parent.closest('.preset-tree-subtype-node');
-      }
-      return path.length > 0 ? path : null;
-    }
-
-    // Helper: Get sub-type node by path
+    // Helper: Get sub-type node by path (array of indices)
     function getSubTypeByPath(subTypes, path) {
       if (!Array.isArray(path) || !path.length) return null;
       var current = subTypes;
@@ -5735,7 +5709,7 @@
       return null;
     }
 
-    // Helper: Remove sub-type node by path
+    // Helper: Remove sub-type node by path (array of indices)
     function removeSubTypeByPath(subTypes, path) {
       if (!Array.isArray(path) || !path.length) return;
       if (path.length === 1) {
