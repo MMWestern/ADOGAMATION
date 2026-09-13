@@ -7923,9 +7923,15 @@
           pills.push({ id: id, label: a ? (a.title || "Untitled Act") : id });
         });
       } else if (ctx.type === "chapters") {
+        var chapterNum = 0;
         (ctx.selected || []).forEach(function (id) {
           var found = null;
-          acts.forEach(function (a) { (a.children || []).forEach(function (ch) { if (ch.id === id) found = (a.title || "Act") + " \u203A " + (ch.title || "Untitled Chapter"); }); });
+          acts.forEach(function (a) { 
+            (a.children || []).forEach(function (ch) { 
+              chapterNum++;
+              if (ch.id === id) found = "Ch. " + chapterNum + ": " + (ch.title || "Untitled"); 
+            }); 
+          });
           pills.push({ id: id, label: found || id });
         });
       } else if (ctx.type === "scenes") {
@@ -7935,7 +7941,14 @@
           pills.push({ id: id, label: found || id });
         });
       } else if (ctx.type === "codex") {
-        var catLabels = { characters:"Characters", locations:"Locations", objects:"Objects/Items", lore:"Lore", subplots:"Subplots", other:"Other", continuity:"Continuity" };
+        // Dynamic codex category labels from entity types
+        var seriesId = Number(getSelectedProject && getSelectedProject() && getSelectedProject().series_id || 0);
+        var entities = seriesId && codexCache.entitiesBySeries ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+        var catLabels = {};
+        entities.forEach(function (e) {
+          var typeInfo = e.codex_entity_types || {};
+          if (typeInfo.key) catLabels[typeInfo.key] = typeInfo.name_plural || typeInfo.name || typeInfo.key;
+        });
         (ctx.selected || []).forEach(function (id) {
           pills.push({ id: id, label: catLabels[id] || id });
         });
@@ -8402,11 +8415,12 @@
       if (context.type === "chapters") {
         var selCh = context.selected || [];
         var chLines = [];
+        var chapterNum = 0;
         acts.forEach(function (a) {
           (a.children || []).forEach(function (ch) {
+            chapterNum++;
             if (selCh.indexOf(ch.id) !== -1) {
-              var seg = segments.find(function (s) { return s.key === ch.id; });
-              chLines.push((a.title || "Act") + " \u203A " + (ch.title || "Untitled Chapter"));
+              chLines.push("Ch. " + chapterNum + ": " + (ch.title || "Untitled"));
             }
           });
         });

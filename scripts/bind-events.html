@@ -2150,37 +2150,59 @@
         if (type === "acts") {
           items = acts.map(function (a) { return { id: a.id, label: a.title || "Untitled Act", type: "act" }; });
         } else if (type === "chapters") {
+          var chapterNum = 0;
           acts.forEach(function (a) {
             (a.children || []).forEach(function (ch) {
-              items.push({ id: ch.id, label: (a.title || "Act") + " \u203A " + (ch.title || "Untitled Chapter"), type: "chapter", actTitle: a.title });
+              chapterNum++;
+              var chLabel = "Ch. " + chapterNum + ": " + (ch.title || "Untitled");
+              items.push({ id: ch.id, label: chLabel, type: "chapter", actTitle: a.title, chapterNum: chapterNum });
             });
           });
         } else if (type === "scenes") {
           acts.forEach(function (a) {
             (a.children || []).forEach(function (ch) {
               (ch.children || []).forEach(function (s) {
-                items.push({ id: s.id, label: (ch.title || "Chapter") + " \u203A " + (s.title || "Untitled Scene"), type: "scene", chapterTitle: ch.title });
+                items.push({ id: s.id, label: (ch.title || "Chapter") + " › " + (s.title || "Untitled Scene"), type: "scene", chapterTitle: ch.title });
               });
             });
           });
         } else if (type === "codex") {
-          items = [
-            { id: "characters", label: "Characters" },
-            { id: "locations", label: "Locations" },
-            { id: "objects", label: "Objects / Items" },
-            { id: "lore", label: "Lore" },
-            { id: "subplots", label: "Subplots" },
-            { id: "other", label: "Other" },
-            { id: "continuity", label: "Continuity" }
-          ];
+          // Dynamic codex categories from entity types in this series
+          var seriesId = Number(getSelectedProject && getSelectedProject() && getSelectedProject().series_id || 0);
+          var entities = seriesId && codexCache.entitiesBySeries ? (codexCache.entitiesBySeries[seriesId] || []) : [];
+          var typeMap = {};
+          entities.forEach(function (e) {
+            var typeInfo = e.codex_entity_types || {};
+            var key = typeInfo.key || "";
+            var label = typeInfo.name_plural || typeInfo.name || key;
+            if (key && !typeMap[key]) typeMap[key] = label;
+          });
+          // Build items from discovered types, with consistent ordering
+          var preferredOrder = ["character", "location", "item", "lore", "species", "stat", "resource", "skill_ability", "class_path", "trait_perk", "organisation", "family", "culture", "system_rule"];
+          preferredOrder.forEach(function (key) {
+            if (typeMap[key]) {
+              items.push({ id: key, label: typeMap[key] });
+              delete typeMap[key];
+            }
+          });
+          // Add any remaining types
+          Object.keys(typeMap).sort().forEach(function (key) {
+            items.push({ id: key, label: typeMap[key] });
+          });
         }
 
         var selected = (appState.chatContext && appState.chatContext.type === type) ? (appState.chatContext.selected || []) : [];
-        var html = "<div class='context-back' data-context='back'><span>\u2190</span> Back</div>";
+        var html = "<div class='context-back' data-context='back'><span>←</span> Back</div>";
+        // Add "Select All" option for codex
+        if (type === "codex" && items.length > 0) {
+          html += "<div class='context-sub-item context-select-all' data-sub-type='codex-select-all' style='border-bottom:1px solid #2a2a36;font-weight:600;'>" +
+            "<span class='check'></span>" +
+            "<span>Select All</span></div>";
+        }
         html += items.map(function (item) {
           var checked = selected.indexOf(item.id) !== -1;
           return "<div class='context-sub-item" + (checked ? " is-checked" : "") + "' data-sub-id='" + item.id + "' data-sub-type='" + type + "'>" +
-            "<span class='check'>" + (checked ? "\u2713" : "") + "</span>" +
+            "<span class='check'>" + (checked ? "✓" : "") + "</span>" +
             "<span>" + escapeHtml(item.label) + "</span></div>";
         }).join("");
         if (!items.length) {
@@ -2191,21 +2213,40 @@
         subMenu.querySelectorAll(".context-sub-item").forEach(function (el2) {
           el2.addEventListener("click", function () {
             var id = el2.getAttribute("data-sub-id");
-            if (!appState.chatContext || appState.chatContext.type !== type) {
-              appState.chatContext = { type: type, selected: [] };
-            }
-            var idx = appState.chatContext.selected.indexOf(id);
-            if (idx === -1) {
-              appState.chatContext.selected.push(id);
+            var subType = el2.getAttribute("data-sub-type");
+            
+            // Handle "Select All" for codex
+            if (subType === "codex-select-all") {
+              if (!appState.chatContext || appState.chatContext.type !== "codex") {
+                appState.chatContext = { type: "codex", selected: [] };
+              }
+              // Toggle: if all are selected, deselect all; otherwise select all
+              var allIds = items.map(function (item) { return item.id; });
+              var allSelected = allIds.every(function (id) { return appState.chatContext.selected.indexOf(id) !== -1; });
+              if (allSelected) {
+                appState.chatContext.selected = [];
+              } else {
+                appState.chatContext.selected = allIds.slice();
+              }
             } else {
-              appState.chatContext.selected.splice(idx, 1);
+              // Normal toggle behavior
+              if (!appState.chatContext || appState.chatContext.type !== type) {
+                appState.chatContext = { type: type, selected: [] };
+              }
+              var idx = appState.chatContext.selected.indexOf(id);
+              if (idx === -1) {
+                appState.chatContext.selected.push(id);
+              } else {
+                appState.chatContext.selected.splice(idx, 1);
+              }
             }
+            
             if (appState.chatContext.selected.length === 0) {
               appState.chatContext = null;
               el.chatContextButton.textContent = "+ Context";
             } else {
               var label = type.charAt(0).toUpperCase() + type.slice(1) + " (" + appState.chatContext.selected.length + " selected)";
-              el.chatContextButton.textContent = label + " \u02C5";
+              el.chatContextButton.textContent = label + " ▾";
             }
             if (typeof renderChatContextPills === "function") renderChatContextPills();
             showContextSubMenu(type);
