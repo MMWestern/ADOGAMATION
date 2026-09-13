@@ -10117,6 +10117,7 @@
                 fieldValues.forEach(function (fv) {
                   var def = fv.codex_entity_field_definitions || {};
                   if (def.field_key === 'species') {
+                    console.log("[STARTING STATE] Species field:", fv);
                     if (fv.target_entity_id) {
                       speciesId = Number(fv.target_entity_id);
                     } else if (fv.value_text) {
@@ -10124,15 +10125,26 @@
                     }
                   }
                 });
+                console.log("[STARTING STATE] Species ID:", speciesId, "Species Name:", speciesName);
 
                 // If we have species name but no ID, look up entity by name
                 if (!speciesId && speciesName) {
                   var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+                  console.log("[STARTING STATE] Looking for species by name:", speciesName, "in", entities.length, "entities");
                   var speciesEntity = entities.find(function (e) {
                     var typeKey = (e.codex_entity_types || {}).key || "";
-                    return typeKey === "species" && String(e.name || "").toLowerCase() === speciesName.toLowerCase();
+                    var match = typeKey === "species" && String(e.name || "").toLowerCase() === speciesName.toLowerCase();
+                    if (typeKey === "species") {
+                      console.log("[STARTING STATE] Found species entity:", e.name, "type:", typeKey, "match:", match);
+                    }
+                    return match;
                   });
-                  if (speciesEntity) speciesId = Number(speciesEntity.id);
+                  if (speciesEntity) {
+                    speciesId = Number(speciesEntity.id);
+                    console.log("[STARTING STATE] Found species entity by name:", speciesEntity.name, "ID:", speciesId);
+                  } else {
+                    console.log("[STARTING STATE] Species not found by name:", speciesName);
+                  }
                 }
 
                 if (!speciesId) {
