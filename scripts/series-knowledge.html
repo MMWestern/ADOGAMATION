@@ -6222,15 +6222,15 @@
       var subTypeOptions = [];
       var subTypeDropdownOptions = [];
       if (treeItem && treeItem.subTypes) {
-        // Check if sub-types are nested (objects) or flat (strings)
-        var hasNested = treeItem.subTypes.some(function (st) { return typeof st === 'object' && st.subTypes && st.subTypes.length > 0; });
-        if (hasNested && typeof codexV2BuildSubTypeDropdownOptions === "function") {
-          // Nested sub-types - use helper to build dropdown options with indentation
+        // Always use the dropdown builder for consistent handling of strings and objects
+        if (typeof codexV2BuildSubTypeDropdownOptions === "function") {
           subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
           subTypeOptions = subTypeDropdownOptions.map(function (opt) { return opt.value; });
         } else {
-          // Flat sub-types (original behavior)
-          subTypeOptions = treeItem.subTypes;
+          // Fallback: extract labels from mixed array
+          subTypeOptions = treeItem.subTypes.map(function (st) {
+            return typeof st === 'string' ? st : (st.label || st.key || "");
+          });
         }
       }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
