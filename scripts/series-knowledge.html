@@ -5626,9 +5626,19 @@
             // Find the parent node and add child
             var pathParts = path.split(".").map(Number);
             var parent = getSubTypeByPath(item.subTypes, pathParts);
-            if (parent && typeof parent === 'object') {
-              if (!parent.subTypes) parent.subTypes = [];
-              parent.subTypes.push(name);
+            if (parent) {
+              // If parent is a string, convert to object with subTypes
+              if (typeof parent === 'string') {
+                var parentIdx = pathParts[pathParts.length - 1];
+                var target = item.subTypes;
+                for (var i = 0; i < pathParts.length - 1; i++) {
+                  target = target[pathParts[i]].subTypes || [];
+                }
+                target[parentIdx] = { label: parent, subTypes: [name] };
+              } else if (typeof parent === 'object') {
+                if (!parent.subTypes) parent.subTypes = [];
+                parent.subTypes.push(name);
+              }
             }
             container.innerHTML = renderPresetTreeEditor(treeDef, isBase);
             var subtypesSection = container.querySelector(".preset-tree-subtypes[data-cat-idx='" + catIdx + "'][data-item-idx='" + itemIdx + "']");
