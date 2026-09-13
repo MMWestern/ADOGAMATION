@@ -6222,15 +6222,17 @@
       var subTypeOptions = [];
       var subTypeDropdownOptions = [];
       if (treeItem && treeItem.subTypes) {
-        // Always use the dropdown builder for consistent handling of strings and objects
+        // Always use the dropdown builder for consistent handling
         if (typeof codexV2BuildSubTypeDropdownOptions === "function") {
           subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
-          subTypeOptions = subTypeDropdownOptions.map(function (opt) { return opt.value; });
+          subTypeOptions = subTypeDropdownOptions.map(function (opt) { return String(opt.value || ""); });
         } else {
           // Fallback: extract labels from mixed array
           subTypeOptions = treeItem.subTypes.map(function (st) {
-            return typeof st === 'string' ? st : (st.label || st.key || "");
-          });
+            if (typeof st === 'string') return st;
+            if (st && typeof st === 'object') return String(st.label || st.key || st.name || "");
+            return "";
+          }).filter(function (s) { return s.length > 0; });
         }
       }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
