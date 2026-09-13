@@ -6398,35 +6398,6 @@
         if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
       });
       html += "</select></div>";
-      // Stage 1C: Status field dropdowns
-      html += "<div class='codex-detail-field-wrap'>";
-      html += "<label class='codex-detail-field-label'>Status</label>";
-      html += "<select id='codexDetailStatus' class='codex-detail-field-select'>";
-      CODEX_STATUS_OPTIONS.forEach(function (opt) {
-        html += "<option value='" + opt + "'" + (entity.status === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
-      });
-      html += "</select></div>";
-      html += "<div class='codex-detail-field-wrap'>";
-      html += "<label class='codex-detail-field-label'>Canon Status</label>";
-      html += "<select id='codexDetailCanonStatus' class='codex-detail-field-select'>";
-      CODEX_CANON_STATUS_OPTIONS.forEach(function (opt) {
-        html += "<option value='" + opt + "'" + (entity.canon_status === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
-      });
-      html += "</select></div>";
-      html += "<div class='codex-detail-field-wrap'>";
-      html += "<label class='codex-detail-field-label'>Visibility</label>";
-      html += "<select id='codexDetailVisibility' class='codex-detail-field-select'>";
-      CODEX_VISIBILITY_OPTIONS.forEach(function (opt) {
-        html += "<option value='" + opt + "'" + (entity.visibility === opt ? " selected" : "") + ">" + opt.replace(/_/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); }) + "</option>";
-      });
-      html += "</select></div>";
-      html += "<div class='codex-detail-field-wrap'>";
-      html += "<label class='codex-detail-field-label'>Spoiler Level</label>";
-      html += "<select id='codexDetailSpoilerLevel' class='codex-detail-field-select'>";
-      CODEX_SPOILER_OPTIONS.forEach(function (opt) {
-        html += "<option value='" + opt + "'" + (entity.spoiler_level === opt ? " selected" : "") + ">" + opt.charAt(0).toUpperCase() + opt.slice(1) + "</option>";
-      });
-      html += "</select></div>";
       if (entityTypeKey === "location") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Parent Location</label>";
@@ -6481,7 +6452,6 @@
       html += "</div></div>";
       html += "<button type='button' class='codex-sub-tab is-active' data-section='description'>Description</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='backstory'>Backstory</button>";
-      html += "<button type='button' class='codex-sub-tab' data-section='history'>History</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='appearances'>Appearances</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='state'>State</button>";
       html += "<button type='button' class='codex-sub-tab' data-section='fields'>Details</button>";
@@ -6497,7 +6467,6 @@
       html += "<div class='codex-detail-save-bar'>";
       html += "<button id='codexDetailCancelBtn' type='button'" + (isNew ? "" : " hidden") + ">Cancel</button>";
       html += "<button id='codexDetailDeleteBtn' type='button' style='color:#991b1b;'" + (isNew ? " hidden" : "") + ">Delete</button>";
-      html += "<button id='codexDetailSaveRevisionBtn' type='button' class='codex-save-revision-btn'" + (isNew ? " hidden" : "") + ">Save Revision</button>";
       html += "<button id='codexDetailSaveBtn' type='button' class='primary' data-saving='0'>" + (isNew ? "Create " + (typeLabels[entityTypeKey] || "Entry") : "Save") + "</button>";
       html += "</div>";
 
@@ -6516,17 +6485,6 @@
       html += "</div>";
       html += "<div class='codex-sub-section-body'>";
       html += "<textarea id='codexDetailBackstory' class='codex-detail-text description-field' rows='10' placeholder='Pre-story context, history, and formative events...'>" + escapeHtml(customData.backstory || "") + "</textarea>";
-      html += "</div>";
-      html += "</div>";
-
-      html += "<div class='codex-sub-section' id='codexSectionHistory' hidden>";
-      html += "<div class='codex-sub-section-header'>";
-      html += "<span class='codex-sub-section-title'>Revision History</span>";
-      html += "</div>";
-      html += "<div class='codex-sub-section-body'>";
-      html += "<div id='codexRevisionList' class='codex-revision-list'>";
-      html += "<div class='tiny' style='color:var(--muted);'>Loading history...</div>";
-      html += "</div>";
       html += "</div>";
       html += "</div>";
 
@@ -6802,10 +6760,6 @@
             s.hidden = s.id !== "codexSection" + section.charAt(0).toUpperCase() + section.slice(1);
           }
         });
-        // Stage 1A: Load revision history when History tab is selected
-        if (section === "history" && _codexActiveEntityId) {
-          loadCodexRevisions(_codexActiveEntityId);
-        }
         // Master Codex v2: Load appearances when Appearances tab is selected
         if (section === "appearances" && _codexActiveEntityId && skCurrentSeriesId) {
           loadCodexAppearances(skCurrentSeriesId, _codexActiveEntityId);
@@ -7104,11 +7058,6 @@
               delete mergedCustom.sub_type;
             }
           }
-          // Stage 1C: Read status field values
-          var statusSelect = document.getElementById("codexDetailStatus");
-          var canonStatusSelect = document.getElementById("codexDetailCanonStatus");
-          var visibilitySelect = document.getElementById("codexDetailVisibility");
-          var spoilerSelect = document.getElementById("codexDetailSpoilerLevel");
           var projectId = Number(project && (project.project_id || project.id) || 0);
           var codexPayload = {
             id: currentEntityId,
@@ -7118,10 +7067,10 @@
             image_url: String(entity.image_url || "").trim(),
             color: color,
             scope: scope,
-            status: statusSelect ? statusSelect.value : (entity.status || "active"),
-            canon_status: canonStatusSelect ? canonStatusSelect.value : (entity.canon_status || "draft"),
-            visibility: visibilitySelect ? visibilitySelect.value : (entity.visibility || "private"),
-            spoiler_level: spoilerSelect ? spoilerSelect.value : (entity.spoiler_level || "author_only"),
+            status: entity.status || "active",
+            canon_status: entity.canon_status || "draft",
+            visibility: entity.visibility || "private",
+            spoiler_level: entity.spoiler_level || "author_only",
             projectLinks: scope === "book" && scopeBookId ? [{ project_id: scopeBookId }] : [],
             custom_data: mergedCustom,
             entity_type_key: eTypeKey || entityTypeKey
@@ -7233,14 +7182,6 @@
             .catch(function (error) {
               setStatus("Delete failed: " + (error && error.message ? error.message : error), "error");
             });
-        });
-      }
-
-      var saveRevisionBtn = document.getElementById("codexDetailSaveRevisionBtn");
-      if (saveRevisionBtn) {
-        saveRevisionBtn.hidden = isNew;
-        saveRevisionBtn.addEventListener("click", function () {
-          saveManualCodexRevision();
         });
       }
     }
@@ -7604,388 +7545,6 @@
       }
     }
 
-    // --- Stage 1A: Revision History Functions ---
-
-    function loadCodexRevisions(entityId) {
-      var list = document.getElementById("codexRevisionList");
-      if (!list) return;
-      list.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading history...</div>";
-      callAppsScriptJson("listCodexRevisions", [entityId]).then(function (json) {
-        var result = typeof json === 'string' ? JSON.parse(json) : json;
-        if (!result || !result.ok || !result.revisions || !result.revisions.length) {
-          list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No revision history yet.</div>";
-          return;
-        }
-        var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
-        var currentEntity = entities.find(function (e) { return Number(e.id) === entityId; }) || null;
-        renderCodexRevisionList(result.revisions, currentEntity);
-      }).catch(function (err) {
-        list.innerHTML = "<div class='tiny' style='color:#ef4444;'>Failed to load history: " + escapeHtml(String(err.message || err)) + "</div>";
-      });
-    }
-
-    function renderCodexRevisionList(revisions, currentEntity) {
-      var list = document.getElementById("codexRevisionList");
-      if (!list) return;
-      var html = "";
-      revisions.forEach(function (rev, idx) {
-        var snapshot = rev.snapshot || {};
-        var date = rev.created_at ? new Date(rev.created_at).toLocaleString() : "Unknown";
-        var summary = rev.change_summary || "No summary";
-        var revNum = rev.revision_number || (idx + 1);
-        var diffHtml = "";
-        // Compare each revision against the next older revision to show what changed
-        var compareTo = null;
-        if (idx < revisions.length - 1) {
-          compareTo = revisions[idx + 1].snapshot || {};
-        }
-        if (compareTo) {
-          var diff = computeEntityFieldDiff(snapshot, compareTo);
-          if (diff.length) {
-            diffHtml = "<div class='codex-revision-diffs'>";
-            diff.forEach(function (d) {
-              diffHtml += "<div class='codex-revision-diff-item'>";
-              diffHtml += "<span class='codex-revision-diff-field'>" + escapeHtml(d.field) + "</span>";
-              if (d.path) diffHtml += "<span class='codex-revision-diff-path'>" + escapeHtml(d.path) + "</span>";
-              diffHtml += "</div>";
-            });
-            diffHtml += "</div>";
-          }
-        }
-        html += "<div class='codex-revision-item' data-revision-id='" + rev.id + "'>";
-        html += "<div class='codex-revision-header'>";
-        html += "<span class='codex-revision-number'>Rev " + revNum + "</span>";
-        html += "<span class='codex-revision-date'>" + escapeHtml(date) + "</span>";
-        html += "</div>";
-        html += "<div class='codex-revision-summary'>" + escapeHtml(summary) + "</div>";
-        if (diffHtml) html += diffHtml;
-        html += "<div class='codex-revision-actions'>";
-        html += "<button type='button' class='codex-revision-view-btn' data-rev-index='" + idx + "'>View Snapshot</button>";
-        html += "<button type='button' class='codex-revision-restore-btn' data-rev-id='" + rev.id + "' data-rev-index='" + idx + "'>Restore</button>";
-        html += "<button type='button' class='codex-revision-delete-btn' data-rev-id='" + rev.id + "'>Delete</button>";
-        html += "</div>";
-        html += "</div>";
-      });
-      list.innerHTML = html;
-      // Store revisions for restore/view
-      window._codexRevisionCache = revisions;
-      window._codexRevisionCurrentEntity = currentEntity;
-      // Bind view buttons
-      list.querySelectorAll(".codex-revision-view-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var idx = Number(btn.getAttribute("data-rev-index"));
-          var rev = window._codexRevisionCache && window._codexRevisionCache[idx];
-          if (rev && rev.snapshot) {
-            openRevisionSnapshotModal(rev, idx);
-          }
-        });
-      });
-      // Bind restore buttons
-      list.querySelectorAll(".codex-revision-restore-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var idx = Number(btn.getAttribute("data-rev-index"));
-          var revId = Number(btn.getAttribute("data-rev-id"));
-          var rev = window._codexRevisionCache && window._codexRevisionCache[idx];
-          if (rev && rev.snapshot && _codexActiveEntityId) {
-            if (!confirm("Restore this revision? This will overwrite the current entity data.")) return;
-            restoreCodexRevision(_codexActiveEntityId, rev.snapshot);
-          }
-        });
-      });
-      // Bind delete buttons
-      list.querySelectorAll(".codex-revision-delete-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var revId = Number(btn.getAttribute("data-rev-id"));
-          if (!revId) return;
-          if (!confirm("Delete this revision?")) return;
-          var item = btn.closest(".codex-revision-item");
-          callAppsScriptJson("deleteCodexRevision", [revId]).then(function (json) {
-            var result = typeof json === 'string' ? JSON.parse(json) : json;
-            if (result && result.ok) {
-              setStatus("Revision deleted.", "ok");
-              if (item) item.remove();
-              // Update cached revisions
-              if (window._codexRevisionCache) {
-                window._codexRevisionCache = window._codexRevisionCache.filter(function (r) { return Number(r.id) !== revId; });
-              }
-              // Show empty message if no revisions left
-              if (list.children.length === 0) {
-                list.innerHTML = "<div class='tiny' style='color:var(--muted);'>No revision history yet.</div>";
-              }
-            } else {
-              setStatus("Failed to delete revision.", "error");
-            }
-          }).catch(function (err) {
-            setStatus("Failed to delete revision: " + (err.message || err), "error");
-          });
-        });
-      });
-    }
-
-    function computeEntityFieldDiff(oldSnapshot, newSnapshot) {
-      var diffs = [];
-      var fields = ["name", "description", "summary", "image_url", "color", "scope", "status",
-        "visibility", "canon_status", "public_summary", "marketing_summary", "spoiler_level",
-        "featured", "aliases"];
-      fields.forEach(function (f) {
-        var oldVal = oldSnapshot[f];
-        var newVal = newSnapshot[f];
-        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-          diffs.push({ field: f, path: "", oldValue: oldVal, newValue: newVal });
-        }
-      });
-      // Compare custom_data
-      var oldCustom = oldSnapshot.custom_data || {};
-      var newCustom = newSnapshot.custom_data || {};
-      var customKeys = Object.keys(oldCustom).concat(Object.keys(newCustom)).filter(function (v, i, a) { return a.indexOf(v) === i; });
-      customKeys.forEach(function (k) {
-        if (k === "sections") {
-          var oldSections = oldCustom.sections || {};
-          var newSections = newCustom.sections || {};
-          var sectionKeys = Object.keys(oldSections).concat(Object.keys(newSections)).filter(function (v, i, a) { return a.indexOf(v) === i; });
-          sectionKeys.forEach(function (sk) {
-            if (JSON.stringify(oldSections[sk]) !== JSON.stringify(newSections[sk])) {
-              diffs.push({ field: "custom_data", path: "sections." + sk, oldValue: oldSections[sk], newValue: newSections[sk] });
-            }
-          });
-        } else {
-          if (JSON.stringify(oldCustom[k]) !== JSON.stringify(newCustom[k])) {
-            diffs.push({ field: "custom_data", path: k, oldValue: oldCustom[k], newValue: newCustom[k] });
-          }
-        }
-      });
-      return diffs;
-    }
-
-    function saveManualCodexRevision() {
-      if (!_codexActiveEntityId) { setStatus("No entity selected.", "error"); return; }
-      var entities = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []) : [];
-      var entity = entities.find(function (e) { return Number(e.id) === _codexActiveEntityId; });
-      if (!entity) { setStatus("No entity selected.", "error"); return; }
-      var summary = prompt("Revision note (optional):", "");
-      if (summary === null) return; // user cancelled
-      var snapshot = JSON.parse(JSON.stringify(entity));
-      callAppsScriptJson("listCodexRevisions", [_codexActiveEntityId]).then(function (json) {
-        var result = typeof json === 'string' ? JSON.parse(json) : json;
-        var nextRev = 1;
-        if (result && result.ok && result.revisions && result.revisions.length) {
-          nextRev = Number(result.revisions[0].revision_number || 0) + 1;
-        }
-        return callAppsScriptJson("saveCodexRevision", [_codexActiveEntityId, nextRev, JSON.stringify(snapshot), summary || "Manual revision"]);
-      }).then(function (json) {
-        var result = typeof json === 'string' ? JSON.parse(json) : json;
-        if (result && result.ok) {
-          setStatus("Revision saved.", "ok");
-          // Refresh history if visible
-          var historySection = document.getElementById("codexSectionHistory");
-          if (historySection && !historySection.hidden) loadCodexRevisions(_codexActiveEntityId);
-        } else {
-          setStatus("Failed to save revision.", "error");
-        }
-      }).catch(function (err) {
-        setStatus("Failed to save revision: " + (err.message || err), "error");
-      });
-    }
-
-    function restoreCodexRevision(entityId, snapshot) {
-      var seriesId = skCurrentSeriesId;
-      var entityTypeId = snapshot.entity_type_id;
-      var payload = {
-        id: entityId,
-        name: snapshot.name,
-        slug: snapshot.slug,
-        aliases: snapshot.aliases,
-        summary: snapshot.summary,
-        description: snapshot.description,
-        image_url: snapshot.image_url,
-        color: snapshot.color,
-        scope: snapshot.scope,
-        status: snapshot.status,
-        visibility: snapshot.visibility,
-        canon_status: snapshot.canon_status,
-        public_summary: snapshot.public_summary,
-        marketing_summary: snapshot.marketing_summary,
-        spoiler_level: snapshot.spoiler_level,
-        featured: snapshot.featured,
-        sort_order: snapshot.sort_order,
-        custom_data: snapshot.custom_data || {}
-      };
-      callAppsScriptJson("saveCodexEntity", [seriesId, entityTypeId, JSON.stringify(payload)]).then(function (json) {
-        var result = typeof json === 'string' ? JSON.parse(json) : json;
-        if (result && result.ok) {
-          setStatus("Revision restored successfully.", "ok");
-          // Reload the entity detail
-          if (typeof openCodexEntityPage === "function") openCodexEntityPage(entityId);
-        } else {
-          setStatus("Failed to restore revision.", "error");
-        }
-      }).catch(function (err) {
-        setStatus("Failed to restore revision: " + (err.message || err), "error");
-      });
-    }
-
-    // --- Revision Snapshot Modal ---
-
-    function openRevisionSnapshotModal(rev, revIdx) {
-      var modal = document.getElementById("revisionSnapshotModal");
-      if (!modal) return;
-      var snapshot = rev.snapshot || {};
-      var date = rev.created_at ? new Date(rev.created_at).toLocaleString() : "Unknown";
-      var revNum = rev.revision_number || (revIdx + 1);
-
-      // Populate header
-      var title = document.getElementById("revisionSnapshotTitle");
-      if (title) title.textContent = "Revision " + revNum + " — " + (snapshot.name || "Untitled");
-      var meta = document.getElementById("revisionSnapshotMeta");
-      if (meta) meta.textContent = date + (rev.change_summary ? " · " + rev.change_summary : "");
-
-      // Store current rev for restore button
-      window._codexRevisionModalIdx = revIdx;
-
-      // Render default tab (overview)
-      renderRevisionSnapshotTab("overview", snapshot);
-
-      // Wire tab clicks
-      var tabs = modal.querySelectorAll(".revision-snapshot-tab");
-      tabs.forEach(function (tab) {
-        tab.addEventListener("click", function () {
-          tabs.forEach(function (t) { t.classList.remove("is-active"); });
-          tab.classList.add("is-active");
-          renderRevisionSnapshotTab(tab.getAttribute("data-tab"), snapshot);
-        });
-      });
-
-      // Wire close button
-      var closeBtn = document.getElementById("revisionSnapshotCloseBtn");
-      if (closeBtn) {
-        closeBtn.onclick = function () { closeRevisionSnapshotModal(); };
-      }
-
-      // Wire restore button
-      var restoreBtn = document.getElementById("revisionSnapshotRestoreBtn");
-      if (restoreBtn) {
-        restoreBtn.onclick = function () {
-          if (!confirm("Restore this revision? This will overwrite the current entity data.")) return;
-          closeRevisionSnapshotModal();
-          if (_codexActiveEntityId) restoreCodexRevision(_codexActiveEntityId, snapshot);
-        };
-      }
-
-      // Click outside to close
-      modal.addEventListener("click", function handler(e) {
-        if (e.target === modal) {
-          closeRevisionSnapshotModal();
-          modal.removeEventListener("click", handler);
-        }
-      });
-
-      modal.classList.add("is-open");
-      modal.setAttribute("aria-hidden", "false");
-    }
-
-    function closeRevisionSnapshotModal() {
-      var modal = document.getElementById("revisionSnapshotModal");
-      if (!modal) return;
-      modal.classList.remove("is-open");
-      modal.setAttribute("aria-hidden", "true");
-    }
-
-    function renderRevisionSnapshotTab(tabKey, snapshot) {
-      var container = document.getElementById("revisionSnapshotContent");
-      if (!container) return;
-
-      if (tabKey === "overview") {
-        var fields = [
-          { label: "Name", value: snapshot.name },
-          { label: "Status", value: snapshot.status },
-          { label: "Canon Status", value: snapshot.canon_status },
-          { label: "Visibility", value: snapshot.visibility },
-          { label: "Spoiler Level", value: snapshot.spoiler_level },
-          { label: "Scope", value: snapshot.scope },
-          { label: "Color", value: snapshot.color },
-          { label: "Featured", value: snapshot.featured ? "Yes" : "No" }
-        ];
-        var html = "<div class='revision-snapshot-overview'>";
-        fields.forEach(function (f) {
-          var val = f.value || "";
-          var cls = val ? "" : " empty";
-          html += "<div class='revision-snapshot-field'>";
-          html += "<span class='revision-snapshot-field-label'>" + escapeHtml(f.label) + "</span>";
-          html += "<span class='revision-snapshot-field-value" + cls + "'>" + escapeHtml(val || "Not set") + "</span>";
-          html += "</div>";
-        });
-        html += "</div>";
-        if (snapshot.summary) {
-          html += "<div style='margin-top:16px'>";
-          html += "<span class='revision-snapshot-field-label'>Summary</span>";
-          html += "<div class='revision-snapshot-field-value' style='margin-top:4px'>" + escapeHtml(snapshot.summary) + "</div>";
-          html += "</div>";
-        }
-        if (snapshot.description) {
-          html += "<div style='margin-top:16px'>";
-          html += "<span class='revision-snapshot-field-label'>Description</span>";
-          html += "<div class='revision-snapshot-field-value' style='margin-top:4px;max-height:200px;overflow-y:auto;white-space:pre-wrap'>" + escapeHtml(snapshot.description) + "</div>";
-          html += "</div>";
-        }
-        container.innerHTML = html;
-
-      } else if (tabKey === "fields") {
-        var allFields = [
-          "name", "slug", "aliases", "summary", "description", "image_url", "color",
-          "scope", "status", "visibility", "canon_status", "public_summary",
-          "marketing_summary", "spoiler_level", "featured", "sort_order"
-        ];
-        var html = "<div class='revision-snapshot-overview'>";
-        allFields.forEach(function (f) {
-          var val = snapshot[f];
-          if (Array.isArray(val)) val = val.join(", ");
-          if (typeof val === "boolean") val = val ? "Yes" : "No";
-          if (val == null) val = "";
-          var cls = val ? "" : " empty";
-          html += "<div class='revision-snapshot-field'>";
-          html += "<span class='revision-snapshot-field-label'>" + escapeHtml(f) + "</span>";
-          html += "<span class='revision-snapshot-field-value" + cls + "'>" + escapeHtml(String(val) || "—") + "</span>";
-          html += "</div>";
-        });
-        html += "</div>";
-        container.innerHTML = html;
-
-      } else if (tabKey === "sections") {
-        var customData = snapshot.custom_data || {};
-        var sections = customData.sections || {};
-        var sectionKeys = Object.keys(sections);
-        if (!sectionKeys.length && !customData.relations_notes && !customData.backstory) {
-          container.innerHTML = "<div class='revision-snapshot-empty'>No sections in this revision.</div>";
-          return;
-        }
-        var html = "<div class='revision-snapshot-sections'>";
-        if (customData.backstory) {
-          html += "<div class='revision-snapshot-section'>";
-          html += "<div class='revision-snapshot-section-header'>Backstory</div>";
-          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(customData.backstory) + "</div>";
-          html += "</div>";
-        }
-        if (customData.relations_notes) {
-          html += "<div class='revision-snapshot-section'>";
-          html += "<div class='revision-snapshot-section-header'>Relations</div>";
-          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(customData.relations_notes) + "</div>";
-          html += "</div>";
-        }
-        sectionKeys.forEach(function (key) {
-          var label = key.replace(/_/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
-          html += "<div class='revision-snapshot-section'>";
-          html += "<div class='revision-snapshot-section-header'>" + escapeHtml(label) + "</div>";
-          html += "<div class='revision-snapshot-section-body'>" + escapeHtml(sections[key] || "") + "</div>";
-          html += "</div>";
-        });
-        html += "</div>";
-        container.innerHTML = html;
-
-      } else if (tabKey === "raw") {
-        container.innerHTML = "<pre class='revision-snapshot-raw'>" + escapeHtml(JSON.stringify(snapshot, null, 2)) + "</pre>";
-      }
-    }
-
     // ============================================================
     // WORLD BUILDER — Mode Switch & Pillar Grid (Stage 2D/2E)
     // ============================================================
@@ -7997,7 +7556,6 @@
 
     function switchCodexMode(mode) {
       _codexMode = mode;
-      // Update tab buttons
       var tabs = document.querySelectorAll(".codex-mode-tab");
       tabs.forEach(function (tab) {
         tab.classList.toggle("is-active", tab.getAttribute("data-codex-mode") === mode);
@@ -8013,7 +7571,6 @@
       if (el.worldBuilderAssistant) el.worldBuilderAssistant.hidden = mode !== "world-builder";
       // Hide legacy entity form when in world-builder mode
       if (el.seriesKnowledgeFormsPanel) el.seriesKnowledgeFormsPanel.hidden = mode === "world-builder";
-      // Keep wider panel for all CODEX tab modes (removed when leaving CODEX tab)
       // Load data for selected mode
       var project = getSelectedProject();
       var seriesId = project ? Number(project.series_id || 0) : 0;

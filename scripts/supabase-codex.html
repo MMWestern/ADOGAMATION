@@ -755,44 +755,6 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
 
-    // --- Stage 1A: Codex Entity Revisions ---
-
-    _sbDefine('saveCodexRevision', function (entityId, revisionNumber, snapshotJson, changeSummary) {
-      var safeEntityId = Number(entityId || 0);
-      if (!safeEntityId) throw new Error('Entity id is required.');
-      var snapshot = typeof snapshotJson === 'string' ? JSON.parse(snapshotJson) : (snapshotJson || {});
-      return sbClient.from('codex_entity_revisions').insert([{
-        entity_id: safeEntityId,
-        revision_number: Number(revisionNumber || 1),
-        snapshot: snapshot,
-        change_summary: String(changeSummary || '').trim() || null
-      }]).then(function (res) {
-        if (res.error) throw res.error;
-        return JSON.stringify({ ok: true, revision: res.data && res.data[0] ? res.data[0] : null });
-      });
-    });
-
-    _sbDefine('listCodexRevisions', function (entityId) {
-      var safeEntityId = Number(entityId || 0);
-      if (!safeEntityId) throw new Error('Entity id is required.');
-      return sbClient.from('codex_entity_revisions')
-        .select('*')
-        .eq('entity_id', safeEntityId)
-        .order('revision_number', { ascending: false })
-        .limit(100)
-        .then(function (res) {
-          if (res.error) throw res.error;
-          return JSON.stringify({ ok: true, revisions: res.data || [] });
-        });
-    });
-
-    _sbDefine('deleteCodexRevision', function (revisionId) {
-      var safeId = Number(revisionId || 0);
-      if (!safeId) throw new Error('Revision id is required.');
-      return sbClient.from('codex_entity_revisions').delete().eq('id', safeId)
-        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
-    });
-
     // ============================================================
     // WORLD BUILDER — Stage 2C CRUD
     // ============================================================
