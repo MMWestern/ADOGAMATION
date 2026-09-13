@@ -6248,12 +6248,15 @@
           if (subTypeDropdownOptions.length) {
             // Nested sub-types with indentation
             subTypeDropdownOptions.forEach(function (opt) {
-              html += "<option value='" + escapeHtml(opt.value) + "'" + (opt.value === subTypeValue ? " selected" : "") + ">" + escapeHtml(opt.label) + "</option>";
+              var optValue = String(opt.value || "");
+              var optLabel = String(opt.label || optValue);
+              html += "<option value='" + escapeHtml(optValue) + "'" + (optValue === subTypeValue ? " selected" : "") + ">" + escapeHtml(optLabel) + "</option>";
             });
           } else {
             // Flat sub-types
             subTypeOptions.forEach(function (st) {
-              html += "<option value='" + escapeHtml(st) + "'" + (st === subTypeValue ? " selected" : "") + ">" + escapeHtml(st) + "</option>";
+              var stStr = String(st || "");
+              html += "<option value='" + escapeHtml(stStr) + "'" + (stStr === subTypeValue ? " selected" : "") + ">" + escapeHtml(stStr) + "</option>";
             });
           }
           html += "<option value='_custom'" + (!subTypeValue || subTypeOptions.indexOf(subTypeValue) === -1 ? " selected" : "") + ">Custom...</option>";
