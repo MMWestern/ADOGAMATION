@@ -431,23 +431,26 @@
       if (!Array.isArray(subTypes)) return options;
 
       subTypes.forEach(function (st) {
-        // Ensure label is always a string, even if st is an object with nested properties
+        // Ensure label is always a string
         var label = "";
-        if (typeof st === 'string') {
-          label = st;
-        } else if (st && typeof st === 'object') {
-          // Get the display label, handling nested objects
-          label = String(st.label || st.key || st.name || "");
+        if (st === null || st === undefined) return;
+        if (typeof st === 'string' || typeof st === 'number') {
+          label = String(st);
+        } else if (typeof st === 'object') {
+          // Extract label from object, handling nested objects safely
+          var raw = st.label || st.key || st.name || st.value || "";
+          label = (typeof raw === 'string' || typeof raw === 'number') ? String(raw) : "";
         }
         if (!label) return; // Skip empty labels
-        
-        var indent = "  ".repeat(depth);
+
+        var indent = "";
+        for (var i = 0; i < depth; i++) indent += "  ";
         var optionLabel = indent + label;
 
         options.push({ value: label, label: optionLabel, depth: depth });
 
         // Recursively add nested sub-types
-        if (st && typeof st === 'object' && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+        if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
           var nested = codexV2BuildSubTypeDropdownOptions(st.subTypes, depth + 1);
           options = options.concat(nested);
         }
