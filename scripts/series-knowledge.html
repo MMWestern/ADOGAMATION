@@ -11228,8 +11228,9 @@
               
               // Check if this entity type has nested sub-types in the tree definition
               var treeItemForField = null;
-              if (activeTreeDef && filterType) {
-                activeTreeDef.forEach(function (cat) {
+              var fieldTreeDef = (typeof getCodexTreeDef === "function" && seriesId) ? getCodexTreeDef(seriesId) : (typeof CODEX_TREE_DEF !== "undefined" ? CODEX_TREE_DEF : []);
+              if (fieldTreeDef && filterType) {
+                fieldTreeDef.forEach(function (cat) {
                   cat.items.forEach(function (item) {
                     if (item.entityTypeKey === filterType) treeItemForField = item;
                   });
