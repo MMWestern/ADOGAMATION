@@ -2172,25 +2172,42 @@
           // Dynamic codex categories from entity types in this series
           var seriesId = Number(getSelectedProject && getSelectedProject() && getSelectedProject().series_id || 0);
           var entities = seriesId && codexCache.entitiesBySeries ? (codexCache.entitiesBySeries[seriesId] || []) : [];
-          var typeMap = {};
-          entities.forEach(function (e) {
-            var typeInfo = e.codex_entity_types || {};
-            var key = typeInfo.key || "";
-            var label = typeInfo.name_plural || typeInfo.name || key;
-            if (key && !typeMap[key]) typeMap[key] = label;
-          });
-          // Build items from discovered types, with consistent ordering
-          var preferredOrder = ["character", "location", "item", "lore", "species", "stat", "resource", "skill_ability", "class_path", "trait_perk", "organisation", "family", "culture", "system_rule"];
-          preferredOrder.forEach(function (key) {
-            if (typeMap[key]) {
+          
+          // If entities not loaded yet, use fallback list
+          if (entities.length === 0) {
+            items = [
+              { id: "character", label: "Characters" },
+              { id: "location", label: "Locations" },
+              { id: "item", label: "Objects / Items" },
+              { id: "lore", label: "Lore" },
+              { id: "species", label: "Species" },
+              { id: "stat", label: "Stats" },
+              { id: "resource", label: "Resources" },
+              { id: "skill_ability", label: "Skills" },
+              { id: "organisation", label: "Organisations" },
+              { id: "system_rule", label: "System Rules" }
+            ];
+          } else {
+            var typeMap = {};
+            entities.forEach(function (e) {
+              var typeInfo = e.codex_entity_types || {};
+              var key = typeInfo.key || "";
+              var label = typeInfo.name_plural || typeInfo.name || key;
+              if (key && !typeMap[key]) typeMap[key] = label;
+            });
+            // Build items from discovered types, with consistent ordering
+            var preferredOrder = ["character", "location", "item", "lore", "species", "stat", "resource", "skill_ability", "class_path", "trait_perk", "organisation", "family", "culture", "system_rule"];
+            preferredOrder.forEach(function (key) {
+              if (typeMap[key]) {
+                items.push({ id: key, label: typeMap[key] });
+                delete typeMap[key];
+              }
+            });
+            // Add any remaining types
+            Object.keys(typeMap).sort().forEach(function (key) {
               items.push({ id: key, label: typeMap[key] });
-              delete typeMap[key];
-            }
-          });
-          // Add any remaining types
-          Object.keys(typeMap).sort().forEach(function (key) {
-            items.push({ id: key, label: typeMap[key] });
-          });
+            });
+          }
         }
 
         // Get selected items for this type from multi-type context
