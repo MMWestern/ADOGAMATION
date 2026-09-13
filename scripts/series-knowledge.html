@@ -11225,27 +11225,103 @@
               var filterType = def.options_json && def.options_json.entity_type_key ? def.options_json.entity_type_key : "";
               var linkedId = val && val.linked_entity_id ? Number(val.linked_entity_id) : 0;
               var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
-              // Group entities by type for display
-              var grouped = {};
-              entities.forEach(function (e) {
-                var ek = (e.codex_entity_types || {}).key || e.entity_type_key || "unknown";
-                if (filterType && ek !== filterType) return;
-                if (!grouped[ek]) grouped[ek] = [];
-                grouped[ek].push(e);
+              
+              // Check if this entity type has nested sub-types in the tree definition
+              var treeItemForField = null;
+              if (activeTreeDef && filterType) {
+                activeTreeDef.forEach(function (cat) {
+                  cat.items.forEach(function (item) {
+                    if (item.entityTypeKey === filterType) treeItemForField = item;
+                  });
+                });
+              }
+              var hasNestedSubTypes = treeItemForField && treeItemForField.subTypes && treeItemForField.subTypes.some(function (st) {
+                return typeof st === 'object' && st.subTypes && st.subTypes.length > 0;
               });
+
               html += "<select class='codex-field-input' data-field-type='entity_link' style='font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;width:100%;'>";
               html += "<option value=''>— None —</option>";
-              Object.keys(grouped).sort().forEach(function (typeKey) {
-                var typeEntities = grouped[typeKey];
-                var typeLabel = typeEntities.length && typeEntities[0].codex_entity_types ? typeEntities[0].codex_entity_types.name_plural || typeKey : typeKey;
-                html += "<optgroup label='" + escapeHtml(typeLabel) + "'>";
-                typeEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
-                typeEntities.forEach(function (e) {
-                  var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
-                  html += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+
+              if (hasNestedSubTypes) {
+                // Build nested dropdown using tree definition
+                function buildNestedOptions(nodes, entitiesByLabel, depth) {
+                  var opts = "";
+                  nodes.forEach(function (node) {
+                    var label = typeof node === 'string' ? node : (node.label || node.key || node.name || "");
+                    var children = (typeof node === 'object' && Array.isArray(node.subTypes)) ? node.subTypes : [];
+                    var hasChildren = children.length > 0;
+                    var matchingEntities = entitiesByLabel[label.toLowerCase()] || [];
+                    
+                    if (hasChildren || matchingEntities.length > 0) {
+                      var indent = "  ".repeat(depth);
+                      if (hasChildren && matchingEntities.length === 0) {
+                        // Parent node with children - render as optgroup
+                        opts += "<optgroup label='" + escapeHtml(indent + label) + "'>";
+                        opts += buildNestedOptions(children, entitiesByLabel, depth + 1);
+                        opts += "</optgroup>";
+                      } else if (matchingEntities.length > 0) {
+                        // Node with entities - render as optgroup with entities
+                        opts += "<optgroup label='" + escapeHtml(indent + label) + "'>";
+                        matchingEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+                        matchingEntities.forEach(function (e) {
+                          var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
+                          opts += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+                        });
+                        if (hasChildren) {
+                          opts += buildNestedOptions(children, entitiesByLabel, depth + 1);
+                        }
+                        opts += "</optgroup>";
+                      }
+                    }
+                  });
+                  return opts;
+                }
+
+                // Group entities by their sub_type
+                var entitiesByLabel = {};
+                entities.forEach(function (e) {
+                  var ek = (e.codex_entity_types || {}).key || e.entity_type_key || "unknown";
+                  if (filterType && ek !== filterType) return;
+                  var subType = String((e.custom_data || {}).sub_type || "").toLowerCase();
+                  if (!subType) subType = "uncategorized";
+                  if (!entitiesByLabel[subType]) entitiesByLabel[subType] = [];
+                  entitiesByLabel[subType].push(e);
                 });
-                html += "</optgroup>";
-              });
+
+                html += buildNestedOptions(treeItemForField.subTypes, entitiesByLabel, 0);
+                
+                // Add uncategorized entities at the end
+                var uncategorized = entitiesByLabel["uncategorized"] || [];
+                if (uncategorized.length) {
+                  html += "<optgroup label='Uncategorized'>";
+                  uncategorized.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+                  uncategorized.forEach(function (e) {
+                    var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
+                    html += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+                  });
+                  html += "</optgroup>";
+                }
+              } else {
+                // Flat grouped list (original behavior)
+                var grouped = {};
+                entities.forEach(function (e) {
+                  var ek = (e.codex_entity_types || {}).key || e.entity_type_key || "unknown";
+                  if (filterType && ek !== filterType) return;
+                  if (!grouped[ek]) grouped[ek] = [];
+                  grouped[ek].push(e);
+                });
+                Object.keys(grouped).sort().forEach(function (typeKey) {
+                  var typeEntities = grouped[typeKey];
+                  var typeLabel = typeEntities.length && typeEntities[0].codex_entity_types ? typeEntities[0].codex_entity_types.name_plural || typeKey : typeKey;
+                  html += "<optgroup label='" + escapeHtml(typeLabel) + "'>";
+                  typeEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+                  typeEntities.forEach(function (e) {
+                    var selected = linkedId && Number(e.id) === linkedId ? " selected" : "";
+                    html += "<option value='" + e.id + "'" + selected + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+                  });
+                  html += "</optgroup>";
+                });
+              }
               html += "</select>";
             } else {
               html += "<input type='text' class='codex-field-input' data-field-type='text' value='" + escapeHtml(String(currentValue)) + "' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
