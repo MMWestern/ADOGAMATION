@@ -6870,142 +6870,154 @@
     }
 
     function initSubTypeCascade_(container, subTypes, initialPath, finalValue) {
-      // State: array of labels chosen so far (e.g., ["Aquatic", "Fish"])
-      var trail = initialPath ? initialPath.slice() : [];
-      // If the value is custom (not found in tree), show custom input immediately
       var isCustom = finalValue && !initialPath;
 
-      // Row: breadcrumb + back button on left, select on right
-      var row = document.createElement("div");
-      row.style.cssText = "display:flex;align-items:center;gap:6px;";
-      container.appendChild(row);
-
-      // Back button (hidden at top level)
-      var backBtn = document.createElement("button");
-      backBtn.type = "button";
-      backBtn.textContent = "\u2190";
-      backBtn.title = "Back";
-      backBtn.style.cssText = "font-size:13px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;flex-shrink:0;display:none;";
-      row.appendChild(backBtn);
-
-      // Breadcrumb
-      var breadcrumb = document.createElement("div");
-      breadcrumb.style.cssText = "font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;";
-      row.appendChild(breadcrumb);
-
-      // Create the single select
-      var select = document.createElement("select");
-      select.className = "codex-detail-field-select";
-      select.style.marginTop = "4px";
-      container.appendChild(select);
+      // Horizontal scrollable column container
+      var columnsWrap = document.createElement("div");
+      columnsWrap.style.cssText = "display:flex;gap:0;overflow-x:auto;max-width:100%;border:1px solid #3a3a42;border-radius:6px;background:#1a1a20;";
+      container.appendChild(columnsWrap);
 
       // Custom input (hidden by default)
       var customInput = container.parentElement.querySelector("#codexDetailSubTypeCustom");
 
-      function getOptionsForTrail(trail) {
-        if (trail.length === 0) {
-          if (typeof codexV2GetTopLevelSubTypes === "function") {
-            return codexV2GetTopLevelSubTypes(subTypes);
-          }
-          return [];
+      // Track current selection
+      var selectedLeaf = initialPath ? initialPath[initialPath.length - 1] : "";
+      if (isCustom) selectedLeaf = "_custom";
+
+      function getChildrenOf(label) {
+        if (typeof codexV2GetSubTypeChildren === "function") {
+          return codexV2GetSubTypeChildren(subTypes, label);
         }
-        var parentLabel = trail[trail.length - 1];
-        var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, parentLabel) : null;
-        if (!children) return [];
-        var opts = [];
-        children.forEach(function (st) {
-          var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
-          if (!label) return;
-          var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
-          opts.push({ label: label, hasChildren: hasChildren });
-        });
-        return opts;
+        return null;
       }
 
-      function renderBreadcrumb() {
-        if (trail.length === 0) {
-          breadcrumb.innerHTML = "";
-          return;
+      function getTopLevel() {
+        if (typeof codexV2GetTopLevelSubTypes === "function") {
+          return codexV2GetTopLevelSubTypes(subTypes);
         }
-        var parts = trail.map(function (t) { return escapeHtml(t); });
-        breadcrumb.textContent = parts.join(" \u203a ");
+        return [];
       }
 
-      function renderSelect() {
-        select.innerHTML = "";
+      function buildItems(options, depth, preSelected) {
+        var column = document.createElement("div");
+        column.style.cssText = "min-width:120px;max-width:160px;border-right:1px solid #2a2a32;flex-shrink:0;overflow-y:auto;max-height:180px;";
+        column.setAttribute("data-depth", depth);
 
-        // Placeholder
-        var placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = trail.length === 0 ? "Select sub-type..." : "Select...";
-        select.appendChild(placeholder);
-
-        // Options for current level
-        var options = getOptionsForTrail(trail);
         options.forEach(function (opt) {
-          var option = document.createElement("option");
-          option.value = opt.label;
-          option.textContent = opt.label;
-          option.setAttribute("data-has-children", opt.hasChildren ? "1" : "0");
-          select.appendChild(option);
+          var item = document.createElement("div");
+          item.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#c5c5ce;";
+          item.setAttribute("data-label", opt.label);
+          item.setAttribute("data-has-children", opt.hasChildren ? "1" : "0");
+
+          var labelSpan = document.createElement("span");
+          labelSpan.textContent = opt.label;
+          item.appendChild(labelSpan);
+
+          if (opt.hasChildren) {
+            var arrow = document.createElement("span");
+            arrow.textContent = "\u203a";
+            arrow.style.cssText = "opacity:0.5;font-size:14px;";
+            item.appendChild(arrow);
+          }
+
+          // Highlight on hover
+          item.addEventListener("mouseenter", function () { item.style.background = "rgba(59,130,246,0.15)"; });
+          item.addEventListener("mouseleave", function () {
+            if (!item.classList.contains("cascade-selected")) item.style.background = "";
+          });
+
+          // Click handler
+          item.addEventListener("click", function () {
+            // Deselect siblings
+            column.querySelectorAll("[data-label]").forEach(function (sib) {
+              sib.classList.remove("cascade-selected");
+              sib.style.background = "";
+            });
+            item.classList.add("cascade-selected");
+            item.style.background = "rgba(59,130,246,0.25)";
+
+            // Remove columns to the right
+            var allColumns = Array.from(columnsWrap.children);
+            allColumns.forEach(function (c) {
+              if (Number(c.getAttribute("data-depth")) > depth) c.remove();
+            });
+
+            // Hide custom input
+            if (customInput) customInput.style.display = "none";
+
+            if (opt.hasChildren) {
+              // Show children in next column
+              var children = getChildrenOf(opt.label);
+              if (children && children.length) {
+                buildItems(children, depth + 1, null);
+              }
+            }
+            // Update selected leaf
+            selectedLeaf = opt.label;
+            container.setAttribute("data-selected", opt.label);
+          });
+
+          column.appendChild(item);
         });
 
-        // Custom option
-        var customOpt = document.createElement("option");
-        customOpt.value = "_custom";
-        customOpt.textContent = "Custom...";
-        select.appendChild(customOpt);
-
-        // Show/hide back button
-        backBtn.style.display = trail.length > 0 ? "" : "none";
-        renderBreadcrumb();
-      }
-
-      // Back button handler — doesn't touch the select, so it stays open if user reopens it
-      backBtn.addEventListener("click", function () {
-        trail.pop();
-        renderSelect();
-        if (customInput) customInput.style.display = "none";
-      });
-
-      // Select change handler
-      select.addEventListener("change", function () {
-        var val = select.value;
-        if (customInput) customInput.style.display = "none";
-
-        if (val === "_custom") {
+        // Custom option at bottom
+        var customItem = document.createElement("div");
+        customItem.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;color:var(--muted);border-top:1px solid #2a2a32;font-style:italic;";
+        customItem.textContent = "Custom...";
+        customItem.addEventListener("mouseenter", function () { customItem.style.background = "rgba(59,130,246,0.15)"; });
+        customItem.addEventListener("mouseleave", function () {
+          if (!customItem.classList.contains("cascade-selected")) customItem.style.background = "";
+        });
+        customItem.addEventListener("click", function () {
+          column.querySelectorAll("[data-label]").forEach(function (sib) {
+            sib.classList.remove("cascade-selected");
+            sib.style.background = "";
+          });
+          customItem.classList.add("cascade-selected");
+          customItem.style.background = "rgba(59,130,246,0.25)";
+          // Remove columns to the right
+          var allColumns = Array.from(columnsWrap.children);
+          allColumns.forEach(function (c) {
+            if (Number(c.getAttribute("data-depth")) > depth) c.remove();
+          });
+          selectedLeaf = "_custom";
+          container.setAttribute("data-selected", "_custom");
           if (customInput) {
             customInput.style.display = "";
             customInput.focus();
           }
-          return;
+        });
+        column.appendChild(customItem);
+
+        columnsWrap.appendChild(column);
+
+        // Pre-select if we have a value
+        if (preSelected) {
+          var match = column.querySelector("[data-label='" + CSS.escape(preSelected) + "']");
+          if (match) match.click();
         }
 
-        if (!val) return;
+        // Scroll to show the latest column
+        columnsWrap.scrollLeft = columnsWrap.scrollWidth;
+      }
 
-        var selectedOpt = select.options[select.selectedIndex];
-        var hasChildren = selectedOpt && selectedOpt.getAttribute("data-has-children") === "1";
-
-        if (hasChildren) {
-          trail.push(val);
-          renderSelect();
+      // Build initial path: render top level, then pre-select path
+      var options = getTopLevel();
+      if (options.length) {
+        if (initialPath && initialPath.length > 0) {
+          // Build columns along the path
+          container.setAttribute("data-selected", initialPath[initialPath.length - 1]);
+          buildItems(options, 0, initialPath[0]);
+        } else {
+          buildItems(options, 0, null);
         }
-        // Leaf selected — done, value is in select.value
-      });
+      }
 
-      // Initial render
-      if (isCustom) {
-        renderSelect();
-        select.value = "_custom";
-        if (customInput) {
-          customInput.style.display = "";
-          customInput.value = finalValue;
-        }
-      } else if (trail.length > 0) {
-        renderSelect();
-        select.value = trail[trail.length - 1];
-      } else {
-        renderSelect();
+      // If custom value, show custom input
+      if (isCustom && customInput) {
+        container.setAttribute("data-selected", "_custom");
+        customInput.style.display = "";
+        customInput.value = finalValue;
       }
     }
 
@@ -7204,9 +7216,8 @@
           var subTypeSelect = document.getElementById("codexDetailSubType");
           var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
           if (cascadeContainer) {
-            // Single drill-down dropdown — read the select value
-            var cascadeSelect = cascadeContainer.querySelector("select");
-            var cascadeVal = cascadeSelect ? cascadeSelect.value : "";
+            // Multi-column cascade picker — read from data attribute
+            var cascadeVal = cascadeContainer.getAttribute("data-selected") || "";
             if (cascadeVal === "_custom" && subTypeCustom) {
               cascadeVal = subTypeCustom.value.trim();
             }
