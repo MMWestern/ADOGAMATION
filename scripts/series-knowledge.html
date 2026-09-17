@@ -7278,6 +7278,12 @@
             custom_data: mergedCustom,
             entity_type_key: eTypeKey || entityTypeKey
           };
+          // Include parent_location_id for location entities
+          if (entityTypeKey === "location") {
+            var parentLocSelect = document.getElementById("codexDetailParentLocation");
+            var parentLocId = parentLocSelect ? Number(parentLocSelect.value || 0) : 0;
+            codexPayload.parent_location_id = parentLocId || null;
+          }
           callAppsScriptJson("saveCodexEntity", [seriesId, eTypeId, JSON.stringify(codexPayload)])
             .then(function (result) {
               var saved = result && result.entity ? result.entity : {};
@@ -7291,10 +7297,8 @@
                   codexCache.entityDetails[savedId] = { projectLinks: [{ project_id: scopeBookId }] };
                 }
               }
-              // Save parent location connection for location entities
-              if (entityTypeKey === "location" && savedId) {
-                return saveParentLocationConnection(seriesId, savedId);
-              }
+              // Parent location is now saved with the entity payload (parent_location_id)
+              return Promise.resolve();
               return Promise.resolve();
             })
             .then(function () {

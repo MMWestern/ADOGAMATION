@@ -196,6 +196,9 @@
                 sort_order: Number(parsed.sort_order || 0) || 0,
                 custom_data: parsed.custom_data || {}
               };
+              if (parsed.parent_location_id !== undefined) {
+                entityPayload.parent_location_id = Number(parsed.parent_location_id) || null;
+              }
               if (!safeTypeId) {
                 // Need to create the type first
                 return sbClient.from('codex_entity_types').insert({
@@ -248,6 +251,9 @@
         sort_order: Number(parsed.sort_order || 0) || 0,
         custom_data: parsed.custom_data || {}
       };
+      if (parsed.parent_location_id !== undefined) {
+        payload.parent_location_id = Number(parsed.parent_location_id) || null;
+      }
       var projectLinks = Array.isArray(parsed.projectLinks) ? parsed.projectLinks : [];
       var tagIds = Array.isArray(parsed.tagIds) ? parsed.tagIds : [];
       var saveOp = entityId
