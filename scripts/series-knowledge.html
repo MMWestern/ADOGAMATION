@@ -4904,11 +4904,12 @@
       var scope = entity.scope || "series";
       var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
       var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>" : "";
+      var catIcon = cat && cat.icon ? cat.icon : item.icon;
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
-        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + catIcon + "</span></div>";
       var indentPx = depth > 0 ? depth * 16 : 0;
-      var styleAttr = indentPx ? " style='padding-left:" + (8 + indentPx) + "px;'" : "";
+      var styleAttr = indentPx ? " style='margin-left:" + indentPx + "px;width:calc(100% - " + indentPx + "px);'" : "";
       var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
@@ -5141,9 +5142,14 @@
       var custom = entity.custom_data || {};
       var roleArchetype = String(custom.role_archetype || custom.sub_type || "").trim();
       var archetype = String(custom.archetype || "").trim();
+      var displayIcon = item.icon;
+      if (item.entityTypeKey === "location") {
+        var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
+        if (cat && cat.icon) displayIcon = cat.icon;
+      }
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
-        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
+        : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + displayIcon + "</span></div>";
       var scope = entity.scope || "series";
       var pillHtml = "";
       if (item.entityTypeKey === "location") {
