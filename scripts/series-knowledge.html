@@ -6841,21 +6841,20 @@
     function wireCodexDetailSubType_() {
       var cascadeContainer = document.getElementById("codexDetailSubTypeCascade");
       if (cascadeContainer) {
-        // Nested sub-types — cascading dropdowns
+        // Nested sub-types — single dropdown that drills down
         var treeData = cascadeContainer.getAttribute("data-tree");
         var currentValue = cascadeContainer.getAttribute("data-value") || "";
         var subTypes = [];
         try { subTypes = JSON.parse(treeData); } catch (e) { subTypes = []; }
         if (!subTypes.length) return;
 
-        // Find path for current value
+        // Find path for current value to pre-set depth
         var path = null;
         if (currentValue && typeof codexV2FindSubTypePath === "function") {
           path = codexV2FindSubTypePath(subTypes, currentValue);
         }
 
-        // Render cascade levels
-        renderSubTypeCascadeLevel_(cascadeContainer, subTypes, 0, path, currentValue);
+        initSubTypeCascade_(cascadeContainer, subTypes, path, currentValue);
         return;
       }
 
@@ -6870,125 +6869,145 @@
       }
     }
 
-    function renderSubTypeCascadeLevel_(container, subTypes, depth, selectedPath, finalValue) {
-      var wrapper = container;
-      // Remove any existing selects at this depth and deeper
-      var existingSelects = wrapper.querySelectorAll(".codex-cascade-select");
-      existingSelects.forEach(function (sel) {
-        if (Number(sel.getAttribute("data-depth")) >= depth) sel.remove();
-      });
-      // Remove custom input if present at this depth
-      var existingCustom = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
-      if (existingCustom) existingCustom.style.display = "none";
+    function initSubTypeCascade_(container, subTypes, initialPath, finalValue) {
+      // State: array of labels chosen so far (e.g., ["Aquatic", "Fish"])
+      var trail = initialPath ? initialPath.slice() : [];
+      // If the value is custom (not found in tree), show custom input immediately
+      var isCustom = finalValue && !initialPath;
 
-      // Get options for this level
-      var options = [];
-      if (depth === 0 && typeof codexV2GetTopLevelSubTypes === "function") {
-        options = codexV2GetTopLevelSubTypes(subTypes);
-      } else if (depth > 0 && selectedPath && typeof codexV2GetSubTypeChildren === "function") {
-        var parentLabel = selectedPath[depth - 1];
-        var children = codexV2GetSubTypeChildren(subTypes, parentLabel);
-        if (children) {
-          children.forEach(function (st) {
-            var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
-            if (!label) return;
-            var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
-            options.push({ label: label, hasChildren: hasChildren });
-          });
-        }
-      }
+      // Build breadcrumb
+      var breadcrumb = document.createElement("div");
+      breadcrumb.className = "codex-cascade-breadcrumb";
+      breadcrumb.style.cssText = "font-size:11px;color:var(--muted);margin-bottom:4px;min-height:16px;";
+      container.appendChild(breadcrumb);
 
-      if (!options.length) return;
-
-      // Check if current value is a custom value (not in the tree at all)
-      var isCustomAtThisLevel = false;
-      if (depth === 0 && finalValue && !selectedPath) {
-        isCustomAtThisLevel = true;
-      }
-
-      // Create select
+      // Create the single select
       var select = document.createElement("select");
-      select.className = "codex-detail-field-select codex-cascade-select";
-      select.setAttribute("data-depth", depth);
-      select.style.marginTop = depth > 0 ? "4px" : "";
+      select.className = "codex-detail-field-select";
+      container.appendChild(select);
 
-      // Placeholder
-      var placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = depth === 0 ? "Select sub-type..." : "Select...";
-      select.appendChild(placeholder);
+      // Custom input (hidden by default)
+      var customInput = container.parentElement.querySelector("#codexDetailSubTypeCustom");
 
-      // Options
-      options.forEach(function (opt) {
-        var option = document.createElement("option");
-        option.value = opt.label;
-        option.textContent = opt.label;
-        if (selectedPath && selectedPath[depth] === opt.label) {
-          option.selected = true;
+      function getOptionsForTrail(trail) {
+        if (trail.length === 0) {
+          // Top level
+          if (typeof codexV2GetTopLevelSubTypes === "function") {
+            return codexV2GetTopLevelSubTypes(subTypes);
+          }
+          return [];
         }
-        select.appendChild(option);
-      });
+        // Get children of the last selected label
+        var parentLabel = trail[trail.length - 1];
+        var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, parentLabel) : null;
+        if (!children) return [];
+        var opts = [];
+        children.forEach(function (st) {
+          var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+          if (!label) return;
+          var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
+          opts.push({ label: label, hasChildren: hasChildren });
+        });
+        return opts;
+      }
 
-      // Custom option
-      var customOpt = document.createElement("option");
-      customOpt.value = "_custom";
-      customOpt.textContent = "Custom...";
-      if (isCustomAtThisLevel) customOpt.selected = true;
-      select.appendChild(customOpt);
+      function renderBreadcrumb() {
+        if (trail.length === 0) {
+          breadcrumb.innerHTML = "";
+          return;
+        }
+        var parts = trail.map(function (t) { return "<span>" + escapeHtml(t) + "</span>"; });
+        breadcrumb.innerHTML = parts.join(" <span style='opacity:0.5;'>&rsaquo;</span> ");
+      }
 
-      wrapper.appendChild(select);
+      function renderSelect() {
+        // Clear existing options
+        select.innerHTML = "";
 
-      // Wire change handler
+        // Back option (if we've drilled down)
+        if (trail.length > 0) {
+          var backOpt = document.createElement("option");
+          backOpt.value = "__back";
+          backOpt.textContent = "\u2190 Back";
+          select.appendChild(backOpt);
+        }
+
+        // Placeholder
+        var placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = trail.length === 0 ? "Select sub-type..." : "Select...";
+        select.appendChild(placeholder);
+
+        // Options for current level
+        var options = getOptionsForTrail(trail);
+        options.forEach(function (opt) {
+          var option = document.createElement("option");
+          option.value = opt.label;
+          option.textContent = opt.label;
+          option.setAttribute("data-has-children", opt.hasChildren ? "1" : "0");
+          select.appendChild(option);
+        });
+
+        // Custom option
+        var customOpt = document.createElement("option");
+        customOpt.value = "_custom";
+        customOpt.textContent = "Custom...";
+        select.appendChild(customOpt);
+
+        renderBreadcrumb();
+      }
+
+      // Wire change
       select.addEventListener("change", function () {
         var val = select.value;
-        // Clear deeper levels
-        var deeper = wrapper.querySelectorAll(".codex-cascade-select");
-        deeper.forEach(function (s) {
-          if (Number(s.getAttribute("data-depth")) > depth) s.remove();
-        });
-        var customInput = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
         if (customInput) customInput.style.display = "none";
 
+        if (val === "__back") {
+          // Go back one level
+          trail.pop();
+          renderSelect();
+          return;
+        }
+
         if (val === "_custom") {
+          // Show custom input
           if (customInput) {
             customInput.style.display = "";
             customInput.focus();
           }
-        } else if (val) {
-          // Find children and render next level
-          var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, val) : null;
-          if (children) {
-            // Build a synthetic path for the next level
-            var newPath = selectedPath ? selectedPath.slice(0, depth + 1) : [];
-            newPath[depth] = val;
-            renderSubTypeCascadeLevel_(container, subTypes, depth + 1, null, null);
-            // Pre-select the next level if we have a path
-            if (selectedPath && selectedPath[depth + 1]) {
-              var nextSelect = wrapper.querySelector(".codex-cascade-select[data-depth='" + (depth + 1) + "']");
-              if (nextSelect) {
-                nextSelect.value = selectedPath[depth + 1];
-                nextSelect.dispatchEvent(new Event("change"));
-              }
-            }
-          }
+          return;
+        }
+
+        if (!val) return;
+
+        // Check if this option has children
+        var selectedOpt = select.options[select.selectedIndex];
+        var hasChildren = selectedOpt && selectedOpt.getAttribute("data-has-children") === "1";
+
+        if (hasChildren) {
+          // Drill down
+          trail.push(val);
+          renderSelect();
+        } else {
+          // Leaf selected — done
         }
       });
 
-      // If we have a selected path and the selected value has children, render next level
-      if (selectedPath && selectedPath[depth]) {
-        var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, selectedPath[depth]) : null;
-        if (children) {
-          renderSubTypeCascadeLevel_(container, subTypes, depth + 1, selectedPath, finalValue);
-        }
-      }
-
-      // If custom was pre-selected, show the custom input
-      if (isCustomAtThisLevel) {
-        var customInput = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
+      // Initial render
+      if (isCustom) {
+        // Custom value — show top level with custom input
+        renderSelect();
+        select.value = "_custom";
         if (customInput) {
           customInput.style.display = "";
           customInput.value = finalValue;
         }
+      } else if (trail.length > 0) {
+        // Pre-select: show the deepest level with the leaf pre-selected
+        renderSelect();
+        select.value = trail[trail.length - 1];
+      } else {
+        renderSelect();
       }
     }
 
@@ -7187,22 +7206,16 @@
           var subTypeSelect = document.getElementById("codexDetailSubType");
           var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
           if (cascadeContainer) {
-            // Cascading dropdowns — find the deepest selected value
-            var cascadeSelects = cascadeContainer.querySelectorAll(".codex-cascade-select");
-            var deepestVal = "";
-            cascadeSelects.forEach(function (sel) {
-              if (sel.value && sel.value !== "_custom") deepestVal = sel.value;
-            });
-            // Check if any level selected "_custom"
-            var hasCustom = false;
-            cascadeSelects.forEach(function (sel) {
-              if (sel.value === "_custom") hasCustom = true;
-            });
-            if (hasCustom && subTypeCustom) {
-              deepestVal = subTypeCustom.value.trim();
+            // Single drill-down dropdown — read the select value
+            var cascadeSelect = cascadeContainer.querySelector("select");
+            var cascadeVal = cascadeSelect ? cascadeSelect.value : "";
+            if (cascadeVal === "_custom" && subTypeCustom) {
+              cascadeVal = subTypeCustom.value.trim();
+            } else if (cascadeVal === "__back" || cascadeVal === "") {
+              cascadeVal = "";
             }
-            if (deepestVal) {
-              mergedCustom.sub_type = deepestVal;
+            if (cascadeVal) {
+              mergedCustom.sub_type = cascadeVal;
             } else if (!mergedCustom.sub_type) {
               delete mergedCustom.sub_type;
             }
