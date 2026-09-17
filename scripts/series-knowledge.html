@@ -6309,43 +6309,14 @@
       html += "</div>";
       // Sub-type field — available for all entity types
       var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
-      var subTypeOptions = [];
-      var subTypeDropdownOptions = [];
-      var hasNestedSubTypes = false;
-      if (treeItem && treeItem.subTypes) {
-        hasNestedSubTypes = treeItem.subTypes.some(function (st) {
-          return typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
-        });
-        if (!hasNestedSubTypes) {
-          // Flat sub-types — extract labels
-          treeItem.subTypes.forEach(function (st) {
-            if (typeof st === 'string') {
-              subTypeOptions.push(st);
-            } else if (st && typeof st === 'object') {
-              var label = String(st.label || st.key || st.name || "");
-              if (label) subTypeOptions.push(label);
-            }
-          });
-        }
-      }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
       if (entityTypeKey !== "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Sub-type</label>";
-        if (hasNestedSubTypes) {
-          // Cascading dropdowns for nested sub-types
+        if (treeItem && treeItem.subTypes && treeItem.subTypes.length) {
+          // CascadeMenu fly-out for all sub-types (flat or nested)
           html += "<div id='codexDetailSubTypeCascade' data-tree='" + escapeHtml(JSON.stringify(treeItem.subTypes)) + "' data-value='" + escapeHtml(subTypeValue) + "'></div>";
           html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='display:none;margin-top:4px;' />";
-        } else if (subTypeOptions.length) {
-          // Flat sub-types — single dropdown
-          html += "<select id='codexDetailSubType' class='codex-detail-field-select'><option value=''>Select sub-type...</option>";
-          subTypeOptions.forEach(function (st) {
-            var stStr = String(st || "");
-            html += "<option value='" + escapeHtml(stStr) + "'" + (stStr === subTypeValue ? " selected" : "") + ">" + escapeHtml(stStr) + "</option>";
-          });
-          html += "<option value='_custom'" + (!subTypeValue || subTypeOptions.indexOf(subTypeValue) === -1 ? " selected" : "") + ">Custom...</option>";
-          html += "</select>";
-          html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='" + (subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? "" : "display:none;") + "margin-top:4px;' value='" + escapeHtml(subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? subTypeValue : "") + "' />";
         } else {
           html += "<input id='codexDetailSubType' type='text' placeholder='Enter sub-type...' value='" + escapeHtml(subTypeValue) + "' />";
         }
