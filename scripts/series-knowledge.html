@@ -6872,10 +6872,21 @@
     function initSubTypeCascade_(container, subTypes, initialPath, finalValue) {
       var isCustom = finalValue && !initialPath;
 
-      // Horizontal scrollable column container
+      // Display button showing current selection
+      var displayBtn = document.createElement("button");
+      displayBtn.type = "button";
+      displayBtn.style.cssText = "width:100%;text-align:left;font-size:12px;padding:5px 10px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;cursor:pointer;display:flex;justify-content:space-between;align-items:center;";
+      container.appendChild(displayBtn);
+
+      // Dropdown panel (hidden by default)
+      var panel = document.createElement("div");
+      panel.style.cssText = "display:none;margin-top:4px;border:1px solid #3a3a42;border-radius:6px;background:#1a1a20;max-height:200px;overflow-x:auto;overflow-y:hidden;";
+      container.appendChild(panel);
+
+      // Columns container inside panel
       var columnsWrap = document.createElement("div");
-      columnsWrap.style.cssText = "display:flex;gap:0;overflow-x:auto;max-width:100%;border:1px solid #3a3a42;border-radius:6px;background:#1a1a20;";
-      container.appendChild(columnsWrap);
+      columnsWrap.style.cssText = "display:flex;gap:0;min-height:120px;";
+      panel.appendChild(columnsWrap);
 
       // Custom input (hidden by default)
       var customInput = container.parentElement.querySelector("#codexDetailSubTypeCustom");
@@ -6896,6 +6907,17 @@
           return codexV2GetTopLevelSubTypes(subTypes);
         }
         return [];
+      }
+
+      function updateDisplay() {
+        if (selectedLeaf === "_custom") {
+          displayBtn.innerHTML = "<span style='color:var(--muted);font-style:italic;'>Custom...</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+        } else if (selectedLeaf) {
+          var pathStr = initialPath ? initialPath.join(" \u203a ") : selectedLeaf;
+          displayBtn.innerHTML = "<span>" + escapeHtml(pathStr) + "</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+        } else {
+          displayBtn.innerHTML = "<span style='color:var(--muted);'>Select sub-type...</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+        }
       }
 
       function buildItems(options, depth, preSelected) {
@@ -6920,15 +6942,10 @@
             item.appendChild(arrow);
           }
 
-          // Highlight on hover
-          item.addEventListener("mouseenter", function () { item.style.background = "rgba(59,130,246,0.15)"; });
-          item.addEventListener("mouseleave", function () {
-            if (!item.classList.contains("cascade-selected")) item.style.background = "";
-          });
+          item.addEventListener("mouseenter", function () { if (!item.classList.contains("cascade-selected")) item.style.background = "rgba(59,130,246,0.15)"; });
+          item.addEventListener("mouseleave", function () { if (!item.classList.contains("cascade-selected")) item.style.background = ""; });
 
-          // Click handler
           item.addEventListener("click", function () {
-            // Deselect siblings
             column.querySelectorAll("[data-label]").forEach(function (sib) {
               sib.classList.remove("cascade-selected");
               sib.style.background = "";
@@ -6936,38 +6953,32 @@
             item.classList.add("cascade-selected");
             item.style.background = "rgba(59,130,246,0.25)";
 
-            // Remove columns to the right
             var allColumns = Array.from(columnsWrap.children);
             allColumns.forEach(function (c) {
               if (Number(c.getAttribute("data-depth")) > depth) c.remove();
             });
-
-            // Hide custom input
             if (customInput) customInput.style.display = "none";
 
             if (opt.hasChildren) {
-              // Show children in next column
               var children = getChildrenOf(opt.label);
               if (children && children.length) {
                 buildItems(children, depth + 1, null);
               }
             }
-            // Update selected leaf
             selectedLeaf = opt.label;
             container.setAttribute("data-selected", opt.label);
+            updateDisplay();
           });
 
           column.appendChild(item);
         });
 
-        // Custom option at bottom
+        // Custom option
         var customItem = document.createElement("div");
         customItem.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;color:var(--muted);border-top:1px solid #2a2a32;font-style:italic;";
         customItem.textContent = "Custom...";
-        customItem.addEventListener("mouseenter", function () { customItem.style.background = "rgba(59,130,246,0.15)"; });
-        customItem.addEventListener("mouseleave", function () {
-          if (!customItem.classList.contains("cascade-selected")) customItem.style.background = "";
-        });
+        customItem.addEventListener("mouseenter", function () { if (!customItem.classList.contains("cascade-selected")) customItem.style.background = "rgba(59,130,246,0.15)"; });
+        customItem.addEventListener("mouseleave", function () { if (!customItem.classList.contains("cascade-selected")) customItem.style.background = ""; });
         customItem.addEventListener("click", function () {
           column.querySelectorAll("[data-label]").forEach(function (sib) {
             sib.classList.remove("cascade-selected");
@@ -6975,23 +6986,21 @@
           });
           customItem.classList.add("cascade-selected");
           customItem.style.background = "rgba(59,130,246,0.25)";
-          // Remove columns to the right
           var allColumns = Array.from(columnsWrap.children);
           allColumns.forEach(function (c) {
             if (Number(c.getAttribute("data-depth")) > depth) c.remove();
           });
           selectedLeaf = "_custom";
           container.setAttribute("data-selected", "_custom");
-          if (customInput) {
-            customInput.style.display = "";
-            customInput.focus();
-          }
+          if (customInput) { customInput.style.display = ""; customInput.focus(); }
+          updateDisplay();
         });
         column.appendChild(customItem);
 
         columnsWrap.appendChild(column);
+        columnsWrap.scrollLeft = columnsWrap.scrollWidth;
 
-        // Pre-select if we have a value
+        // Pre-select
         if (preSelected) {
           var items = column.querySelectorAll("[data-label]");
           for (var j = 0; j < items.length; j++) {
@@ -7001,16 +7010,26 @@
             }
           }
         }
-
-        // Scroll to show the latest column
-        columnsWrap.scrollLeft = columnsWrap.scrollWidth;
       }
 
-      // Build initial path: render top level, then pre-select path
+      // Toggle panel
+      displayBtn.addEventListener("click", function () {
+        var isOpen = panel.style.display !== "none";
+        panel.style.display = isOpen ? "none" : "block";
+      });
+
+      // Close on outside click
+      document.addEventListener("click", function (e) {
+        if (!container.contains(e.target)) {
+          panel.style.display = "none";
+        }
+      });
+
+      // Initial render
+      updateDisplay();
       var options = getTopLevel();
       if (options.length) {
         if (initialPath && initialPath.length > 0) {
-          // Build columns along the path
           container.setAttribute("data-selected", initialPath[initialPath.length - 1]);
           buildItems(options, 0, initialPath[0]);
         } else {
@@ -7018,7 +7037,6 @@
         }
       }
 
-      // If custom value, show custom input
       if (isCustom && customInput) {
         container.setAttribute("data-selected", "_custom");
         customInput.style.display = "";
