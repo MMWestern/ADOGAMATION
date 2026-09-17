@@ -6897,8 +6897,11 @@
 
       function getChildrenOf(label) {
         if (typeof codexV2GetSubTypeChildren === "function") {
-          return codexV2GetSubTypeChildren(subTypes, label);
+          var result = codexV2GetSubTypeChildren(subTypes, label);
+          console.log("[CASCADE] getChildrenOf('" + label + "') =>", result);
+          return result;
         }
+        console.log("[CASCADE] codexV2GetSubTypeChildren not defined");
         return null;
       }
 
@@ -6946,6 +6949,7 @@
           item.addEventListener("mouseleave", function () { if (!item.classList.contains("cascade-selected")) item.style.background = ""; });
 
           item.addEventListener("click", function () {
+            console.log("[CASCADE] Clicked:", opt.label, "depth:", depth, "hasChildren:", opt.hasChildren);
             column.querySelectorAll("[data-label]").forEach(function (sib) {
               sib.classList.remove("cascade-selected");
               sib.style.background = "";
@@ -6961,6 +6965,7 @@
 
             if (opt.hasChildren) {
               var children = getChildrenOf(opt.label);
+              console.log("[CASCADE] getChildrenOf", opt.label, "=>", children ? children.length + " children" : "null");
               if (children && children.length) {
                 buildItems(children, depth + 1, null);
               }
@@ -7003,8 +7008,10 @@
         // Pre-select
         if (preSelected) {
           var items = column.querySelectorAll("[data-label]");
+          console.log("[CASCADE] Pre-selecting '" + preSelected + "' at depth", depth, "found", items.length, "items");
           for (var j = 0; j < items.length; j++) {
             if (items[j].getAttribute("data-label") === preSelected) {
+              console.log("[CASCADE] Clicking pre-selected item:", preSelected);
               items[j].click();
               break;
             }
