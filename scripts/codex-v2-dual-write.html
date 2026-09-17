@@ -539,6 +539,7 @@
           }
           return null;
         }
+        // Recurse into children
         if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
           var found = codexV2GetSubTypeChildren(st.subTypes, label);
           if (found !== null) return found;

@@ -6993,8 +6993,13 @@
 
         // Pre-select if we have a value
         if (preSelected) {
-          var match = column.querySelector("[data-label='" + CSS.escape(preSelected) + "']");
-          if (match) match.click();
+          var items = column.querySelectorAll("[data-label]");
+          for (var j = 0; j < items.length; j++) {
+            if (items[j].getAttribute("data-label") === preSelected) {
+              items[j].click();
+              break;
+            }
+          }
         }
 
         // Scroll to show the latest column
