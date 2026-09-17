@@ -255,6 +255,136 @@ var greenElves = filterEntitiesBySubTypeLevel(entities, 2, "Green Elf");
 assert(greenElves.length === 1, "Should find 1 green elf");
 assert(greenElves[0].name === "Elf 1", "Green elf should be Elf 1");
 
+// Test 9: Find sub-type path
+console.log("\n--- Find Sub-Type Path ---");
+
+var nestedTree = [
+  {
+    label: "Humanoid",
+    subTypes: [
+      {
+        label: "Elf",
+        subTypes: [
+          { label: "Green Elf" },
+          { label: "High Elf" }
+        ]
+      },
+      { label: "Dwarf" }
+    ]
+  },
+  {
+    label: "Beast",
+    subTypes: [
+      { label: "Wolf" }
+    ]
+  }
+];
+
+function codexV2FindSubTypePath(subTypes, targetValue) {
+  if (!Array.isArray(subTypes) || !targetValue) return null;
+  var target = String(targetValue).toLowerCase();
+  for (var i = 0; i < subTypes.length; i++) {
+    var st = subTypes[i];
+    var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+    if (!label) continue;
+    if (label.toLowerCase() === target) return [label];
+    if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+      var childPath = codexV2FindSubTypePath(st.subTypes, targetValue);
+      if (childPath) return [label].concat(childPath);
+    }
+  }
+  return null;
+}
+
+var path1 = codexV2FindSubTypePath(nestedTree, "Green Elf");
+assert(path1 !== null, "Should find path to Green Elf");
+assert(path1.length === 3, "Path to Green Elf should have 3 levels");
+assert(path1[0] === "Humanoid", "Path level 0 should be Humanoid");
+assert(path1[1] === "Elf", "Path level 1 should be Elf");
+assert(path1[2] === "Green Elf", "Path level 2 should be Green Elf");
+
+var path2 = codexV2FindSubTypePath(nestedTree, "Wolf");
+assert(path2 !== null, "Should find path to Wolf");
+assert(path2.length === 2, "Path to Wolf should have 2 levels");
+assert(path2[0] === "Beast", "Path level 0 should be Beast");
+
+var path3 = codexV2FindSubTypePath(nestedTree, "Humanoid");
+assert(path3 !== null, "Should find path to Humanoid");
+assert(path3.length === 1, "Path to Humanoid should have 1 level");
+
+var path4 = codexV2FindSubTypePath(nestedTree, "Nonexistent");
+assert(path4 === null, "Should return null for nonexistent value");
+
+var path5 = codexV2FindSubTypePath(nestedTree, "");
+assert(path5 === null, "Should return null for empty value");
+
+// Test 10: Get sub-type children
+console.log("\n--- Get Sub-Type Children ---");
+
+function codexV2GetSubTypeChildren(subTypes, label) {
+  if (!Array.isArray(subTypes) || !label) return null;
+  var target = String(label).toLowerCase();
+  for (var i = 0; i < subTypes.length; i++) {
+    var st = subTypes[i];
+    var stLabel = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+    if (!stLabel) continue;
+    if (stLabel.toLowerCase() === target) {
+      if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+        return st.subTypes;
+      }
+      return null;
+    }
+    if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+      var found = codexV2GetSubTypeChildren(st.subTypes, label);
+      if (found !== null) return found;
+    }
+  }
+  return null;
+}
+
+var children1 = codexV2GetSubTypeChildren(nestedTree, "Humanoid");
+assert(children1 !== null, "Humanoid should have children");
+assert(children1.length === 2, "Humanoid should have 2 children");
+
+var children2 = codexV2GetSubTypeChildren(nestedTree, "Elf");
+assert(children2 !== null, "Elf should have children");
+assert(children2.length === 2, "Elf should have 2 children");
+
+var children3 = codexV2GetSubTypeChildren(nestedTree, "Green Elf");
+assert(children3 === null, "Green Elf should have no children");
+
+var children4 = codexV2GetSubTypeChildren(nestedTree, "Beast");
+assert(children4 !== null, "Beast should have children");
+assert(children4.length === 1, "Beast should have 1 child");
+
+// Test 11: Get top-level sub-types
+console.log("\n--- Get Top-Level Sub-Types ---");
+
+function codexV2GetTopLevelSubTypes(subTypes) {
+  if (!Array.isArray(subTypes)) return [];
+  var result = [];
+  subTypes.forEach(function (st) {
+    var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+    if (!label) return;
+    var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
+    result.push({ label: label, hasChildren: hasChildren });
+  });
+  return result;
+}
+
+var top1 = codexV2GetTopLevelSubTypes(nestedTree);
+assert(top1.length === 2, "Should have 2 top-level types");
+assert(top1[0].label === "Humanoid", "First should be Humanoid");
+assert(top1[0].hasChildren === true, "Humanoid should have children");
+assert(top1[1].label === "Beast", "Second should be Beast");
+assert(top1[1].hasChildren === true, "Beast should have children");
+
+var flatTree = ["Type A", "Type B"];
+var top2 = codexV2GetTopLevelSubTypes(flatTree);
+assert(top2.length === 2, "Flat tree should have 2 top-level types");
+assert(top2[0].label === "Type A", "First should be Type A");
+assert(top2[0].hasChildren === false, "Type A should have no children");
+
 // Results
 console.log("\n=== Results ===");
 console.log("Passed:", passed);

@@ -6311,14 +6311,13 @@
       var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
       var subTypeOptions = [];
       var subTypeDropdownOptions = [];
+      var hasNestedSubTypes = false;
       if (treeItem && treeItem.subTypes) {
-        // Always use the dropdown builder for consistent handling
-        if (typeof codexV2BuildSubTypeDropdownOptions === "function") {
-          subTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions(treeItem.subTypes);
-          subTypeOptions = subTypeDropdownOptions.map(function (opt) { return String(opt.value || ""); });
-        } else {
-          // Fallback: extract labels from mixed array
-          subTypeOptions = [];
+        hasNestedSubTypes = treeItem.subTypes.some(function (st) {
+          return typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
+        });
+        if (!hasNestedSubTypes) {
+          // Flat sub-types — extract labels
           treeItem.subTypes.forEach(function (st) {
             if (typeof st === 'string') {
               subTypeOptions.push(st);
@@ -6328,28 +6327,22 @@
             }
           });
         }
-        console.log("[SUBTYPE] subTypeOptions:", JSON.stringify(subTypeOptions));
       }
       // Hide sub-type for characters — they have dedicated Role/Archetype fields
       if (entityTypeKey !== "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Sub-type</label>";
-        if (subTypeOptions.length) {
+        if (hasNestedSubTypes) {
+          // Cascading dropdowns for nested sub-types
+          html += "<div id='codexDetailSubTypeCascade' data-tree='" + escapeHtml(JSON.stringify(treeItem.subTypes)) + "' data-value='" + escapeHtml(subTypeValue) + "'></div>";
+          html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='display:none;margin-top:4px;' />";
+        } else if (subTypeOptions.length) {
+          // Flat sub-types — single dropdown
           html += "<select id='codexDetailSubType' class='codex-detail-field-select'><option value=''>Select sub-type...</option>";
-          if (subTypeDropdownOptions.length) {
-            // Nested sub-types with indentation
-            subTypeDropdownOptions.forEach(function (opt) {
-              var optValue = String(opt.value || "");
-              var optLabel = String(opt.label || optValue);
-              html += "<option value='" + escapeHtml(optValue) + "'" + (optValue === subTypeValue ? " selected" : "") + ">" + escapeHtml(optLabel) + "</option>";
-            });
-          } else {
-            // Flat sub-types
-            subTypeOptions.forEach(function (st) {
-              var stStr = String(st || "");
-              html += "<option value='" + escapeHtml(stStr) + "'" + (stStr === subTypeValue ? " selected" : "") + ">" + escapeHtml(stStr) + "</option>";
-            });
-          }
+          subTypeOptions.forEach(function (st) {
+            var stStr = String(st || "");
+            html += "<option value='" + escapeHtml(stStr) + "'" + (stStr === subTypeValue ? " selected" : "") + ">" + escapeHtml(stStr) + "</option>";
+          });
           html += "<option value='_custom'" + (!subTypeValue || subTypeOptions.indexOf(subTypeValue) === -1 ? " selected" : "") + ">Custom...</option>";
           html += "</select>";
           html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='" + (subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? "" : "display:none;") + "margin-top:4px;' value='" + escapeHtml(subTypeValue && subTypeOptions.indexOf(subTypeValue) === -1 ? subTypeValue : "") + "' />";
@@ -6846,6 +6839,27 @@
     }
 
     function wireCodexDetailSubType_() {
+      var cascadeContainer = document.getElementById("codexDetailSubTypeCascade");
+      if (cascadeContainer) {
+        // Nested sub-types — cascading dropdowns
+        var treeData = cascadeContainer.getAttribute("data-tree");
+        var currentValue = cascadeContainer.getAttribute("data-value") || "";
+        var subTypes = [];
+        try { subTypes = JSON.parse(treeData); } catch (e) { subTypes = []; }
+        if (!subTypes.length) return;
+
+        // Find path for current value
+        var path = null;
+        if (currentValue && typeof codexV2FindSubTypePath === "function") {
+          path = codexV2FindSubTypePath(subTypes, currentValue);
+        }
+
+        // Render cascade levels
+        renderSubTypeCascadeLevel_(cascadeContainer, subTypes, 0, path, currentValue);
+        return;
+      }
+
+      // Flat sub-types — single dropdown
       var subTypeSelect = document.getElementById("codexDetailSubType");
       var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
       if (subTypeSelect && subTypeCustom) {
@@ -6853,6 +6867,128 @@
           subTypeCustom.style.display = subTypeSelect.value === "_custom" ? "" : "none";
           if (subTypeSelect.value === "_custom") subTypeCustom.focus();
         });
+      }
+    }
+
+    function renderSubTypeCascadeLevel_(container, subTypes, depth, selectedPath, finalValue) {
+      var wrapper = container;
+      // Remove any existing selects at this depth and deeper
+      var existingSelects = wrapper.querySelectorAll(".codex-cascade-select");
+      existingSelects.forEach(function (sel) {
+        if (Number(sel.getAttribute("data-depth")) >= depth) sel.remove();
+      });
+      // Remove custom input if present at this depth
+      var existingCustom = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
+      if (existingCustom) existingCustom.style.display = "none";
+
+      // Get options for this level
+      var options = [];
+      if (depth === 0 && typeof codexV2GetTopLevelSubTypes === "function") {
+        options = codexV2GetTopLevelSubTypes(subTypes);
+      } else if (depth > 0 && selectedPath && typeof codexV2GetSubTypeChildren === "function") {
+        var parentLabel = selectedPath[depth - 1];
+        var children = codexV2GetSubTypeChildren(subTypes, parentLabel);
+        if (children) {
+          children.forEach(function (st) {
+            var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+            if (!label) return;
+            var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
+            options.push({ label: label, hasChildren: hasChildren });
+          });
+        }
+      }
+
+      if (!options.length) return;
+
+      // Check if current value is a custom value (not in the tree at all)
+      var isCustomAtThisLevel = false;
+      if (depth === 0 && finalValue && !selectedPath) {
+        isCustomAtThisLevel = true;
+      }
+
+      // Create select
+      var select = document.createElement("select");
+      select.className = "codex-detail-field-select codex-cascade-select";
+      select.setAttribute("data-depth", depth);
+      select.style.marginTop = depth > 0 ? "4px" : "";
+
+      // Placeholder
+      var placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = depth === 0 ? "Select sub-type..." : "Select...";
+      select.appendChild(placeholder);
+
+      // Options
+      options.forEach(function (opt) {
+        var option = document.createElement("option");
+        option.value = opt.label;
+        option.textContent = opt.label;
+        if (selectedPath && selectedPath[depth] === opt.label) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+
+      // Custom option
+      var customOpt = document.createElement("option");
+      customOpt.value = "_custom";
+      customOpt.textContent = "Custom...";
+      if (isCustomAtThisLevel) customOpt.selected = true;
+      select.appendChild(customOpt);
+
+      wrapper.appendChild(select);
+
+      // Wire change handler
+      select.addEventListener("change", function () {
+        var val = select.value;
+        // Clear deeper levels
+        var deeper = wrapper.querySelectorAll(".codex-cascade-select");
+        deeper.forEach(function (s) {
+          if (Number(s.getAttribute("data-depth")) > depth) s.remove();
+        });
+        var customInput = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
+        if (customInput) customInput.style.display = "none";
+
+        if (val === "_custom") {
+          if (customInput) {
+            customInput.style.display = "";
+            customInput.focus();
+          }
+        } else if (val) {
+          // Find children and render next level
+          var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, val) : null;
+          if (children) {
+            // Build a synthetic path for the next level
+            var newPath = selectedPath ? selectedPath.slice(0, depth + 1) : [];
+            newPath[depth] = val;
+            renderSubTypeCascadeLevel_(container, subTypes, depth + 1, null, null);
+            // Pre-select the next level if we have a path
+            if (selectedPath && selectedPath[depth + 1]) {
+              var nextSelect = wrapper.querySelector(".codex-cascade-select[data-depth='" + (depth + 1) + "']");
+              if (nextSelect) {
+                nextSelect.value = selectedPath[depth + 1];
+                nextSelect.dispatchEvent(new Event("change"));
+              }
+            }
+          }
+        }
+      });
+
+      // If we have a selected path and the selected value has children, render next level
+      if (selectedPath && selectedPath[depth]) {
+        var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, selectedPath[depth]) : null;
+        if (children) {
+          renderSubTypeCascadeLevel_(container, subTypes, depth + 1, selectedPath, finalValue);
+        }
+      }
+
+      // If custom was pre-selected, show the custom input
+      if (isCustomAtThisLevel) {
+        var customInput = wrapper.parentElement.querySelector("#codexDetailSubTypeCustom");
+        if (customInput) {
+          customInput.style.display = "";
+          customInput.value = finalValue;
+        }
       }
     }
 
@@ -7047,9 +7183,30 @@
           if (archSelect) mergedCustom.archetype = archSelect.value;
           if (motivationSelect) mergedCustom.motivation_arc = motivationSelect.value;
           // Read sub-type from the universal sub-type field (for non-character types or when role is empty)
+          var cascadeContainer = document.getElementById("codexDetailSubTypeCascade");
           var subTypeSelect = document.getElementById("codexDetailSubType");
           var subTypeCustom = document.getElementById("codexDetailSubTypeCustom");
-          if (subTypeSelect) {
+          if (cascadeContainer) {
+            // Cascading dropdowns — find the deepest selected value
+            var cascadeSelects = cascadeContainer.querySelectorAll(".codex-cascade-select");
+            var deepestVal = "";
+            cascadeSelects.forEach(function (sel) {
+              if (sel.value && sel.value !== "_custom") deepestVal = sel.value;
+            });
+            // Check if any level selected "_custom"
+            var hasCustom = false;
+            cascadeSelects.forEach(function (sel) {
+              if (sel.value === "_custom") hasCustom = true;
+            });
+            if (hasCustom && subTypeCustom) {
+              deepestVal = subTypeCustom.value.trim();
+            }
+            if (deepestVal) {
+              mergedCustom.sub_type = deepestVal;
+            } else if (!mergedCustom.sub_type) {
+              delete mergedCustom.sub_type;
+            }
+          } else if (subTypeSelect) {
             var stVal = subTypeSelect.value;
             if (stVal === "_custom" && subTypeCustom) {
               stVal = subTypeCustom.value.trim();

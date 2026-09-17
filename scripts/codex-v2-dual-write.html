@@ -495,10 +495,83 @@
       return subType || "";
     }
 
+    /**
+     * Find the path from root to a target value in a nested sub-type tree.
+     * Returns array of labels from root to target, or null if not found.
+     *
+     * @param {Array} subTypes - Array of sub-type definitions
+     * @param {string} targetValue - The leaf value to find
+     * @returns {Array|null} Path array e.g. ["Aquatic", "Fish", "Saltwater"] or null
+     */
+    function codexV2FindSubTypePath(subTypes, targetValue) {
+      if (!Array.isArray(subTypes) || !targetValue) return null;
+      var target = String(targetValue).toLowerCase();
+      for (var i = 0; i < subTypes.length; i++) {
+        var st = subTypes[i];
+        var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+        if (!label) continue;
+        if (label.toLowerCase() === target) return [label];
+        if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+          var childPath = codexV2FindSubTypePath(st.subTypes, targetValue);
+          if (childPath) return [label].concat(childPath);
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Get the children sub-types array for a node with the given label.
+     *
+     * @param {Array} subTypes - Array of sub-type definitions
+     * @param {string} label - The label to find
+     * @returns {Array|null} Children array or null if node not found or has no children
+     */
+    function codexV2GetSubTypeChildren(subTypes, label) {
+      if (!Array.isArray(subTypes) || !label) return null;
+      var target = String(label).toLowerCase();
+      for (var i = 0; i < subTypes.length; i++) {
+        var st = subTypes[i];
+        var stLabel = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+        if (!stLabel) continue;
+        if (stLabel.toLowerCase() === target) {
+          if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+            return st.subTypes;
+          }
+          return null;
+        }
+        if (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0) {
+          var found = codexV2GetSubTypeChildren(st.subTypes, label);
+          if (found !== null) return found;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Get the top-level labels from a sub-type tree (for building Level 1 dropdown).
+     *
+     * @param {Array} subTypes - Array of sub-type definitions
+     * @returns {Array} Array of { label, hasChildren } objects
+     */
+    function codexV2GetTopLevelSubTypes(subTypes) {
+      if (!Array.isArray(subTypes)) return [];
+      var result = [];
+      subTypes.forEach(function (st) {
+        var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+        if (!label) return;
+        var hasChildren = typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0;
+        result.push({ label: label, hasChildren: hasChildren });
+      });
+      return result;
+    }
+
     window.codexV2FlattenSubTypes = codexV2FlattenSubTypes;
     window.codexV2BuildSubTypeDropdownOptions = codexV2BuildSubTypeDropdownOptions;
     window.codexV2MatchEntityToSubType = codexV2MatchEntityToSubType;
     window.codexV2GetLeafSubType = codexV2GetLeafSubType;
+    window.codexV2FindSubTypePath = codexV2FindSubTypePath;
+    window.codexV2GetSubTypeChildren = codexV2GetSubTypeChildren;
+    window.codexV2GetTopLevelSubTypes = codexV2GetTopLevelSubTypes;
 
     /**
      * Record an entity appearance when an entity is linked to a project/book.
