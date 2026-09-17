@@ -998,3 +998,36 @@ let MARKETING_TEMPLATE_OPTIONS = Object.keys(MARKETING_TEMPLATES);
     // Feature flag: Master Codex v2 — enable dual-write to new v2 tables (appearances, state, events)
     // Set to true to write to v2 tables alongside legacy writes
     var CODEX_V2_DUAL_WRITE = true;
+
+    // Location categories with icons and colors
+    var LOCATION_CATEGORIES = [
+      { id: "world",       name: "World",       icon: "\u{1F30D}", color: "#3b82f6" },
+      { id: "planet",      name: "Planet",      icon: "\u{1FA90}", color: "#6366f1" },
+      { id: "continent",   name: "Continent",   icon: "\u{1F5FA}\uFE0F", color: "#22c55e" },
+      { id: "country",     name: "Country",     icon: "\u{1F3F4}\u200D\u2620\uFE0F", color: "#f59e0b" },
+      { id: "nation",      name: "Nation",      icon: "\u{1F3DB}\uFE0F", color: "#d97706" },
+      { id: "state",       name: "State",       icon: "\u{1F3D8}\uFE0F", color: "#ca8a04" },
+      { id: "province",    name: "Province",    icon: "\u{1F3D8}\uFE0F", color: "#a16207" },
+      { id: "region",      name: "Region",      icon: "\u{1F30F}", color: "#a855f7" },
+      { id: "county",      name: "County",      icon: "\u{1F3D8}\uFE0F", color: "#7c3aed" },
+      { id: "city",        name: "City",        icon: "\u{1F3D9}\uFE0F", color: "#ef4444" },
+      { id: "town",        name: "Town",        icon: "\u{1F3E0}", color: "#f97316" },
+      { id: "village",     name: "Village",     icon: "\u{1F3E1}", color: "#ec4899" },
+      { id: "district",    name: "District",    icon: "\u{1F3D8}\uFE0F", color: "#6366f1" },
+      { id: "neighbourhood", name: "Neighbourhood", icon: "\u{1F3D8}\uFE0F", color: "#8b5cf6" },
+      { id: "area",        name: "Area",        icon: "\u{1F5FA}\uFE0F", color: "#14b8a6" },
+      { id: "street",      name: "Street",      icon: "\u{1F6E3}\uFE0F", color: "#0d9488" },
+      { id: "road",        name: "Road",        icon: "\u{1F6E3}\uFE0F", color: "#0f766e" },
+      { id: "house",       name: "House",       icon: "\u{1F3E0}", color: "#f97316" },
+      { id: "building",    name: "Building",    icon: "\u{1F3E2}", color: "#64748b" },
+      { id: "factory",     name: "Factory",     icon: "\u{1F3ED}", color: "#78716c" },
+      { id: "landmark",    name: "Landmark",    icon: "\u{1F5FC}", color: "#eab308" },
+      { id: "site",        name: "Site",        icon: "\u{1F4CD}", color: "#94a3b8" },
+      { id: "realm",       name: "Realm",       icon: "\u{1F30C}", color: "#7c3aed" },
+      { id: "kingdom",     name: "Kingdom",     icon: "\u{1F451}", color: "#dc2626" },
+      { id: "moon",        name: "Moon",        icon: "\u{1F319}", color: "#cbd5e1" },
+      { id: "space_station", name: "Space Station", icon: "\u{1F6F0}\uFE0F", color: "#475569" },
+      { id: "dungeon",     name: "Dungeon",     icon: "\u{1F47B}", color: "#581c87" },
+      { id: "temple",      name: "Temple",      icon: "\u{1F3DB}\uFE0F", color: "#b45309" },
+      { id: "custom",      name: "Custom",      icon: "\u{1F4CD}", color: "#94a3b8" }
+    ];

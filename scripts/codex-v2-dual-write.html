@@ -1373,3 +1373,119 @@
     }
 
     window.codexV2VerifyPilot = codexV2VerifyPilot;
+
+    // ============================================================
+    // LOCATION HIERARCHY HELPERS
+    // ============================================================
+
+    /**
+     * Get location category from entity custom_data.
+     * Returns { id, name, icon, color } or null.
+     */
+    function getLocationCategory(entity) {
+      if (!entity) return null;
+      var cd = entity.custom_data || {};
+      if (cd.location_category && cd.location_category.id) return cd.location_category;
+      // Fallback: try to match sub_type against LOCATION_CATEGORIES
+      if (cd.sub_type && typeof LOCATION_CATEGORIES !== "undefined") {
+        var match = LOCATION_CATEGORIES.find(function (cat) {
+          return cat.name.toLowerCase() === cd.sub_type.toLowerCase();
+        });
+        if (match) return match;
+      }
+      return null;
+    }
+
+    /**
+     * Build breadcrumb path from parent_location_id chain.
+     * Uses the codexCache to walk up the tree.
+     * Returns array of { id, name, color, category } from root to current.
+     */
+    function buildLocationBreadcrumbFromColumn(entityId, seriesId) {
+      if (!entityId || !seriesId) return [];
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries) ? codexCache.entitiesBySeries[seriesId] || [] : [];
+      var byId = {};
+      entities.forEach(function (e) { byId[Number(e.id)] = e; });
+
+      var path = [];
+      var visited = {};
+      var current = byId[Number(entityId)];
+      while (current && !visited[current.id]) {
+        visited[current.id] = true;
+        var cat = getLocationCategory(current);
+        path.unshift({ id: current.id, name: current.name, color: current.color, category: cat });
+        var parentId = Number(current.parent_location_id || 0);
+        current = parentId ? byId[parentId] : null;
+      }
+      return path;
+    }
+
+    /**
+     * Build parent map from parent_location_id column.
+     * Returns { childId: parentId } map.
+     */
+    function buildLocationParentMapFromColumn(seriesId) {
+      if (!seriesId) return {};
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries) ? codexCache.entitiesBySeries[seriesId] || [] : [];
+      var parentMap = {};
+      entities.forEach(function (e) {
+        if (e.parent_location_id) {
+          parentMap[Number(e.id)] = Number(e.parent_location_id);
+        }
+      });
+      return parentMap;
+    }
+
+    /**
+     * Check if candidateId is a descendant of entityId.
+     * Used to prevent cycles when moving locations.
+     */
+    function isLocationDescendant(entityId, candidateId, seriesId) {
+      if (!entityId || !candidateId || !seriesId) return false;
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries) ? codexCache.entitiesBySeries[seriesId] || [] : [];
+      var byId = {};
+      entities.forEach(function (e) { byId[Number(e.id)] = e; });
+
+      var visited = {};
+      var current = byId[Number(candidateId)];
+      while (current && !visited[current.id]) {
+        if (Number(current.id) === Number(entityId)) return true;
+        visited[current.id] = true;
+        var parentId = Number(current.parent_location_id || 0);
+        current = parentId ? byId[parentId] : null;
+      }
+      return false;
+    }
+
+    /**
+     * Get all descendant IDs of a location.
+     */
+    function getLocationDescendantIds(entityId, seriesId) {
+      if (!entityId || !seriesId) return [];
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries) ? codexCache.entitiesBySeries[seriesId] || [] : [];
+      var childrenOf = {};
+      entities.forEach(function (e) {
+        var pid = Number(e.parent_location_id || 0);
+        if (pid) {
+          if (!childrenOf[pid]) childrenOf[pid] = [];
+          childrenOf[pid].push(Number(e.id));
+        }
+      });
+
+      var result = [];
+      function collect(id) {
+        var kids = childrenOf[id] || [];
+        kids.forEach(function (kid) {
+          result.push(kid);
+          collect(kid);
+        });
+      }
+      collect(Number(entityId));
+      return result;
+    }
+
+    window.getLocationCategory = getLocationCategory;
+    window.buildLocationBreadcrumbFromColumn = buildLocationBreadcrumbFromColumn;
+    window.buildLocationParentMapFromColumn = buildLocationParentMapFromColumn;
+    window.isLocationDescendant = isLocationDescendant;
+    window.getLocationDescendantIds = getLocationDescendantIds;

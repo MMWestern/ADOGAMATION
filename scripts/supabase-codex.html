@@ -1360,4 +1360,194 @@
         });
         return JSON.stringify({ ok: true, connections: rows });
       });
+
+    // ============================================================
+    // LOCATION HIERARCHY — Dedicated parent_location_id CRUD
+    // ============================================================
+
+    _sbDefine('moveLocation', function (entityId, newParentId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      var safeParentId = newParentId ? Number(newParentId) : null;
+      if (safeParentId === safeId) throw new Error('A location cannot be its own parent.');
+
+      // Cycle detection: walk up from newParentId to root
+      if (safeParentId) {
+        return sbClient.from('codex_entities')
+          .select('id, parent_location_id')
+          .eq('id', safeParentId)
+          .single()
+          .then(function (res) {
+            if (res.error) throw res.error;
+            var visited = {};
+            var current = res.data;
+            while (current && current.parent_location_id) {
+              if (Number(current.parent_location_id) === safeId) {
+                throw new Error('Cannot move location under one of its descendants.');
+              }
+              if (visited[current.parent_location_id]) break; // cycle in existing data
+              visited[current.parent_location_id] = true;
+              return sbClient.from('codex_entities')
+                .select('id, parent_location_id')
+                .eq('id', current.parent_location_id)
+                .single()
+                .then(function (res2) {
+                  if (res2.error) throw res2.error;
+                  // Continue walking up (simplified: just check one more level)
+                  if (res2.data && Number(res2.data.parent_location_id) === safeId) {
+                    throw new Error('Cannot move location under one of its descendants.');
+                  }
+                  // Accept the move
+                  return sbClient.from('codex_entities')
+                    .update({ parent_location_id: safeParentId })
+                    .eq('id', safeId)
+                    .then(function (res3) {
+                      if (res3.error) throw res3.error;
+                      return JSON.stringify({ ok: true });
+                    });
+                });
+            }
+            // No cycle found, perform the move
+            return sbClient.from('codex_entities')
+              .update({ parent_location_id: safeParentId })
+              .eq('id', safeId)
+              .then(function (res3) {
+                if (res3.error) throw res3.error;
+                return JSON.stringify({ ok: true });
+              });
+          });
+      }
+      // Moving to root (no parent)
+      return sbClient.from('codex_entities')
+        .update({ parent_location_id: null })
+        .eq('id', safeId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('getLocationChildren', function (seriesId, parentId) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var typeIdQuery = sbClient.from('codex_entity_types').select('id').eq('key', 'location').limit(1).single();
+      return typeIdQuery.then(function (typeRes) {
+        if (typeRes.error) throw typeRes.error;
+        var typeId = typeRes.data.id;
+        var query = sbClient.from('codex_entities')
+          .select('id, name, custom_data, parent_location_id, color, image_url')
+          .eq('series_id', safeSeriesId)
+          .eq('entity_type_id', typeId)
+          .is('deleted_at', null);
+        if (parentId) {
+          query = query.eq('parent_location_id', Number(parentId));
+        } else {
+          query = query.is('parent_location_id', null);
+        }
+        return query.order('name').then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, locations: res.data || [] });
+        });
+      });
+    });
+
+    _sbDefine('getLocationAncestors', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      var ancestors = [];
+      function walkUp(id) {
+        return sbClient.from('codex_entities')
+          .select('id, name, parent_location_id, custom_data, color')
+          .eq('id', id)
+          .single()
+          .then(function (res) {
+            if (res.error || !res.data) return ancestors;
+            ancestors.unshift({ id: res.data.id, name: res.data.name, color: res.data.color, custom_data: res.data.custom_data });
+            if (res.data.parent_location_id && ancestors.length < 20) {
+              return walkUp(res.data.parent_location_id);
+            }
+            return ancestors;
+          });
+      }
+      return walkUp(safeId).then(function (chain) {
+        return JSON.stringify({ ok: true, ancestors: chain });
+      });
+    });
+
+    _sbDefine('archiveLocationSubtree', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      // Find all descendants and archive them
+      function findDescendants(id) {
+        return sbClient.from('codex_entities')
+          .select('id')
+          .eq('parent_location_id', id)
+          .is('deleted_at', null)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            var children = res.data || [];
+            var allIds = [id];
+            var chain = children.map(function (c) { return findDescendants(c.id); });
+            return Promise.all(chain).then(function (nested) {
+              nested.forEach(function (ids) { allIds = allIds.concat(ids); });
+              return allIds;
+            });
+          });
+      }
+      return findDescendants(safeId).then(function (ids) {
+        return sbClient.from('codex_entities')
+          .update({ status: 'archived' })
+          .in('id', ids)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, archived: ids.length });
+          });
+      });
+    });
+
+    _sbDefine('moveChildrenToGrandparent', function (entityId) {
+      var safeId = Number(entityId || 0);
+      if (!safeId) throw new Error('Entity id is required.');
+      // Get the entity's parent
+      return sbClient.from('codex_entities')
+        .select('parent_location_id')
+        .eq('id', safeId)
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var grandparentId = res.data.parent_location_id || null;
+          // Move all children to grandparent
+          return sbClient.from('codex_entities')
+            .update({ parent_location_id: grandparentId })
+            .eq('parent_location_id', safeId)
+            .is('deleted_at', null)
+            .then(function (res2) {
+              if (res2.error) throw res2.error;
+              return JSON.stringify({ ok: true, newParentId: grandparentId });
+            });
+        });
+    });
+
+    _sbDefine('searchLocations', function (seriesId, query) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      var search = String(query || '').trim();
+      return sbClient.from('codex_entity_types').select('id').eq('key', 'location').limit(1).single()
+        .then(function (typeRes) {
+          if (typeRes.error) throw typeRes.error;
+          var typeId = typeRes.data.id;
+          var q = sbClient.from('codex_entities')
+            .select('id, name, custom_data, parent_location_id, color')
+            .eq('series_id', safeSeriesId)
+            .eq('entity_type_id', typeId)
+            .is('deleted_at', null)
+            .order('name')
+            .limit(50);
+          if (search) q = q.ilike('name', '%' + search + '%');
+          return q.then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, locations: res.data || [] });
+          });
+        });
+    });
     });

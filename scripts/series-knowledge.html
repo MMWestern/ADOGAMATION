@@ -3412,47 +3412,155 @@
         });
     }
 
-    /* ---- Parent Location Connection ---- */
+    /* ---- Parent Location (via parent_location_id column) ---- */
 
     function saveParentLocationConnection(seriesId, entityId) {
       var parentLocSelect = document.getElementById("codexDetailParentLocation");
       var newParentId = parentLocSelect ? Number(parentLocSelect.value || 0) : 0;
-      var connections = skCache.connections[seriesId] || [];
-      // Find existing ACTIVE located_in connection for this entity (exclude ended)
-      var existingConn = connections.find(function (c) {
-        var relType = c.codex_relationship_types || {};
-        return Number(c.source_entity_id) === entityId && relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended";
-      });
-      var existingParentId = existingConn ? Number(existingConn.target_entity_id || 0) : 0;
+      // Find current entity to check existing parent
+      var entities = codexCache.entitiesBySeries[seriesId] || [];
+      var entity = entities.find(function (e) { return Number(e.id) === Number(entityId); });
+      var existingParentId = entity ? Number(entity.parent_location_id || 0) : 0;
       // If no change, skip
       if (newParentId === existingParentId) return Promise.resolve();
-      // If parent removed, delete existing connection
-      if (!newParentId && existingConn) {
-        return callAppsScriptJson("deleteCodexConnection", [existingConn.id]).then(function () {
-          return loadSkConnections(seriesId);
+      // Use moveLocation Supabase function
+      return supabaseRunner.withSuccessHandler(function (json) {
+        var result = typeof json === 'string' ? JSON.parse(json) : json;
+        if (result && result.ok) {
+          // Update cache
+          if (entity) entity.parent_location_id = newParentId || null;
+        }
+      }).withFailureHandler(function (err) {
+        console.error("[LOCATION] Failed to move location:", err);
+        setStatus("Failed to update parent location: " + (err.message || err), "error");
+      }).moveLocation(entityId, newParentId || null);
+    }
+
+    /* ---- Save Location Category ---- */
+
+    function saveLocationCategory(entityId, customData) {
+      var catSelect = document.getElementById("codexDetailLocationCategory");
+      if (!catSelect || !catSelect.value) return;
+      var catId = catSelect.value;
+      if (typeof LOCATION_CATEGORIES !== "undefined") {
+        var cat = LOCATION_CATEGORIES.find(function (c) { return c.id === catId; });
+        if (cat) {
+          customData.location_category = { id: cat.id, name: cat.name, icon: cat.icon, color: cat.color };
+          customData.sub_type = cat.name; // backward compat
+        }
+      }
+    }
+
+    /* ---- Location Delete Modal with Child Strategy ---- */
+
+    function showLocationDeleteModal(entity, seriesId, entityTypeId) {
+      // Check for children
+      var allEntities = codexCache.entitiesBySeries[seriesId] || [];
+      var children = allEntities.filter(function (e) {
+        return Number(e.parent_location_id) === Number(entity.id) && !e.deleted_at;
+      });
+      var hasChildren = children.length > 0;
+
+      // Build modal HTML
+      var modal = document.createElement("div");
+      modal.className = "modal";
+      modal.style.cssText = "display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;";
+
+      var card = document.createElement("div");
+      card.style.cssText = "background:#1e1e28;border:1px solid #3a3a42;border-radius:8px;padding:20px;max-width:400px;width:90%;";
+
+      var title = document.createElement("h3");
+      title.style.cssText = "margin:0 0 12px;font-size:15px;color:#f2f2f4;";
+      title.textContent = "Delete " + (entity.name || "Location") + "?";
+      card.appendChild(title);
+
+      if (hasChildren) {
+        var warning = document.createElement("p");
+        warning.style.cssText = "margin:0 0 16px;font-size:12px;color:#f59e0b;";
+        warning.textContent = "This location has " + children.length + " child location" + (children.length > 1 ? "s" : "") + ". Choose what to do:";
+        card.appendChild(warning);
+
+        var strategies = [
+          { key: "archive", label: "Archive entire subtree (safest)", desc: "Sets all descendants to archived status" },
+          { key: "move_up", label: "Move children to parent", desc: "Children become siblings of this location" },
+          { key: "delete_all", label: "Delete entire subtree", desc: "Permanently deletes this and all descendants" }
+        ];
+
+        strategies.forEach(function (s) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.style.cssText = "display:block;width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;background:#2a2a32;border:1px solid #3a3a42;border-radius:6px;color:#f2f2f4;font-size:12px;cursor:pointer;";
+          btn.innerHTML = "<strong>" + s.label + "</strong><br><span style='color:var(--muted);font-size:11px;'>" + s.desc + "</span>";
+          btn.addEventListener("mouseenter", function () { btn.style.borderColor = "#3b82f6"; });
+          btn.addEventListener("mouseleave", function () { btn.style.borderColor = "#3a3a42"; });
+          btn.addEventListener("click", function () {
+            executeLocationDelete(entity, seriesId, entityTypeId, s.key);
+            modal.remove();
+          });
+          card.appendChild(btn);
+        });
+      } else {
+        var msg = document.createElement("p");
+        msg.style.cssText = "margin:0 0 16px;font-size:12px;color:var(--muted);";
+        msg.textContent = "This location has no children. It will be permanently deleted.";
+        card.appendChild(msg);
+
+        var confirmBtn = document.createElement("button");
+        confirmBtn.type = "button";
+        confirmBtn.style.cssText = "padding:8px 16px;background:#dc2626;border:none;border-radius:4px;color:white;font-size:12px;cursor:pointer;margin-right:8px;";
+        confirmBtn.textContent = "Delete";
+        confirmBtn.addEventListener("click", function () {
+          executeLocationDelete(entity, seriesId, entityTypeId, "delete");
+          modal.remove();
+        });
+        card.appendChild(confirmBtn);
+      }
+
+      var cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.style.cssText = "padding:8px 16px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;font-size:12px;cursor:pointer;margin-top:8px;";
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.addEventListener("click", function () { modal.remove(); });
+      card.appendChild(cancelBtn);
+
+      modal.appendChild(card);
+      modal.addEventListener("click", function (e) { if (e.target === modal) modal.remove(); });
+      document.body.appendChild(modal);
+    }
+
+    function executeLocationDelete(entity, seriesId, entityTypeId, strategy) {
+      var entityId = Number(entity.id);
+
+      function afterDelete() {
+        return loadCodexEntities(seriesId).then(function () {
+          setStatus("Deleted.", "ok");
+          _codexActiveEntityId = 0;
+          if (typeof closeSkCodexInspector === "function") closeSkCodexInspector();
+          if (el.codexEntityPage) el.codexEntityPage.hidden = true;
+          if (el.codexDashboard) el.codexDashboard.hidden = false;
+          renderCodexTree(seriesId);
+          renderCodexDashboard(seriesId);
         });
       }
-      // If parent changed or new, save connection
-      if (newParentId) {
-        // Find the located_in relationship type
-        return callAppsScriptJson("listCodexRelationshipTypes", []).then(function (result) {
-          var types = result && result.types ? result.types : [];
-          var locatedInType = types.find(function (t) { return t.key === "located_in"; });
-          if (!locatedInType) return Promise.resolve();
-          var connPayload = {
-            id: existingConn ? existingConn.id : 0,
-            source_entity_id: entityId,
-            target_entity_id: newParentId,
-            relationship_type_id: locatedInType.id,
-            label: "Located in",
-            inverse_label: "Contains"
-          };
-          return callAppsScriptJson("saveCodexConnection", [seriesId, JSON.stringify(connPayload)]);
-        }).then(function () {
-          return loadSkConnections(seriesId);
-        });
+
+      if (strategy === "archive") {
+        // Archive entire subtree
+        supabaseRunner.withSuccessHandler(function () {
+          afterDelete();
+        }).withFailureHandler(function (err) {
+          setStatus("Failed to archive: " + (err.message || err), "error");
+        }).archiveLocationSubtree(entityId);
+      } else if (strategy === "move_up") {
+        // Move children to grandparent, then delete
+        supabaseRunner.withSuccessHandler(function () {
+          callAppsScriptJson("deleteCodexEntity", [entityId]).then(afterDelete);
+        }).withFailureHandler(function (err) {
+          setStatus("Failed to move children: " + (err.message || err), "error");
+        }).moveChildrenToGrandparent(entityId);
+      } else {
+        // delete or delete_all
+        callAppsScriptJson("deleteCodexEntity", [entityId]).then(afterDelete);
       }
-      return Promise.resolve();
     }
 
     /* ---- Calendars ---- */
@@ -4765,6 +4873,12 @@
     }
 
     function buildLocationBreadcrumbPath(entityId, seriesId) {
+      // Prefer parent_location_id column if available
+      if (typeof buildLocationBreadcrumbFromColumn === "function") {
+        var colPath = buildLocationBreadcrumbFromColumn(entityId, seriesId);
+        if (colPath.length) return colPath;
+      }
+      // Fallback to connection-based parent map
       var entities = codexCache.entitiesBySeries[seriesId] || [];
       var entityMap = {};
       entities.forEach(function (e) { entityMap[e.id] = e; });
@@ -5156,7 +5270,9 @@
             html += "</div>";
             html += "<div class='writing-codex-group-list'" + (count ? "" : " hidden") + ">";
             if (item.entityTypeKey === "location" && skCurrentSeriesId) {
-              var parentMap = buildLocationParentMap(skCurrentSeriesId);
+              var parentMap = typeof buildLocationParentMapFromColumn === "function"
+                ? buildLocationParentMapFromColumn(skCurrentSeriesId)
+                : buildLocationParentMap(skCurrentSeriesId);
               html += renderLocationTreeList(entities, item, parentMap);
             } else {
               // All types get sub-type grouping (with Uncategorized for unmatched)
@@ -6256,39 +6372,40 @@
           });
         }
       }
-      // Location breadcrumb
+      // Location breadcrumb — use parent_location_id column
       if (entityTypeKey === "location" && entity.id && skCurrentSeriesId) {
-        var breadcrumbPath = buildLocationBreadcrumbPath(entity.id, skCurrentSeriesId);
+        var breadcrumbPath = typeof buildLocationBreadcrumbFromColumn === "function"
+          ? buildLocationBreadcrumbFromColumn(entity.id, skCurrentSeriesId)
+          : buildLocationBreadcrumbPath(entity.id, skCurrentSeriesId);
         if (breadcrumbPath.length > 1) {
           html += "<div class='codex-location-breadcrumb'>";
           breadcrumbPath.forEach(function (crumb, i) {
             if (i > 0) html += "<span class='codex-location-breadcrumb-sep'>›</span>";
             var isLast = i === breadcrumbPath.length - 1;
-            var crumbColor = crumb.color || "";
-            var pillStyle = crumbColor ? " style='border-color:" + crumbColor + ";color:" + crumbColor + ";'" : "";
+            var cat = crumb.category;
+            var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";font-size:9px;padding:1px 4px;border-radius:3px;margin-left:3px;'>" + escapeHtml(cat.name) + "</span>" : "";
             if (isLast) {
-              html += "<span class='codex-location-breadcrumb-pill is-current'" + pillStyle + ">" + escapeHtml(crumb.name) + "</span>";
+              html += "<span class='codex-location-breadcrumb-pill is-current'>" + escapeHtml(crumb.name) + catBadge + "</span>";
             } else {
-              html += "<button type='button' class='codex-location-breadcrumb-pill' data-entity-id='" + crumb.id + "'" + pillStyle + ">" + escapeHtml(crumb.name) + "</button>";
+              html += "<button type='button' class='codex-location-breadcrumb-pill' data-entity-id='" + crumb.id + "'>" + escapeHtml(crumb.name) + catBadge + "</button>";
             }
           });
           html += "</div>";
         }
-        // Sibling locations (same parent)
-        var parentMap = buildLocationParentMap(skCurrentSeriesId);
-        var parentId = parentMap[entity.id] || 0;
-        if (parentId) {
-          var allLocations = (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
-            return (e.codex_entity_types || {}).key === "location" && parentMap[e.id] === parentId && Number(e.id) !== Number(entity.id);
+        // Sibling locations (same parent via parent_location_id)
+        var currentParentId = entity.parent_location_id || 0;
+        if (currentParentId) {
+          var allLocs = (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
+            return (e.codex_entity_types || {}).key === "location" && Number(e.parent_location_id) === Number(currentParentId) && Number(e.id) !== Number(entity.id);
           });
-          if (allLocations.length) {
+          if (allLocs.length) {
             html += "<div class='codex-location-siblings'>";
             html += "<span class='codex-location-siblings-label'>Siblings:</span>";
-            allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
-            allLocations.forEach(function (sib) {
-              var sibColor = sib.color || "";
-              var sibStyle = sibColor ? " style='border-color:" + sibColor + ";color:" + sibColor + ";'" : "";
-              html += "<button type='button' class='codex-location-sibling-pill' data-entity-id='" + sib.id + "'" + sibStyle + ">" + escapeHtml(sib.name || "Untitled") + "</button>";
+            allLocs.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+            allLocs.forEach(function (sib) {
+              var sibCat = typeof getLocationCategory === "function" ? getLocationCategory(sib) : null;
+              var sibCatBadge = sibCat ? " <span style='font-size:9px;opacity:0.7;'>" + (sibCat.icon || "") + "</span>" : "";
+              html += "<button type='button' class='codex-location-sibling-pill' data-entity-id='" + sib.id + "'>" + escapeHtml(sib.name || "Untitled") + sibCatBadge + "</button>";
             });
             html += "</div>";
           }
@@ -6307,14 +6424,28 @@
       html += "<label class='codex-detail-field-label'>Name</label>";
       html += "<textarea id='codexDetailName' class='codex-detail-text name-field' rows='1'>" + escapeHtml(name) + "</textarea>";
       html += "</div>";
-      // Sub-type field — available for all entity types
+      // Sub-type / Category field
       var subTypeValue = String(customData.sub_type || customData.role_archetype || "").trim();
-      // Hide sub-type for characters — they have dedicated Role/Archetype fields
-      if (entityTypeKey !== "character") {
+      if (entityTypeKey === "location") {
+        // Location: category picker
+        var currentCat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
+        var currentCatId = currentCat ? currentCat.id : "";
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Category</label>";
+        html += "<select id='codexDetailLocationCategory' class='codex-detail-field-select'>";
+        html += "<option value=''>Select category...</option>";
+        if (typeof LOCATION_CATEGORIES !== "undefined") {
+          LOCATION_CATEGORIES.forEach(function (cat) {
+            var sel = cat.id === currentCatId ? " selected" : "";
+            html += "<option value='" + cat.id + "'" + sel + ">" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</option>";
+          });
+        }
+        html += "</select></div>";
+      } else if (entityTypeKey !== "character") {
+        // All other non-character types: sub_type cascade picker
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Sub-type</label>";
         if (treeItem && treeItem.subTypes && treeItem.subTypes.length) {
-          // CascadeMenu fly-out for all sub-types (flat or nested)
           html += "<div id='codexDetailSubTypeCascade' data-tree='" + escapeHtml(JSON.stringify(treeItem.subTypes)) + "' data-value='" + escapeHtml(subTypeValue) + "'></div>";
           html += "<input id='codexDetailSubTypeCustom' type='text' placeholder='Enter custom sub-type...' style='display:none;margin-top:4px;' />";
         } else {
@@ -6369,6 +6500,8 @@
       });
       html += "</select></div>";
       if (entityTypeKey === "location") {
+        // Enhanced parent location picker with category badges
+        var currentParentId = entity.parent_location_id || "";
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Parent Location</label>";
         html += "<select id='codexDetailParentLocation' class='codex-detail-field-select'>";
@@ -6376,9 +6509,18 @@
         var allLocations = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
           return (e.codex_entity_types || {}).key === "location" && Number(e.id) !== Number(entity.id);
         }) : [];
+        // Exclude descendants to prevent cycles
+        if (entity.id && skCurrentSeriesId) {
+          var descendantIds = typeof getLocationDescendantIds === "function" ? getLocationDescendantIds(entity.id, skCurrentSeriesId) : [];
+          allLocations = allLocations.filter(function (loc) { return descendantIds.indexOf(Number(loc.id)) === -1; });
+        }
         allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
         allLocations.forEach(function (loc) {
-          html += "<option value='" + loc.id + "'>" + escapeHtml(loc.name || "Untitled") + "</option>";
+          var locCat = (typeof getLocationCategory === "function") ? getLocationCategory(loc) : null;
+          var catIcon = locCat ? (locCat.icon || "") + " " : "";
+          var catLabel = locCat ? " · " + locCat.name : "";
+          var sel = String(loc.id) === String(currentParentId) ? " selected" : "";
+          html += "<option value='" + loc.id + "'" + sel + ">" + catIcon + escapeHtml(loc.name || "Untitled") + catLabel + "</option>";
         });
         html += "</select></div>";
       }
@@ -6577,19 +6719,11 @@
       var selField = selMap[entityTypeKey] || "";
       if (selField) skLastSelection[selField] = entity.id;
 
-      // Load parent location from connections for location entities
+      // Load parent location from parent_location_id column
       if (entityTypeKey === "location" && entity.id) {
         var parentLocSelect = document.getElementById("codexDetailParentLocation");
-        if (parentLocSelect) {
-          var connections = skCurrentSeriesId ? (skCache.connections[skCurrentSeriesId] || []) : [];
-          // Find the ACTIVE located_in connection (exclude ended)
-          var locatedInConn = connections.find(function (c) {
-            var relType = c.codex_relationship_types || {};
-            return Number(c.source_entity_id) === Number(entity.id) && relType.key === "located_in" && !c.deleted_at && c.context_status !== "ended";
-          });
-          if (locatedInConn) {
-            parentLocSelect.value = String(locatedInConn.target_entity_id || "");
-          }
+        if (parentLocSelect && entity.parent_location_id) {
+          parentLocSelect.value = String(entity.parent_location_id);
         }
       }
 
@@ -7123,6 +7257,10 @@
               delete mergedCustom.sub_type;
             }
           }
+          // Save location category for location entities
+          if (entityTypeKey === "location") {
+            saveLocationCategory(entity.id, mergedCustom);
+          }
           var projectId = Number(project && (project.project_id || project.id) || 0);
           var codexPayload = {
             id: currentEntityId,
@@ -7218,12 +7356,19 @@
       if (deleteBtn) {
         deleteBtn.hidden = isNew;
         deleteBtn.addEventListener("click", function () {
-          if (!confirm("Delete this entry?")) return;
           var project = getSelectedProject();
           var seriesId = Number(project && project.series_id || 0);
           if (!seriesId) return;
           var entityTypeId = getCodexEntityTypeId_(seriesId, pluralKey);
           if (!entityTypeId) return;
+
+          if (entityTypeKey === "location") {
+            // Location-specific delete with child strategy
+            showLocationDeleteModal(entity, seriesId, entityTypeId);
+            return;
+          }
+
+          if (!confirm("Delete this entry?")) return;
           callAppsScriptJson("deleteCodexEntity", [Number(entity.id)])
             .then(function () {
               return loadCodexEntities(seriesId);
