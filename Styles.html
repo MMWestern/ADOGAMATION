@@ -18369,4 +18369,28 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       border-radius: 4px;
       vertical-align: middle;
     }
+
+    /* Color shade picker */
+    .codex-detail-color-shades {
+      display: flex;
+      gap: 4px;
+      padding: 6px 4px 2px;
+      border-top: 1px solid #3a3a42;
+      margin-top: 4px;
+    }
+    .codex-detail-color-shade {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+      transition: border-color 0.1s;
+    }
+    .codex-detail-color-shade:hover {
+      border-color: #fff4;
+    }
+    .codex-detail-color-shade[data-selected="1"] {
+      border-color: #fff;
+    }
 </style>
