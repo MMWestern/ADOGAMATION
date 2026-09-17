@@ -4939,6 +4939,16 @@
       return html;
     }
 
+    function countAllDescendantEntities(subType, groups) {
+      var label = typeof subType === 'string' ? subType : (subType.label || subType.key || "");
+      var children = (typeof subType === 'object' && Array.isArray(subType.subTypes)) ? subType.subTypes : [];
+      var count = (groups[label.toLowerCase()] || []).length;
+      children.forEach(function (child) {
+        count += countAllDescendantEntities(child, groups);
+      });
+      return count;
+    }
+
     function renderSubTypeNode(subType, groups, item, depth) {
       var label = typeof subType === 'string' ? subType : (subType.label || subType.key || "");
       var children = (typeof subType === 'object' && Array.isArray(subType.subTypes)) ? subType.subTypes : [];
@@ -4947,12 +4957,8 @@
       // Get entities for this node
       var directEntities = groups[label.toLowerCase()] || [];
       
-      // Count all entities (direct + children)
-      var totalCount = directEntities.length;
-      children.forEach(function (child) {
-        var childLabel = typeof child === 'string' ? child : (child.label || child.key || "");
-        totalCount += (groups[childLabel.toLowerCase()] || []).length;
-      });
+      // Count all entities recursively (direct + all descendants)
+      var totalCount = countAllDescendantEntities(subType, groups);
 
       if (totalCount === 0) return "";
 
