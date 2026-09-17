@@ -6397,7 +6397,7 @@
             if (i > 0) html += "<span class='codex-location-breadcrumb-sep'>›</span>";
             var isLast = i === breadcrumbPath.length - 1;
             var cat = crumb.category;
-            var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";font-size:9px;padding:1px 4px;border-radius:3px;margin-left:3px;'>" + escapeHtml(cat.name) + "</span>" : "";
+            var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>" : "";
             if (isLast) {
               html += "<span class='codex-location-breadcrumb-pill is-current'>" + escapeHtml(crumb.name) + catBadge + "</span>";
             } else {
