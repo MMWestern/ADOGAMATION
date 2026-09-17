@@ -6875,15 +6875,28 @@
       // If the value is custom (not found in tree), show custom input immediately
       var isCustom = finalValue && !initialPath;
 
-      // Build breadcrumb
+      // Row: breadcrumb + back button on left, select on right
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:6px;";
+      container.appendChild(row);
+
+      // Back button (hidden at top level)
+      var backBtn = document.createElement("button");
+      backBtn.type = "button";
+      backBtn.textContent = "\u2190";
+      backBtn.title = "Back";
+      backBtn.style.cssText = "font-size:13px;padding:2px 6px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;flex-shrink:0;display:none;";
+      row.appendChild(backBtn);
+
+      // Breadcrumb
       var breadcrumb = document.createElement("div");
-      breadcrumb.className = "codex-cascade-breadcrumb";
-      breadcrumb.style.cssText = "font-size:11px;color:var(--muted);margin-bottom:4px;min-height:16px;";
-      container.appendChild(breadcrumb);
+      breadcrumb.style.cssText = "font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;";
+      row.appendChild(breadcrumb);
 
       // Create the single select
       var select = document.createElement("select");
       select.className = "codex-detail-field-select";
+      select.style.marginTop = "4px";
       container.appendChild(select);
 
       // Custom input (hidden by default)
@@ -6891,13 +6904,11 @@
 
       function getOptionsForTrail(trail) {
         if (trail.length === 0) {
-          // Top level
           if (typeof codexV2GetTopLevelSubTypes === "function") {
             return codexV2GetTopLevelSubTypes(subTypes);
           }
           return [];
         }
-        // Get children of the last selected label
         var parentLabel = trail[trail.length - 1];
         var children = typeof codexV2GetSubTypeChildren === "function" ? codexV2GetSubTypeChildren(subTypes, parentLabel) : null;
         if (!children) return [];
@@ -6916,21 +6927,12 @@
           breadcrumb.innerHTML = "";
           return;
         }
-        var parts = trail.map(function (t) { return "<span>" + escapeHtml(t) + "</span>"; });
-        breadcrumb.innerHTML = parts.join(" <span style='opacity:0.5;'>&rsaquo;</span> ");
+        var parts = trail.map(function (t) { return escapeHtml(t); });
+        breadcrumb.textContent = parts.join(" \u203a ");
       }
 
       function renderSelect() {
-        // Clear existing options
         select.innerHTML = "";
-
-        // Back option (if we've drilled down)
-        if (trail.length > 0) {
-          var backOpt = document.createElement("option");
-          backOpt.value = "__back";
-          backOpt.textContent = "\u2190 Back";
-          select.appendChild(backOpt);
-        }
 
         // Placeholder
         var placeholder = document.createElement("option");
@@ -6954,23 +6956,24 @@
         customOpt.textContent = "Custom...";
         select.appendChild(customOpt);
 
+        // Show/hide back button
+        backBtn.style.display = trail.length > 0 ? "" : "none";
         renderBreadcrumb();
       }
 
-      // Wire change
+      // Back button handler — doesn't touch the select, so it stays open if user reopens it
+      backBtn.addEventListener("click", function () {
+        trail.pop();
+        renderSelect();
+        if (customInput) customInput.style.display = "none";
+      });
+
+      // Select change handler
       select.addEventListener("change", function () {
         var val = select.value;
         if (customInput) customInput.style.display = "none";
 
-        if (val === "__back") {
-          // Go back one level
-          trail.pop();
-          renderSelect();
-          return;
-        }
-
         if (val === "_custom") {
-          // Show custom input
           if (customInput) {
             customInput.style.display = "";
             customInput.focus();
@@ -6980,22 +6983,18 @@
 
         if (!val) return;
 
-        // Check if this option has children
         var selectedOpt = select.options[select.selectedIndex];
         var hasChildren = selectedOpt && selectedOpt.getAttribute("data-has-children") === "1";
 
         if (hasChildren) {
-          // Drill down
           trail.push(val);
           renderSelect();
-        } else {
-          // Leaf selected — done
         }
+        // Leaf selected — done, value is in select.value
       });
 
       // Initial render
       if (isCustom) {
-        // Custom value — show top level with custom input
         renderSelect();
         select.value = "_custom";
         if (customInput) {
@@ -7003,7 +7002,6 @@
           customInput.value = finalValue;
         }
       } else if (trail.length > 0) {
-        // Pre-select: show the deepest level with the leaf pre-selected
         renderSelect();
         select.value = trail[trail.length - 1];
       } else {
@@ -7211,10 +7209,8 @@
             var cascadeVal = cascadeSelect ? cascadeSelect.value : "";
             if (cascadeVal === "_custom" && subTypeCustom) {
               cascadeVal = subTypeCustom.value.trim();
-            } else if (cascadeVal === "__back" || cascadeVal === "") {
-              cascadeVal = "";
             }
-            if (cascadeVal) {
+            if (cascadeVal && cascadeVal !== "_custom") {
               mergedCustom.sub_type = cascadeVal;
             } else if (!mergedCustom.sub_type) {
               delete mergedCustom.sub_type;
