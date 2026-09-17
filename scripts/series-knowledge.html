@@ -4902,6 +4902,8 @@
       var imgUrl = entity.image_url || "";
       var color = entity.color || "";
       var scope = entity.scope || "series";
+      var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
+      var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>" : "";
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
@@ -4912,6 +4914,7 @@
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
       entryHtml += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
+      if (catBadge) entryHtml += "<div class='writing-codex-entry-badges'>" + catBadge + "</div>";
       entryHtml += "</div>";
       if (desc) entryHtml += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
       entryHtml += "</div>";
@@ -5143,8 +5146,13 @@
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + item.icon + "</span></div>";
       var scope = entity.scope || "series";
       var pillHtml = "";
-      if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
-      if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      if (item.entityTypeKey === "location") {
+        var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
+        if (cat) pillHtml += "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>";
+      } else {
+        if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
+        if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
+      }
       var html = "<button type='button' class='writing-codex-entry codex-entity-entry' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "'>";
       html += thumbHtml;
       html += "<div class='writing-codex-entry-content'>";
