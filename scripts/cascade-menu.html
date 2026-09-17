@@ -1,0 +1,437 @@
+    // ============================================================
+    // CascadeMenu — Reusable recursive fly-out menu component
+    // ============================================================
+
+    (function () {
+      var _uid = 0;
+      function uid() { return "cm-" + (++_uid); }
+
+      /**
+       * @param {HTMLElement} trigger - The button/element that opens the menu
+       * @param {Array} items - Array of { id, label, children?, action?, selected?, disabled? }
+       * @param {Object} [opts]
+       * @param {number} [opts.openDelay=150] - ms before submenu opens on hover
+       * @param {number} [opts.closeDelay=200] - ms before submenu closes on leave
+       * @param {number} [opts.viewportPadding=8] - px from viewport edge
+       * @param {boolean} [opts.closeOnSelect=true] - close menu after leaf action
+       * @param {Function} [opts.onSelect] - callback(item, path, event)
+       */
+      window.CascadeMenu = function (trigger, items, opts) {
+        opts = opts || {};
+        var openDelay = opts.openDelay != null ? opts.openDelay : 150;
+        var closeDelay = opts.closeDelay != null ? opts.closeDelay : 200;
+        var vpPad = opts.viewportPadding != null ? opts.viewportPadding : 8;
+        var closeOnSelect = opts.closeOnSelect != null ? opts.closeOnSelect : true;
+        var onSelect = opts.onSelect || null;
+
+        var rootEl = null; // portal root
+        var activePath = []; // array of item IDs currently open
+        var openTimers = {}; // level -> timer
+        var closeTimers = {}; // level -> timer
+        var focusedItem = null;
+        var isOpen = false;
+
+        // ---- Public API ----
+
+        this.open = open;
+        this.close = close;
+        this.destroy = destroy;
+        this.isOpen = function () { return isOpen; };
+
+        // ---- Helpers ----
+
+        function hasChildren(item) {
+          return Array.isArray(item.children) && item.children.length > 0;
+        }
+
+        function findItem(items, id) {
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].id === id) return items[i];
+            if (items[i].children) {
+              var found = findItem(items[i].children, id);
+              if (found) return found;
+            }
+          }
+          return null;
+        }
+
+        function getPathToItem(items, id, trail) {
+          trail = trail || [];
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].id === id) return trail.concat([items[i]]);
+            if (items[i].children) {
+              var found = getPathToItem(items[i].children, id, trail.concat([items[i]]));
+              if (found) return found;
+            }
+          }
+          return null;
+        }
+
+        function getChildrenAtPath(items, pathIds) {
+          var current = items;
+          for (var i = 0; i < pathIds.length; i++) {
+            var found = null;
+            for (var j = 0; j < current.length; j++) {
+              if (current[j].id === pathIds[i]) {
+                found = current[j];
+                break;
+              }
+            }
+            if (!found || !found.children) return [];
+            current = found.children;
+          }
+          return current;
+        }
+
+        // ---- Portal root ----
+
+        function ensureRoot() {
+          if (rootEl) return;
+          rootEl = document.createElement("div");
+          rootEl.className = "cascade-menu-portal";
+          rootEl.style.cssText = "position:absolute;top:0;left:0;z-index:9999;pointer-events:none;";
+          document.body.appendChild(rootEl);
+        }
+
+        function removeRoot() {
+          if (rootEl && rootEl.parentNode) rootEl.parentNode.removeChild(rootEl);
+          rootEl = null;
+        }
+
+        // ---- Render a single menu level ----
+
+        function renderLevel(parentItems, levelIndex, anchorEl, direction) {
+          var menu = document.createElement("div");
+          menu.className = "cascade-menu-level";
+          menu.setAttribute("role", "menu");
+          menu.setAttribute("data-level", levelIndex);
+          menu.style.cssText = "position:absolute;pointer-events:auto;";
+
+          parentItems.forEach(function (item) {
+            var row = document.createElement("div");
+            row.className = "cascade-menu-item" + (item.disabled ? " is-disabled" : "") + (item.selected ? " is-selected" : "");
+            row.setAttribute("role", "menuitem");
+            row.setAttribute("data-id", item.id);
+            if (item.disabled) row.setAttribute("aria-disabled", "true");
+            row.tabIndex = item.disabled ? -1 : 0;
+
+            var labelSpan = document.createElement("span");
+            labelSpan.className = "cascade-menu-label";
+            labelSpan.textContent = item.label;
+            row.appendChild(labelSpan);
+
+            if (hasChildren(item)) {
+              var chevron = document.createElement("span");
+              chevron.className = "cascade-menu-chevron";
+              chevron.textContent = "\u203A";
+              chevron.setAttribute("aria-hidden", "true");
+              row.appendChild(chevron);
+              row.setAttribute("aria-haspopup", "menu");
+              row.setAttribute("aria-expanded", "false");
+            }
+
+            // Hover: open submenu after delay
+            row.addEventListener("mouseenter", function () {
+              if (item.disabled) return;
+              clearCloseTimersFrom(levelIndex);
+              highlightRow(row, menu);
+              if (hasChildren(item)) {
+                scheduleOpen(item, levelIndex, row, direction);
+              }
+            });
+
+            row.addEventListener("mouseleave", function () {
+              if (hasChildren(item)) {
+                scheduleClose(levelIndex + 1);
+              }
+            });
+
+            // Click
+            row.addEventListener("click", function (e) {
+              if (item.disabled) return;
+              e.stopPropagation();
+              if (hasChildren(item)) {
+                // Toggle submenu
+                if (activePath[levelIndex] === item.id) {
+                  closeFrom(levelIndex + 1);
+                } else {
+                  openSubmenu(item, levelIndex, row, direction);
+                }
+              } else {
+                // Leaf action
+                if (item.action) {
+                  var path = getPathToItem(items, item.id) || [item];
+                  item.action({ item: item, path: path, originalEvent: e });
+                }
+                if (onSelect) {
+                  var selPath = getPathToItem(items, item.id) || [item];
+                  onSelect(item, selPath, e);
+                }
+                if (closeOnSelect) close();
+              }
+            });
+
+            // Keyboard
+            row.addEventListener("keydown", function (e) {
+              if (item.disabled) return;
+              var rows = Array.from(menu.querySelectorAll(".cascade-menu-item:not(.is-disabled)"));
+              var idx = rows.indexOf(row);
+
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                var next = rows[(idx + 1) % rows.length];
+                if (next) next.focus();
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                var prev = rows[(idx - 1 + rows.length) % rows.length];
+                if (prev) prev.focus();
+              } else if (e.key === "ArrowRight") {
+                if (hasChildren(item)) {
+                  e.preventDefault();
+                  openSubmenu(item, levelIndex, row, direction);
+                }
+              } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                if (levelIndex > 0) {
+                  closeFrom(levelIndex);
+                  var parentMenu = rootEl.querySelector(".cascade-menu-level[data-level='" + (levelIndex - 1) + "']");
+                  if (parentMenu) {
+                    var parentId = activePath[levelIndex - 1];
+                    var parentRow = parentMenu.querySelector("[data-id='" + parentId + "']");
+                    if (parentRow) parentRow.focus();
+                  }
+                }
+              } else if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                row.click();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                if (levelIndex > 0) {
+                  closeFrom(levelIndex);
+                  var pm = rootEl.querySelector(".cascade-menu-level[data-level='" + (levelIndex - 1) + "']");
+                  if (pm) {
+                    var pid = activePath[levelIndex - 1];
+                    var pr = pm.querySelector("[data-id='" + pid + "']");
+                    if (pr) pr.focus();
+                  }
+                } else {
+                  close();
+                  trigger.focus();
+                }
+              } else if (e.key === "Home") {
+                e.preventDefault();
+                if (rows.length) rows[0].focus();
+              } else if (e.key === "End") {
+                e.preventDefault();
+                if (rows.length) rows[rows.length - 1].focus();
+              }
+            });
+
+            menu.appendChild(row);
+          });
+
+          return menu;
+        }
+
+        function highlightRow(row, menu) {
+          menu.querySelectorAll(".cascade-menu-item").forEach(function (r) {
+            r.classList.remove("is-hovered");
+          });
+          row.classList.add("is-hovered");
+        }
+
+        // ---- Submenu open/close with delays ----
+
+        function scheduleOpen(item, levelIndex, anchorRow, direction) {
+          clearTimer(openTimers, levelIndex);
+          openTimers[levelIndex] = setTimeout(function () {
+            openSubmenu(item, levelIndex, anchorRow, direction);
+          }, openDelay);
+        }
+
+        function scheduleClose(fromLevel) {
+          clearTimer(closeTimers, fromLevel);
+          closeTimers[fromLevel] = setTimeout(function () {
+            closeFrom(fromLevel);
+          }, closeDelay);
+        }
+
+        function clearCloseTimersFrom(level) {
+          for (var k in closeTimers) {
+            if (Number(k) >= level) {
+              clearTimer(closeTimers, Number(k));
+            }
+          }
+        }
+
+        function clearTimer(timers, key) {
+          if (timers[key]) {
+            clearTimeout(timers[key]);
+            delete timers[key];
+          }
+        }
+
+        // ---- Open submenu ----
+
+        function openSubmenu(item, levelIndex, anchorRow, direction) {
+          clearCloseTimersFrom(levelIndex + 1);
+          closeFrom(levelIndex + 1);
+
+          activePath = activePath.slice(0, levelIndex);
+          activePath[levelIndex] = item.id;
+
+          // Update aria-expanded
+          var parentMenu = rootEl.querySelector(".cascade-menu-level[data-level='" + levelIndex + "']");
+          if (parentMenu) {
+            parentMenu.querySelectorAll("[aria-expanded]").forEach(function (el) {
+              el.setAttribute("aria-expanded", "false");
+            });
+          }
+          anchorRow.setAttribute("aria-expanded", "true");
+
+          var children = item.children || [];
+          var subMenu = renderLevel(children, levelIndex + 1, anchorRow, direction);
+          rootEl.appendChild(subMenu);
+
+          positionLevel(subMenu, anchorRow, levelIndex + 1, direction);
+
+          // Focus first item
+          var first = subMenu.querySelector(".cascade-menu-item:not(.is-disabled)");
+          if (first) first.focus();
+        }
+
+        // ---- Position a level relative to its anchor ----
+
+        function positionLevel(menuEl, anchorRow, levelIndex, direction) {
+          var anchorRect = anchorRow.getBoundingClientRect();
+          var menuW = 160;
+          var menuH = menuEl.offsetHeight || 120;
+
+          // Try right first
+          var left = anchorRect.right + 2;
+          var openDir = "right";
+
+          if (left + menuW + vpPad > window.innerWidth) {
+            // Flip left
+            left = anchorRect.left - menuW - 2;
+            openDir = "left";
+          }
+          if (left < vpPad) {
+            left = vpPad;
+          }
+
+          // Vertical: align with anchor top
+          var top = anchorRect.top;
+          if (top + menuH + vpPad > window.innerHeight) {
+            top = window.innerHeight - menuH - vpPad;
+          }
+          if (top < vpPad) top = vpPad;
+
+          menuEl.style.left = left + "px";
+          menuEl.style.top = top + "px";
+          menuEl.style.minWidth = menuW + "px";
+          menuEl.style.maxHeight = (window.innerHeight - vpPad * 2) + "px";
+          menuEl.style.overflowY = "auto";
+        }
+
+        // ---- Close from a level onward ----
+
+        function closeFrom(levelIndex) {
+          if (!rootEl) return;
+          var levels = rootEl.querySelectorAll(".cascade-menu-level");
+          levels.forEach(function (el) {
+            if (Number(el.getAttribute("data-level")) >= levelIndex) {
+              el.remove();
+            }
+          });
+          activePath = activePath.slice(0, levelIndex);
+        }
+
+        // ---- Open root ----
+
+        function open() {
+          if (isOpen) return;
+          isOpen = true;
+          ensureRoot();
+          activePath = [];
+
+          var rootMenu = renderLevel(items, 0, trigger, "right");
+          rootEl.appendChild(rootMenu);
+
+          // Position root below trigger
+          var rect = trigger.getBoundingClientRect();
+          var left = rect.left;
+          var top = rect.bottom + 4;
+          var menuW = 160;
+
+          if (left + menuW + vpPad > window.innerWidth) {
+            left = window.innerWidth - menuW - vpPad;
+          }
+          if (left < vpPad) left = vpPad;
+
+          rootMenu.style.left = left + "px";
+          rootMenu.style.top = top + "px";
+          rootMenu.style.minWidth = menuW + "px";
+          rootMenu.style.maxHeight = (window.innerHeight - top - vpPad) + "px";
+          rootMenu.style.overflowY = "auto";
+
+          // Focus first item
+          var first = rootMenu.querySelector(".cascade-menu-item:not(.is-disabled)");
+          if (first) first.focus();
+
+          trigger.setAttribute("aria-expanded", "true");
+        }
+
+        // ---- Close all ----
+
+        function close() {
+          if (!isOpen) return;
+          isOpen = false;
+          activePath = [];
+          for (var k in openTimers) clearTimer(openTimers, k);
+          for (var k2 in closeTimers) clearTimer(closeTimers, k2);
+          removeRoot();
+          trigger.setAttribute("aria-expanded", "false");
+        }
+
+        // ---- Destroy ----
+
+        function destroy() {
+          close();
+          document.removeEventListener("click", onOutsideClick);
+          document.removeEventListener("keydown", onRootKeydown);
+        }
+
+        // ---- Outside click ----
+
+        function onOutsideClick(e) {
+          if (!isOpen) return;
+          if (rootEl && rootEl.contains(e.target)) return;
+          if (trigger.contains(e.target)) return;
+          close();
+        }
+
+        // ---- Root keyboard (Escape at root) ----
+
+        function onRootKeydown(e) {
+          if (!isOpen) return;
+          if (e.key === "Escape") {
+            close();
+            trigger.focus();
+          }
+        }
+
+        // ---- Trigger wiring ----
+
+        trigger.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (isOpen) close(); else open();
+        });
+
+        trigger.setAttribute("aria-haspopup", "menu");
+        trigger.setAttribute("aria-expanded", "false");
+
+        document.addEventListener("click", onOutsideClick);
+        document.addEventListener("keydown", onRootKeydown);
+      };
+    })();

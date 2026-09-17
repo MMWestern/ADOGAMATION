@@ -6841,20 +6841,13 @@
     function wireCodexDetailSubType_() {
       var cascadeContainer = document.getElementById("codexDetailSubTypeCascade");
       if (cascadeContainer) {
-        // Nested sub-types — single dropdown that drills down
         var treeData = cascadeContainer.getAttribute("data-tree");
         var currentValue = cascadeContainer.getAttribute("data-value") || "";
         var subTypes = [];
         try { subTypes = JSON.parse(treeData); } catch (e) { subTypes = []; }
         if (!subTypes.length) return;
 
-        // Find path for current value to pre-set depth
-        var path = null;
-        if (currentValue && typeof codexV2FindSubTypePath === "function") {
-          path = codexV2FindSubTypePath(subTypes, currentValue);
-        }
-
-        initSubTypeCascade_(cascadeContainer, subTypes, path, currentValue);
+        initSubTypeCascadeMenu_(cascadeContainer, subTypes, currentValue);
         return;
       }
 
@@ -6869,186 +6862,74 @@
       }
     }
 
-    function initSubTypeCascade_(container, subTypes, initialPath, finalValue) {
-      var isCustom = finalValue && !initialPath;
+    function convertSubTypesToMenuItems(subTypes) {
+      return subTypes.map(function (st) {
+        var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+        var children = (typeof st === 'object' && st !== null && Array.isArray(st.subTypes) && st.subTypes.length > 0)
+          ? convertSubTypesToMenuItems(st.subTypes) : null;
+        return {
+          id: label,
+          label: label,
+          children: children || undefined
+        };
+      });
+    }
 
-      // Display button showing current selection
-      var displayBtn = document.createElement("button");
-      displayBtn.type = "button";
-      displayBtn.style.cssText = "width:100%;text-align:left;font-size:12px;padding:5px 10px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;cursor:pointer;display:flex;justify-content:space-between;align-items:center;";
-      container.appendChild(displayBtn);
-
-      // Dropdown panel (hidden by default)
-      var panel = document.createElement("div");
-      panel.style.cssText = "display:none;margin-top:4px;border:1px solid #3a3a42;border-radius:6px;background:#1a1a20;max-height:200px;overflow-x:auto;overflow-y:hidden;";
-      container.appendChild(panel);
-
-      // Columns container inside panel
-      var columnsWrap = document.createElement("div");
-      columnsWrap.style.cssText = "display:flex;gap:0;min-height:120px;";
-      panel.appendChild(columnsWrap);
-
-      // Custom input (hidden by default)
+    function initSubTypeCascadeMenu_(container, subTypes, currentValue) {
       var customInput = container.parentElement.querySelector("#codexDetailSubTypeCustom");
 
-      // Track current selection
-      var selectedLeaf = initialPath ? initialPath[initialPath.length - 1] : "";
-      if (isCustom) selectedLeaf = "_custom";
-
-      function getChildrenOf(label) {
-        if (typeof codexV2GetSubTypeChildren === "function") {
-          var result = codexV2GetSubTypeChildren(subTypes, label);
-          console.log("[CASCADE] getChildrenOf('" + label + "') =>", result);
-          return result;
-        }
-        console.log("[CASCADE] codexV2GetSubTypeChildren not defined");
-        return null;
+      // Find current path for display
+      var path = null;
+      if (currentValue && typeof codexV2FindSubTypePath === "function") {
+        path = codexV2FindSubTypePath(subTypes, currentValue);
       }
+      var displayLabel = path ? path.join(" \u203a ") : (currentValue || "");
 
-      function getTopLevel() {
-        if (typeof codexV2GetTopLevelSubTypes === "function") {
-          return codexV2GetTopLevelSubTypes(subTypes);
-        }
-        return [];
-      }
+      // Trigger button
+      var trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "codex-detail-field-select";
+      trigger.style.cssText = "width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;";
+      trigger.innerHTML = "<span>" + (displayLabel ? escapeHtml(displayLabel) : "<span style='color:var(--muted)'>Select sub-type...</span>") + "</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+      container.appendChild(trigger);
 
-      function updateDisplay() {
-        if (selectedLeaf === "_custom") {
-          displayBtn.innerHTML = "<span style='color:var(--muted);font-style:italic;'>Custom...</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
-        } else if (selectedLeaf) {
-          var pathStr = initialPath ? initialPath.join(" \u203a ") : selectedLeaf;
-          displayBtn.innerHTML = "<span>" + escapeHtml(pathStr) + "</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
-        } else {
-          displayBtn.innerHTML = "<span style='color:var(--muted);'>Select sub-type...</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
-        }
-      }
+      // Custom input (hidden by default)
+      if (customInput) customInput.style.display = "none";
 
-      function buildItems(options, depth, preSelected) {
-        var column = document.createElement("div");
-        column.style.cssText = "min-width:120px;max-width:160px;border-right:1px solid #2a2a32;flex-shrink:0;overflow-y:auto;max-height:180px;";
-        column.setAttribute("data-depth", depth);
+      // Build menu items from tree
+      var menuItems = convertSubTypesToMenuItems(subTypes);
 
-        options.forEach(function (opt) {
-          var item = document.createElement("div");
-          item.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#c5c5ce;";
-          item.setAttribute("data-label", opt.label);
-          item.setAttribute("data-has-children", opt.hasChildren ? "1" : "0");
+      // Add "Custom..." leaf at root level
+      menuItems.push({
+        id: "__custom",
+        label: "Custom..."
+      });
 
-          var labelSpan = document.createElement("span");
-          labelSpan.textContent = opt.label;
-          item.appendChild(labelSpan);
+      // Store selected value
+      container.setAttribute("data-selected", currentValue || "");
 
-          if (opt.hasChildren) {
-            var arrow = document.createElement("span");
-            arrow.textContent = "\u203a";
-            arrow.style.cssText = "opacity:0.5;font-size:14px;";
-            item.appendChild(arrow);
-          }
-
-          item.addEventListener("mouseenter", function () { if (!item.classList.contains("cascade-selected")) item.style.background = "rgba(59,130,246,0.15)"; });
-          item.addEventListener("mouseleave", function () { if (!item.classList.contains("cascade-selected")) item.style.background = ""; });
-
-          item.addEventListener("click", function () {
-            console.log("[CASCADE] Clicked:", opt.label, "depth:", depth, "hasChildren:", opt.hasChildren);
-            column.querySelectorAll("[data-label]").forEach(function (sib) {
-              sib.classList.remove("cascade-selected");
-              sib.style.background = "";
-            });
-            item.classList.add("cascade-selected");
-            item.style.background = "rgba(59,130,246,0.25)";
-
-            var allColumns = Array.from(columnsWrap.children);
-            allColumns.forEach(function (c) {
-              if (Number(c.getAttribute("data-depth")) > depth) c.remove();
-            });
+      // Create cascade menu
+      var menu = new CascadeMenu(trigger, menuItems, {
+        closeOnSelect: true,
+        onSelect: function (item, pathArr, event) {
+          if (item.id === "__custom") {
+            container.setAttribute("data-selected", "_custom");
+            if (customInput) {
+              customInput.style.display = "";
+              customInput.focus();
+            }
+            trigger.innerHTML = "<span style='color:var(--muted);font-style:italic;'>Custom...</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+          } else {
+            container.setAttribute("data-selected", item.id);
             if (customInput) customInput.style.display = "none";
-
-            if (opt.hasChildren) {
-              var children = getChildrenOf(opt.label);
-              console.log("[CASCADE] getChildrenOf", opt.label, "=>", children ? children.length + " children" : "null");
-              if (children && children.length) {
-                buildItems(children, depth + 1, null);
-              }
-            }
-            selectedLeaf = opt.label;
-            container.setAttribute("data-selected", opt.label);
-            updateDisplay();
-          });
-
-          column.appendChild(item);
-        });
-
-        // Custom option
-        var customItem = document.createElement("div");
-        customItem.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;color:var(--muted);border-top:1px solid #2a2a32;font-style:italic;";
-        customItem.textContent = "Custom...";
-        customItem.addEventListener("mouseenter", function () { if (!customItem.classList.contains("cascade-selected")) customItem.style.background = "rgba(59,130,246,0.15)"; });
-        customItem.addEventListener("mouseleave", function () { if (!customItem.classList.contains("cascade-selected")) customItem.style.background = ""; });
-        customItem.addEventListener("click", function () {
-          column.querySelectorAll("[data-label]").forEach(function (sib) {
-            sib.classList.remove("cascade-selected");
-            sib.style.background = "";
-          });
-          customItem.classList.add("cascade-selected");
-          customItem.style.background = "rgba(59,130,246,0.25)";
-          var allColumns = Array.from(columnsWrap.children);
-          allColumns.forEach(function (c) {
-            if (Number(c.getAttribute("data-depth")) > depth) c.remove();
-          });
-          selectedLeaf = "_custom";
-          container.setAttribute("data-selected", "_custom");
-          if (customInput) { customInput.style.display = ""; customInput.focus(); }
-          updateDisplay();
-        });
-        column.appendChild(customItem);
-
-        columnsWrap.appendChild(column);
-        columnsWrap.scrollLeft = columnsWrap.scrollWidth;
-
-        // Pre-select
-        if (preSelected) {
-          var items = column.querySelectorAll("[data-label]");
-          console.log("[CASCADE] Pre-selecting '" + preSelected + "' at depth", depth, "found", items.length, "items");
-          for (var j = 0; j < items.length; j++) {
-            if (items[j].getAttribute("data-label") === preSelected) {
-              console.log("[CASCADE] Clicking pre-selected item:", preSelected);
-              items[j].click();
-              break;
-            }
+            var fullPath = pathArr.map(function (p) { return p.label; });
+            trigger.innerHTML = "<span>" + escapeHtml(fullPath.join(" \u203a ")) + "</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
           }
         }
-      }
-
-      // Toggle panel
-      displayBtn.addEventListener("click", function () {
-        var isOpen = panel.style.display !== "none";
-        panel.style.display = isOpen ? "none" : "block";
       });
 
-      // Close on outside click
-      document.addEventListener("click", function (e) {
-        if (!container.contains(e.target)) {
-          panel.style.display = "none";
-        }
-      });
-
-      // Initial render
-      updateDisplay();
-      var options = getTopLevel();
-      if (options.length) {
-        if (initialPath && initialPath.length > 0) {
-          container.setAttribute("data-selected", initialPath[initialPath.length - 1]);
-          buildItems(options, 0, initialPath[0]);
-        } else {
-          buildItems(options, 0, null);
-        }
-      }
-
-      if (isCustom && customInput) {
-        container.setAttribute("data-selected", "_custom");
-        customInput.style.display = "";
-        customInput.value = finalValue;
-      }
+      // Store menu reference for cleanup
+      container._cascadeMenu = menu;
     }
 
     function wireCodexDetailColorPicker_() {

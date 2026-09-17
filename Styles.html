@@ -18302,4 +18302,61 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       justify-content: center;
       font-size: 11px;
     }
+
+    /* CascadeMenu — recursive fly-out */
+    .cascade-menu-portal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .cascade-menu-level {
+      background: #1e1e28;
+      border: 1px solid #3a3a42;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      padding: 4px 0;
+      min-width: 140px;
+    }
+    .cascade-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #c5c5ce;
+      cursor: pointer;
+      white-space: nowrap;
+      outline: none;
+      min-height: 28px;
+    }
+    .cascade-menu-item:focus-visible {
+      box-shadow: inset 0 0 0 1px #3b82f6;
+    }
+    .cascade-menu-item.is-hovered,
+    .cascade-menu-item:focus {
+      background: rgba(59,130,246,0.18);
+    }
+    .cascade-menu-item.is-selected {
+      color: #60a5fa;
+    }
+    .cascade-menu-item.is-disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .cascade-menu-item.is-disabled:hover,
+    .cascade-menu-item.is-disabled:focus {
+      background: none;
+    }
+    .cascade-menu-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cascade-menu-chevron {
+      margin-left: 12px;
+      opacity: 0.5;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
 </style>
