@@ -4903,20 +4903,20 @@
       var color = entity.color || "";
       var scope = entity.scope || "series";
       var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
-      var catBadge = cat ? "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>" : "";
+      var countBadge = childCount > 0 ? " <span class='loc-child-count'>" + childCount + "</span>" : "";
+      var catBadge = cat ? "<button type='button' class='loc-cat-badge loc-collapse-trigger' data-entity-id='" + entity.id + "' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";cursor:pointer;'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + countBadge + "</button>" : "";
       var catIcon = cat && cat.icon ? cat.icon : item.icon;
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + catIcon + "</span></div>";
       var indentPx = depth > 0 ? depth * 16 : 0;
       var styleAttr = indentPx ? " style='margin-left:" + indentPx + "px;width:calc(100% - " + indentPx + "px);'" : "";
-      var collapsePill = childCount > 0 ? "<button type='button' class='loc-collapse-pill' data-entity-id='" + entity.id + "' title='Toggle children'>" + childCount + " \u25BC</button>" : "";
       var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
       entryHtml += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
-      entryHtml += "<div class='writing-codex-entry-badges'>" + collapsePill + catBadge + "</div>";
+      entryHtml += "<div class='writing-codex-entry-badges'>" + catBadge + "</div>";
       entryHtml += "</div>";
       if (desc) entryHtml += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
       entryHtml += "</div>";
@@ -5380,16 +5380,16 @@
       // Rebuild New Entry dropdown from preset
       rebuildNewEntryDropdown(seriesId, el.codexNewEntry, el.codexNewEntryDropdown);
 
-      // Wire location collapse/expand pills
-      el.codexTreeContainer.querySelectorAll(".loc-collapse-pill").forEach(function (pill) {
-        pill.addEventListener("click", function (e) {
+      // Wire location collapse/expand via category badges
+      el.codexTreeContainer.querySelectorAll(".loc-collapse-trigger").forEach(function (badge) {
+        badge.addEventListener("click", function (e) {
           e.stopPropagation();
-          var parentId = pill.getAttribute("data-entity-id");
+          var parentId = badge.getAttribute("data-entity-id");
           var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + parentId + '"]');
           if (!wrap) return;
           var isHidden = wrap.style.display === "none";
           wrap.style.display = isHidden ? "" : "none";
-          pill.textContent = (pill.textContent.replace(/[\u25BC\u25B2]/, isHidden ? "\u25BC" : "\u25B2"));
+          badge.style.opacity = isHidden ? "1" : "0.5";
         });
       });
 
