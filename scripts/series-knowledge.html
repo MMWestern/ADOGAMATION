@@ -4904,7 +4904,7 @@
       var scope = entity.scope || "series";
       var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
       var countBadge = childCount > 0 ? " <span class='loc-child-count'>" + childCount + "</span>" : "";
-      var catBadge = cat ? "<button type='button' class='loc-cat-badge loc-collapse-trigger' data-entity-id='" + entity.id + "' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";cursor:pointer;'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + countBadge + "</button>" : "";
+      var catBadge = cat ? "<span class='loc-cat-badge' data-collapse-id='" + entity.id + "' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + countBadge + "</span>" : "";
       var catIcon = cat && cat.icon ? cat.icon : item.icon;
       var thumbHtml = imgUrl
         ? "<div class='writing-codex-entry-thumb'><img src='" + escapeHtml(imgUrl) + "' alt='' /></div>"
@@ -5381,10 +5381,11 @@
       rebuildNewEntryDropdown(seriesId, el.codexNewEntry, el.codexNewEntryDropdown);
 
       // Wire location collapse/expand via category badges
-      el.codexTreeContainer.querySelectorAll(".loc-collapse-trigger").forEach(function (badge) {
+      el.codexTreeContainer.querySelectorAll("[data-collapse-id]").forEach(function (badge) {
+        badge.style.cursor = "pointer";
         badge.addEventListener("click", function (e) {
           e.stopPropagation();
-          var parentId = badge.getAttribute("data-entity-id");
+          var parentId = badge.getAttribute("data-collapse-id");
           var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + parentId + '"]');
           if (!wrap) return;
           var isHidden = wrap.style.display === "none";
