@@ -6274,6 +6274,7 @@
       });
       if (clearBtn) {
         clearBtn.addEventListener("click", function () {
+          var scrollTop = el.codexTreeContainer.scrollTop;
           input.value = "";
           clearBtn.hidden = true;
           el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
@@ -6289,6 +6290,12 @@
           el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
             cat.style.display = "";
           });
+          // Restore scroll position and active entity
+          el.codexTreeContainer.scrollTop = scrollTop;
+          if (_codexActiveEntityId) {
+            var active = el.codexTreeContainer.querySelector('[data-entity-id="' + _codexActiveEntityId + '"]');
+            if (active) active.scrollIntoView({ block: "nearest" });
+          }
         });
       }
     }
