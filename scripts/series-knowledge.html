@@ -6261,15 +6261,29 @@
           var hasMatch = wrap.querySelector('[data-search-match="1"]');
           wrap.style.display = hasMatch ? "" : "none";
         });
-        // Show type groups that have visible entries
+        // Show type groups that have visible entries and expand their content
         el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
           var hasVisible = g.querySelector('.codex-entity-entry:not([style*="display: none"])');
           g.hidden = !hasVisible;
+          if (hasVisible) {
+            // Expand the group list so entries are visible
+            var list = g.querySelector(".writing-codex-group-list");
+            if (list) list.hidden = false;
+            // Update chevron
+            var chevron = g.querySelector(".writing-codex-group-chevron");
+            if (chevron) chevron.textContent = "\u25BC";
+          }
         });
-        // Hide category headings with no visible type groups
+        // Expand category children that have matches
         el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
           var hasVisibleType = cat.querySelector('.codex-type-group:not([hidden])');
           cat.style.display = hasVisibleType ? "" : "none";
+          if (hasVisibleType) {
+            var catList = cat.querySelector(".codex-tree-category-children");
+            if (catList) catList.hidden = false;
+            var catChevron = cat.querySelector(".writing-codex-group-chevron");
+            if (catChevron) catChevron.textContent = "\u25BC";
+          }
         });
       });
       if (clearBtn) {
