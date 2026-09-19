@@ -1271,6 +1271,37 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, values: res.data || [] }); });
     });
 
+    _sbDefine('listAllFieldValuesForSeries', function (seriesId, entityTypeKey) {
+      var safeSeriesId = Number(seriesId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      // First get entity IDs for this series and type
+      return sbClient.from('codex_entity_types').select('id').eq('key', entityTypeKey).limit(1).single()
+        .then(function (typeRes) {
+          if (typeRes.error) throw typeRes.error;
+          var typeId = typeRes.data.id;
+          return sbClient.from('codex_entities')
+            .select('id')
+            .eq('series_id', safeSeriesId)
+            .eq('entity_type_id', typeId)
+            .is('deleted_at', null)
+            .limit(5000)
+            .then(function (entRes) {
+              if (entRes.error) throw entRes.error;
+              var entityIds = (entRes.data || []).map(function (e) { return e.id; });
+              if (!entityIds.length) return JSON.stringify({ ok: true, values: [] });
+              // Load field values for all these entities
+              return sbClient.from('codex_entity_field_values')
+                .select('*, codex_entity_field_definitions(*)')
+                .in('entity_id', entityIds)
+                .limit(10000)
+                .then(function (valRes) {
+                  if (valRes.error) throw valRes.error;
+                  return JSON.stringify({ ok: true, values: valRes.data || [] });
+                });
+            });
+        });
+    });
+
     _sbDefine('saveCodexEntityFieldValue', function (valueJson) {
       var parsed = typeof valueJson === 'string' ? JSON.parse(valueJson) : (valueJson || {});
       var valueId = Number(parsed.id || 0);

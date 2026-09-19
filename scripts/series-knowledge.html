@@ -1200,7 +1200,7 @@
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Age</label>";
         if (ageDef) {
-          html += "<input id='codexCharAge' type='text' class='codex-detail-field-input' data-def-id='" + ageDef.id + "' data-value-id='" + (ageVal ? ageVal.id : 0) + "' data-field-key='age' value='" + escapeHtml(ageValue) + "' placeholder='e.g. 25, Ancient, Unknown' />";
+          html += "<input id='codexCharAge' type='text' class='codex-field-input' data-def-id='" + ageDef.id + "' data-value-id='" + (ageVal ? ageVal.id : 0) + "' data-field-key='age' value='" + escapeHtml(ageValue) + "' placeholder='e.g. 25, Ancient, Unknown' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
         } else {
           html += "<div class='tiny' style='color:var(--muted);'>No age field definition.</div>";
         }
@@ -1213,7 +1213,7 @@
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Gender</label>";
         if (genderDef) {
-          html += "<input id='codexCharGender' type='text' class='codex-detail-field-input' data-def-id='" + genderDef.id + "' data-value-id='" + (genderVal ? genderVal.id : 0) + "' data-field-key='gender' value='" + escapeHtml(genderValue) + "' placeholder='e.g. Male, Female, Non-binary' />";
+          html += "<input id='codexCharGender' type='text' class='codex-field-input' data-def-id='" + genderDef.id + "' data-value-id='" + (genderVal ? genderVal.id : 0) + "' data-field-key='gender' value='" + escapeHtml(genderValue) + "' placeholder='e.g. Male, Female, Non-binary' style='width:100%;font-size:12px;padding:4px 6px;background:#1a1a20;border:1px solid #3a3a42;border-radius:4px;color:#f2f2f4;' />";
         } else {
           html += "<div class='tiny' style='color:var(--muted);'>No gender field definition.</div>";
         }
@@ -4843,6 +4843,54 @@
     // ── Codex Format Presets ─────────────────────────────────────────────
 
     var _codexFormatPresetsCache = {};  // key -> preset object
+    var _charFieldValuesCache = {};  // seriesId -> { entityId -> { field_key -> value } }
+    var _charFieldValuesLoading = {};  // seriesId -> Promise
+
+    function loadCharacterFieldValues(seriesId) {
+      if (_charFieldValuesCache[seriesId]) return Promise.resolve(_charFieldValuesCache[seriesId]);
+      if (_charFieldValuesLoading[seriesId]) return _charFieldValuesLoading[seriesId];
+      _charFieldValuesLoading[seriesId] = new Promise(function (resolve) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            var result = typeof json === 'string' ? JSON.parse(json) : json;
+            var values = result.values || [];
+            // Build lookup: entityId -> { field_key -> value }
+            var byEntity = {};
+            values.forEach(function (v) {
+              var eid = Number(v.entity_id);
+              var def = v.codex_entity_field_definitions || {};
+              var fKey = def.field_key || "";
+              if (!eid || !fKey) return;
+              if (!byEntity[eid]) byEntity[eid] = {};
+              byEntity[eid][fKey] = v;
+            });
+            _charFieldValuesCache[seriesId] = byEntity;
+            delete _charFieldValuesLoading[seriesId];
+            resolve(byEntity);
+          })
+          .withFailureHandler(function () {
+            _charFieldValuesCache[seriesId] = {};
+            delete _charFieldValuesLoading[seriesId];
+            resolve({});
+          })
+          .listAllFieldValuesForSeries(seriesId, "character");
+      });
+      return _charFieldValuesLoading[seriesId];
+    }
+
+    function getSpeciesNameForCharacter(seriesId, entityId) {
+      var cache = _charFieldValuesCache[seriesId];
+      if (!cache) return "";
+      var vals = cache[Number(entityId)];
+      if (!vals || !vals.species) return "";
+      var speciesVal = vals.species;
+      var linkedId = speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
+      if (linkedId && typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) {
+        var speciesEntity = codexCache.entitiesBySeries[seriesId].find(function (e) { return Number(e.id) === linkedId; });
+        return speciesEntity ? (speciesEntity.name || "") : "";
+      }
+      return speciesVal.value_text || "";
+    }
     var _codexCurrentTreeDef = null;    // active tree_definition for current series
 
     // Pre-populate cache with hardcoded defaults + localStorage custom presets
@@ -5320,7 +5368,9 @@
         var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
         if (cat) pillHtml += "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>";
       } else if (item.entityTypeKey === "character") {
-        // Show Archetype instead of Role (Role is already used for tree grouping)
+        // Show Species and Archetype (Role is used for tree grouping)
+        var speciesName = typeof getSpeciesNameForCharacter === "function" ? getSpeciesNameForCharacter(skCurrentSeriesId, entity.id) : "";
+        if (speciesName) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(speciesName) + "'>" + escapeHtml(speciesName) + "</span>";
         if (archetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
       } else {
         if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
@@ -5387,6 +5437,14 @@
       var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
       var treeDef = getCodexTreeDef(seriesId);
       var html = "";
+
+      // Load character field values for species display (async, re-renders when ready)
+      if (seriesId && !_charFieldValuesCache[seriesId] && !_charFieldValuesLoading[seriesId]) {
+        loadCharacterFieldValues(seriesId).then(function () {
+          renderCodexTree(seriesId);
+        });
+      }
+
       // Hidden entity warning
       html += renderHiddenEntityWarning(seriesId);
       treeDef.forEach(function (cat) {
