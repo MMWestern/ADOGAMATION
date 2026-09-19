@@ -1177,7 +1177,7 @@
         // Get species breadcrumb path
         var speciesBreadcrumb = (speciesLinkedId && typeof getSpeciesBreadcrumb === "function") ? getSpeciesBreadcrumb(seriesId, entityId) : "";
         html += "<div class='codex-detail-field-wrap'>";
-        html += "<label class='codex-detail-field-label'>Species</label>";
+        html += "<label class='codex-detail-field-label'>Species" + (speciesBreadcrumb ? " <span style='font-weight:400;opacity:0.6;font-size:10px;'>(" + escapeHtml(speciesBreadcrumb) + ")</span>" : "") + "</label>";
         if (speciesDef) {
           var speciesEntities = entities.filter(function (e) {
             return (e.codex_entity_types || {}).key === "species";
@@ -1190,9 +1190,6 @@
             html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
           });
           html += "</select>";
-          if (speciesBreadcrumb) {
-            html += "<div class='tiny' style='color:var(--muted);margin-top:2px;font-size:10px;'>" + escapeHtml(speciesBreadcrumb) + "</div>";
-          }
         } else {
           html += "<div class='tiny' style='color:var(--muted);'>No species field definition.</div>";
         }
