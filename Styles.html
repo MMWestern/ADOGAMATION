@@ -18383,6 +18383,29 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       /* Children container for collapse/expand */
     }
 
+    /* Character header two-column grid */
+    .codex-char-header-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .codex-char-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .codex-char-col-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
     /* Color shade picker */
     .codex-detail-color-shades {
       display: flex;

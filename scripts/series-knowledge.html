@@ -1118,6 +1118,231 @@
             .listCodexEntityState(seriesId, entityId);
     }
 
+    function loadCharacterIdentityFields(seriesId, entityId) {
+      var container = document.getElementById("codexCharIdentityFields");
+      if (!container) return;
+
+      // Load field definitions and values in parallel
+      Promise.all([
+        new Promise(function (resolve, reject) {
+          supabaseRunner
+            .withSuccessHandler(function (json) { resolve(JSON.parse(json)); })
+            .withFailureHandler(function () { resolve({ ok: true, definitions: [] }); })
+            .listCodexEntityFieldDefinitions("character");
+        }),
+        new Promise(function (resolve, reject) {
+          supabaseRunner
+            .withSuccessHandler(function (json) { resolve(JSON.parse(json)); })
+            .withFailureHandler(function () { resolve({ ok: true, values: [] }); })
+            .listCodexEntityFieldValues(entityId);
+        })
+      ]).then(function (results) {
+        var defResult = results[0];
+        var valResult = results[1];
+        var definitions = defResult.definitions || [];
+        var values = valResult.values || [];
+
+        // Build value lookup by field_key
+        var valueByKey = {};
+        var valueMap = {};
+        values.forEach(function (v) {
+          valueByKey[v.field_key || ""] = v;
+          valueMap[v.field_definition_id] = v;
+        });
+
+        // Find or create species/age/gender definitions
+        var identityFields = ["species", "age", "gender"];
+        var identityDefs = {};
+        definitions.forEach(function (def) {
+          if (identityFields.indexOf(def.field_key) !== -1) {
+            identityDefs[def.field_key] = def;
+          }
+        });
+
+        var html = "";
+        var entities = codexCache.entitiesBySeries[seriesId] || [];
+
+        // Species (entity_link)
+        var speciesDef = identityDefs["species"];
+        var speciesVal = valueByKey["species"];
+        var speciesLinkedId = speciesVal && speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Species</label>";
+        if (speciesDef) {
+          var speciesEntities = entities.filter(function (e) {
+            return (e.codex_entity_types || {}).key === "species";
+          });
+          html += "<select id='codexCharSpecies' class='codex-detail-field-select' data-def-id='" + speciesDef.id + "' data-value-id='" + (speciesVal ? speciesVal.id : 0) + "'>";
+          html += "<option value=''>Select species...</option>";
+          speciesEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+          speciesEntities.forEach(function (e) {
+            var sel = speciesLinkedId && Number(e.id) === speciesLinkedId ? " selected" : "";
+            html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
+          });
+          html += "</select>";
+        } else {
+          html += "<div class='tiny' style='color:var(--muted);'>No species field definition found. Creating...</div>";
+        }
+        html += "</div>";
+
+        // Age (text)
+        var ageDef = identityDefs["age"];
+        var ageVal = valueByKey["age"];
+        var ageValue = ageVal ? (ageVal.value_text || "") : "";
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Age</label>";
+        if (ageDef) {
+          html += "<input id='codexCharAge' type='text' class='codex-detail-field-input' data-def-id='" + ageDef.id + "' data-value-id='" + (ageVal ? ageVal.id : 0) + "' value='" + escapeHtml(ageValue) + "' placeholder='e.g. 25, Ancient, Unknown' />";
+        } else {
+          html += "<div class='tiny' style='color:var(--muted);'>No age field definition found.</div>";
+        }
+        html += "</div>";
+
+        // Gender (text)
+        var genderDef = identityDefs["gender"];
+        var genderVal = valueByKey["gender"];
+        var genderValue = genderVal ? (genderVal.value_text || "") : "";
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Gender</label>";
+        if (genderDef) {
+          html += "<input id='codexCharGender' type='text' class='codex-detail-field-input' data-def-id='" + genderDef.id + "' data-value-id='" + (genderVal ? genderVal.id : 0) + "' value='" + escapeHtml(genderValue) + "' placeholder='e.g. Male, Female, Non-binary' />";
+        } else {
+          html += "<div class='tiny' style='color:var(--muted);'>No gender field definition found.</div>";
+        }
+        html += "</div>";
+
+        // Save button for identity fields
+        html += "<div style='margin-top:8px;'>";
+        html += "<button id='codexCharIdentitySaveBtn' type='button' style='font-size:11px;padding:4px 10px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>Save Identity</button>";
+        html += "</div>";
+
+        container.innerHTML = html;
+
+        // Wire save button
+        var saveBtn = document.getElementById("codexCharIdentitySaveBtn");
+        if (saveBtn) {
+          saveBtn.addEventListener("click", function () {
+            saveCharacterIdentityFields(seriesId, entityId);
+          });
+        }
+
+        // If species definition doesn't exist, create it
+        if (!speciesDef) {
+          createSpeciesFieldDefinition(seriesId, entityId);
+        }
+      }).catch(function (err) {
+        console.error("[Identity] Error loading identity fields:", err);
+        container.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading identity fields.</div>";
+      });
+    }
+
+    function createSpeciesFieldDefinition(seriesId, entityId) {
+      var payload = {
+        entity_type_key: "character",
+        field_key: "species",
+        label: "Species",
+        field_type: "entity_link",
+        group_name: "Identity",
+        sort_order: 5,
+        help_text: "Character species or race",
+        options_json: { entity_type_key: "species" }
+      };
+      supabaseRunner
+        .withSuccessHandler(function () {
+          console.log("[Identity] Species field definition created");
+          // Reload identity fields
+          loadCharacterIdentityFields(seriesId, entityId);
+        })
+        .withFailureHandler(function (err) {
+          console.error("[Identity] Failed to create species field definition:", err);
+        })
+        .saveCodexEntityFieldDefinition(JSON.stringify(payload));
+    }
+
+    function saveCharacterIdentityFields(seriesId, entityId) {
+      var saveBtn = document.getElementById("codexCharIdentitySaveBtn");
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
+
+      var promises = [];
+
+      // Species (entity_link)
+      var speciesSelect = document.getElementById("codexCharSpecies");
+      if (speciesSelect && speciesSelect.getAttribute("data-def-id")) {
+        var linkedId = speciesSelect.value ? Number(speciesSelect.value) : null;
+        var speciesName = linkedId && speciesSelect.selectedIndex >= 0 ? speciesSelect.options[speciesSelect.selectedIndex].textContent : null;
+        var speciesValueId = Number(speciesSelect.getAttribute("data-value-id") || 0);
+        var speciesPayload = {
+          entity_id: entityId,
+          field_definition_id: Number(speciesSelect.getAttribute("data-def-id")),
+          linked_entity_id: linkedId,
+          value_text: speciesName,
+          value_number: null,
+          value_boolean: null,
+          value_json: null,
+          canon_status: "draft"
+        };
+        if (speciesValueId) speciesPayload.id = speciesValueId;
+        promises.push(new Promise(function (resolve) {
+          supabaseRunner
+            .withSuccessHandler(function () { resolve(true); })
+            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save species:", err); resolve(false); })
+            .saveCodexEntityFieldValue(JSON.stringify(speciesPayload));
+        }));
+      }
+
+      // Age (text)
+      var ageInput = document.getElementById("codexCharAge");
+      if (ageInput && ageInput.getAttribute("data-def-id")) {
+        var ageValueId = Number(ageInput.getAttribute("data-value-id") || 0);
+        var agePayload = {
+          entity_id: entityId,
+          field_definition_id: Number(ageInput.getAttribute("data-def-id")),
+          value_text: ageInput.value || null,
+          value_number: null,
+          value_boolean: null,
+          value_json: null,
+          linked_entity_id: null,
+          canon_status: "draft"
+        };
+        if (ageValueId) agePayload.id = ageValueId;
+        promises.push(new Promise(function (resolve) {
+          supabaseRunner
+            .withSuccessHandler(function () { resolve(true); })
+            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save age:", err); resolve(false); })
+            .saveCodexEntityFieldValue(JSON.stringify(agePayload));
+        }));
+      }
+
+      // Gender (text)
+      var genderInput = document.getElementById("codexCharGender");
+      if (genderInput && genderInput.getAttribute("data-def-id")) {
+        var genderValueId = Number(genderInput.getAttribute("data-value-id") || 0);
+        var genderPayload = {
+          entity_id: entityId,
+          field_definition_id: Number(genderInput.getAttribute("data-def-id")),
+          value_text: genderInput.value || null,
+          value_number: null,
+          value_boolean: null,
+          value_json: null,
+          linked_entity_id: null,
+          canon_status: "draft"
+        };
+        if (genderValueId) genderPayload.id = genderValueId;
+        promises.push(new Promise(function (resolve) {
+          supabaseRunner
+            .withSuccessHandler(function () { resolve(true); })
+            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save gender:", err); resolve(false); })
+            .saveCodexEntityFieldValue(JSON.stringify(genderPayload));
+        }));
+      }
+
+      Promise.all(promises).then(function (results) {
+        var successCount = results.filter(function (r) { return r; }).length;
+        if (saveBtn) { saveBtn.textContent = "Saved (" + successCount + ")"; saveBtn.disabled = false; }
+        setTimeout(function () { if (saveBtn) saveBtn.textContent = "Save Identity"; }, 2000);
+      });
+    }
+
     function loadSpeciesBaseStatsDetail(seriesId, entityId) {
         var statsList = document.getElementById("codexBaseStatsList");
         if (!statsList) return;
@@ -6610,6 +6835,11 @@
         html += "</div>";
       }
       if (entityTypeKey === "character") {
+        // Two-column layout: Narrative (left) + Identity (right)
+        html += "<div class='codex-char-header-grid'>";
+        // Left column: Narrative
+        html += "<div class='codex-char-col codex-char-narrative'>";
+        html += "<div class='codex-char-col-title'>Narrative</div>";
         var roleSelect = document.getElementById("skCharacterRole");
         var archSelect = document.getElementById("skCharacterArchetype");
         html += "<div class='codex-detail-field-wrap'>";
@@ -6630,57 +6860,30 @@
           });
         }
         html += "</select></div>";
-      }
-      html += "<div class='codex-detail-field-wrap'>";
-      html += "<label class='codex-detail-field-label'>Scope</label>";
-      html += "<select id='codexDetailScope' class='codex-detail-field-select'>";
-      html += "<option value='series'" + (scope === "series" ? " selected" : "") + ">All books in series</option>";
-      html += "<option value='wiki'" + (scope === "wiki" ? " selected" : "") + ">Wiki / Reference</option>";
-      var entityId = Number(entity.id || 0);
-      var linkedBookId = 0;
-      if (entityId && codexCache.entityDetails && codexCache.entityDetails[entityId]) {
-        var links = codexCache.entityDetails[entityId].projectLinks || [];
-        if (links.length) {
-          scope = "book";
-          linkedBookId = Number(links[0].project_id || 0);
-        }
-      }
-      if (scope === "book" && !linkedBookId) {
-        html += "<option value='book:0' selected>Unassigned</option>";
-      }
-      var allProjects = getSkProjectsForSeries();
-      allProjects.forEach(function (p) {
-        var pid = Number(p.project_id || p.id || 0);
-        var ptitle = String(p.title || "Untitled").trim();
-        if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
-      });
-      html += "</select></div>";
-      if (entityTypeKey === "location") {
-        // Enhanced parent location picker with category badges
-        var currentParentId = entity.parent_location_id || "";
         html += "<div class='codex-detail-field-wrap'>";
-        html += "<label class='codex-detail-field-label'>Parent Location</label>";
-        html += "<select id='codexDetailParentLocation' class='codex-detail-field-select'>";
-        html += "<option value=''>None (top-level)</option>";
-        var allLocations = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
-          return (e.codex_entity_types || {}).key === "location" && Number(e.id) !== Number(entity.id);
-        }) : [];
-        // Exclude descendants to prevent cycles
-        if (entity.id && skCurrentSeriesId) {
-          var descendantIds = typeof getLocationDescendantIds === "function" ? getLocationDescendantIds(entity.id, skCurrentSeriesId) : [];
-          allLocations = allLocations.filter(function (loc) { return descendantIds.indexOf(Number(loc.id)) === -1; });
+        html += "<label class='codex-detail-field-label'>Scope</label>";
+        html += "<select id='codexDetailScope' class='codex-detail-field-select'>";
+        html += "<option value='series'" + (scope === "series" ? " selected" : "") + ">All books in series</option>";
+        html += "<option value='wiki'" + (scope === "wiki" ? " selected" : "") + ">Wiki / Reference</option>";
+        var entityId = Number(entity.id || 0);
+        var linkedBookId = 0;
+        if (entityId && codexCache.entityDetails && codexCache.entityDetails[entityId]) {
+          var links = codexCache.entityDetails[entityId].projectLinks || [];
+          if (links.length) {
+            scope = "book";
+            linkedBookId = Number(links[0].project_id || 0);
+          }
         }
-        allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
-        allLocations.forEach(function (loc) {
-          var locCat = (typeof getLocationCategory === "function") ? getLocationCategory(loc) : null;
-          var catIcon = locCat ? (locCat.icon || "") + " " : "";
-          var catLabel = locCat ? " · " + locCat.name : "";
-          var sel = String(loc.id) === String(currentParentId) ? " selected" : "";
-          html += "<option value='" + loc.id + "'" + sel + ">" + catIcon + escapeHtml(loc.name || "Untitled") + catLabel + "</option>";
+        if (scope === "book" && !linkedBookId) {
+          html += "<option value='book:0' selected>Unassigned</option>";
+        }
+        var allProjects = getSkProjectsForSeries();
+        allProjects.forEach(function (p) {
+          var pid = Number(p.project_id || p.id || 0);
+          var ptitle = String(p.title || "Untitled").trim();
+          if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
         });
         html += "</select></div>";
-      }
-      if (entityTypeKey === "character") {
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Motivation / Arc</label>";
         html += "<select id='codexDetailMotivation' class='codex-detail-field-select'>";
@@ -6693,19 +6896,68 @@
           html += "<option value='" + escapeHtml(opt) + "'" + titleAttr + (opt === currentMotivation ? " selected" : "") + ">" + escapeHtml(opt) + "</option>";
         });
         html += "</select></div>";
+        html += "</div>"; // col narrative
+        // Right column: Identity
+        html += "<div class='codex-char-col codex-char-identity'>";
+        html += "<div class='codex-char-col-title'>Identity</div>";
+        html += "<div id='codexCharIdentityFields'>";
+        html += "<div class='tiny' style='color:var(--muted);'>Loading identity fields...</div>";
+        html += "</div>";
+        html += "</div>"; // col identity
+        html += "</div>"; // grid
+      } else {
+        // Non-character: Scope and Location fields in normal layout
+        html += "<div class='codex-detail-field-wrap'>";
+        html += "<label class='codex-detail-field-label'>Scope</label>";
+        html += "<select id='codexDetailScope' class='codex-detail-field-select'>";
+        html += "<option value='series'" + (scope === "series" ? " selected" : "") + ">All books in series</option>";
+        html += "<option value='wiki'" + (scope === "wiki" ? " selected" : "") + ">Wiki / Reference</option>";
+        var entityId = Number(entity.id || 0);
+        var linkedBookId = 0;
+        if (entityId && codexCache.entityDetails && codexCache.entityDetails[entityId]) {
+          var links = codexCache.entityDetails[entityId].projectLinks || [];
+          if (links.length) {
+            scope = "book";
+            linkedBookId = Number(links[0].project_id || 0);
+          }
+        }
+        if (scope === "book" && !linkedBookId) {
+          html += "<option value='book:0' selected>Unassigned</option>";
+        }
+        var allProjects = getSkProjectsForSeries();
+        allProjects.forEach(function (p) {
+          var pid = Number(p.project_id || p.id || 0);
+          var ptitle = String(p.title || "Untitled").trim();
+          if (pid) html += "<option value='book:" + pid + "'" + (scope === "book" && pid === linkedBookId ? " selected" : "") + ">" + escapeHtml(ptitle) + "</option>";
+        });
+        html += "</select></div>";
+        if (entityTypeKey === "location") {
+          // Enhanced parent location picker with category badges
+          var currentParentId = entity.parent_location_id || "";
+          html += "<div class='codex-detail-field-wrap'>";
+          html += "<label class='codex-detail-field-label'>Parent Location</label>";
+          html += "<select id='codexDetailParentLocation' class='codex-detail-field-select'>";
+          html += "<option value=''>None (top-level)</option>";
+          var allLocations = skCurrentSeriesId ? (codexCache.entitiesBySeries[skCurrentSeriesId] || []).filter(function (e) {
+            return (e.codex_entity_types || {}).key === "location" && Number(e.id) !== Number(entity.id);
+          }) : [];
+          // Exclude descendants to prevent cycles
+          if (entity.id && skCurrentSeriesId) {
+            var descendantIds = typeof getLocationDescendantIds === "function" ? getLocationDescendantIds(entity.id, skCurrentSeriesId) : [];
+            allLocations = allLocations.filter(function (loc) { return descendantIds.indexOf(Number(loc.id)) === -1; });
+          }
+          allLocations.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+          allLocations.forEach(function (loc) {
+            var locCat = (typeof getLocationCategory === "function") ? getLocationCategory(loc) : null;
+            var catIcon = locCat ? (locCat.icon || "") + " " : "";
+            var catLabel = locCat ? " · " + locCat.name : "";
+            var sel = String(loc.id) === String(currentParentId) ? " selected" : "";
+            html += "<option value='" + loc.id + "'" + sel + ">" + catIcon + escapeHtml(loc.name || "Untitled") + catLabel + "</option>";
+          });
+          html += "</select></div>";
+        }
       }
       html += "</div>"; // field-group
-      // Classifications display for characters/creatures
-      if (entityTypeKey === "character" || entityTypeKey === "creature") {
-        var classFields = ["species", "culture", "family", "profession", "background", "organisation", "progression_system"];
-        var classLabels = { species: "Species", culture: "Culture", family: "Family / House", profession: "Profession", background: "Background", organisation: "Organisation", progression_system: "System" };
-        var classHtml = "";
-        // Check entity_link field values for classifications
-        // These are loaded asynchronously, so we'll render a placeholder and fill it
-        html += "<div id='codexClassificationsDisplay' style='margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;'>";
-        html += "<div class='tiny' style='color:var(--muted);'>Loading classifications...</div>";
-        html += "</div>";
-      }
       html += "</div>"; // header-meta
       html += "</div>"; // header
 
@@ -6894,6 +7146,10 @@
       // Wire Base Stats section for species entities
       if (entityTypeKey === "species" && entity.id) {
         loadSpeciesBaseStatsDetail(skCurrentSeriesId, Number(entity.id));
+      }
+      // Load identity fields for characters (Species, Age, Gender)
+      if (entityTypeKey === "character" && entity.id && skCurrentSeriesId) {
+        loadCharacterIdentityFields(skCurrentSeriesId, Number(entity.id));
       }
       // Wire relationship panel for all entity types
       if (skCurrentSeriesId && entity.id) {
