@@ -5169,6 +5169,9 @@
       if (item.entityTypeKey === "location") {
         var cat = (typeof getLocationCategory === "function") ? getLocationCategory(entity) : null;
         if (cat) pillHtml += "<span class='loc-cat-badge' style='background:" + (cat.color || "#64748b") + "20;color:" + (cat.color || "#64748b") + ";'>" + (cat.icon || "") + " " + escapeHtml(cat.name) + "</span>";
+      } else if (item.entityTypeKey === "character") {
+        // Show Archetype instead of Role (Role is already used for tree grouping)
+        if (archetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
       } else {
         if (roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(roleArchetype) + "'>" + escapeHtml(roleArchetype) + "</span>";
         if (archetype && archetype !== roleArchetype) pillHtml += "<span class='sk-entity-role-badge " + "badge-color-" + badgeColorIndex(archetype) + "'>" + escapeHtml(archetype) + "</span>";
