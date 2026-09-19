@@ -6243,7 +6243,10 @@
         el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
           var title = entry.querySelector(".writing-codex-entry-title");
           var body = entry.querySelector(".writing-codex-entry-body");
-          var match = (title && title.textContent.toLowerCase().indexOf(q) !== -1) || (body && body.textContent.toLowerCase().indexOf(q) !== -1);
+          var badges = entry.querySelector(".writing-codex-entry-badges");
+          var match = (title && title.textContent.toLowerCase().indexOf(q) !== -1)
+            || (body && body.textContent.toLowerCase().indexOf(q) !== -1)
+            || (badges && badges.textContent.toLowerCase().indexOf(q) !== -1);
           entry.setAttribute("data-search-match", match ? "1" : "0");
           entry.style.display = "none";
         });
