@@ -6266,6 +6266,11 @@
           var hasVisible = g.querySelector('.codex-entity-entry:not([style*="display: none"])');
           g.hidden = !hasVisible;
         });
+        // Hide category headings with no visible type groups
+        el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
+          var hasVisibleType = cat.querySelector('.codex-type-group:not([hidden])');
+          cat.style.display = hasVisibleType ? "" : "none";
+        });
       });
       if (clearBtn) {
         clearBtn.addEventListener("click", function () {
@@ -6280,6 +6285,9 @@
           });
           el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
             g.hidden = false;
+          });
+          el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
+            cat.style.display = "";
           });
         });
       }
