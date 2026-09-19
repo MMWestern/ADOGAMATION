@@ -5443,6 +5443,12 @@
         optionsHtml += "<div class='writing-codex-new-entry-category'>" + escapeHtml(cat.category) + "</div>";
         validItems.forEach(function (item) {
           var subTypes = item.subTypes || [];
+          // For locations, use LOCATION_CATEGORIES instead of preset subTypes
+          if (item.entityTypeKey === "location" && typeof LOCATION_CATEGORIES !== "undefined") {
+            subTypes = LOCATION_CATEGORIES.map(function (cat) {
+              return { label: cat.name, icon: cat.icon, color: cat.color };
+            });
+          }
           if (subTypes.length) {
             optionsHtml += "<div class='writing-codex-new-entry-group'>";
             optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-parent' data-new-type='" + item.key + "' type='button'>";
@@ -5453,8 +5459,10 @@
             subTypes.forEach(function (st) {
               var stLabel = typeof st === 'string' ? st : (st.label || st.key || st.name || "");
               var stValue = typeof st === 'string' ? st : (st.label || st.key || st.name || "");
+              var stIcon = (typeof st === 'object' && st.icon) ? st.icon : "";
               var stChildren = (typeof st === 'object' && Array.isArray(st.subTypes)) ? st.subTypes : [];
               if (!stLabel) return;
+              var stDisplay = stIcon ? stIcon + " " + escapeHtml(stLabel) : escapeHtml(stLabel);
 
               if (stChildren.length > 0) {
                 // This sub-type has children - render as expandable parent
@@ -5499,7 +5507,7 @@
               } else {
                 // Leaf sub-type
                 optionsHtml += "<button class='writing-codex-new-entry-option writing-codex-new-entry-child' data-new-type='" + item.key + "' data-sub-type='" + escapeHtml(stValue) + "' type='button'>";
-                optionsHtml += "<span>" + escapeHtml(stLabel) + "</span>";
+                optionsHtml += "<span>" + stDisplay + "</span>";
                 optionsHtml += "</button>";
               }
             });
