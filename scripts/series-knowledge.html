@@ -1174,6 +1174,8 @@
         var speciesDef = identityDefs["species"];
         var speciesVal = valueByKey["species"];
         var speciesLinkedId = speciesVal && speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
+        // Get species breadcrumb path
+        var speciesBreadcrumb = (speciesLinkedId && typeof getSpeciesBreadcrumb === "function") ? getSpeciesBreadcrumb(seriesId, entityId) : "";
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Species</label>";
         if (speciesDef) {
@@ -1188,6 +1190,9 @@
             html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
           });
           html += "</select>";
+          if (speciesBreadcrumb) {
+            html += "<div class='tiny' style='color:var(--muted);margin-top:2px;font-size:10px;'>" + escapeHtml(speciesBreadcrumb) + "</div>";
+          }
         } else {
           html += "<div class='tiny' style='color:var(--muted);'>No species field definition.</div>";
         }
@@ -4890,6 +4895,36 @@
         return speciesEntity ? (speciesEntity.name || "") : "";
       }
       return speciesVal.value_text || "";
+    }
+
+    function getSpeciesBreadcrumb(seriesId, entityId) {
+      var cache = _charFieldValuesCache[seriesId];
+      if (!cache) return "";
+      var vals = cache[Number(entityId)];
+      if (!vals || !vals.species) return "";
+      var speciesVal = vals.species;
+      var linkedId = speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
+      if (!linkedId || typeof codexCache === "undefined" || !codexCache.entitiesBySeries || !codexCache.entitiesBySeries[seriesId]) return "";
+      var speciesEntity = codexCache.entitiesBySeries[seriesId].find(function (e) { return Number(e.id) === linkedId; });
+      if (!speciesEntity) return "";
+      // Get species sub_type and match against tree definition to get full path
+      var speciesSubType = speciesEntity.custom_data && speciesEntity.custom_data.sub_type ? speciesEntity.custom_data.sub_type : "";
+      if (!speciesSubType) return "";
+      // Find species tree definition
+      var treeDef = typeof getCodexTreeDef === "function" && seriesId ? getCodexTreeDef(seriesId) : (typeof CODEX_TREE_DEF !== "undefined" ? CODEX_TREE_DEF : []);
+      var speciesTreeItem = null;
+      treeDef.forEach(function (cat) {
+        (cat.items || []).forEach(function (item) {
+          if (item.entityTypeKey === "species") speciesTreeItem = item;
+        });
+      });
+      if (!speciesTreeItem || !speciesTreeItem.subTypes) return "";
+      // Match against tree to get full path
+      if (typeof codexV2MatchEntityToSubType === "function") {
+        var fullPath = codexV2MatchEntityToSubType(speciesEntity, speciesTreeItem.subTypes);
+        return fullPath || speciesSubType;
+      }
+      return speciesSubType;
     }
     var _codexCurrentTreeDef = null;    // active tree_definition for current series
 
