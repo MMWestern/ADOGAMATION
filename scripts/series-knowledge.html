@@ -5212,6 +5212,9 @@
 
     function renderCodexTree(seriesId) {
       if (!el.codexTreeContainer) return;
+      // Preserve scroll position across re-renders
+      var scrollTop = el.codexTreeContainer.scrollTop || 0;
+      var activeId = _codexActiveEntityId || 0;
       var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
       var currentProject = getSelectedProject();
       var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
@@ -5367,6 +5370,15 @@
         wireCodexTreeSearch_();
         wireCodexSidebarControls_();
         window._codexSidebarWired = true;
+      }
+      // Restore scroll position and active state
+      if (scrollTop) el.codexTreeContainer.scrollTop = scrollTop;
+      if (activeId) {
+        var activeEntry = el.codexTreeContainer.querySelector('[data-entity-id="' + activeId + '"]');
+        if (activeEntry) {
+          activeEntry.classList.add("is-active");
+          activeEntry.scrollIntoView({ block: "nearest" });
+        }
       }
     }
 
