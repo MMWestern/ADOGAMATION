@@ -1118,19 +1118,23 @@
             .listCodexEntityState(seriesId, entityId);
     }
 
+    // Module-level cache for character identity field definitions/values
+    var _charIdentityDefs = null;
+    var _charIdentityValues = null;
+
     function loadCharacterIdentityFields(seriesId, entityId) {
       var container = document.getElementById("codexCharIdentityFields");
       if (!container) return;
 
       // Load field definitions and values in parallel
       Promise.all([
-        new Promise(function (resolve, reject) {
+        new Promise(function (resolve) {
           supabaseRunner
             .withSuccessHandler(function (json) { resolve(JSON.parse(json)); })
             .withFailureHandler(function () { resolve({ ok: true, definitions: [] }); })
             .listCodexEntityFieldDefinitions("character");
         }),
-        new Promise(function (resolve, reject) {
+        new Promise(function (resolve) {
           supabaseRunner
             .withSuccessHandler(function (json) { resolve(JSON.parse(json)); })
             .withFailureHandler(function () { resolve({ ok: true, values: [] }); })
@@ -1142,15 +1146,17 @@
         var definitions = defResult.definitions || [];
         var values = valResult.values || [];
 
+        // Cache for save logic
+        _charIdentityDefs = definitions;
+        _charIdentityValues = values;
+
         // Build value lookup by field_key
         var valueByKey = {};
-        var valueMap = {};
         values.forEach(function (v) {
           valueByKey[v.field_key || ""] = v;
-          valueMap[v.field_definition_id] = v;
         });
 
-        // Find or create species/age/gender definitions
+        // Find identity field definitions
         var identityFields = ["species", "age", "gender"];
         var identityDefs = {};
         definitions.forEach(function (def) {
@@ -1172,7 +1178,7 @@
           var speciesEntities = entities.filter(function (e) {
             return (e.codex_entity_types || {}).key === "species";
           });
-          html += "<select id='codexCharSpecies' class='codex-detail-field-select' data-def-id='" + speciesDef.id + "' data-value-id='" + (speciesVal ? speciesVal.id : 0) + "'>";
+          html += "<select id='codexCharSpecies' class='codex-detail-field-select' data-def-id='" + speciesDef.id + "' data-value-id='" + (speciesVal ? speciesVal.id : 0) + "' data-field-key='species'>";
           html += "<option value=''>Select species...</option>";
           speciesEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
           speciesEntities.forEach(function (e) {
@@ -1181,7 +1187,7 @@
           });
           html += "</select>";
         } else {
-          html += "<div class='tiny' style='color:var(--muted);'>No species field definition found. Creating...</div>";
+          html += "<div class='tiny' style='color:var(--muted);'>No species field definition.</div>";
         }
         html += "</div>";
 
@@ -1192,9 +1198,9 @@
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Age</label>";
         if (ageDef) {
-          html += "<input id='codexCharAge' type='text' class='codex-detail-field-input' data-def-id='" + ageDef.id + "' data-value-id='" + (ageVal ? ageVal.id : 0) + "' value='" + escapeHtml(ageValue) + "' placeholder='e.g. 25, Ancient, Unknown' />";
+          html += "<input id='codexCharAge' type='text' class='codex-detail-field-input' data-def-id='" + ageDef.id + "' data-value-id='" + (ageVal ? ageVal.id : 0) + "' data-field-key='age' value='" + escapeHtml(ageValue) + "' placeholder='e.g. 25, Ancient, Unknown' />";
         } else {
-          html += "<div class='tiny' style='color:var(--muted);'>No age field definition found.</div>";
+          html += "<div class='tiny' style='color:var(--muted);'>No age field definition.</div>";
         }
         html += "</div>";
 
@@ -1205,142 +1211,59 @@
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Gender</label>";
         if (genderDef) {
-          html += "<input id='codexCharGender' type='text' class='codex-detail-field-input' data-def-id='" + genderDef.id + "' data-value-id='" + (genderVal ? genderVal.id : 0) + "' value='" + escapeHtml(genderValue) + "' placeholder='e.g. Male, Female, Non-binary' />";
+          html += "<input id='codexCharGender' type='text' class='codex-detail-field-input' data-def-id='" + genderDef.id + "' data-value-id='" + (genderVal ? genderVal.id : 0) + "' data-field-key='gender' value='" + escapeHtml(genderValue) + "' placeholder='e.g. Male, Female, Non-binary' />";
         } else {
-          html += "<div class='tiny' style='color:var(--muted);'>No gender field definition found.</div>";
+          html += "<div class='tiny' style='color:var(--muted);'>No gender field definition.</div>";
         }
-        html += "</div>";
-
-        // Save button for identity fields
-        html += "<div style='margin-top:8px;'>";
-        html += "<button id='codexCharIdentitySaveBtn' type='button' style='font-size:11px;padding:4px 10px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>Save Identity</button>";
         html += "</div>";
 
         container.innerHTML = html;
-
-        // Wire save button
-        var saveBtn = document.getElementById("codexCharIdentitySaveBtn");
-        if (saveBtn) {
-          saveBtn.addEventListener("click", function () {
-            saveCharacterIdentityFields(seriesId, entityId);
-          });
-        }
-
-        // If species definition doesn't exist, create it
-        if (!speciesDef) {
-          createSpeciesFieldDefinition(seriesId, entityId);
-        }
       }).catch(function (err) {
         console.error("[Identity] Error loading identity fields:", err);
         container.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading identity fields.</div>";
       });
     }
 
-    function createSpeciesFieldDefinition(seriesId, entityId) {
-      var payload = {
-        entity_type_key: "character",
-        field_key: "species",
-        label: "Species",
-        field_type: "entity_link",
-        group_name: "Identity",
-        sort_order: 5,
-        help_text: "Character species or race",
-        options_json: { entity_type_key: "species" }
-      };
-      supabaseRunner
-        .withSuccessHandler(function () {
-          console.log("[Identity] Species field definition created");
-          // Reload identity fields
-          loadCharacterIdentityFields(seriesId, entityId);
-        })
-        .withFailureHandler(function (err) {
-          console.error("[Identity] Failed to create species field definition:", err);
-        })
-        .saveCodexEntityFieldDefinition(JSON.stringify(payload));
-    }
-
     function saveCharacterIdentityFields(seriesId, entityId) {
-      var saveBtn = document.getElementById("codexCharIdentitySaveBtn");
-      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
-
+      if (!_charIdentityDefs) return Promise.resolve();
       var promises = [];
-
-      // Species (entity_link)
-      var speciesSelect = document.getElementById("codexCharSpecies");
-      if (speciesSelect && speciesSelect.getAttribute("data-def-id")) {
-        var linkedId = speciesSelect.value ? Number(speciesSelect.value) : null;
-        var speciesName = linkedId && speciesSelect.selectedIndex >= 0 ? speciesSelect.options[speciesSelect.selectedIndex].textContent : null;
-        var speciesValueId = Number(speciesSelect.getAttribute("data-value-id") || 0);
-        var speciesPayload = {
+      var fields = [
+        { id: "codexCharSpecies", type: "entity_link" },
+        { id: "codexCharAge", type: "text" },
+        { id: "codexCharGender", type: "text" }
+      ];
+      fields.forEach(function (field) {
+        var el = document.getElementById(field.id);
+        if (!el || !el.getAttribute("data-def-id")) return;
+        var defId = Number(el.getAttribute("data-def-id"));
+        var valueId = Number(el.getAttribute("data-value-id") || 0);
+        var payload = {
           entity_id: entityId,
-          field_definition_id: Number(speciesSelect.getAttribute("data-def-id")),
-          linked_entity_id: linkedId,
-          value_text: speciesName,
-          value_number: null,
-          value_boolean: null,
-          value_json: null,
-          canon_status: "draft"
-        };
-        if (speciesValueId) speciesPayload.id = speciesValueId;
-        promises.push(new Promise(function (resolve) {
-          supabaseRunner
-            .withSuccessHandler(function () { resolve(true); })
-            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save species:", err); resolve(false); })
-            .saveCodexEntityFieldValue(JSON.stringify(speciesPayload));
-        }));
-      }
-
-      // Age (text)
-      var ageInput = document.getElementById("codexCharAge");
-      if (ageInput && ageInput.getAttribute("data-def-id")) {
-        var ageValueId = Number(ageInput.getAttribute("data-value-id") || 0);
-        var agePayload = {
-          entity_id: entityId,
-          field_definition_id: Number(ageInput.getAttribute("data-def-id")),
-          value_text: ageInput.value || null,
+          field_definition_id: defId,
+          value_text: null,
           value_number: null,
           value_boolean: null,
           value_json: null,
           linked_entity_id: null,
           canon_status: "draft"
         };
-        if (ageValueId) agePayload.id = ageValueId;
+        if (field.type === "entity_link") {
+          var linkedId = el.value ? Number(el.value) : null;
+          var linkedName = linkedId && el.selectedIndex >= 0 ? el.options[el.selectedIndex].textContent : null;
+          payload.linked_entity_id = linkedId;
+          payload.value_text = linkedName;
+        } else {
+          payload.value_text = el.value || null;
+        }
+        if (valueId) payload.id = valueId;
         promises.push(new Promise(function (resolve) {
           supabaseRunner
             .withSuccessHandler(function () { resolve(true); })
-            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save age:", err); resolve(false); })
-            .saveCodexEntityFieldValue(JSON.stringify(agePayload));
+            .withFailureHandler(function () { resolve(false); })
+            .saveCodexEntityFieldValue(JSON.stringify(payload));
         }));
-      }
-
-      // Gender (text)
-      var genderInput = document.getElementById("codexCharGender");
-      if (genderInput && genderInput.getAttribute("data-def-id")) {
-        var genderValueId = Number(genderInput.getAttribute("data-value-id") || 0);
-        var genderPayload = {
-          entity_id: entityId,
-          field_definition_id: Number(genderInput.getAttribute("data-def-id")),
-          value_text: genderInput.value || null,
-          value_number: null,
-          value_boolean: null,
-          value_json: null,
-          linked_entity_id: null,
-          canon_status: "draft"
-        };
-        if (genderValueId) genderPayload.id = genderValueId;
-        promises.push(new Promise(function (resolve) {
-          supabaseRunner
-            .withSuccessHandler(function () { resolve(true); })
-            .withFailureHandler(function (err) { console.warn("[Identity] Failed to save gender:", err); resolve(false); })
-            .saveCodexEntityFieldValue(JSON.stringify(genderPayload));
-        }));
-      }
-
-      Promise.all(promises).then(function (results) {
-        var successCount = results.filter(function (r) { return r; }).length;
-        if (saveBtn) { saveBtn.textContent = "Saved (" + successCount + ")"; saveBtn.disabled = false; }
-        setTimeout(function () { if (saveBtn) saveBtn.textContent = "Save Identity"; }, 2000);
       });
+      return promises.length ? Promise.all(promises) : Promise.resolve();
     }
 
     function loadSpeciesBaseStatsDetail(seriesId, entityId) {
@@ -7318,6 +7241,10 @@
           var entity = codexCache.entitiesBySeries[skCurrentSeriesId] ? codexCache.entitiesBySeries[skCurrentSeriesId].find(function (e) { return Number(e.id) === _codexActiveEntityId; }) : null;
           if (entity) entityTypeKey = (entity.codex_entity_types || {}).key || entity.entity_type_key || "";
           loadCodexFieldDefinitions(skCurrentSeriesId, _codexActiveEntityId, entityTypeKey);
+          // Also refresh identity fields in header
+          if (entityTypeKey === "character") {
+            loadCharacterIdentityFields(skCurrentSeriesId, _codexActiveEntityId);
+          }
         }
         // Master Codex v2.1.1: Load progression sheet when Sheet tab is selected
         if (section === "sheet" && _codexActiveEntityId && skCurrentSeriesId) {
@@ -7776,7 +7703,10 @@
                 }
               }
               // Parent location is now saved with the entity payload (parent_location_id)
-              return Promise.resolve();
+              // Save identity fields for characters (Species, Age, Gender)
+              if (entityTypeKey === "character" && savedId) {
+                return saveCharacterIdentityFields(seriesId, savedId);
+              }
               return Promise.resolve();
             })
             .then(function () {
