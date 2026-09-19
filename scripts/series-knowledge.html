@@ -6245,16 +6245,19 @@
           var body = entry.querySelector(".writing-codex-entry-body");
           var match = (title && title.textContent.toLowerCase().indexOf(q) !== -1) || (body && body.textContent.toLowerCase().indexOf(q) !== -1);
           entry.setAttribute("data-search-match", match ? "1" : "0");
+          entry.setAttribute("data-search-hidden", "0");
         });
         // Second pass: for location tree, show parents of matching children
         el.codexTreeContainer.querySelectorAll(".loc-children-wrap").forEach(function (wrap) {
           var hasMatch = wrap.querySelector('[data-search-match="1"]');
           wrap.style.display = hasMatch ? "" : "none";
-          // Mark parent entry as visible if its children wrap has a match
           if (hasMatch) {
             var parentId = wrap.getAttribute("data-parent-id");
             var parentEntry = el.codexTreeContainer.querySelector('.codex-entity-entry[data-entity-id="' + parentId + '"]');
-            if (parentEntry) parentEntry.style.display = "";
+            if (parentEntry) {
+              parentEntry.style.display = "";
+              parentEntry.setAttribute("data-search-hidden", "0");
+            }
           }
         });
         // Show/hide entries: direct match or location parent with matching child
@@ -6262,22 +6265,23 @@
           var isMatch = entry.getAttribute("data-search-match") === "1";
           if (isMatch) {
             entry.style.display = "";
+            entry.setAttribute("data-search-hidden", "0");
           } else if (entry.classList.contains("codex-location-nested")) {
-            // Location: check if this entry's children wrap has a match
             var eid = entry.getAttribute("data-entity-id");
             var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + eid + '"]');
-            entry.style.display = (wrap && wrap.querySelector('[data-search-match="1"]')) ? "" : "none";
+            var visible = wrap && wrap.querySelector('[data-search-match="1"]');
+            entry.style.display = visible ? "" : "none";
+            entry.setAttribute("data-search-hidden", visible ? "0" : "1");
           } else {
             entry.style.display = "none";
+            entry.setAttribute("data-search-hidden", "1");
           }
         });
-        // Show type groups that have at least one direct match
+        // Show type groups that have at least one visible (non-hidden) entry
         el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
-          var hasDirectMatch = g.querySelector('.codex-entity-entry[data-search-match="1"]');
-          var hasLocationParent = g.querySelector('.codex-location-nested:not([style*="display: none"])');
-          var isVisible = hasDirectMatch || hasLocationParent;
-          g.hidden = !isVisible;
-          if (isVisible) {
+          var hasVisible = g.querySelector('.codex-entity-entry[data-search-hidden="0"]');
+          g.hidden = !hasVisible;
+          if (hasVisible) {
             var list = g.querySelector(".writing-codex-group-list");
             if (list) list.hidden = false;
             var chevron = g.querySelector(".writing-codex-group-chevron");
@@ -6304,6 +6308,7 @@
           el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
             entry.style.display = "";
             entry.removeAttribute("data-search-match");
+            entry.removeAttribute("data-search-hidden");
           });
           el.codexTreeContainer.querySelectorAll(".loc-children-wrap").forEach(function (wrap) {
             wrap.style.display = "";
