@@ -1150,14 +1150,12 @@
         _charIdentityDefs = definitions;
         _charIdentityValues = values;
 
-        // DEBUG: Log field definitions and values
-        console.log("[Identity] Field definitions:", definitions.map(function(d) { return d.field_key + " (" + d.field_type + ", id:" + d.id + ")"; }));
-        console.log("[Identity] Field values:", values.map(function(v) { return (v.field_key || "unknown") + "=" + (v.value_text || v.linked_entity_id || "null") + " (def_id:" + v.field_definition_id + ")"; }));
-
-        // Build value lookup by field_key
+        // Build value lookup by field_key (field_key is in the joined codex_entity_field_definitions)
         var valueByKey = {};
         values.forEach(function (v) {
-          valueByKey[v.field_key || ""] = v;
+          var def = v.codex_entity_field_definitions || {};
+          var fKey = def.field_key || v.field_key || "";
+          if (fKey) valueByKey[fKey] = v;
         });
 
         // Find identity field definitions
@@ -1176,9 +1174,6 @@
         var speciesDef = identityDefs["species"];
         var speciesVal = valueByKey["species"];
         var speciesLinkedId = speciesVal && speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
-        console.log("[Identity] speciesDef:", speciesDef ? "found (id:" + speciesDef.id + ")" : "NOT FOUND");
-        console.log("[Identity] speciesVal:", speciesVal ? "found (linked:" + speciesLinkedId + ")" : "NOT FOUND");
-        console.log("[Identity] identityDefs keys:", Object.keys(identityDefs));
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Species</label>";
         if (speciesDef) {
