@@ -4896,7 +4896,7 @@
       return path;
     }
 
-    function renderLocationTreeEntry(entity, item, depth, parentMap, allLocationIds) {
+    function renderLocationTreeEntry(entity, item, depth, parentMap, allLocationIds, childCount) {
       var name = entity.name || "Unnamed";
       var desc = entity.summary || entity.description || "";
       var imgUrl = entity.image_url || "";
@@ -4910,12 +4910,13 @@
         : "<div class='writing-codex-entry-avatar'><span style='font-size:14px;'>" + catIcon + "</span></div>";
       var indentPx = depth > 0 ? depth * 16 : 0;
       var styleAttr = indentPx ? " style='margin-left:" + indentPx + "px;width:calc(100% - " + indentPx + "px);'" : "";
+      var collapsePill = childCount > 0 ? "<button type='button' class='loc-collapse-pill' data-entity-id='" + entity.id + "' title='Toggle children'>" + childCount + " \u25BC</button>" : "";
       var entryHtml = "<button type='button' class='writing-codex-entry codex-entity-entry codex-location-nested' data-entity-id='" + entity.id + "' data-entity-type='" + item.entityTypeKey + "' data-scope='" + escapeHtml(scope) + "' data-depth='" + depth + "'" + styleAttr + ">";
       entryHtml += thumbHtml;
       entryHtml += "<div class='writing-codex-entry-content'>";
       entryHtml += "<div class='writing-codex-entry-top'>";
       entryHtml += "<div class='writing-codex-entry-title' style='" + (color ? "color:" + color + ";" : "") + "'>" + escapeHtml(name) + "</div>";
-      if (catBadge) entryHtml += "<div class='writing-codex-entry-badges'>" + catBadge + "</div>";
+      entryHtml += "<div class='writing-codex-entry-badges'>" + collapsePill + catBadge + "</div>";
       entryHtml += "</div>";
       if (desc) entryHtml += "<div class='writing-codex-entry-body'>" + escapeHtml(desc.substring(0, 120)) + "</div>";
       entryHtml += "</div>";
@@ -4927,6 +4928,14 @@
       var html = "";
       var entityMap = {};
       entities.forEach(function (e) { entityMap[e.id] = e; });
+      // Pre-compute child counts
+      var childCounts = {};
+      entities.forEach(function (e) {
+        var pid = parentMap[e.id];
+        if (pid && entityMap[pid]) {
+          childCounts[pid] = (childCounts[pid] || 0) + 1;
+        }
+      });
       // Find root locations (no parent or parent not in this filtered set)
       var roots = entities.filter(function (e) {
         var parentId = parentMap[e.id];
@@ -4937,11 +4946,16 @@
         if (depth > 10) return "";
         if (visited[entity.id]) return "";
         visited[entity.id] = true;
-        var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap));
+        var count = childCounts[entity.id] || 0;
+        var result = renderLocationTreeEntry(entity, item, depth, parentMap, Object.keys(entityMap), count);
         var children = entities.filter(function (e) { return parentMap[e.id] === entity.id; });
-        children.forEach(function (child) {
-          result += renderEntityAndChildren(child, depth + 1, visited);
-        });
+        if (children.length) {
+          result += "<div class='loc-children-wrap' data-parent-id='" + entity.id + "'>";
+          children.forEach(function (child) {
+            result += renderEntityAndChildren(child, depth + 1, visited);
+          });
+          result += "</div>";
+        }
         return result;
       }
       roots.forEach(function (entity) {
@@ -5365,6 +5379,19 @@
 
       // Rebuild New Entry dropdown from preset
       rebuildNewEntryDropdown(seriesId, el.codexNewEntry, el.codexNewEntryDropdown);
+
+      // Wire location collapse/expand pills
+      el.codexTreeContainer.querySelectorAll(".loc-collapse-pill").forEach(function (pill) {
+        pill.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var parentId = pill.getAttribute("data-entity-id");
+          var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + parentId + '"]');
+          if (!wrap) return;
+          var isHidden = wrap.style.display === "none";
+          wrap.style.display = isHidden ? "" : "none";
+          pill.textContent = (pill.textContent.replace(/[\u25BC\u25B2]/, isHidden ? "\u25BC" : "\u25B2"));
+        });
+      });
 
       if (!window._codexSidebarWired) {
         wireCodexTreeSearch_();
