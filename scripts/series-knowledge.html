@@ -6239,48 +6239,44 @@
           });
           return;
         }
-        // First pass: mark matching entries
+        // First pass: hide ALL entries, mark matches
         el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
           var title = entry.querySelector(".writing-codex-entry-title");
           var body = entry.querySelector(".writing-codex-entry-body");
           var match = (title && title.textContent.toLowerCase().indexOf(q) !== -1) || (body && body.textContent.toLowerCase().indexOf(q) !== -1);
           entry.setAttribute("data-search-match", match ? "1" : "0");
-          entry.setAttribute("data-search-hidden", "0");
+          entry.style.display = "none";
         });
-        // Second pass: for location tree, show parents of matching children
+        // Show matching entries
+        el.codexTreeContainer.querySelectorAll('.codex-entity-entry[data-search-match="1"]').forEach(function (entry) {
+          entry.style.display = "";
+          // Walk up location tree to show parent entries
+          var parentId = entry.getAttribute("data-entity-id");
+          // Check if this entry is inside a loc-children-wrap
+          var wrap = entry.closest(".loc-children-wrap");
+          while (wrap) {
+            wrap.style.display = "";
+            var pId = wrap.getAttribute("data-parent-id");
+            var parentEntry = el.codexTreeContainer.querySelector('.codex-entity-entry[data-entity-id="' + pId + '"]');
+            if (parentEntry) parentEntry.style.display = "";
+            wrap = parentEntry ? parentEntry.closest(".loc-children-wrap") : null;
+          }
+        });
+        // Show loc-children-wraps that have visible entries
         el.codexTreeContainer.querySelectorAll(".loc-children-wrap").forEach(function (wrap) {
-          var hasMatch = wrap.querySelector('[data-search-match="1"]');
-          wrap.style.display = hasMatch ? "" : "none";
-          if (hasMatch) {
-            var parentId = wrap.getAttribute("data-parent-id");
-            var parentEntry = el.codexTreeContainer.querySelector('.codex-entity-entry[data-entity-id="' + parentId + '"]');
-            if (parentEntry) {
-              parentEntry.style.display = "";
-              parentEntry.setAttribute("data-search-hidden", "0");
-            }
-          }
+          var hasVisible = wrap.querySelector('.codex-entity-entry:not([style*="display: none"])');
+          if (!hasVisible) hasVisible = wrap.querySelector('.codex-entity-entry[style=""]');
+          wrap.style.display = hasVisible ? "" : "none";
         });
-        // Show/hide entries: direct match or location parent with matching child
-        el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
-          var isMatch = entry.getAttribute("data-search-match") === "1";
-          if (isMatch) {
-            entry.style.display = "";
-            entry.setAttribute("data-search-hidden", "0");
-          } else if (entry.classList.contains("codex-location-nested")) {
-            var eid = entry.getAttribute("data-entity-id");
-            var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + eid + '"]');
-            var visible = wrap && wrap.querySelector('[data-search-match="1"]');
-            entry.style.display = visible ? "" : "none";
-            entry.setAttribute("data-search-hidden", visible ? "0" : "1");
-          } else {
-            entry.style.display = "none";
-            entry.setAttribute("data-search-hidden", "1");
-          }
+        // Hide sub-type groups with no visible entries
+        el.codexTreeContainer.querySelectorAll(".codex-subtype-group").forEach(function (sg) {
+          var hasVisible = sg.querySelector('.codex-entity-entry[style=""]');
+          sg.style.display = hasVisible ? "" : "none";
         });
-        // Show type groups that have at least one visible (non-hidden) entry
+        // Hide type groups with no visible entries
         el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
-          var hasVisible = g.querySelector('.codex-entity-entry[data-search-hidden="0"]');
-          g.hidden = !hasVisible;
+          var hasVisible = g.querySelector('.codex-entity-entry[style=""]');
+          g.style.display = hasVisible ? "" : "none";
           if (hasVisible) {
             var list = g.querySelector(".writing-codex-group-list");
             if (list) list.hidden = false;
@@ -6288,9 +6284,9 @@
             if (chevron) chevron.textContent = "\u25BC";
           }
         });
-        // Show categories that have visible type groups
+        // Hide categories with no visible type groups
         el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-          var hasVisibleType = cat.querySelector('.codex-type-group:not([hidden])');
+          var hasVisibleType = cat.querySelector('.codex-type-group:not([style*="display: none"])');
           cat.style.display = hasVisibleType ? "" : "none";
           if (hasVisibleType) {
             var catList = cat.querySelector(".codex-tree-category-children");
@@ -6308,13 +6304,15 @@
           el.codexTreeContainer.querySelectorAll(".codex-entity-entry").forEach(function (entry) {
             entry.style.display = "";
             entry.removeAttribute("data-search-match");
-            entry.removeAttribute("data-search-hidden");
           });
           el.codexTreeContainer.querySelectorAll(".loc-children-wrap").forEach(function (wrap) {
             wrap.style.display = "";
           });
+          el.codexTreeContainer.querySelectorAll(".codex-subtype-group").forEach(function (sg) {
+            sg.style.display = "";
+          });
           el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
-            g.hidden = false;
+            g.style.display = "";
           });
           el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
             cat.style.display = "";
