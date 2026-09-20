@@ -5741,26 +5741,28 @@
           activeEntry.scrollIntoView({ block: "nearest" });
         }
       }
-      // Restore collapse state by simulating clicks on collapsed groups
+      // Restore collapse state directly (more reliable than click simulation)
       Object.keys(_collapsedTreeGroups).forEach(function (key) {
         if (key.indexOf("cat:") === 0) {
           var catName = key.substring(4);
           var hdr = el.codexTreeContainer.querySelector('.codex-tree-category-header[data-cat="' + catName + '"]');
           if (hdr) {
             var children = hdr.nextElementSibling;
-            if (children && !children.hidden) {
-              // Group is visible but should be collapsed — click to collapse
-              hdr.click();
+            if (children) {
+              children.hidden = true;
+              var chevron = hdr.querySelector(".writing-codex-group-chevron");
+              if (chevron) chevron.textContent = "\u25B6";
             }
           }
         } else if (key.indexOf("type:") === 0) {
           var typeKey = key.substring(5);
           var typeGroup = el.codexTreeContainer.querySelector('.codex-type-group[data-type-key="' + typeKey + '"],.codex-type-group[data-feature-key="' + typeKey + '"]');
           if (typeGroup) {
-            var typeHdr = typeGroup.querySelector(".codex-type-header");
             var typeList = typeGroup.querySelector(".writing-codex-group-list");
-            if (typeHdr && typeList && !typeList.hidden) {
-              typeHdr.click();
+            if (typeList) {
+              typeList.hidden = true;
+              var typeChevron = typeGroup.querySelector(".writing-codex-group-chevron");
+              if (typeChevron) typeChevron.textContent = "\u25B6";
             }
           }
         }
