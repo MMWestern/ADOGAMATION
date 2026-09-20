@@ -287,12 +287,6 @@
               }
             });
           }
-          // Master Codex v2: Dual-write state event for all entity saves
-          if (typeof CODEX_V2_DUAL_WRITE !== "undefined" && CODEX_V2_DUAL_WRITE) {
-            if (typeof codexV2RecordEvent === "function") {
-              codexV2RecordEvent(safeSeriesId, savedId, entityId ? "entity_updated" : "entity_created", "Entity saved via UI");
-            }
-          }
           return JSON.stringify({ ok: true, entity: saved });
         });
       });
