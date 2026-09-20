@@ -5659,6 +5659,7 @@
 
       el.codexTreeContainer.querySelectorAll(".codex-tree-category-header").forEach(function (hdr) {
         hdr.addEventListener("click", function () {
+          console.log("[TREE] Category header clicked:", hdr.getAttribute("data-cat"));
           var children = hdr.nextElementSibling;
           if (!children) return;
           var isHidden = children.hidden;
@@ -5676,6 +5677,7 @@
 
       el.codexTreeContainer.querySelectorAll(".codex-type-header").forEach(function (hdr) {
         hdr.addEventListener("click", function (e) {
+          console.log("[TREE] Type header clicked:", hdr.closest(".codex-type-group")?.getAttribute("data-type-key"));
           e.stopPropagation();
           var groupList = hdr.nextElementSibling;
           if (!groupList) return;
