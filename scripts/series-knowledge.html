@@ -5537,7 +5537,6 @@
       // Preserve scroll position and collapse state across re-renders
       var scrollTop = el.codexTreeContainer.scrollTop || 0;
       var activeId = _codexActiveEntityId || 0;
-      var collapsedState = captureTreeCollapseState_(el.codexTreeContainer);
       var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
       var currentProject = getSelectedProject();
       var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
