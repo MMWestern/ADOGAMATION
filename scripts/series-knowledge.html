@@ -5705,7 +5705,17 @@
           var isHidden = groupList.hidden;
           groupList.hidden = !isHidden;
           var chevron = hdr.querySelector(".writing-codex-group-chevron");
-          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+          if (chevron) chevron.textContent = isHidden ? "\u25BC" : "\u25B6";
+          var subGroup = hdr.closest(".codex-subtype-group");
+          if (subGroup) {
+            var subType = subGroup.getAttribute("data-subtype") || "";
+            var depth = subGroup.getAttribute("data-depth") || "";
+            if (subType) {
+              var key = "sub:" + subType + ":" + depth;
+              if (groupList.hidden) _collapsedTreeGroups[key] = true;
+              else delete _collapsedTreeGroups[key];
+            }
+          }
         });
       });
 
@@ -5726,6 +5736,9 @@
           var isHidden = wrap.style.display === "none";
           wrap.style.display = isHidden ? "" : "none";
           badge.style.opacity = isHidden ? "1" : "0.5";
+          var key = "loc:" + parentId;
+          if (!isHidden) _collapsedTreeGroups[key] = true; // just became hidden
+          else delete _collapsedTreeGroups[key]; // just became visible
         });
       });
 
@@ -5768,6 +5781,30 @@
               var typeChevron = typeGroup.querySelector(".writing-codex-group-chevron");
               if (typeChevron) typeChevron.textContent = "\u25B6";
             }
+          }
+        } else if (key.indexOf("sub:") === 0) {
+          // Sub-type group: key is "sub:label:depth"
+          var parts = key.substring(4).split(":");
+          var subLabel = parts[0];
+          var subDepth = parts[1] || "0";
+          var subGroup = el.codexTreeContainer.querySelector('.codex-subtype-group[data-subtype="' + subLabel + '"][data-depth="' + subDepth + '"]');
+          if (subGroup) {
+            var subHdr = subGroup.querySelector(".codex-subtype-header");
+            var subList = subGroup.querySelector(".writing-codex-group-list");
+            if (subList) {
+              subList.hidden = true;
+              var subChevron = subHdr ? subHdr.querySelector(".writing-codex-group-chevron") : null;
+              if (subChevron) subChevron.textContent = "\u25B6";
+            }
+          }
+        } else if (key.indexOf("loc:") === 0) {
+          // Location collapse: key is "loc:entityId"
+          var locId = key.substring(4);
+          var wrap = el.codexTreeContainer.querySelector('.loc-children-wrap[data-parent-id="' + locId + '"]');
+          if (wrap) {
+            wrap.style.display = "none";
+            var badge = el.codexTreeContainer.querySelector('[data-collapse-id="' + locId + '"]');
+            if (badge) badge.style.opacity = "0.5";
           }
         }
       });
