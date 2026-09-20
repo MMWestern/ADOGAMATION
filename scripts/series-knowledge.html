@@ -5665,7 +5665,13 @@
           var isHidden = children.hidden;
           children.hidden = !isHidden;
           var chevron = hdr.querySelector(".writing-codex-group-chevron");
-          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+          if (chevron) chevron.textContent = isHidden ? "\u25BC" : "\u25B6";
+          var catName = hdr.getAttribute("data-cat") || "";
+          if (catName) {
+            var key = "cat:" + catName;
+            if (children.hidden) _collapsedTreeGroups[key] = true;
+            else delete _collapsedTreeGroups[key];
+          }
         });
       });
 
@@ -5677,7 +5683,16 @@
           var isHidden = groupList.hidden;
           groupList.hidden = !isHidden;
           var chevron = hdr.querySelector(".writing-codex-group-chevron");
-          if (chevron) chevron.textContent = isHidden ? "\u25B6" : "\u25BC";
+          if (chevron) chevron.textContent = isHidden ? "\u25BC" : "\u25B6";
+          var typeGroup = hdr.closest(".codex-type-group");
+          if (typeGroup) {
+            var typeKey = typeGroup.getAttribute("data-type-key") || typeGroup.getAttribute("data-feature-key") || "";
+            if (typeKey) {
+              var key = "type:" + typeKey;
+              if (groupList.hidden) _collapsedTreeGroups[key] = true;
+              else delete _collapsedTreeGroups[key];
+            }
+          }
         });
       });
 
@@ -5727,6 +5742,30 @@
           activeEntry.scrollIntoView({ block: "nearest" });
         }
       }
+      // Restore collapse state by simulating clicks on collapsed groups
+      Object.keys(_collapsedTreeGroups).forEach(function (key) {
+        if (key.indexOf("cat:") === 0) {
+          var catName = key.substring(4);
+          var hdr = el.codexTreeContainer.querySelector('.codex-tree-category-header[data-cat="' + catName + '"]');
+          if (hdr) {
+            var children = hdr.nextElementSibling;
+            if (children && !children.hidden) {
+              // Group is visible but should be collapsed — click to collapse
+              hdr.click();
+            }
+          }
+        } else if (key.indexOf("type:") === 0) {
+          var typeKey = key.substring(5);
+          var typeGroup = el.codexTreeContainer.querySelector('.codex-type-group[data-type-key="' + typeKey + '"],.codex-type-group[data-feature-key="' + typeKey + '"]');
+          if (typeGroup) {
+            var typeHdr = typeGroup.querySelector(".codex-type-header");
+            var typeList = typeGroup.querySelector(".writing-codex-group-list");
+            if (typeHdr && typeList && !typeList.hidden) {
+              typeHdr.click();
+            }
+          }
+        }
+      });
     }
 
     function populateCodexPresetSelector(seriesId) {
@@ -8340,6 +8379,7 @@
     // ============================================================
 
     var _codexMode = "overview";
+    var _collapsedTreeGroups = {};  // Track collapsed groups across re-renders: { "cat:Core": true, "type:location": true }
     var _worldFramework = null;
     var _worldPillars = [];
     var _brainstormSources = [];
