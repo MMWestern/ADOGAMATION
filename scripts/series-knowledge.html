@@ -5544,7 +5544,26 @@
       var treeDef = getCodexTreeDef(seriesId);
       var html = "";
 
-      // Load character field values for species display (async, re-renders when ready)
+      // Capture collapse state before re-render
+      var collapsedCats = {};
+      var collapsedTypes = {};
+      if (el.codexTreeContainer) {
+        el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
+          var hdr = cat.querySelector(".codex-tree-category-header");
+          var catList = cat.querySelector(".codex-tree-category-children");
+          if (hdr && catList && catList.hidden) {
+            var catName = hdr.getAttribute("data-cat") || "";
+            if (catName) collapsedCats[catName] = true;
+          }
+        });
+        el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
+          var groupList = g.querySelector(".writing-codex-group-list");
+          if (groupList && groupList.hidden) {
+            var key = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
+            if (key) collapsedTypes[key] = true;
+          }
+        });
+      }
       if (seriesId && !_charFieldValuesCache[seriesId] && !_charFieldValuesLoading[seriesId]) {
         loadCharacterFieldValues(seriesId).then(function () {
           renderCodexTree(seriesId);
@@ -5563,9 +5582,9 @@
         html += "<div class='writing-codex-group codex-tree-category'>";
         html += "<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + cat.category + "'>";
         html += "<span class='writing-codex-group-title'>" + cat.category + "</span>";
-        html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+        html += "<span class='writing-codex-group-chevron'>" + (collapsedCats[cat.category] ? "&#9654;" : "&#9660;") + "</span>";
         html += "</div>";
-        html += "<div class='writing-codex-group-list codex-tree-category-children'>";
+        html += "<div class='writing-codex-group-list codex-tree-category-children'" + (collapsedCats[cat.category] ? " hidden" : "") + ">";
         cat.items.forEach(function (item) {
           // Skip disabled items
           if (item._enabled === false) return;
@@ -5613,10 +5632,11 @@
             html += "</div>";
             html += "<div class='writing-codex-group-header-right'>";
             html += "<span class='writing-codex-group-count" + (count ? "" : " is-zero") + "'>" + count + "</span>";
-            html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
+            var isTypeCollapsed = collapsedTypes[item.entityTypeKey] || false;
+            html += "<span class='writing-codex-group-chevron'>" + (isTypeCollapsed ? "&#9654;" : "&#9660;") + "</span>";
             html += "</div>";
             html += "</div>";
-            html += "<div class='writing-codex-group-list'" + (count ? "" : " hidden") + ">";
+            html += "<div class='writing-codex-group-list'" + ((count && !isTypeCollapsed) ? "" : " hidden") + ">";
             if (item.entityTypeKey === "location" && skCurrentSeriesId) {
               var parentMap = typeof buildLocationParentMapFromColumn === "function"
                 ? buildLocationParentMapFromColumn(skCurrentSeriesId)
@@ -5716,9 +5736,8 @@
         wireCodexSidebarControls_();
         window._codexSidebarWired = true;
       }
-      // Restore scroll position, collapse state, and active state
+      // Restore scroll position and active state
       if (scrollTop) el.codexTreeContainer.scrollTop = scrollTop;
-      restoreTreeCollapseState_(el.codexTreeContainer, collapsedState);
       if (activeId) {
         var activeEntry = el.codexTreeContainer.querySelector('[data-entity-id="' + activeId + '"]');
         if (activeEntry) {
@@ -5726,53 +5745,6 @@
           activeEntry.scrollIntoView({ block: "nearest" });
         }
       }
-    }
-
-    function captureTreeCollapseState_(container) {
-      var state = { categories: {}, types: {} };
-      // Capture category collapse state (data-cat is on the header inside the category div)
-      container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-        var hdr = cat.querySelector(".codex-tree-category-header");
-        var catName = hdr ? (hdr.getAttribute("data-cat") || "") : "";
-        var catList = cat.querySelector(".codex-tree-category-children");
-        if (catName && catList && catList.hidden) {
-          state.categories[catName] = true;
-        }
-      });
-      // Capture type group collapse state
-      container.querySelectorAll(".codex-type-group").forEach(function (g) {
-        var typeKey = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
-        var groupList = g.querySelector(".writing-codex-group-list");
-        if (typeKey && groupList && groupList.hidden) {
-          state.types[typeKey] = true;
-        }
-      });
-      return state;
-    }
-
-    function restoreTreeCollapseState_(container, state) {
-      if (!state) return;
-      // Restore category collapse state
-      container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-        var hdr = cat.querySelector(".codex-tree-category-header");
-        var catName = hdr ? (hdr.getAttribute("data-cat") || "") : "";
-        var catList = cat.querySelector(".codex-tree-category-children");
-        if (catName && catList && state.categories[catName]) {
-          catList.hidden = true;
-          var chevron = hdr.querySelector(".writing-codex-group-chevron");
-          if (chevron) chevron.textContent = "\u25B6";
-        }
-      });
-      // Restore type group collapse state
-      container.querySelectorAll(".codex-type-group").forEach(function (g) {
-        var typeKey = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
-        var groupList = g.querySelector(".writing-codex-group-list");
-        if (typeKey && groupList && state.types[typeKey]) {
-          groupList.hidden = true;
-          var chevron = g.querySelector(".writing-codex-group-chevron");
-          if (chevron) chevron.textContent = "\u25B6";
-        }
-      });
     }
 
     function populateCodexPresetSelector(seriesId) {
