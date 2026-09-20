@@ -5729,21 +5729,22 @@
     }
 
     function captureTreeCollapseState_(container) {
-      var state = { categories: {}, types: {}, subtypes: {} };
-      // Capture category collapse state
+      var state = { categories: {}, types: {} };
+      // Capture category collapse state (data-cat is on the header inside the category div)
       container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-        var catName = cat.getAttribute("data-cat") || "";
+        var hdr = cat.querySelector(".codex-tree-category-header");
+        var catName = hdr ? (hdr.getAttribute("data-cat") || "") : "";
         var catList = cat.querySelector(".codex-tree-category-children");
-        if (catName && catList) {
-          state.categories[catName] = catList.hidden || false;
+        if (catName && catList && catList.hidden) {
+          state.categories[catName] = true;
         }
       });
       // Capture type group collapse state
       container.querySelectorAll(".codex-type-group").forEach(function (g) {
         var typeKey = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
         var groupList = g.querySelector(".writing-codex-group-list");
-        if (typeKey && groupList) {
-          state.types[typeKey] = groupList.hidden || false;
+        if (typeKey && groupList && groupList.hidden) {
+          state.types[typeKey] = true;
         }
       });
       return state;
@@ -5753,11 +5754,12 @@
       if (!state) return;
       // Restore category collapse state
       container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-        var catName = cat.getAttribute("data-cat") || "";
+        var hdr = cat.querySelector(".codex-tree-category-header");
+        var catName = hdr ? (hdr.getAttribute("data-cat") || "") : "";
         var catList = cat.querySelector(".codex-tree-category-children");
         if (catName && catList && state.categories[catName]) {
           catList.hidden = true;
-          var chevron = cat.querySelector(".writing-codex-group-chevron");
+          var chevron = hdr.querySelector(".writing-codex-group-chevron");
           if (chevron) chevron.textContent = "\u25B6";
         }
       });
