@@ -5544,26 +5544,9 @@
       var treeDef = getCodexTreeDef(seriesId);
       var html = "";
 
-      // Capture collapse state before re-render
-      var collapsedCats = {};
-      var collapsedTypes = {};
-      if (el.codexTreeContainer) {
-        el.codexTreeContainer.querySelectorAll(".codex-tree-category").forEach(function (cat) {
-          var hdr = cat.querySelector(".codex-tree-category-header");
-          var catList = cat.querySelector(".codex-tree-category-children");
-          if (hdr && catList && catList.hidden) {
-            var catName = hdr.getAttribute("data-cat") || "";
-            if (catName) collapsedCats[catName] = true;
-          }
-        });
-        el.codexTreeContainer.querySelectorAll(".codex-type-group").forEach(function (g) {
-          var groupList = g.querySelector(".writing-codex-group-list");
-          if (groupList && groupList.hidden) {
-            var key = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
-            if (key) collapsedTypes[key] = true;
-          }
-        });
-      }
+      // Load character field values for species display (async, re-renders when ready)
+
+      // Load character field values for species display (async, re-renders when ready)
       if (seriesId && !_charFieldValuesCache[seriesId] && !_charFieldValuesLoading[seriesId]) {
         loadCharacterFieldValues(seriesId).then(function () {
           renderCodexTree(seriesId);
@@ -5582,9 +5565,9 @@
         html += "<div class='writing-codex-group codex-tree-category'>";
         html += "<div class='writing-codex-group-header codex-tree-category-header' data-cat='" + cat.category + "'>";
         html += "<span class='writing-codex-group-title'>" + cat.category + "</span>";
-        html += "<span class='writing-codex-group-chevron'>" + (collapsedCats[cat.category] ? "&#9654;" : "&#9660;") + "</span>";
+        html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
         html += "</div>";
-        html += "<div class='writing-codex-group-list codex-tree-category-children'" + (collapsedCats[cat.category] ? " hidden" : "") + ">";
+        html += "<div class='writing-codex-group-list codex-tree-category-children'>";
         cat.items.forEach(function (item) {
           // Skip disabled items
           if (item._enabled === false) return;
@@ -5632,11 +5615,10 @@
             html += "</div>";
             html += "<div class='writing-codex-group-header-right'>";
             html += "<span class='writing-codex-group-count" + (count ? "" : " is-zero") + "'>" + count + "</span>";
-            var isTypeCollapsed = collapsedTypes[item.entityTypeKey] || false;
-            html += "<span class='writing-codex-group-chevron'>" + (isTypeCollapsed ? "&#9654;" : "&#9660;") + "</span>";
+            html += "<span class='writing-codex-group-chevron'>&#9660;</span>";
             html += "</div>";
             html += "</div>";
-            html += "<div class='writing-codex-group-list'" + ((count && !isTypeCollapsed) ? "" : " hidden") + ">";
+            html += "<div class='writing-codex-group-list'" + (count ? "" : " hidden") + ">";
             if (item.entityTypeKey === "location" && skCurrentSeriesId) {
               var parentMap = typeof buildLocationParentMapFromColumn === "function"
                 ? buildLocationParentMapFromColumn(skCurrentSeriesId)
