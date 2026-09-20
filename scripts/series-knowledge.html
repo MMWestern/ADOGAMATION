@@ -5534,9 +5534,10 @@
 
     function renderCodexTree(seriesId) {
       if (!el.codexTreeContainer) return;
-      // Preserve scroll position across re-renders
+      // Preserve scroll position and collapse state across re-renders
       var scrollTop = el.codexTreeContainer.scrollTop || 0;
       var activeId = _codexActiveEntityId || 0;
+      var collapsedState = captureTreeCollapseState_(el.codexTreeContainer);
       var allEntities = seriesId ? (codexCache.entitiesBySeries[seriesId] || []) : [];
       var currentProject = getSelectedProject();
       var currentBookId = Number(currentProject && (currentProject.project_id || currentProject.id) || 0);
@@ -5715,8 +5716,9 @@
         wireCodexSidebarControls_();
         window._codexSidebarWired = true;
       }
-      // Restore scroll position and active state
+      // Restore scroll position, collapse state, and active state
       if (scrollTop) el.codexTreeContainer.scrollTop = scrollTop;
+      restoreTreeCollapseState_(el.codexTreeContainer, collapsedState);
       if (activeId) {
         var activeEntry = el.codexTreeContainer.querySelector('[data-entity-id="' + activeId + '"]');
         if (activeEntry) {
@@ -5724,6 +5726,51 @@
           activeEntry.scrollIntoView({ block: "nearest" });
         }
       }
+    }
+
+    function captureTreeCollapseState_(container) {
+      var state = { categories: {}, types: {}, subtypes: {} };
+      // Capture category collapse state
+      container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
+        var catName = cat.getAttribute("data-cat") || "";
+        var catList = cat.querySelector(".codex-tree-category-children");
+        if (catName && catList) {
+          state.categories[catName] = catList.hidden || false;
+        }
+      });
+      // Capture type group collapse state
+      container.querySelectorAll(".codex-type-group").forEach(function (g) {
+        var typeKey = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
+        var groupList = g.querySelector(".writing-codex-group-list");
+        if (typeKey && groupList) {
+          state.types[typeKey] = groupList.hidden || false;
+        }
+      });
+      return state;
+    }
+
+    function restoreTreeCollapseState_(container, state) {
+      if (!state) return;
+      // Restore category collapse state
+      container.querySelectorAll(".codex-tree-category").forEach(function (cat) {
+        var catName = cat.getAttribute("data-cat") || "";
+        var catList = cat.querySelector(".codex-tree-category-children");
+        if (catName && catList && state.categories[catName]) {
+          catList.hidden = true;
+          var chevron = cat.querySelector(".writing-codex-group-chevron");
+          if (chevron) chevron.textContent = "\u25B6";
+        }
+      });
+      // Restore type group collapse state
+      container.querySelectorAll(".codex-type-group").forEach(function (g) {
+        var typeKey = g.getAttribute("data-type-key") || g.getAttribute("data-feature-key") || "";
+        var groupList = g.querySelector(".writing-codex-group-list");
+        if (typeKey && groupList && state.types[typeKey]) {
+          groupList.hidden = true;
+          var chevron = g.querySelector(".writing-codex-group-chevron");
+          if (chevron) chevron.textContent = "\u25B6";
+        }
+      });
     }
 
     function populateCodexPresetSelector(seriesId) {
