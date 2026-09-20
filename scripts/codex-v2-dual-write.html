@@ -304,8 +304,33 @@
           entry.cls = codexV2ResourceDefs[key].cls;
           resources.push(entry);
         } else {
-          // Unknown property - check if it looks like a level
-          if (key === "level" || key === "level_up") {
+          // Try to find entity by name match in the entities array
+          var matchedEntity = null;
+          (entities || []).forEach(function (e) {
+            if (matchedEntity) return;
+            var eName = (e.name || "").toLowerCase();
+            if (eName === key) matchedEntity = e;
+          });
+          if (matchedEntity) {
+            var mTypeKey = (matchedEntity.codex_entity_types || {}).key || "";
+            var mName = matchedEntity.name || s.property_key;
+            if (mTypeKey === "stat" || mTypeKey === "stat_set") {
+              entry.abbr = codexV2GenerateAbbr(mName);
+              entry.cls = codexV2GetStatColorClass(mName, matchedEntity);
+              entry.fullName = mName;
+              entry.description = matchedEntity.description || "";
+              entry.customColor = matchedEntity.color || null;
+              stats.push(entry);
+            } else if (mTypeKey === "resource") {
+              entry.abbr = codexV2GenerateAbbr(mName);
+              entry.cls = codexV2GetResourceColorClass(mName);
+              entry.fullName = mName;
+              entry.description = matchedEntity.description || "";
+              resources.push(entry);
+            } else {
+              other.push(entry);
+            }
+          } else if (key === "level" || key === "level_up") {
             entry.abbr = "LVL";
             entry.cls = "stat-lvl";
             level.push(entry);

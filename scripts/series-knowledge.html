@@ -1390,6 +1390,9 @@
         // Wire Add All Stats button
         wireBaseStatsAddAll(seriesId, entityId, existingKeys, propEntities);
 
+        // Wire + Add Stat button
+        wireBaseStatsAddSingle(seriesId, entityId, existingKeys, propEntities);
+
         // Wire delete buttons
         wireBaseStatsDeleteButtons(seriesId, entityId, statsList);
 
@@ -1548,6 +1551,67 @@
             })
             .saveCodexEntityState(seriesId, JSON.stringify(payload));
         });
+      });
+    }
+
+    function wireBaseStatsAddSingle(seriesId, entityId, existingKeys, propEntities) {
+      var addBtn = document.getElementById("codexBaseStatsAddBtn");
+      if (!addBtn) return;
+      addBtn.addEventListener("click", function () {
+        // Filter to only stats/resources not already added
+        var available = propEntities.filter(function (e) {
+          return !existingKeys[(e.name || "").toLowerCase()];
+        });
+        if (!available.length) {
+          alert("All stats are already added.");
+          return;
+        }
+        // Build a simple dropdown menu
+        var menu = document.createElement("div");
+        menu.style.cssText = "position:absolute;z-index:1000;background:#1e1e28;border:1px solid #3a3a42;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);padding:4px 0;max-height:200px;overflow-y:auto;min-width:160px;";
+        var rect = addBtn.getBoundingClientRect();
+        menu.style.left = rect.left + "px";
+        menu.style.top = (rect.bottom + 4) + "px";
+        available.forEach(function (e) {
+          var opt = document.createElement("div");
+          opt.style.cssText = "padding:6px 12px;font-size:12px;cursor:pointer;color:#c5c5ce;";
+          opt.textContent = e.name || "Unnamed";
+          opt.addEventListener("mouseenter", function () { opt.style.background = "rgba(59,130,246,0.18)"; });
+          opt.addEventListener("mouseleave", function () { opt.style.background = ""; });
+          opt.addEventListener("click", function () {
+            menu.remove();
+            var payload = {
+              subject_entity_id: entityId,
+              property_entity_id: e.id,
+              property_key: e.name || "",
+              value_text: null,
+              value_number: 1,
+              series_id: seriesId,
+              state_status: "canon",
+              entry_order: 1,
+              notes: "Species base stat"
+            };
+            supabaseRunner
+              .withSuccessHandler(function () {
+                loadSpeciesBaseStatsDetail(seriesId, entityId);
+              })
+              .withFailureHandler(function (err) {
+                console.error("[codexV2] Add stat failed:", err);
+                alert("Failed to add stat: " + (err.message || err));
+              })
+              .saveCodexEntityState(seriesId, JSON.stringify(payload));
+          });
+          menu.appendChild(opt);
+        });
+        document.body.appendChild(menu);
+        // Close on outside click
+        var closer = function (ev) {
+          if (!menu.contains(ev.target)) {
+            menu.remove();
+            document.removeEventListener("click", closer);
+          }
+        };
+        setTimeout(function () { document.addEventListener("click", closer); }, 10);
       });
     }
 
