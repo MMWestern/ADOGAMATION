@@ -5659,7 +5659,6 @@
 
       el.codexTreeContainer.querySelectorAll(".codex-tree-category-header").forEach(function (hdr) {
         hdr.addEventListener("click", function () {
-          console.log("[TREE] Category header clicked:", hdr.getAttribute("data-cat"));
           var children = hdr.nextElementSibling;
           if (!children) return;
           var isHidden = children.hidden;
@@ -5669,15 +5668,14 @@
           var catName = hdr.getAttribute("data-cat") || "";
           if (catName) {
             var key = "cat:" + catName;
-            if (children.hidden) { _collapsedTreeGroups[key] = true; console.log("[TREE] Collapsed:", key); }
-            else { delete _collapsedTreeGroups[key]; console.log("[TREE] Expanded:", key); }
+            if (children.hidden) _collapsedTreeGroups[key] = true;
+            else delete _collapsedTreeGroups[key];
           }
         });
       });
 
       el.codexTreeContainer.querySelectorAll(".codex-type-header").forEach(function (hdr) {
         hdr.addEventListener("click", function (e) {
-          console.log("[TREE] Type header clicked:", hdr.closest(".codex-type-group")?.getAttribute("data-type-key"));
           e.stopPropagation();
           var groupList = hdr.nextElementSibling;
           if (!groupList) return;
@@ -5690,8 +5688,8 @@
             var typeKey = typeGroup.getAttribute("data-type-key") || typeGroup.getAttribute("data-feature-key") || "";
             if (typeKey) {
               var key = "type:" + typeKey;
-              if (groupList.hidden) { _collapsedTreeGroups[key] = true; console.log("[TREE] Collapsed:", key); }
-              else { delete _collapsedTreeGroups[key]; console.log("[TREE] Expanded:", key); }
+              if (groupList.hidden) _collapsedTreeGroups[key] = true;
+              else delete _collapsedTreeGroups[key];
             }
           }
         });
@@ -5757,9 +5755,7 @@
         }
       }
       // Restore collapse state directly (more reliable than click simulation)
-      var collapsedKeys = Object.keys(_collapsedTreeGroups);
-      console.log("[TREE] Restoring collapse state, keys:", collapsedKeys);
-      collapsedKeys.forEach(function (key) {
+      Object.keys(_collapsedTreeGroups).forEach(function (key) {
         if (key.indexOf("cat:") === 0) {
           var catName = key.substring(4);
           var hdr = el.codexTreeContainer.querySelector('.codex-tree-category-header[data-cat="' + catName + '"]');
