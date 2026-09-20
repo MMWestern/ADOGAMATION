@@ -1267,7 +1267,16 @@
             .saveCodexEntityFieldValue(JSON.stringify(payload));
         }));
       });
-      return promises.length ? Promise.all(promises) : Promise.resolve();
+      return promises.length ? Promise.all(promises).then(function (results) {
+        // Invalidate field values cache so tree re-renders with updated species
+        delete _charFieldValuesCache[seriesId];
+        delete _charFieldValuesLoading[seriesId];
+        // Reload field values and re-render tree
+        loadCharacterFieldValues(seriesId).then(function () {
+          renderCodexTree(seriesId);
+        });
+        return results;
+      }) : Promise.resolve();
     }
 
     function loadSpeciesBaseStatsDetail(seriesId, entityId) {
