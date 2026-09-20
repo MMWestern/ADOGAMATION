@@ -11837,13 +11837,52 @@
       var content = document.getElementById("sheetContent");
       if (!content) return;
       content.innerHTML = "<div class='tiny' style='color:var(--muted);'>Loading...</div>";
-      // Load state and active relationships in parallel
-      Promise.all([
+
+      // Find character's linked species entity ID for base stats
+      var speciesEntityId = 0;
+      var charFvCache = _charFieldValuesCache[seriesId];
+      if (charFvCache && charFvCache[entityId] && charFvCache[entityId].species) {
+        speciesEntityId = Number(charFvCache[entityId].species.linked_entity_id || 0);
+      }
+
+      // Load state, connections, and species base stats in parallel
+      var promises = [
         codexV2GetEntityStateAt(entityId, bookId || null, chapterSortOrder),
         codexV2GetActiveConnectionsAt(entityId, chapterSortOrder)
-      ]).then(function (results) {
-        var states = results[0];
-        var connections = results[1];
+      ];
+      if (speciesEntityId) {
+        promises.push(supabaseRunner
+          .withSuccessHandler(function (json) {
+            var result = typeof json === 'string' ? JSON.parse(json) : json;
+            return result.states || [];
+          })
+          .withFailureHandler(function () { return []; })
+          .listCodexEntityState(seriesId, speciesEntityId));
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+
+      Promise.all(promises).then(function (results) {
+        var states = results[0] || [];
+        var connections = results[1] || [];
+        var speciesStates = results[2] || [];
+
+        // Merge: species base stats provide defaults, character records override
+        // Build lookup of character property keys
+        var charKeys = {};
+        states.forEach(function (s) {
+          var key = (s.property_key || "").toLowerCase();
+          if (key) charKeys[key] = true;
+        });
+        // Add species base stats that the character doesn't already have
+        speciesStates.forEach(function (s) {
+          if (s.state_status === 'template') return;
+          var key = (s.property_key || "").toLowerCase();
+          if (key && !charKeys[key]) {
+            states.push(s);
+          }
+        });
+
         var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
         var entity = entities.find(function (e) { return Number(e.id) === entityId; });
         var entityName = entity ? entity.name || "Unknown" : "Unknown";
@@ -11874,6 +11913,12 @@
           html += "<div style='margin-bottom:16px;'>" + (typeof codexV2RenderStatBoxes === "function" ? codexV2RenderStatBoxes(categorized) : "") + "</div>";
         }
 
+        // Build set of keys already shown as stat boxes
+        var statBoxKeys = {};
+        (categorized.stats || []).forEach(function (s) { statBoxKeys[(s.propKey || "").toLowerCase()] = true; });
+        (categorized.resources || []).forEach(function (r) { statBoxKeys[(r.propKey || "").toLowerCase()] = true; });
+        (categorized.level || []).forEach(function (l) { statBoxKeys[(l.propKey || "").toLowerCase()] = true; });
+
         // Categorize remaining by entity type
         var levels = [];
         var skills = [];
@@ -11882,9 +11927,8 @@
         var other = [];
         resolved.forEach(function (s) {
           var key = (s.property_key || "").toLowerCase();
-          // Skip if already categorized as stat/resource
-          if ((typeof codexV2StatDefs !== "undefined" && codexV2StatDefs[key]) ||
-              (typeof codexV2ResourceDefs !== "undefined" && codexV2ResourceDefs[key])) return;
+          // Skip if already categorized as stat/resource/level
+          if (statBoxKeys[key]) return;
 
           var entityId = s.property_entity_id;
           var entityInfo = entityId ? entities.find(function (e) { return Number(e.id) === entityId; }) : null;
