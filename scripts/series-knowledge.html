@@ -11851,13 +11851,15 @@
         codexV2GetActiveConnectionsAt(entityId, chapterSortOrder)
       ];
       if (speciesEntityId) {
-        promises.push(supabaseRunner
-          .withSuccessHandler(function (json) {
-            var result = typeof json === 'string' ? JSON.parse(json) : json;
-            return result.states || [];
-          })
-          .withFailureHandler(function () { return []; })
-          .listCodexEntityState(seriesId, speciesEntityId));
+        promises.push(new Promise(function (resolve) {
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              resolve(result.states || []);
+            })
+            .withFailureHandler(function () { resolve([]); })
+            .listCodexEntityState(seriesId, speciesEntityId);
+        }));
       } else {
         promises.push(Promise.resolve([]));
       }
