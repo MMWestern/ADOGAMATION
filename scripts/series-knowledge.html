@@ -5668,8 +5668,8 @@
           var catName = hdr.getAttribute("data-cat") || "";
           if (catName) {
             var key = "cat:" + catName;
-            if (children.hidden) _collapsedTreeGroups[key] = true;
-            else delete _collapsedTreeGroups[key];
+            if (children.hidden) { _collapsedTreeGroups[key] = true; console.log("[TREE] Collapsed:", key); }
+            else { delete _collapsedTreeGroups[key]; console.log("[TREE] Expanded:", key); }
           }
         });
       });
@@ -5688,8 +5688,8 @@
             var typeKey = typeGroup.getAttribute("data-type-key") || typeGroup.getAttribute("data-feature-key") || "";
             if (typeKey) {
               var key = "type:" + typeKey;
-              if (groupList.hidden) _collapsedTreeGroups[key] = true;
-              else delete _collapsedTreeGroups[key];
+              if (groupList.hidden) { _collapsedTreeGroups[key] = true; console.log("[TREE] Collapsed:", key); }
+              else { delete _collapsedTreeGroups[key]; console.log("[TREE] Expanded:", key); }
             }
           }
         });
@@ -5742,7 +5742,9 @@
         }
       }
       // Restore collapse state directly (more reliable than click simulation)
-      Object.keys(_collapsedTreeGroups).forEach(function (key) {
+      var collapsedKeys = Object.keys(_collapsedTreeGroups);
+      console.log("[TREE] Restoring collapse state, keys:", collapsedKeys);
+      collapsedKeys.forEach(function (key) {
         if (key.indexOf("cat:") === 0) {
           var catName = key.substring(4);
           var hdr = el.codexTreeContainer.querySelector('.codex-tree-category-header[data-cat="' + catName + '"]');
