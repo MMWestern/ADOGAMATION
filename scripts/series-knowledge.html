@@ -1176,20 +1176,32 @@
         var speciesLinkedId = speciesVal && speciesVal.linked_entity_id ? Number(speciesVal.linked_entity_id) : 0;
         // Get species breadcrumb path
         var speciesBreadcrumb = (speciesLinkedId && typeof getSpeciesBreadcrumb === "function") ? getSpeciesBreadcrumb(seriesId, entityId) : "";
+        var speciesDisplayName = "";
+        if (speciesLinkedId) {
+          var speciesEnt = entities.find(function (e) { return Number(e.id) === speciesLinkedId; });
+          speciesDisplayName = speciesEnt ? (speciesEnt.name || "") : "";
+        }
         html += "<div class='codex-detail-field-wrap'>";
         html += "<label class='codex-detail-field-label'>Species" + (speciesBreadcrumb ? " <span style='font-weight:400;opacity:0.6;font-size:10px;'>(" + escapeHtml(speciesBreadcrumb) + ")</span>" : "") + "</label>";
         if (speciesDef) {
+          // Hidden select for save compatibility
           var speciesEntities = entities.filter(function (e) {
             return (e.codex_entity_types || {}).key === "species";
           });
-          html += "<select id='codexCharSpecies' class='codex-detail-field-select' data-def-id='" + speciesDef.id + "' data-value-id='" + (speciesVal ? speciesVal.id : 0) + "' data-field-key='species'>";
-          html += "<option value=''>Select species...</option>";
-          speciesEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+          html += "<select id='codexCharSpecies' style='display:none;' data-def-id='" + speciesDef.id + "' data-value-id='" + (speciesVal ? speciesVal.id : 0) + "' data-field-key='species'>";
+          html += "<option value=''></option>";
           speciesEntities.forEach(function (e) {
             var sel = speciesLinkedId && Number(e.id) === speciesLinkedId ? " selected" : "";
             html += "<option value='" + e.id + "'" + sel + ">" + escapeHtml(e.name || "Unnamed") + "</option>";
           });
           html += "</select>";
+          // CascadeMenu trigger button
+          html += "<div id='codexCharSpeciesCascade' data-linked-id='" + (speciesLinkedId || 0) + "' data-linked-name='" + escapeHtml(speciesDisplayName) + "'>";
+          html += "<button type='button' id='codexCharSpeciesTrigger' class='codex-detail-field-select' style='cursor:pointer;display:flex;justify-content:space-between;align-items:center;'>";
+          html += "<span>" + (speciesDisplayName ? escapeHtml(speciesDisplayName) : "<span style='color:var(--muted)'>Select species...</span>") + "</span>";
+          html += "<span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+          html += "</button>";
+          html += "</div>";
         } else {
           html += "<div class='tiny' style='color:var(--muted);'>No species field definition.</div>";
         }
@@ -1222,6 +1234,10 @@
         html += "</div>";
 
         container.innerHTML = html;
+
+        // Wire species CascadeMenu
+        wireSpeciesCascadeMenu_(seriesId, entityId);
+
       }).catch(function (err) {
         console.error("[Identity] Error loading identity fields:", err);
         container.innerHTML = "<div class='tiny' style='color:var(--muted);'>Error loading identity fields.</div>";
@@ -1277,6 +1293,93 @@
         });
         return results;
       }) : Promise.resolve();
+    }
+
+    function wireSpeciesCascadeMenu_(seriesId, entityId) {
+      var trigger = document.getElementById("codexCharSpeciesTrigger");
+      var cascadeDiv = document.getElementById("codexCharSpeciesCascade");
+      var hiddenSelect = document.getElementById("codexCharSpecies");
+      if (!trigger || !cascadeDiv || !hiddenSelect) return;
+
+      // Get species entities and build menu items
+      var entities = (typeof codexCache !== "undefined" && codexCache.entitiesBySeries && codexCache.entitiesBySeries[seriesId]) ? codexCache.entitiesBySeries[seriesId] : [];
+      var speciesEntities = entities.filter(function (e) {
+        return (e.codex_entity_types || {}).key === "species";
+      });
+
+      // Check if species tree has nested sub-types
+      var treeDef = typeof getCodexTreeDef === "function" ? getCodexTreeDef(seriesId) : (typeof CODEX_TREE_DEF !== "undefined" ? CODEX_TREE_DEF : []);
+      var speciesTreeItem = null;
+      treeDef.forEach(function (cat) {
+        (cat.items || []).forEach(function (item) {
+          if (item.entityTypeKey === "species") speciesTreeItem = item;
+        });
+      });
+
+      var menuItems;
+      if (speciesTreeItem && speciesTreeItem.subTypes && speciesTreeItem.subTypes.some(function (st) { return typeof st === 'object' && st.subTypes && st.subTypes.length > 0; })) {
+        // Nested sub-types: group species by their sub_type path
+        menuItems = buildSpeciesMenuFromTree_(speciesEntities, speciesTreeItem.subTypes);
+      } else {
+        // Flat list of species
+        speciesEntities.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+        menuItems = speciesEntities.map(function (e) {
+          return { id: String(e.id), label: e.name || "Unnamed" };
+        });
+      }
+
+      if (!menuItems.length) return;
+
+      // Create CascadeMenu
+      var menu = new CascadeMenu(trigger, menuItems, {
+        closeOnSelect: true,
+        onSelect: function (item, pathArr, event) {
+          var linkedId = Number(item.id) || 0;
+          var linkedName = item.label || "";
+          // Update hidden select
+          hiddenSelect.value = String(linkedId);
+          // Update trigger display
+          trigger.innerHTML = "<span>" + escapeHtml(linkedName) + "</span><span style='opacity:0.5;font-size:10px;'>\u25BC</span>";
+          // Update breadcrumb
+          var breadcrumbEl = cascadeDiv.parentElement.querySelector(".codex-detail-field-label span[style]");
+          // Store selection for save
+          cascadeDiv.setAttribute("data-linked-id", String(linkedId));
+          cascadeDiv.setAttribute("data-linked-name", linkedName);
+        }
+      });
+    }
+
+    function buildSpeciesMenuFromTree_(speciesEntities, subTypes) {
+      var items = [];
+      subTypes.forEach(function (st) {
+        var label = typeof st === 'string' ? st : (st && (st.label || st.key || st.name) || "");
+        if (!label) return;
+        var children = (typeof st === 'object' && Array.isArray(st.subTypes)) ? st.subTypes : null;
+        if (children && children.length) {
+          // Has children — build nested menu
+          var childItems = buildSpeciesMenuFromTree_(speciesEntities, children);
+          if (childItems.length) {
+            items.push({ id: label, label: label, children: childItems });
+          }
+        } else {
+          // Leaf — find matching species entity
+          var matching = speciesEntities.filter(function (e) {
+            var cd = e.custom_data || {};
+            var st = String(cd.sub_type || "").trim();
+            return st.toLowerCase() === label.toLowerCase();
+          });
+          if (matching.length) {
+            matching.sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+            matching.forEach(function (e) {
+              items.push({ id: String(e.id), label: e.name || "Unnamed" });
+            });
+          } else {
+            // No matching entity, show as disabled placeholder
+            items.push({ id: "__none_" + label, label: label + " (none)", disabled: true });
+          }
+        }
+      });
+      return items;
     }
 
     function loadSpeciesBaseStatsDetail(seriesId, entityId) {
