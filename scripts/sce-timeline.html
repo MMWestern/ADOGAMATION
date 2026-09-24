@@ -1,0 +1,117 @@
+    // ============================================================
+    // Story Composition Editor — Timeline Rendering
+    // ============================================================
+
+    function renderSCETimeline() {
+      var header = document.getElementById("sceTimelineHeader");
+      var body = document.getElementById("sceTimelineBody");
+      if (!header || !body) return;
+
+      var states = _sceState.states;
+      var layers = _sceState.layers;
+
+      if (!states.length) {
+        header.innerHTML = "<div style='padding:20px;color:var(--muted);'>No states defined.</div>";
+        body.innerHTML = "";
+        return;
+      }
+
+      // Sort states by position
+      states.sort(function (a, b) { return a.position - b.position; });
+
+      // Render header (state columns)
+      var headerHtml = "<div class='sce-state-header-row'>";
+      states.forEach(function (state) {
+        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "'>";
+        headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
+        headerHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
+        headerHtml += "</div>";
+      });
+      // Parking and Later Books columns
+      headerHtml += "<div class='sce-state-header sce-state-parking' data-state='parking'><div class='sce-state-number'>P</div><div class='sce-state-name'>Parking</div></div>";
+      headerHtml += "<div class='sce-state-header sce-state-later' data-state='later'><div class='sce-state-number'>L</div><div class='sce-state-name'>Later Books</div></div>";
+      headerHtml += "</div>";
+      header.innerHTML = headerHtml;
+
+      // Render body (layers with blocks)
+      var bodyHtml = "";
+      var visibleLayers = layers.filter(function (l) {
+        if (l.is_hidden) {
+          // If any layer is solo, only show solo layers
+          var hasSolo = layers.some(function (ll) { return ll.is_solo; });
+          if (hasSolo) return l.is_solo;
+        }
+        return true;
+      });
+
+      visibleLayers.forEach(function (layer) {
+        bodyHtml += "<div class='sce-layer-row' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
+        bodyHtml += "<div class='sce-layer-label'>" + escapeHtml(layer.name) + "</div>";
+        bodyHtml += "<div class='sce-layer-cells'>";
+        states.forEach(function (state) {
+          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
+        });
+        bodyHtml += "<div class='sce-layer-cell sce-layer-cell-parking' data-layer-id='" + layer.id + "' data-state='parking'></div>";
+        bodyHtml += "<div class='sce-layer-cell sce-layer-cell-later' data-layer-id='" + layer.id + "' data-state='later'></div>";
+        bodyHtml += "</div>";
+        bodyHtml += "</div>";
+      });
+
+      body.innerHTML = bodyHtml;
+
+      // Place blocks on the timeline
+      renderSCEBlocks();
+    }
+
+    function renderSCEBlocks() {
+      // Clear existing blocks
+      document.querySelectorAll(".sce-block").forEach(function (el) { el.remove(); });
+
+      _sceState.blocks.forEach(function (block) {
+        if (block.is_parked || block.is_later_book) return; // Skip parked/later for now
+        var layerRow = document.querySelector('.sce-layer-row[data-layer-id="' + block.layer_id + '"]');
+        if (!layerRow) return;
+        var cells = layerRow.querySelector(".sce-layer-cells");
+        if (!cells) return;
+
+        var startCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
+        if (!startCell) return;
+
+        var blockEl = document.createElement("div");
+        blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
+        blockEl.setAttribute("data-block-id", block.id);
+        blockEl.setAttribute("data-start", block.start_state);
+        blockEl.setAttribute("data-end", block.end_state);
+
+        var span = block.end_state - block.start_state + 1;
+        blockEl.style.gridColumn = "span " + span;
+
+        var title = block.short_title || "Untitled";
+        blockEl.innerHTML = "<div class='sce-block-title'>" + escapeHtml(title) + "</div>";
+
+        // Click to select
+        blockEl.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEBlock(block.id);
+        });
+
+        // Insert at the right position
+        startCell.parentNode.insertBefore(blockEl, startCell.nextSibling);
+      });
+    }
+
+    function selectSCEBlock(blockId) {
+      _sceState.selectedBlockId = blockId;
+      _sceState.selectedAssetId = null;
+
+      // Update visual selection
+      document.querySelectorAll(".sce-block").forEach(function (el) {
+        el.classList.toggle("is-selected", Number(el.getAttribute("data-block-id")) === blockId);
+      });
+
+      // Update inspector
+      var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+      if (block) {
+        renderSCEInspectorBlock(block);
+      }
+    }

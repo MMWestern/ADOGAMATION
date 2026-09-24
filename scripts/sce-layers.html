@@ -1,0 +1,128 @@
+    // ============================================================
+    // Story Composition Editor — Layer Controls
+    // ============================================================
+
+    function renderSCELayerControls() {
+      var container = document.getElementById("sceLayerControls");
+      if (!container) return;
+
+      var layers = _sceState.layers;
+      var html = "";
+
+      layers.forEach(function (layer) {
+        html += "<div class='sce-layer-control' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
+        html += "<div class='sce-layer-color-dot' style='background:" + (layer.color || '#3b82f6') + ";'></div>";
+        html += "<span class='sce-layer-name'>" + escapeHtml(layer.name) + "</span>";
+        html += "<div class='sce-layer-actions'>";
+        html += "<button type='button' class='sce-layer-btn sce-layer-hide-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_hidden ? "Show" : "Hide") + "'>" + (layer.is_hidden ? "👁‍🗨" : "👁") + "</button>";
+        html += "<button type='button' class='sce-layer-btn sce-layer-solo-btn' data-layer-id='" + layer.id + "' title='Solo' style='" + (layer.is_solo ? "color:#f59e0b;" : "") + "'>S</button>";
+        html += "<button type='button' class='sce-layer-btn sce-layer-lock-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_locked ? "Unlock" : "Lock") + "'>" + (layer.is_locked ? "🔒" : "🔓") + "</button>";
+        html += "</div>";
+        html += "</div>";
+      });
+
+      html += "<button type='button' class='sce-layer-add-btn' id='sceAddLayerBtn'>+ Add Layer</button>";
+
+      container.innerHTML = html;
+
+      // Wire layer controls
+      wireSCELayerControls();
+    }
+
+    function wireSCELayerControls() {
+      // Hide buttons
+      document.querySelectorAll(".sce-layer-hide-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var layerId = Number(btn.getAttribute("data-layer-id"));
+          toggleSCELayerHidden(layerId);
+        });
+      });
+
+      // Solo buttons
+      document.querySelectorAll(".sce-layer-solo-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var layerId = Number(btn.getAttribute("data-layer-id"));
+          toggleSCELayerSolo(layerId);
+        });
+      });
+
+      // Lock buttons
+      document.querySelectorAll(".sce-layer-lock-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var layerId = Number(btn.getAttribute("data-layer-id"));
+          toggleSCELayerLocked(layerId);
+        });
+      });
+
+      // Add layer button
+      var addBtn = document.getElementById("sceAddLayerBtn");
+      if (addBtn && !addBtn._wired) {
+        addBtn._wired = true;
+        addBtn.addEventListener("click", function () {
+          addSCELayer();
+        });
+      }
+    }
+
+    function toggleSCELayerHidden(layerId) {
+      var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
+      if (!layer) return;
+      layer.is_hidden = !layer.is_hidden;
+      saveSCELayer(layer);
+      renderSCETimeline();
+      renderSCELayerControls();
+    }
+
+    function toggleSCELayerSolo(layerId) {
+      var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
+      if (!layer) return;
+      layer.is_solo = !layer.is_solo;
+      saveSCELayer(layer);
+      renderSCETimeline();
+      renderSCELayerControls();
+    }
+
+    function toggleSCELayerLocked(layerId) {
+      var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
+      if (!layer) return;
+      layer.is_locked = !layer.is_locked;
+      saveSCELayer(layer);
+      renderSCELayerControls();
+    }
+
+    function addSCELayer() {
+      var name = prompt("Layer name:");
+      if (!name) return;
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var payload = {
+        composition_id: compositionId,
+        name: name,
+        color: "#64748b",
+        position: _sceState.layers.length
+      };
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.layer) {
+            _sceState.layers.push(result.layer);
+            renderSCETimeline();
+            renderSCELayerControls();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to add layer:", err);
+        })
+        .sceSaveLayer(JSON.stringify(payload));
+    }
+
+    function saveSCELayer(layer) {
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save layer:", err);
+        })
+        .sceSaveLayer(JSON.stringify(layer));
+    }

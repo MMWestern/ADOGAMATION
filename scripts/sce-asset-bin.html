@@ -1,0 +1,128 @@
+    // ============================================================
+    // Story Composition Editor — Asset Bin
+    // ============================================================
+
+    function renderSCEAssetBin(seriesId) {
+      var list = document.getElementById("sceAssetBinList");
+      if (!list) return;
+
+      var assets = _sceState.assets;
+      if (!assets.length) {
+        list.innerHTML = "<div class='sce-asset-empty'>No assets yet. Click '+ Add' to create one.</div>";
+        return;
+      }
+
+      var html = "";
+      assets.forEach(function (asset) {
+        html += "<div class='sce-asset-item' data-asset-id='" + asset.id + "' draggable='true'>";
+        html += "<div class='sce-asset-name'>" + escapeHtml(asset.name || "Untitled") + "</div>";
+        if (asset.what_changes) {
+          html += "<div class='sce-asset-desc'>" + escapeHtml(asset.what_changes.substring(0, 60)) + "</div>";
+        }
+        html += "</div>";
+      });
+      list.innerHTML = html;
+
+      // Wire asset clicks and drag
+      list.querySelectorAll(".sce-asset-item").forEach(function (item) {
+        item.addEventListener("click", function () {
+          var assetId = Number(item.getAttribute("data-asset-id"));
+          selectSCEAsset(assetId);
+        });
+
+        item.addEventListener("dragstart", function (e) {
+          var assetId = item.getAttribute("data-asset-id");
+          e.dataTransfer.setData("text/plain", JSON.stringify({ type: "asset", assetId: assetId }));
+          e.dataTransfer.effectAllowed = "copy";
+        });
+      });
+    }
+
+    function selectSCEAsset(assetId) {
+      _sceState.selectedAssetId = assetId;
+      _sceState.selectedBlockId = null;
+
+      // Update visual selection
+      document.querySelectorAll(".sce-asset-item").forEach(function (el) {
+        el.classList.toggle("is-selected", Number(el.getAttribute("data-asset-id")) === assetId);
+      });
+
+      // Update inspector
+      var asset = _sceState.assets.find(function (a) { return Number(a.id) === assetId; });
+      if (asset) {
+        renderSCEInspectorAsset(asset);
+      }
+    }
+
+    function filterSCEAssets(query) {
+      var q = (query || "").toLowerCase().trim();
+      document.querySelectorAll(".sce-asset-item").forEach(function (item) {
+        var name = item.querySelector(".sce-asset-name");
+        if (!name) return;
+        var match = !q || name.textContent.toLowerCase().indexOf(q) !== -1;
+        item.style.display = match ? "" : "none";
+      });
+    }
+
+    function showSCEAssetEditor(asset, seriesId) {
+      var isNew = !asset;
+      var name = prompt(isNew ? "Asset name:" : "Asset name:", asset ? asset.name : "");
+      if (name === null) return;
+
+      var payload = {
+        series_id: seriesId,
+        name: name || "Untitled Asset"
+      };
+      if (asset) payload.id = asset.id;
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.asset) {
+            if (isNew) {
+              _sceState.assets.unshift(result.asset);
+            } else {
+              var idx = _sceState.assets.findIndex(function (a) { return Number(a.id) === Number(result.asset.id); });
+              if (idx >= 0) _sceState.assets[idx] = result.asset;
+            }
+            renderSCEAssetBin(seriesId);
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save asset:", err);
+        })
+        .sceSaveAsset(JSON.stringify(payload));
+    }
+
+    function createSCEBlockFromAsset(assetId, layerId, statePosition) {
+      var asset = _sceState.assets.find(function (a) { return Number(a.id) === Number(assetId); });
+      if (!asset) return;
+
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var payload = {
+        composition_id: compositionId,
+        asset_id: asset.id,
+        layer_id: layerId,
+        start_state: statePosition,
+        end_state: statePosition,
+        short_title: asset.name || "Untitled",
+        description: asset.description || "",
+        what_happens: asset.what_changes || ""
+      };
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.block) {
+            _sceState.blocks.push(result.block);
+            renderSCEBlocks();
+            selectSCEBlock(result.block.id);
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to create block:", err);
+        })
+        .sceSaveBlock(JSON.stringify(payload));
+    }

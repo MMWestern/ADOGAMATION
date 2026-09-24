@@ -1,0 +1,178 @@
+    // ============================================================
+    // Story Composition Editor — Block Drag/Drop and Resize
+    // ============================================================
+
+    function wireSCEBlockInteractions() {
+      var timelineBody = document.getElementById("sceTimelineBody");
+      if (!timelineBody) return;
+
+      // Allow drops on layer cells
+      timelineBody.addEventListener("dragover", function (e) {
+        var cell = e.target.closest(".sce-layer-cell");
+        if (cell) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          cell.classList.add("sce-drop-target");
+        }
+      });
+
+      timelineBody.addEventListener("dragleave", function (e) {
+        var cell = e.target.closest(".sce-layer-cell");
+        if (cell) {
+          cell.classList.remove("sce-drop-target");
+        }
+      });
+
+      timelineBody.addEventListener("drop", function (e) {
+        var cell = e.target.closest(".sce-layer-cell");
+        if (!cell) return;
+        cell.classList.remove("sce-drop-target");
+        e.preventDefault();
+
+        var data;
+        try {
+          data = JSON.parse(e.dataTransfer.getData("text/plain"));
+        } catch (err) { return; }
+
+        if (data.type === "asset") {
+          var layerId = Number(cell.getAttribute("data-layer-id"));
+          var state = cell.getAttribute("data-state");
+          if (state === "parking" || state === "later") return;
+          var statePosition = Number(state);
+          createSCEBlockFromAsset(data.assetId, layerId, statePosition);
+        }
+      });
+
+      // Click on empty cell to deselect
+      timelineBody.addEventListener("click", function (e) {
+        if (e.target.closest(".sce-block")) return;
+        _sceState.selectedBlockId = null;
+        _sceState.selectedAssetId = null;
+        document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
+          el.classList.remove("is-selected");
+        });
+        renderSCEInspector();
+      });
+
+      // Wire block drag (for moving blocks)
+      wireSCEBlockDrag();
+    }
+
+    function wireSCEBlockDrag() {
+      // Use mousedown/mousemove/mouseup for block dragging
+      var timelineBody = document.getElementById("sceTimelineBody");
+      if (!timelineBody) return;
+
+      var dragState = null;
+
+      timelineBody.addEventListener("mousedown", function (e) {
+        var block = e.target.closest(".sce-block");
+        if (!block) return;
+        if (e.target.closest(".sce-block-resize-handle")) return; // Handle resize separately
+
+        var blockId = Number(block.getAttribute("data-block-id"));
+        var blockData = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+        if (!blockData) return;
+
+        // Check if layer is locked
+        var layer = _sceState.layers.find(function (l) { return Number(l.id) === Number(blockData.layer_id); });
+        if (layer && layer.is_locked) return;
+
+        dragState = {
+          blockId: blockId,
+          startX: e.clientX,
+          startY: e.clientY,
+          blockEl: block,
+          moved: false
+        };
+
+        e.preventDefault();
+      });
+
+      document.addEventListener("mousemove", function (e) {
+        if (!dragState) return;
+        dragState.moved = true;
+        dragState.blockEl.style.opacity = "0.6";
+        dragState.blockEl.style.position = "relative";
+        dragState.blockEl.style.zIndex = "100";
+        dragState.blockEl.style.left = (e.clientX - dragState.startX) + "px";
+        dragState.blockEl.style.top = (e.clientY - dragState.startY) + "px";
+      });
+
+      document.addEventListener("mouseup", function (e) {
+        if (!dragState) return;
+        dragState.blockEl.style.opacity = "";
+        dragState.blockEl.style.position = "";
+        dragState.blockEl.style.zIndex = "";
+        dragState.blockEl.style.left = "";
+        dragState.blockEl.style.top = "";
+
+        if (dragState.moved) {
+          // Find drop target
+          var target = document.elementFromPoint(e.clientX, e.clientY);
+          var cell = target ? target.closest(".sce-layer-cell") : null;
+          if (cell) {
+            var newLayerId = Number(cell.getAttribute("data-layer-id"));
+            var newState = cell.getAttribute("data-state");
+            if (newState !== "parking" && newState !== "later") {
+              var newPosition = Number(newState);
+              moveSCEBlock(dragState.blockId, newLayerId, newPosition);
+            }
+          }
+        }
+
+        dragState = null;
+      });
+    }
+
+    function moveSCEBlock(blockId, newLayerId, newPosition) {
+      var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+      if (!block) return;
+
+      var oldLayerId = block.layer_id;
+      var oldStart = block.start_state;
+      var oldEnd = block.end_state;
+      var span = oldEnd - oldStart;
+
+      block.layer_id = newLayerId;
+      block.start_state = newPosition;
+      block.end_state = newPosition + span;
+
+      // Push undo
+      scePushUndo({
+        type: "move_block",
+        blockId: blockId,
+        undo: function () {
+          var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
+          if (b) {
+            b.layer_id = oldLayerId;
+            b.start_state = oldStart;
+            b.end_state = oldEnd;
+            saveSCEBlock(b);
+            renderSCETimeline();
+          }
+        },
+        redo: function () {
+          var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
+          if (b) {
+            b.layer_id = newLayerId;
+            b.start_state = newPosition;
+            b.end_state = newPosition + span;
+            saveSCEBlock(b);
+            renderSCETimeline();
+          }
+        }
+      });
+
+      saveSCEBlock(block);
+      renderSCETimeline();
+    }
+
+    function saveSCEBlock(block) {
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save block:", err);
+        })
+        .sceSaveBlock(JSON.stringify(block));
+    }

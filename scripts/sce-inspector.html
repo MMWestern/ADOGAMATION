@@ -1,0 +1,216 @@
+    // ============================================================
+    // Story Composition Editor — Inspector Panel
+    // ============================================================
+
+    function renderSCEInspector() {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      if (_sceState.selectedBlockId) {
+        var block = _sceState.blocks.find(function (b) { return Number(b.id) === _sceState.selectedBlockId; });
+        if (block) {
+          renderSCEInspectorBlock(block);
+          return;
+        }
+      }
+
+      if (_sceState.selectedAssetId) {
+        var asset = _sceState.assets.find(function (a) { return Number(a.id) === _sceState.selectedAssetId; });
+        if (asset) {
+          renderSCEInspectorAsset(asset);
+          return;
+        }
+      }
+
+      content.innerHTML = "<div class='sce-inspector-empty'>Select a block or asset to edit</div>";
+    }
+
+    function renderSCEInspectorBlock(block) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var asset = block.asset_id ? _sceState.assets.find(function (a) { return Number(a.id) === Number(block.asset_id); }) : null;
+      var layer = _sceState.layers.find(function (l) { return Number(l.id) === Number(block.layer_id); });
+
+      var html = "";
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Title</label>";
+      html += "<input id='sceBlockTitle' type='text' class='sce-inspector-input' value='" + escapeHtml(block.short_title || "") + "' />";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Description</label>";
+      html += "<textarea id='sceBlockDesc' class='sce-inspector-textarea' rows='3'>" + escapeHtml(block.description || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-row'>";
+      html += "<div class='sce-inspector-section' style='flex:1;'>";
+      html += "<label class='sce-inspector-label'>Start State</label>";
+      html += "<select id='sceBlockStart' class='sce-inspector-select'>";
+      _sceState.states.forEach(function (s) {
+        var sel = s.position === block.start_state ? " selected" : "";
+        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div class='sce-inspector-section' style='flex:1;'>";
+      html += "<label class='sce-inspector-label'>End State</label>";
+      html += "<select id='sceBlockEnd' class='sce-inspector-select'>";
+      _sceState.states.forEach(function (s) {
+        var sel = s.position === block.end_state ? " selected" : "";
+        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
+      });
+      html += "</select></div>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Layer</label>";
+      html += "<select id='sceBlockLayer' class='sce-inspector-select'>";
+      _sceState.layers.forEach(function (l) {
+        var sel = Number(l.id) === Number(block.layer_id) ? " selected" : "";
+        html += "<option value='" + l.id + "'" + sel + ">" + escapeHtml(l.name) + "</option>";
+      });
+      html += "</select></div>";
+
+      if (asset) {
+        html += "<div class='sce-inspector-section'>";
+        html += "<label class='sce-inspector-label'>Source Asset</label>";
+        html += "<div class='sce-inspector-asset-link'>" + escapeHtml(asset.name) + "</div>";
+        html += "</div>";
+      }
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>What Happens</label>";
+      html += "<textarea id='sceBlockWhat' class='sce-inspector-textarea' rows='3'>" + escapeHtml(block.what_happens || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Notes</label>";
+      html += "<textarea id='sceBlockNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(block.notes || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceBlockSaveBtn' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "<button id='sceBlockDeleteBtn' type='button' class='sce-inspector-btn danger'>Delete</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      // Wire save
+      var saveBtn = document.getElementById("sceBlockSaveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          block.short_title = document.getElementById("sceBlockTitle").value;
+          block.description = document.getElementById("sceBlockDesc").value;
+          block.start_state = Number(document.getElementById("sceBlockStart").value);
+          block.end_state = Number(document.getElementById("sceBlockEnd").value);
+          block.layer_id = Number(document.getElementById("sceBlockLayer").value);
+          block.what_happens = document.getElementById("sceBlockWhat").value;
+          block.notes = document.getElementById("sceBlockNotes").value;
+          saveSCEBlock(block);
+          renderSCETimeline();
+          renderSCELayerControls();
+        });
+      }
+
+      // Wire delete
+      var deleteBtn = document.getElementById("sceBlockDeleteBtn");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this block?")) return;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.id) !== Number(block.id); });
+              _sceState.selectedBlockId = null;
+              renderSCETimeline();
+              renderSCEInspector();
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to delete block:", err);
+            })
+            .sceDeleteBlock(block.id);
+        });
+      }
+    }
+
+    function renderSCEInspectorAsset(asset) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var html = "";
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Asset Name</label>";
+      html += "<input id='sceAssetName' type='text' class='sce-inspector-input' value='" + escapeHtml(asset.name || "") + "' />";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Description</label>";
+      html += "<textarea id='sceAssetDesc' class='sce-inspector-textarea' rows='3'>" + escapeHtml(asset.description || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>What Changes</label>";
+      html += "<textarea id='sceAssetChanges' class='sce-inspector-textarea' rows='2'>" + escapeHtml(asset.what_changes || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>What It Produces</label>";
+      html += "<textarea id='sceAssetProduces' class='sce-inspector-textarea' rows='2'>" + escapeHtml(asset.what_produces || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Notes</label>";
+      html += "<textarea id='sceAssetNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(asset.notes || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceAssetSaveBtn' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "<button id='sceAssetDeleteBtn' type='button' class='sce-inspector-btn danger'>Delete</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      // Wire save
+      var saveBtn = document.getElementById("sceAssetSaveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          asset.name = document.getElementById("sceAssetName").value;
+          asset.description = document.getElementById("sceAssetDesc").value;
+          asset.what_changes = document.getElementById("sceAssetChanges").value;
+          asset.what_produces = document.getElementById("sceAssetProduces").value;
+          asset.notes = document.getElementById("sceAssetNotes").value;
+
+          var project = getSelectedProject();
+          var seriesId = Number(project && project.series_id || 0);
+
+          supabaseRunner
+            .withSuccessHandler(function () {
+              renderSCEAssetBin(seriesId);
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to save asset:", err);
+            })
+            .sceSaveAsset(JSON.stringify(asset));
+        });
+      }
+
+      // Wire delete
+      var deleteBtn = document.getElementById("sceAssetDeleteBtn");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this asset?")) return;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              _sceState.assets = _sceState.assets.filter(function (a) { return Number(a.id) !== Number(asset.id); });
+              _sceState.selectedAssetId = null;
+              var project = getSelectedProject();
+              var seriesId = Number(project && project.series_id || 0);
+              renderSCEAssetBin(seriesId);
+              renderSCEInspector();
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to delete asset:", err);
+            })
+            .sceDeleteAsset(asset.id);
+        });
+      }
+    }

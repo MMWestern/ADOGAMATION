@@ -1,5 +1,5 @@
     function bindEvents() {
-      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabSce, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         bindUiOnce(btn, "main-tab-switch", "click", function () {
           switchMainTab(btn.getAttribute("data-main-tab"));

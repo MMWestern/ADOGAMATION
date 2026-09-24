@@ -1291,8 +1291,190 @@
                 .then(function (valRes) {
                   if (valRes.error) throw valRes.error;
                   return JSON.stringify({ ok: true, values: valRes.data || [] });
-                });
-            });
+        });
+    });
+
+    // ============================================================
+    // STORY COMPOSITION EDITOR (SCE) — CRUD Functions
+    // ============================================================
+
+    _sbDefine('sceGetComposition', function (bookId) {
+      var safeBookId = Number(bookId || 0);
+      if (!safeBookId) throw new Error('Book id is required.');
+      return sbClient.from('sce_compositions').select('*').eq('book_id', safeBookId).limit(1)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, composition: (res.data || [])[0] || null }); });
+    });
+
+    _sbDefine('sceCreateComposition', function (seriesId, bookId, name) {
+      var safeSeriesId = Number(seriesId || 0);
+      var safeBookId = Number(bookId || 0);
+      if (!safeSeriesId) throw new Error('Series id is required.');
+      return sbClient.from('sce_compositions').insert([{
+        series_id: safeSeriesId,
+        book_id: safeBookId || null,
+        name: name || 'Untitled Composition'
+      }]).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, composition: res.data }); });
+    });
+
+    _sbDefine('sceGetStates', function (compositionId) {
+      var safeId = Number(compositionId || 0);
+      if (!safeId) throw new Error('Composition id is required.');
+      return sbClient.from('sce_states').select('*').eq('composition_id', safeId).order('position')
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, states: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveState', function (stateJson) {
+      var parsed = typeof stateJson === 'string' ? JSON.parse(stateJson) : (stateJson || {});
+      var stateId = Number(parsed.id || 0);
+      var payload = {
+        composition_id: Number(parsed.composition_id || 0),
+        position: Number(parsed.position || 0),
+        name: String(parsed.name || '').trim(),
+        purpose: parsed.purpose ? String(parsed.purpose).trim() : null,
+        before_text: parsed.before_text ? String(parsed.before_text).trim() : null,
+        after_text: parsed.after_text ? String(parsed.after_text).trim() : null
+      };
+      if (stateId) payload.id = stateId;
+      var op = stateId ? sbClient.from('sce_states').update(payload).eq('id', stateId).select().single()
+        : sbClient.from('sce_states').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, state: res.data }); });
+    });
+
+    _sbDefine('sceGetLayers', function (compositionId) {
+      var safeId = Number(compositionId || 0);
+      if (!safeId) throw new Error('Composition id is required.');
+      return sbClient.from('sce_layers').select('*').eq('composition_id', safeId).order('position')
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, layers: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveLayer', function (layerJson) {
+      var parsed = typeof layerJson === 'string' ? JSON.parse(layerJson) : (layerJson || {});
+      var layerId = Number(parsed.id || 0);
+      var payload = {
+        composition_id: Number(parsed.composition_id || 0),
+        name: String(parsed.name || '').trim(),
+        color: String(parsed.color || '#3b82f6').trim(),
+        position: Number(parsed.position || 0),
+        is_hidden: !!parsed.is_hidden,
+        is_solo: !!parsed.is_solo,
+        is_locked: !!parsed.is_locked,
+        is_default: !!parsed.is_default
+      };
+      if (layerId) payload.id = layerId;
+      var op = layerId ? sbClient.from('sce_layers').update(payload).eq('id', layerId).select().single()
+        : sbClient.from('sce_layers').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, layer: res.data }); });
+    });
+
+    _sbDefine('sceDeleteLayer', function (layerId) {
+      var safeId = Number(layerId || 0);
+      if (!safeId) throw new Error('Layer id is required.');
+      return sbClient.from('sce_layers').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('sceGetAssets', function (seriesId) {
+      var safeId = Number(seriesId || 0);
+      if (!safeId) throw new Error('Series id is required.');
+      return sbClient.from('sce_assets').select('*').eq('series_id', safeId).order('created_at', { ascending: false })
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, assets: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveAsset', function (assetJson) {
+      var parsed = typeof assetJson === 'string' ? JSON.parse(assetJson) : (assetJson || {});
+      var assetId = Number(parsed.id || 0);
+      var payload = {
+        series_id: Number(parsed.series_id || 0),
+        name: String(parsed.name || '').trim(),
+        description: parsed.description ? String(parsed.description).trim() : null,
+        what_changes: parsed.what_changes ? String(parsed.what_changes).trim() : null,
+        what_produces: parsed.what_produces ? String(parsed.what_produces).trim() : null,
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (assetId) payload.id = assetId;
+      var op = assetId ? sbClient.from('sce_assets').update(payload).eq('id', assetId).select().single()
+        : sbClient.from('sce_assets').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, asset: res.data }); });
+    });
+
+    _sbDefine('sceDeleteAsset', function (assetId) {
+      var safeId = Number(assetId || 0);
+      if (!safeId) throw new Error('Asset id is required.');
+      return sbClient.from('sce_assets').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('sceGetBlocks', function (compositionId) {
+      var safeId = Number(compositionId || 0);
+      if (!safeId) throw new Error('Composition id is required.');
+      return sbClient.from('sce_blocks').select('*').eq('composition_id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, blocks: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveBlock', function (blockJson) {
+      var parsed = typeof blockJson === 'string' ? JSON.parse(blockJson) : (blockJson || {});
+      var blockId = Number(parsed.id || 0);
+      var payload = {
+        composition_id: Number(parsed.composition_id || 0),
+        asset_id: parsed.asset_id ? Number(parsed.asset_id) : null,
+        layer_id: Number(parsed.layer_id || 0),
+        start_state: Number(parsed.start_state || 1),
+        end_state: Number(parsed.end_state || 1),
+        vertical_pos: Number(parsed.vertical_pos || 0),
+        short_title: parsed.short_title ? String(parsed.short_title).trim() : null,
+        description: parsed.description ? String(parsed.description).trim() : null,
+        before_text: parsed.before_text ? String(parsed.before_text).trim() : null,
+        what_happens: parsed.what_happens ? String(parsed.what_happens).trim() : null,
+        after_text: parsed.after_text ? String(parsed.after_text).trim() : null,
+        next_text: parsed.next_text ? String(parsed.next_text).trim() : null,
+        notes: parsed.notes ? String(parsed.notes).trim() : null,
+        is_detached: !!parsed.is_detached,
+        is_parked: !!parsed.is_parked,
+        is_later_book: !!parsed.is_later_book
+      };
+      if (blockId) payload.id = blockId;
+      var op = blockId ? sbClient.from('sce_blocks').update(payload).eq('id', blockId).select().single()
+        : sbClient.from('sce_blocks').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, block: res.data }); });
+    });
+
+    _sbDefine('sceDeleteBlock', function (blockId) {
+      var safeId = Number(blockId || 0);
+      if (!safeId) throw new Error('Block id is required.');
+      return sbClient.from('sce_blocks').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('sceGetConnections', function (compositionId) {
+      var safeId = Number(compositionId || 0);
+      if (!safeId) throw new Error('Composition id is required.');
+      return sbClient.from('sce_connections').select('*, source:sce_blocks!source_block_id(id,short_title), target:sce_blocks!target_block_id(id,short_title)')
+        .in('source_block_id', sbClient.from('sce_blocks').select('id').eq('composition_id', safeId))
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connections: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveConnection', function (connJson) {
+      var parsed = typeof connJson === 'string' ? JSON.parse(connJson) : (connJson || {});
+      var connId = Number(parsed.id || 0);
+      var payload = {
+        source_block_id: Number(parsed.source_block_id || 0),
+        target_block_id: Number(parsed.target_block_id || 0),
+        connection_type: String(parsed.connection_type || 'causes').trim(),
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (connId) payload.id = connId;
+      var op = connId ? sbClient.from('sce_connections').update(payload).eq('id', connId).select().single()
+        : sbClient.from('sce_connections').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connection: res.data }); });
+    });
+
+    _sbDefine('sceDeleteConnection', function (connId) {
+      var safeId = Number(connId || 0);
+      if (!safeId) throw new Error('Connection id is required.');
+      return sbClient.from('sce_connections').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
         });
     });
 

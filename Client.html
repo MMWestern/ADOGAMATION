@@ -6897,7 +6897,7 @@
 
     function switchMainTab(tabName) {
       var safeTab = String(tabName || "writing").trim().toLowerCase();
-      if (["writing", "lifecycle", "plan", "workspace", "publishing", "marketing", "resources", "codex", "chat"].indexOf(safeTab) === -1) safeTab = "writing";
+      if (["writing", "lifecycle", "plan", "sce", "workspace", "publishing", "marketing", "resources", "codex", "chat"].indexOf(safeTab) === -1) safeTab = "writing";
       refreshWorkspaceTabDisabledState();
       if (safeTab === "workspace" && el.mainTabWorkspace && el.mainTabWorkspace.classList.contains("is-disabled")) {
         safeTab = "plan";
@@ -6905,11 +6905,11 @@
       activeMainTab = safeTab;
       if (!appState.hubState) appState.hubState = {};
       appState.hubState.studioLastTab = safeTab;
-      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
+      [el.mainTabWriting, el.mainTabLifecycle, el.mainTabPlan, el.mainTabSce, el.mainTabWorkspace, el.mainTabPublishing, el.mainTabMarketing, el.mainTabResources, el.mainTabCodex, el.mainTabChat].forEach(function (btn) {
         if (!btn) return;
         btn.classList.toggle("is-active", btn.getAttribute("data-main-tab") === safeTab);
       });
-      [el.mainTabContentWriting, el.mainTabContentLifecycle, el.mainTabContentPlan, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex, el.mainTabContentChat].forEach(function (content) {
+      [el.mainTabContentWriting, el.mainTabContentLifecycle, el.mainTabContentPlan, el.mainTabContentSce, el.mainTabContentWorkspace, el.mainTabContentPublishing, el.mainTabContentMarketing, el.mainTabContentResources, el.mainTabContentCodex, el.mainTabContentChat].forEach(function (content) {
         if (!content) return;
         content.hidden = content.id !== "mainTabContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
         if (!content.hidden) content.scrollTop = 0;
@@ -6928,7 +6928,7 @@
       // Right-hand details column must be visible on the CODEX tab (relationships panel lives there)
       if (safeTab === "codex" && el.hubDetailsPanel) el.hubDetailsPanel.hidden = false;
 
-      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
+      if (el.searchPanelContent) el.searchPanelContent.hidden = (safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "sce" || safeTab === "chat");
       if (el.resourceTreePanel) el.resourceTreePanel.hidden = (safeTab !== "resources");
       if (el.writingCodexPanel) el.writingCodexPanel.hidden = (safeTab !== "workspace");
       if (el.planInfoPanelSidebar) el.planInfoPanelSidebar.hidden = (safeTab !== "plan");
@@ -6937,6 +6937,9 @@
       if (el.planGenreGuidePanel) el.planGenreGuidePanel.hidden = (safeTab !== "plan");
       if (safeTab === "plan") {
         loadPlanData().then(function () { setPlanSubTab("outline"); });
+      }
+      if (safeTab === "sce") {
+        if (typeof initSCE === "function") initSCE();
       }
       if (safeTab === "workspace") {
         renderWritingChapterList(getSelectedProject());
@@ -10434,6 +10437,13 @@
     <?!= include('scripts/lifecycle'); ?>
 
     <?!= include('scripts/world-builder'); ?>
+
+    <?!= include('scripts/sce-core'); ?>
+    <?!= include('scripts/sce-timeline'); ?>
+    <?!= include('scripts/sce-layers'); ?>
+    <?!= include('scripts/sce-asset-bin'); ?>
+    <?!= include('scripts/sce-blocks'); ?>
+    <?!= include('scripts/sce-inspector'); ?>
 
     <?!= include('scripts/resources-editor'); ?>
 

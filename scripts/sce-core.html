@@ -1,0 +1,258 @@
+    // ============================================================
+    // Story Composition Editor (SCE) — Core Module
+    // ============================================================
+
+    var _sceState = {
+      composition: null,
+      states: [],
+      layers: [],
+      blocks: [],
+      assets: [],
+      connections: [],
+      selectedBlockId: null,
+      selectedAssetId: null,
+      undoStack: [],
+      redoStack: [],
+      dirty: false,
+      initialized: false
+    };
+
+    var SCE_DEFAULT_STATES = [
+      { position: 1, name: "Before", purpose: "The starting situation before anything changes" },
+      { position: 2, name: "Something Changes", purpose: "An event or discovery that disrupts the status quo" },
+      { position: 3, name: "Immediate Reaction", purpose: "How the character responds to the change" },
+      { position: 4, name: "A Choice Is Made", purpose: "The character decides on a course of action" },
+      { position: 5, name: "New Situation", purpose: "The consequences of the choice create a new normal" },
+      { position: 6, name: "First Attempts", purpose: "Early efforts to deal with the new situation" },
+      { position: 7, name: "Things Get Harder", purpose: "Complications and obstacles increase" },
+      { position: 8, name: "Big Change", purpose: "A major shift that changes everything" },
+      { position: 9, name: "Consequences", purpose: "The fallout from the big change" },
+      { position: 10, name: "Trouble Closes In", purpose: "Problems converge and pressure mounts" },
+      { position: 11, name: "Major Loss", purpose: "Something important is lost or sacrificed" },
+      { position: 12, name: "Lowest Point", purpose: "The darkest moment, all seems lost" },
+      { position: 13, name: "New Understanding", purpose: "A revelation or insight that changes perspective" },
+      { position: 14, name: "Final Action", purpose: "The decisive move based on new understanding" },
+      { position: 15, name: "After and Next", purpose: "The new normal and seeds of what comes next" }
+    ];
+
+    var SCE_DEFAULT_LAYERS = [
+      { name: "Main Story", color: "#3b82f6", position: 0 },
+      { name: "Set Pieces", color: "#ef4444", position: 1 },
+      { name: "LitRPG Progression", color: "#22c55e", position: 2 },
+      { name: "Character", color: "#a855f7", position: 3 },
+      { name: "Relationships", color: "#ec4899", position: 4 },
+      { name: "Mystery and World", color: "#f59e0b", position: 5 },
+      { name: "Foreshadowing", color: "#14b8a6", position: 6 },
+      { name: "Easter Eggs and Callbacks", color: "#6366f1", position: 7 },
+      { name: "Consequences", color: "#f97316", position: 8 }
+    ];
+
+    var SCE_CONNECTION_TYPES = [
+      { key: "causes", label: "Causes" },
+      { key: "produces", label: "Produces" },
+      { key: "sets_up", label: "Sets up" },
+      { key: "foreshadows", label: "Foreshadows" },
+      { key: "echoes", label: "Echoes" },
+      { key: "pays_off", label: "Pays off" },
+      { key: "complicates", label: "Complicates" },
+      { key: "requires", label: "Requires" },
+      { key: "contradicts", label: "Contradicts" }
+    ];
+
+    function initSCE() {
+      if (_sceState.initialized) return;
+      var project = getSelectedProject();
+      var seriesId = Number(project && project.series_id || 0);
+      var bookId = Number(project && (project.project_id || project.id) || 0);
+      if (!seriesId || !bookId) {
+        var root = document.getElementById("sceRoot");
+        if (root) root.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted);'>Select a book project to use the Story Composition Editor.</div>";
+        return;
+      }
+      _sceState.initialized = true;
+      loadSCEData(seriesId, bookId);
+    }
+
+    function loadSCEData(seriesId, bookId) {
+      // Try to load existing composition
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.composition) {
+            _sceState.composition = result.composition;
+            loadSCECompositionData(result.composition.id, seriesId);
+          } else {
+            // No composition yet — create one
+            createSCEComposition(seriesId, bookId);
+          }
+        })
+        .withFailureHandler(function () {
+          createSCEComposition(seriesId, bookId);
+        })
+        .sceGetComposition(bookId);
+    }
+
+    function createSCEComposition(seriesId, bookId) {
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.composition) {
+            _sceState.composition = result.composition;
+            createDefaultSCEStatesAndLayers(result.composition.id, seriesId);
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to create composition:", err);
+        })
+        .sceCreateComposition(seriesId, bookId, "Untitled Composition");
+    }
+
+    function createDefaultSCEStatesAndLayers(compositionId, seriesId) {
+      var total = SCE_DEFAULT_STATES.length + SCE_DEFAULT_LAYERS.length;
+      var done = 0;
+
+      function checkDone() {
+        done++;
+        if (done >= total) {
+          loadSCECompositionData(compositionId, seriesId);
+        }
+      }
+
+      // Create default states
+      SCE_DEFAULT_STATES.forEach(function (s) {
+        supabaseRunner
+          .withSuccessHandler(checkDone)
+          .withFailureHandler(checkDone)
+          .sceSaveState(JSON.stringify({
+            composition_id: compositionId,
+            position: s.position,
+            name: s.name,
+            purpose: s.purpose
+          }));
+      });
+
+      // Create default layers
+      SCE_DEFAULT_LAYERS.forEach(function (l) {
+        supabaseRunner
+          .withSuccessHandler(checkDone)
+          .withFailureHandler(checkDone)
+          .sceSaveLayer(JSON.stringify({
+            composition_id: compositionId,
+            name: l.name,
+            color: l.color,
+            position: l.position,
+            is_default: true
+          }));
+      });
+    }
+
+    function loadSCECompositionData(compositionId, seriesId) {
+      var loaded = 0;
+      var total = 4;
+
+      function checkDone() {
+        loaded++;
+        if (loaded >= total) {
+          renderSCE(seriesId);
+        }
+      }
+
+      // Load states
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.states = result.states || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetStates(compositionId);
+
+      // Load layers
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.layers = result.layers || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetLayers(compositionId);
+
+      // Load blocks
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.blocks = result.blocks || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetBlocks(compositionId);
+
+      // Load assets
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.assets = result.assets || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetAssets(seriesId);
+    }
+
+    function renderSCE(seriesId) {
+      renderSCEAssetBin(seriesId);
+      renderSCELayerControls();
+      renderSCETimeline();
+      renderSCEInspector();
+      wireSCEToolbar(seriesId);
+      wireSCEBlockInteractions();
+    }
+
+    function wireSCEToolbar(seriesId) {
+      // Add asset button
+      var addBtn = document.getElementById("sceAddAssetBtn");
+      if (addBtn && !addBtn._wired) {
+        addBtn._wired = true;
+        addBtn.addEventListener("click", function () {
+          showSCEAssetEditor(null, seriesId);
+        });
+      }
+
+      // Asset search
+      var searchInput = document.getElementById("sceAssetSearchInput");
+      if (searchInput && !searchInput._wired) {
+        searchInput._wired = true;
+        searchInput.addEventListener("input", function () {
+          filterSCEAssets(searchInput.value);
+        });
+      }
+    }
+
+    function scePushUndo(action) {
+      _sceState.undoStack.push(action);
+      _sceState.redoStack = [];
+      if (_sceState.undoStack.length > 50) _sceState.undoStack.shift();
+      updateSCEUndoRedoButtons();
+    }
+
+    function sceUndo() {
+      if (!_sceState.undoStack.length) return;
+      var action = _sceState.undoStack.pop();
+      _sceState.redoStack.push(action);
+      action.undo();
+      updateSCEUndoRedoButtons();
+    }
+
+    function sceRedo() {
+      if (!_sceState.redoStack.length) return;
+      var action = _sceState.redoStack.pop();
+      _sceState.undoStack.push(action);
+      action.redo();
+      updateSCEUndoRedoButtons();
+    }
+
+    function updateSCEUndoRedoButtons() {
+      var undoBtn = document.getElementById("sceUndoBtn");
+      var redoBtn = document.getElementById("sceRedoBtn");
+      if (undoBtn) undoBtn.disabled = !_sceState.undoStack.length;
+      if (redoBtn) redoBtn.disabled = !_sceState.redoStack.length;
+    }
