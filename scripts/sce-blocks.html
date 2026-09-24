@@ -68,7 +68,7 @@
       timelineBody.addEventListener("mousedown", function (e) {
         var block = e.target.closest(".sce-block");
         if (!block) return;
-        if (e.target.closest(".sce-block-resize-handle")) return; // Handle resize separately
+        if (e.target.closest(".sce-block-resize-handle")) return;
 
         var blockId = Number(block.getAttribute("data-block-id"));
         var blockData = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
@@ -78,12 +78,15 @@
         var layer = _sceState.layers.find(function (l) { return Number(l.id) === Number(blockData.layer_id); });
         if (layer && layer.is_locked) return;
 
+        var rect = block.getBoundingClientRect();
         dragState = {
           blockId: blockId,
           startX: e.clientX,
           startY: e.clientY,
           blockEl: block,
-          moved: false
+          blockRect: rect,
+          moved: false,
+          ghost: null
         };
 
         e.preventDefault();
@@ -91,21 +94,33 @@
 
       document.addEventListener("mousemove", function (e) {
         if (!dragState) return;
-        dragState.moved = true;
-        dragState.blockEl.style.opacity = "0.6";
-        dragState.blockEl.style.position = "relative";
-        dragState.blockEl.style.zIndex = "100";
-        dragState.blockEl.style.left = (e.clientX - dragState.startX) + "px";
-        dragState.blockEl.style.top = (e.clientY - dragState.startY) + "px";
+        if (!dragState.moved) {
+          // First move: create ghost and hide original
+          dragState.moved = true;
+          var ghost = document.createElement("div");
+          ghost.className = "sce-block-drag-ghost";
+          ghost.style.cssText = "position:fixed;left:" + dragState.blockRect.left + "px;top:" + dragState.blockRect.top + "px;width:" + dragState.blockRect.width + "px;height:" + dragState.blockRect.height + "px;background:" + (dragState.blockEl.style.getPropertyValue("--layer-color") || "#3b82f6") + ";border-radius:4px;padding:4px 8px;z-index:99999;pointer-events:none;opacity:0.8;display:flex;align-items:center;";
+          var title = dragState.blockEl.querySelector(".sce-block-title");
+          ghost.innerHTML = title ? "<span style='font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;'>" + title.innerHTML + "</span>" : "";
+          document.body.appendChild(ghost);
+          dragState.ghost = ghost;
+          dragState.blockEl.style.opacity = "0.3";
+        }
+        // Move ghost
+        if (dragState.ghost) {
+          dragState.ghost.style.left = (e.clientX - dragState.startX + dragState.blockRect.left) + "px";
+          dragState.ghost.style.top = (e.clientY - dragState.startY + dragState.blockRect.top) + "px";
+        }
       });
 
       document.addEventListener("mouseup", function (e) {
         if (!dragState) return;
+
+        // Remove ghost
+        if (dragState.ghost) {
+          dragState.ghost.remove();
+        }
         dragState.blockEl.style.opacity = "";
-        dragState.blockEl.style.position = "";
-        dragState.blockEl.style.zIndex = "";
-        dragState.blockEl.style.left = "";
-        dragState.blockEl.style.top = "";
 
         if (dragState.moved) {
           // Find drop target
