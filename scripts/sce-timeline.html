@@ -36,13 +36,10 @@
 
       // Render body (layers with blocks)
       var bodyHtml = "";
+      var hasSolo = layers.some(function (l) { return l.is_solo; });
       var visibleLayers = layers.filter(function (l) {
-        if (l.is_hidden) {
-          // If any layer is solo, only show solo layers
-          var hasSolo = layers.some(function (ll) { return ll.is_solo; });
-          if (hasSolo) return l.is_solo;
-        }
-        return true;
+        if (hasSolo) return l.is_solo; // Solo mode: only show solo layers
+        return !l.is_hidden; // Normal mode: hide hidden layers
       });
 
       visibleLayers.forEach(function (layer) {

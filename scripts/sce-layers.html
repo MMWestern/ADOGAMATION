@@ -17,6 +17,7 @@
         html += "<button type='button' class='sce-layer-btn sce-layer-hide-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_hidden ? "Show" : "Hide") + "'>" + (layer.is_hidden ? "👁‍🗨" : "👁") + "</button>";
         html += "<button type='button' class='sce-layer-btn sce-layer-solo-btn' data-layer-id='" + layer.id + "' title='Solo' style='" + (layer.is_solo ? "color:#f59e0b;" : "") + "'>S</button>";
         html += "<button type='button' class='sce-layer-btn sce-layer-lock-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_locked ? "Unlock" : "Lock") + "'>" + (layer.is_locked ? "🔒" : "🔓") + "</button>";
+        html += "<button type='button' class='sce-layer-btn sce-layer-delete-btn' data-layer-id='" + layer.id + "' title='Delete layer'>&times;</button>";
         html += "</div>";
         html += "</div>";
       });
@@ -54,6 +55,14 @@
         });
       });
 
+      // Delete buttons
+      document.querySelectorAll(".sce-layer-delete-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var layerId = Number(btn.getAttribute("data-layer-id"));
+          deleteSCELayer(layerId);
+        });
+      });
+
       // Add layer button
       var addBtn = document.getElementById("sceAddLayerBtn");
       if (addBtn && !addBtn._wired) {
@@ -68,6 +77,8 @@
       var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
       if (!layer) return;
       layer.is_hidden = !layer.is_hidden;
+      // If hiding a solo layer, also unsolo it
+      if (layer.is_hidden && layer.is_solo) layer.is_solo = false;
       saveSCELayer(layer);
       renderSCETimeline();
       renderSCELayerControls();
@@ -77,6 +88,7 @@
       var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
       if (!layer) return;
       layer.is_solo = !layer.is_solo;
+      layer.is_hidden = false; // unsolo implies unhide
       saveSCELayer(layer);
       renderSCETimeline();
       renderSCELayerControls();
@@ -88,6 +100,31 @@
       layer.is_locked = !layer.is_locked;
       saveSCELayer(layer);
       renderSCELayerControls();
+    }
+
+    function deleteSCELayer(layerId) {
+      var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
+      if (!layer) return;
+      // Count blocks on this layer
+      var blocksOnLayer = _sceState.blocks.filter(function (b) { return Number(b.layer_id) === layerId; });
+      var msg = "Delete layer '" + layer.name + "'?";
+      if (blocksOnLayer.length) msg += " This will also delete " + blocksOnLayer.length + " block(s).";
+      if (!confirm(msg)) return;
+
+      supabaseRunner
+        .withSuccessHandler(function () {
+          // Remove layer from state
+          _sceState.layers = _sceState.layers.filter(function (l) { return Number(l.id) !== layerId; });
+          // Remove blocks on this layer
+          _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.layer_id) !== layerId; });
+          renderSCETimeline();
+          renderSCELayerControls();
+          renderSCEInspector();
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to delete layer:", err);
+        })
+        .sceDeleteLayer(layerId);
     }
 
     function addSCELayer() {
