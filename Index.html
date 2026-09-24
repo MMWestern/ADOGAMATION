@@ -320,6 +320,27 @@
           <div id="codexTreeContainer" class="writing-codex-list"></div>
         </div>
 
+        <!-- SCE Asset Bin sidebar panel -->
+        <div id="sceAssetPanel" class="writing-codex-panel" hidden>
+          <div class="writing-codex-top">
+            <div id="sceProjectInfo" class="writing-codex-info-panel">
+              <img id="sceProjectImage" class="writing-codex-info-image" alt="" />
+              <div class="writing-codex-info-copy">
+                <div class="writing-codex-info-title" id="sceProjectTitle">No project selected</div>
+                <div class="writing-codex-info-series" id="sceProjectSeries"></div>
+              </div>
+            </div>
+          </div>
+          <div class="writing-codex-search-row">
+            <input id="sceAssetSearchInput" type="text" placeholder="Search story ideas..." />
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
+            <span style="font-size:11px;font-weight:600;color:var(--muted);">Story Ideas</span>
+            <button id="sceAddAssetBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
+          </div>
+          <div id="sceAssetBinList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
+        </div>
+
         <div id="hubHomeSidebar" class="hub-sidebar-panel" hidden></div>
 
         <div id="hubHandbookSidebar" class="hub-sidebar-panel" hidden>
@@ -757,41 +778,11 @@
             </div>
           </div>
           <div class="sce-body">
-            <!-- Left panel: project info + asset bin -->
-            <div class="sce-left-panel">
-              <div id="sceProjectInfo" class="sce-project-info">
-                <img id="sceProjectImage" class="sce-project-image" alt="" />
-                <div class="sce-project-meta">
-                  <div id="sceProjectTitle" class="sce-project-title">No project selected</div>
-                  <div id="sceProjectSeries" class="sce-project-series muted"></div>
-                </div>
-              </div>
-              <div id="sceAssetBin" class="sce-asset-bin">
-                <div class="sce-asset-bin-header">
-                  <span>Story Ideas</span>
-                  <button id="sceAddAssetBtn" type="button" class="sce-toolbar-btn" title="Add Asset">+ Add</button>
-                </div>
-                <div id="sceAssetBinSearch" class="sce-asset-bin-search">
-                  <input id="sceAssetSearchInput" type="text" placeholder="Search assets..." />
-                </div>
-                <div id="sceAssetBinList" class="sce-asset-bin-list"></div>
-              </div>
-            </div>
-            <!-- Center: state columns + layers + timeline -->
             <div id="sceTimelineWrap" class="sce-timeline-wrap">
               <div id="sceLayerControls" class="sce-layer-controls"></div>
               <div id="sceTimeline" class="sce-timeline">
                 <div id="sceTimelineHeader" class="sce-timeline-header"></div>
                 <div id="sceTimelineBody" class="sce-timeline-body"></div>
-              </div>
-            </div>
-            <!-- Right: inspector -->
-            <div id="sceInspector" class="sce-inspector">
-              <div class="sce-inspector-header">
-                <span>Inspector</span>
-              </div>
-              <div id="sceInspectorContent" class="sce-inspector-content">
-                <div class="sce-inspector-empty">Select a block or asset to edit</div>
               </div>
             </div>
           </div>
@@ -1801,6 +1792,19 @@
             </div>
             <!-- Fallback when no entity selected -->
             <div id="writingInspectorEmptyBody" class="writing-inspector-copy" style="flex:1;display:flex;align-items:center;justify-content:center;color:#5f6971;">Pick a character, location, continuity note, or lore entry from the left to keep it in view while you write.</div>
+          </div>
+        </div>
+
+        <!-- SCE Inspector panel -->
+        <div id="sceInspectorPanel" class="resource-inspector-panel" hidden>
+          <div class="resource-inspector-header">
+            <div>
+              <div class="muted">Story Composition</div>
+              <h3>Inspector</h3>
+            </div>
+          </div>
+          <div id="sceInspectorContent" style="flex:1;overflow-y:auto;padding:8px;">
+            <div style="color:var(--muted);text-align:center;padding:20px;font-size:12px;">Select a block or asset to edit</div>
           </div>
         </div>
 

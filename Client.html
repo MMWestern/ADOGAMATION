@@ -6935,6 +6935,12 @@
       if (el.chatSidebarPanel) el.chatSidebarPanel.hidden = (safeTab !== "chat");
       if (el.codexTreePanel) el.codexTreePanel.hidden = (safeTab !== "codex");
       if (el.planGenreGuidePanel) el.planGenreGuidePanel.hidden = (safeTab !== "plan");
+      // SCE sidebar panels
+      var sceAssetPanel = document.getElementById("sceAssetPanel");
+      if (sceAssetPanel) sceAssetPanel.hidden = (safeTab !== "sce");
+      var sceInspectorPanel = document.getElementById("sceInspectorPanel");
+      if (sceInspectorPanel) sceInspectorPanel.hidden = (safeTab !== "sce");
+      if (el.projectInspectorPanel) el.projectInspectorPanel.hidden = (safeTab === "sce" || safeTab === "resources" || safeTab === "codex" || safeTab === "workspace" || safeTab === "plan" || safeTab === "chat");
       if (safeTab === "plan") {
         loadPlanData().then(function () { setPlanSubTab("outline"); });
       }
