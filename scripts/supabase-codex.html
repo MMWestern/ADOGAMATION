@@ -1298,6 +1298,7 @@
     // STORY COMPOSITION EDITOR (SCE) — CRUD Functions
     // ============================================================
 
+    console.log("[SCE] Registering SCE Supabase functions...");
     _sbDefine('sceGetComposition', function (bookId) {
       var safeBookId = Number(bookId || 0);
       if (!safeBookId) throw new Error('Book id is required.');
