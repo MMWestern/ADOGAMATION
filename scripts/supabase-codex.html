@@ -1291,6 +1291,8 @@
                 .then(function (valRes) {
                   if (valRes.error) throw valRes.error;
                   return JSON.stringify({ ok: true, values: valRes.data || [] });
+                });
+            });
         });
     });
 
@@ -1475,8 +1477,6 @@
       if (!safeId) throw new Error('Connection id is required.');
       return sbClient.from('sce_connections').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
-    });
-        });
     });
 
     _sbDefine('saveCodexEntityFieldValue', function (valueJson) {
