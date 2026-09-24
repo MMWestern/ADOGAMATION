@@ -69,23 +69,21 @@
       document.querySelectorAll(".sce-block").forEach(function (el) { el.remove(); });
 
       _sceState.blocks.forEach(function (block) {
-        if (block.is_parked || block.is_later_book) return; // Skip parked/later for now
+        if (block.is_parked || block.is_later_book) return;
         var layerRow = document.querySelector('.sce-layer-row[data-layer-id="' + block.layer_id + '"]');
         if (!layerRow) return;
         var cells = layerRow.querySelector(".sce-layer-cells");
         if (!cells) return;
 
-        var startCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
-        if (!startCell) return;
+        // Find the cell for this block's start_state and insert the block inside it
+        var targetCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
+        if (!targetCell) return;
 
         var blockEl = document.createElement("div");
         blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
         blockEl.setAttribute("data-block-id", block.id);
         blockEl.setAttribute("data-start", block.start_state);
         blockEl.setAttribute("data-end", block.end_state);
-
-        var span = block.end_state - block.start_state + 1;
-        blockEl.style.gridColumn = "span " + span;
 
         var title = block.short_title || "Untitled";
         blockEl.innerHTML = "<div class='sce-block-title'>" + escapeHtml(title) + "</div>";
@@ -96,8 +94,7 @@
           selectSCEBlock(block.id);
         });
 
-        // Insert at the right position
-        startCell.parentNode.insertBefore(blockEl, startCell.nextSibling);
+        targetCell.appendChild(blockEl);
       });
     }
 
