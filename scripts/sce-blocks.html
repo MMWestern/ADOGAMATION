@@ -112,15 +112,15 @@
           dragState.ghost.style.top = (e.clientY - dragState.startY + dragState.blockRect.top) + "px";
         }
         // Auto-scroll timeline when near edges
-        var timelineWrap = document.getElementById("sceTimelineWrap");
-        if (timelineWrap) {
-          var wrapRect = timelineWrap.getBoundingClientRect();
+        var timeline = document.getElementById("sceTimeline");
+        if (timeline) {
+          var wrapRect = timeline.getBoundingClientRect();
           var edgeZone = 40;
           var scrollSpeed = 15;
           if (e.clientX < wrapRect.left + edgeZone) {
-            timelineWrap.scrollLeft -= scrollSpeed;
+            timeline.scrollLeft -= scrollSpeed;
           } else if (e.clientX > wrapRect.right - edgeZone) {
-            timelineWrap.scrollLeft += scrollSpeed;
+            timeline.scrollLeft += scrollSpeed;
           }
         }
       });
