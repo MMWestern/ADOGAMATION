@@ -60,40 +60,41 @@
     ];
 
     function initSCE() {
-      console.log("[SCE] initSCE called, initialized:", _sceState.initialized);
       if (_sceState.initialized) return;
       var project = getSelectedProject();
       var seriesId = Number(project && project.series_id || 0);
       var bookId = Number(project && (project.project_id || project.id) || 0);
-      console.log("[SCE] project:", project ? project.title : "null", "seriesId:", seriesId, "bookId:", bookId);
       if (!seriesId || !bookId) {
         var root = document.getElementById("sceRoot");
         if (root) root.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted);'>Select a book project to use the Story Composition Editor.</div>";
         return;
       }
       _sceState.initialized = true;
+      populateSCEProjectInfo(project);
       loadSCEData(seriesId, bookId);
     }
 
+    function populateSCEProjectInfo(project) {
+      var img = document.getElementById("sceProjectImage");
+      var title = document.getElementById("sceProjectTitle");
+      var series = document.getElementById("sceProjectSeries");
+      if (img) img.src = project.image_url || "";
+      if (title) title.textContent = project.title || "Untitled";
+      if (series) series.textContent = project.series_name || project.series || "";
+    }
+
     function loadSCEData(seriesId, bookId) {
-      console.log("[SCE] Looking for composition for book:", bookId);
-      // Try to load existing composition
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
-          console.log("[SCE] Composition lookup result:", result);
           if (result.composition) {
             _sceState.composition = result.composition;
-            console.log("[SCE] Found existing composition:", result.composition.id);
             loadSCECompositionData(result.composition.id, seriesId);
           } else {
-            // No composition yet — create one
-            console.log("[SCE] No composition found, creating one...");
             createSCEComposition(seriesId, bookId);
           }
         })
-        .withFailureHandler(function (err) {
-          console.error("[SCE] Failed to get composition, creating one:", err);
+        .withFailureHandler(function () {
           createSCEComposition(seriesId, bookId);
         })
         .sceGetComposition(bookId);
@@ -154,15 +155,12 @@
     }
 
     function loadSCECompositionData(compositionId, seriesId) {
-      console.log("[SCE] Loading composition data:", compositionId);
       var loaded = 0;
       var total = 4;
 
       function checkDone() {
         loaded++;
-        console.log("[SCE] Loaded", loaded, "/", total);
         if (loaded >= total) {
-          console.log("[SCE] All data loaded, rendering. States:", _sceState.states.length, "Layers:", _sceState.layers.length, "Blocks:", _sceState.blocks.length, "Assets:", _sceState.assets.length);
           renderSCE(seriesId);
         }
       }
@@ -172,13 +170,9 @@
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.states = result.states || [];
-          console.log("[SCE] States loaded:", _sceState.states.length);
           checkDone();
         })
-        .withFailureHandler(function (err) {
-          console.error("[SCE] Failed to load states:", err);
-          checkDone();
-        })
+        .withFailureHandler(checkDone)
         .sceGetStates(compositionId);
 
       // Load layers
@@ -186,13 +180,9 @@
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.layers = result.layers || [];
-          console.log("[SCE] Layers loaded:", _sceState.layers.length);
           checkDone();
         })
-        .withFailureHandler(function (err) {
-          console.error("[SCE] Failed to load layers:", err);
-          checkDone();
-        })
+        .withFailureHandler(checkDone)
         .sceGetLayers(compositionId);
 
       // Load blocks
@@ -200,13 +190,9 @@
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.blocks = result.blocks || [];
-          console.log("[SCE] Blocks loaded:", _sceState.blocks.length);
           checkDone();
         })
-        .withFailureHandler(function (err) {
-          console.error("[SCE] Failed to load blocks:", err);
-          checkDone();
-        })
+        .withFailureHandler(checkDone)
         .sceGetBlocks(compositionId);
 
       // Load assets
@@ -214,13 +200,9 @@
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.assets = result.assets || [];
-          console.log("[SCE] Assets loaded:", _sceState.assets.length);
           checkDone();
         })
-        .withFailureHandler(function (err) {
-          console.error("[SCE] Failed to load assets:", err);
-          checkDone();
-        })
+        .withFailureHandler(checkDone)
         .sceGetAssets(seriesId);
     }
 

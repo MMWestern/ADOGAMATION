@@ -757,16 +757,27 @@
             </div>
           </div>
           <div class="sce-body">
-            <div id="sceAssetBin" class="sce-asset-bin">
-              <div class="sce-asset-bin-header">
-                <span>Assets</span>
-                <button id="sceAddAssetBtn" type="button" class="sce-toolbar-btn" title="Add Asset">+ Add</button>
+            <!-- Left panel: project info + asset bin -->
+            <div class="sce-left-panel">
+              <div id="sceProjectInfo" class="sce-project-info">
+                <img id="sceProjectImage" class="sce-project-image" alt="" />
+                <div class="sce-project-meta">
+                  <div id="sceProjectTitle" class="sce-project-title">No project selected</div>
+                  <div id="sceProjectSeries" class="sce-project-series muted"></div>
+                </div>
               </div>
-              <div id="sceAssetBinSearch" class="sce-asset-bin-search">
-                <input id="sceAssetSearchInput" type="text" placeholder="Search assets..." />
+              <div id="sceAssetBin" class="sce-asset-bin">
+                <div class="sce-asset-bin-header">
+                  <span>Story Ideas</span>
+                  <button id="sceAddAssetBtn" type="button" class="sce-toolbar-btn" title="Add Asset">+ Add</button>
+                </div>
+                <div id="sceAssetBinSearch" class="sce-asset-bin-search">
+                  <input id="sceAssetSearchInput" type="text" placeholder="Search assets..." />
+                </div>
+                <div id="sceAssetBinList" class="sce-asset-bin-list"></div>
               </div>
-              <div id="sceAssetBinList" class="sce-asset-bin-list"></div>
             </div>
+            <!-- Center: state columns + layers + timeline -->
             <div id="sceTimelineWrap" class="sce-timeline-wrap">
               <div id="sceLayerControls" class="sce-layer-controls"></div>
               <div id="sceTimeline" class="sce-timeline">
@@ -774,6 +785,7 @@
                 <div id="sceTimelineBody" class="sce-timeline-body"></div>
               </div>
             </div>
+            <!-- Right: inspector -->
             <div id="sceInspector" class="sce-inspector">
               <div class="sce-inspector-header">
                 <span>Inspector</span>
