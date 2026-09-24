@@ -19,8 +19,9 @@
       // Sort states by position
       states.sort(function (a, b) { return a.position - b.position; });
 
-      // Render header (state columns)
+      // Render header (state columns) with spacer for layer label
       var headerHtml = "<div class='sce-state-header-row'>";
+      headerHtml += "<div class='sce-state-header-spacer'></div>";
       states.forEach(function (state) {
         headerHtml += "<div class='sce-state-header' data-state='" + state.position + "'>";
         headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
