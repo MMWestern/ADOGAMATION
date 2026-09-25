@@ -68,9 +68,13 @@
         var targetRect = targetBlock.getBoundingClientRect();
         var bodyRect = body.getBoundingClientRect();
 
-        // Source exits from right-side dot, target enters from left side
-        var x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
-        var y1 = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
+        // Get the dot's actual position (not the block edge)
+        var dot = sourceBlock.querySelector('.sce-block-connect-node');
+        var dotRect = dot ? dot.getBoundingClientRect() : sourceRect;
+        var x1 = dotRect.left + dotRect.width / 2 - bodyRect.left + body.scrollLeft;
+        var y1 = dotRect.top + dotRect.height / 2 - bodyRect.top + body.scrollTop;
+
+        // Target always enters from left side
         var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
