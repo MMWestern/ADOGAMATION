@@ -172,7 +172,7 @@
 
     function loadSCECompositionData(compositionId, seriesId) {
       var loaded = 0;
-      var total = 4;
+      var total = 5;
 
       function checkDone() {
         loaded++;
@@ -220,12 +220,23 @@
         })
         .withFailureHandler(checkDone)
         .sceGetAssets(seriesId);
+
+      // Load connections
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.connections = result.connections || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetConnections(compositionId);
     }
 
     function renderSCE(seriesId) {
       renderSCEAssetBin(seriesId);
       renderSCELayerControls();
       renderSCETimeline();
+      renderSCEConnections();
       renderSCEInspector();
       wireSCEToolbar(seriesId);
       wireSCEBlockInteractions();
@@ -249,6 +260,17 @@
         searchInput._wired = true;
         searchInput.addEventListener("input", function () {
           filterSCEAssets(searchInput.value);
+        });
+      }
+
+      // Toggle connections visibility
+      var toggleBtn = document.getElementById("sceToggleConnections");
+      if (toggleBtn && !toggleBtn._wired) {
+        toggleBtn._wired = true;
+        toggleBtn.addEventListener("click", function () {
+          _sceShowConnections = !_sceShowConnections;
+          toggleBtn.style.opacity = _sceShowConnections ? "1" : "0.4";
+          renderSCEConnections();
         });
       }
     }

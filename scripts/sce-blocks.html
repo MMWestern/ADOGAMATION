@@ -177,6 +177,7 @@
             b.end_state = oldEnd;
             saveSCEBlock(b);
             renderSCETimeline();
+            renderSCEConnections();
           }
         },
         redo: function () {
@@ -187,12 +188,14 @@
             b.end_state = newPosition + span;
             saveSCEBlock(b);
             renderSCETimeline();
+            renderSCEConnections();
           }
         }
       });
 
       saveSCEBlock(block);
       renderSCETimeline();
+      renderSCEConnections();
     }
 
     function saveSCEBlock(block) {

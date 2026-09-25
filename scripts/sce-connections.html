@@ -1,0 +1,306 @@
+    // ============================================================
+    // Story Composition Editor — Block Connections
+    // ============================================================
+
+    var SCE_CONNECTION_COLORS = {
+      causes: "#ef4444",
+      produces: "#f97316",
+      sets_up: "#3b82f6",
+      foreshadows: "#a855f7",
+      echoes: "#14b8a6",
+      pays_off: "#22c55e",
+      complicates: "#f59e0b",
+      requires: "#6366f1",
+      contradicts: "#ec4899"
+    };
+
+    var _sceShowConnections = true;
+
+    function renderSCEConnections() {
+      // Remove existing SVG overlay
+      var existingSvg = document.getElementById("sceConnectionSvg");
+      if (existingSvg) existingSvg.remove();
+
+      if (!_sceShowConnections) return;
+      if (!_sceState.connections.length) return;
+
+      var timeline = document.getElementById("sceTimeline");
+      if (!timeline) return;
+
+      // Create SVG overlay positioned over the timeline body
+      var body = document.getElementById("sceTimelineBody");
+      if (!body) return;
+
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.id = "sceConnectionSvg";
+      svg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;";
+      svg.setAttribute("width", body.scrollWidth);
+      svg.setAttribute("height", body.scrollHeight);
+
+      // Add arrowhead marker
+      var defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      SCE_CONNECTION_TYPES.forEach(function (ct) {
+        var color = SCE_CONNECTION_COLORS[ct.key] || "#888";
+        var marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+        marker.setAttribute("id", "arrow-" + ct.key);
+        marker.setAttribute("viewBox", "0 0 10 10");
+        marker.setAttribute("refX", "9");
+        marker.setAttribute("refY", "5");
+        marker.setAttribute("markerWidth", "6");
+        marker.setAttribute("markerHeight", "6");
+        marker.setAttribute("orient", "auto");
+        var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+        path.setAttribute("fill", color);
+        marker.appendChild(path);
+        defs.appendChild(marker);
+      });
+      svg.appendChild(defs);
+
+      // Draw connections
+      _sceState.connections.forEach(function (conn) {
+        var sourceBlock = body.querySelector('[data-block-id="' + conn.source_block_id + '"]');
+        var targetBlock = body.querySelector('[data-block-id="' + conn.target_block_id + '"]');
+        if (!sourceBlock || !targetBlock) return;
+
+        var sourceRect = sourceBlock.getBoundingClientRect();
+        var targetRect = targetBlock.getBoundingClientRect();
+        var bodyRect = body.getBoundingClientRect();
+
+        // Calculate positions relative to the body
+        var x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
+        var y1 = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
+        var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
+        var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
+
+        var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
+
+        // Draw curved path
+        var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        var dx = Math.abs(x2 - x1) * 0.4;
+        var d = "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + " " + (x2 - dx) + " " + y2 + " " + x2 + " " + y2;
+        path.setAttribute("d", d);
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        path.setAttribute("opacity", "0.7");
+        path.setAttribute("marker-end", "url(#arrow-" + conn.connection_type + ")");
+        path.setAttribute("data-connection-id", conn.id);
+        path.style.pointerEvents = "stroke";
+        path.style.cursor = "pointer";
+
+        // Click to select connection
+        path.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEConnection(conn.id);
+        });
+
+        svg.appendChild(path);
+
+        // Add label at midpoint
+        var midX = (x1 + x2) / 2;
+        var midY = (y1 + y2) / 2 - 8;
+        var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", midX);
+        label.setAttribute("y", midY);
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("font-size", "9");
+        label.setAttribute("fill", color);
+        label.setAttribute("opacity", "0.8");
+        label.setAttribute("data-connection-id", conn.id);
+        var typeObj = SCE_CONNECTION_TYPES.find(function (t) { return t.key === conn.connection_type; });
+        label.textContent = typeObj ? typeObj.label : conn.connection_type;
+        svg.appendChild(label);
+      });
+
+      body.style.position = "relative";
+      body.appendChild(svg);
+    }
+
+    function selectSCEConnection(connId) {
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      // Highlight the connection
+      document.querySelectorAll("#sceConnectionSvg path").forEach(function (p) {
+        var isThis = Number(p.getAttribute("data-connection-id")) === connId;
+        p.setAttribute("stroke-width", isThis ? "3" : "2");
+        p.setAttribute("opacity", isThis ? "1" : "0.7");
+      });
+      // Show connection in inspector
+      var conn = _sceState.connections.find(function (c) { return Number(c.id) === connId; });
+      if (conn) renderSCEInspectorConnection(conn);
+    }
+
+    function renderSCEInspectorConnection(conn) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var sourceBlock = _sceState.blocks.find(function (b) { return Number(b.id) === Number(conn.source_block_id); });
+      var targetBlock = _sceState.blocks.find(function (b) { return Number(b.id) === Number(conn.target_block_id); });
+
+      var html = "";
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Connection</label>";
+      html += "<div style='font-size:13px;font-weight:600;'>" + escapeHtml(sourceBlock ? sourceBlock.short_title : "?") + " → " + escapeHtml(targetBlock ? targetBlock.short_title : "?") + "</div>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Type</label>";
+      html += "<select id='sceConnType' class='sce-inspector-select'>";
+      SCE_CONNECTION_TYPES.forEach(function (ct) {
+        var sel = conn.connection_type === ct.key ? " selected" : "";
+        html += "<option value='" + ct.key + "'" + sel + ">" + ct.label + "</option>";
+      });
+      html += "</select></div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Notes</label>";
+      html += "<textarea id='sceConnNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(conn.notes || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceConnSaveBtn' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "<button id='sceConnDeleteBtn' type='button' class='sce-inspector-btn danger'>Delete</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      // Wire save
+      var saveBtn = document.getElementById("sceConnSaveBtn");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          conn.connection_type = document.getElementById("sceConnType").value;
+          conn.notes = document.getElementById("sceConnNotes").value;
+          saveSCEConnection(conn);
+          renderSCEConnections();
+        });
+      }
+
+      // Wire delete
+      var deleteBtn = document.getElementById("sceConnDeleteBtn");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this connection?")) return;
+          deleteSCEConnection(conn.id);
+        });
+      }
+    }
+
+    function showSCEConnectionCreator(sourceBlockId) {
+      // Show a dropdown to select target block and connection type
+      var sourceBlock = _sceState.blocks.find(function (b) { return Number(b.id) === Number(sourceBlockId); });
+      if (!sourceBlock) return;
+
+      // Filter out blocks already connected to source
+      var existingTargets = _sceState.connections
+        .filter(function (c) { return Number(c.source_block_id) === Number(sourceBlockId); })
+        .map(function (c) { return Number(c.target_block_id); });
+
+      var availableBlocks = _sceState.blocks.filter(function (b) {
+        return Number(b.id) !== Number(sourceBlockId) && existingTargets.indexOf(Number(b.id)) === -1;
+      });
+
+      if (!availableBlocks.length) {
+        alert("No available blocks to connect to.");
+        return;
+      }
+
+      // Build dropdown menu
+      var menu = document.createElement("div");
+      menu.style.cssText = "position:fixed;z-index:99999;background:#1e1e28;border:1px solid #3a3a42;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);padding:4px 0;max-height:250px;overflow-y:auto;min-width:180px;";
+
+      // Connection type selector
+      var typeRow = document.createElement("div");
+      typeRow.style.cssText = "padding:4px 8px;border-bottom:1px solid #3a3a42;";
+      typeRow.innerHTML = "<span style='font-size:10px;color:var(--muted);'>Type:</span> ";
+      var typeSelect = document.createElement("select");
+      typeSelect.style.cssText = "font-size:11px;padding:2px 4px;background:#1a1a20;border:1px solid #3a3a42;border-radius:3px;color:#f2f2f4;";
+      SCE_CONNECTION_TYPES.forEach(function (ct) {
+        var opt = document.createElement("option");
+        opt.value = ct.key;
+        opt.textContent = ct.label;
+        typeSelect.appendChild(opt);
+      });
+      typeRow.appendChild(typeSelect);
+      menu.appendChild(typeRow);
+
+      // Target block options
+      availableBlocks.forEach(function (block) {
+        var opt = document.createElement("div");
+        opt.style.cssText = "padding:6px 12px;font-size:12px;cursor:pointer;color:#c5c5ce;";
+        opt.textContent = block.short_title || "Untitled";
+        opt.addEventListener("mouseenter", function () { opt.style.background = "rgba(59,130,246,0.18)"; });
+        opt.addEventListener("mouseleave", function () { opt.style.background = ""; });
+        opt.addEventListener("click", function () {
+          menu.remove();
+          var connType = typeSelect.value;
+          createSCEConnection(sourceBlockId, block.id, connType);
+        });
+        menu.appendChild(opt);
+      });
+
+      document.body.appendChild(menu);
+
+      // Position near the source block
+      var sourceEl = document.querySelector('[data-block-id="' + sourceBlockId + '"]');
+      if (sourceEl) {
+        var rect = sourceEl.getBoundingClientRect();
+        menu.style.left = (rect.right + 4) + "px";
+        menu.style.top = rect.top + "px";
+      }
+
+      // Close on outside click
+      var closer = function (e) {
+        if (!menu.contains(e.target)) {
+          menu.remove();
+          document.removeEventListener("click", closer);
+        }
+      };
+      setTimeout(function () { document.addEventListener("click", closer); }, 10);
+    }
+
+    function createSCEConnection(sourceBlockId, targetBlockId, connectionType) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var payload = {
+        source_block_id: sourceBlockId,
+        target_block_id: targetBlockId,
+        connection_type: connectionType || "causes"
+      };
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.connection) {
+            _sceState.connections.push(result.connection);
+            renderSCEConnections();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to create connection:", err);
+        })
+        .sceSaveConnection(JSON.stringify(payload));
+    }
+
+    function saveSCEConnection(conn) {
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save connection:", err);
+        })
+        .sceSaveConnection(JSON.stringify(conn));
+    }
+
+    function deleteSCEConnection(connId) {
+      supabaseRunner
+        .withSuccessHandler(function () {
+          _sceState.connections = _sceState.connections.filter(function (c) { return Number(c.id) !== connId; });
+          renderSCEConnections();
+          renderSCEInspector();
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to delete connection:", err);
+        })
+        .sceDeleteConnection(connId);
+    }

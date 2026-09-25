@@ -88,7 +88,33 @@
       html += "<textarea id='sceBlockNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(block.notes || "") + "</textarea>";
       html += "</div>";
 
+      // Connections list
+      var blockConns = _sceState.connections.filter(function (c) {
+        return Number(c.source_block_id) === Number(block.id) || Number(c.target_block_id) === Number(block.id);
+      });
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Connections (" + blockConns.length + ")</label>";
+      html += "<div id='sceBlockConnections' style='max-height:100px;overflow-y:auto;'>";
+      if (blockConns.length) {
+        blockConns.forEach(function (c) {
+          var isSource = Number(c.source_block_id) === Number(block.id);
+          var otherBlock = _sceState.blocks.find(function (b) {
+            return Number(b.id) === (isSource ? Number(c.target_block_id) : Number(c.source_block_id));
+          });
+          var arrow = isSource ? " → " : " ← ";
+          var color = (typeof SCE_CONNECTION_COLORS !== "undefined") ? (SCE_CONNECTION_COLORS[c.connection_type] || "#888") : "#888";
+          html += "<div style='font-size:11px;padding:2px 0;display:flex;align-items:center;gap:4px;'>";
+          html += "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:" + color + ";flex-shrink:0;'></span>";
+          html += "<span style='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + arrow + escapeHtml(otherBlock ? otherBlock.short_title || "Untitled" : "?") + "</span>";
+          html += "</div>";
+        });
+      } else {
+        html += "<div class='tiny' style='color:var(--muted);'>No connections</div>";
+      }
+      html += "</div></div>";
+
       html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceBlockConnectBtn' type='button' class='sce-inspector-btn' style='color:#3b82f6;border-color:#3b82f6;'>Connect</button>";
       html += "<button id='sceBlockSaveBtn' type='button' class='sce-inspector-btn primary'>Save</button>";
       html += "<button id='sceBlockDeleteBtn' type='button' class='sce-inspector-btn danger'>Delete</button>";
       html += "</div>";
@@ -122,12 +148,21 @@
               _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.id) !== Number(block.id); });
               _sceState.selectedBlockId = null;
               renderSCETimeline();
+              renderSCEConnections();
               renderSCEInspector();
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to delete block:", err);
             })
             .sceDeleteBlock(block.id);
+        });
+      }
+
+      // Wire connect button
+      var connectBtn = document.getElementById("sceBlockConnectBtn");
+      if (connectBtn) {
+        connectBtn.addEventListener("click", function () {
+          showSCEConnectionCreator(block.id);
         });
       }
     }
