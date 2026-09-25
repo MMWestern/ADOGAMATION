@@ -324,11 +324,20 @@
         <div id="sceAssetPanel" class="writing-codex-panel" hidden>
           <div class="writing-codex-top">
             <div id="sceProjectInfo" class="writing-codex-info-panel">
-              <img id="sceProjectImage" class="writing-codex-info-image" alt="" />
+              <img id="sceProjectImage" class="writing-codex-info-image" alt="Project cover" />
               <div class="writing-codex-info-copy">
-                <div class="writing-codex-info-title" id="sceProjectTitle">No project selected</div>
-                <div class="writing-codex-info-series" id="sceProjectSeries"></div>
+                <div class="writing-codex-info-title" id="sceProjectTitle">Select a Project</div>
+                <div class="writing-codex-info-series" id="sceProjectSeries">No series</div>
+                <div class="writing-codex-info-grid">
+                  <div class="writing-codex-info-label">Genre</div>
+                  <div class="writing-codex-info-value" id="sceProjectGenre">—</div>
+                  <div class="writing-codex-info-label">Author</div>
+                  <div class="writing-codex-info-value" id="sceProjectAuthor">—</div>
+                  <div class="writing-codex-info-label">Words</div>
+                  <div class="writing-codex-info-value" id="sceProjectWords">0w</div>
+                </div>
               </div>
+              <button id="sceSeriesButton" class="writing-codex-series-btn" type="button" title="Switch series book">SERIES</button>
             </div>
           </div>
           <div class="writing-codex-search-row">

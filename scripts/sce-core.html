@@ -78,16 +78,25 @@
       var img = document.getElementById("sceProjectImage");
       var title = document.getElementById("sceProjectTitle");
       var series = document.getElementById("sceProjectSeries");
+      var genre = document.getElementById("sceProjectGenre");
+      var author = document.getElementById("sceProjectAuthor");
+      var words = document.getElementById("sceProjectWords");
       if (img) {
         if (typeof getProjectDisplayImageUrl === "function") {
           img.src = getProjectDisplayImageUrl(project);
         } else {
           img.src = project.image_url || project.series_image_url || "";
         }
-        img.alt = project.title ? project.title + " cover" : "";
+        img.alt = project && project.title ? project.title + " cover" : "";
       }
-      if (title) title.textContent = project.title || "Untitled";
-      if (series) series.textContent = project.series_name || project.series || "";
+      if (title) title.textContent = project ? (project.title || "Untitled") : "Select a Project";
+      if (series) series.textContent = project ? (project.series_name || project.series || "No series") : "No series";
+      if (genre) genre.textContent = project ? (project.genre || "\u2014") : "\u2014";
+      if (author) author.textContent = project ? (project.pen_name || project.author || "\u2014") : "\u2014";
+      if (words) {
+        var wc = project ? Number(project.word_count || project.total_words || 0) : 0;
+        words.textContent = wc ? formatWordCount(wc) : "0w";
+      }
     }
 
     function loadSCEData(seriesId, bookId) {
