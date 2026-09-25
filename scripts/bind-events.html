@@ -2316,4 +2316,74 @@
           }
         });
       }
+
+      // Panel resize handles
+      var layout = document.getElementById("appLayout");
+      if (layout) {
+        var sidebarHandle = document.getElementById("sidebarResizeHandle");
+        var detailsHandle = document.getElementById("detailsResizeHandle");
+        var dragState = null;
+
+        // Restore saved widths
+        try {
+          var savedWidths = localStorage.getItem("app_panel_widths");
+          if (savedWidths) {
+            var w = JSON.parse(savedWidths);
+            if (w.sidebar && w.details) {
+              layout.style.gridTemplateColumns = w.sidebar + "px 1fr " + w.details + "px";
+            }
+          }
+        } catch (e) {}
+
+        function startResize(handle, e) {
+          e.preventDefault();
+          dragState = {
+            handle: handle,
+            startX: e.clientX,
+            startSidebar: document.getElementById("sidebarPanel") ? document.getElementById("sidebarPanel").offsetWidth : 400,
+            startDetails: document.querySelector(".panel.details") ? document.querySelector(".panel.details").offsetWidth : 520
+          };
+          handle.classList.add("is-dragging");
+          document.body.style.cursor = "col-resize";
+          document.body.style.userSelect = "none";
+        }
+
+        document.addEventListener("mousemove", function (e) {
+          if (!dragState) return;
+          var dx = e.clientX - dragState.startX;
+          if (dragState.handle.id === "sidebarResizeHandle") {
+            var newSidebar = Math.max(200, Math.min(600, dragState.startSidebar + dx));
+            layout.style.gridTemplateColumns = newSidebar + "px 1fr";
+          } else if (dragState.handle.id === "detailsResizeHandle") {
+            var newDetails = Math.max(280, Math.min(800, dragState.startDetails - dx));
+            layout.style.gridTemplateColumns = "1fr " + newDetails + "px";
+          }
+        });
+
+        document.addEventListener("mouseup", function () {
+          if (!dragState) return;
+          dragState.handle.classList.remove("is-dragging");
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          // Save widths
+          var sidebar = document.getElementById("sidebarPanel");
+          var details = document.querySelector(".panel.details");
+          if (sidebar && details) {
+            try {
+              localStorage.setItem("app_panel_widths", JSON.stringify({
+                sidebar: sidebar.offsetWidth,
+                details: details.offsetWidth
+              }));
+            } catch (e) {}
+          }
+          dragState = null;
+        });
+
+        if (sidebarHandle) {
+          sidebarHandle.addEventListener("mousedown", function (e) { startResize(sidebarHandle, e); });
+        }
+        if (detailsHandle) {
+          detailsHandle.addEventListener("mousedown", function (e) { startResize(detailsHandle, e); });
+        }
+      }
     }

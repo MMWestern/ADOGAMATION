@@ -88,6 +88,20 @@
       height: calc(100vh - 100px);
     }
 
+    .panel-resize-handle {
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.15s;
+      position: relative;
+      z-index: 10;
+      margin: 0 -3px;
+    }
+    .panel-resize-handle:hover,
+    .panel-resize-handle.is-dragging {
+      background: rgba(59,130,246,0.4);
+    }
+
     .sidebar {
       min-width: 400px;
       display: flex;
