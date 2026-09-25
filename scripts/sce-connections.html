@@ -68,40 +68,25 @@
         var targetRect = targetBlock.getBoundingClientRect();
         var bodyRect = body.getBoundingClientRect();
 
-        // Source always exits from the right-side dot
+        // Source exits from right-side dot, target enters from left side
         var x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
         var y1 = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
-
-        // Target always enters from the left side
         var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
-        // Is target in a different row?
-        var dy = y2 - y1;
-        var dx = x2 - x1;
-        var sameRow = Math.abs(dy) < sourceRect.height * 0.5;
-        var blockWidth = sourceRect.width;
-        var closeHorizontally = Math.abs(dx) < blockWidth * 1.5;
-
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
 
+        // Draw path based on style
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
-
         if (_sceConnectionLineStyle === "angular") {
-          if (sameRow) {
-            // Same row — horizontal elbow from dot
-            var midX = x1 + (x2 - x1) / 2;
-            d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
-          } else {
-            // Different row — go up from dot to top edge, then horizontal to target, then down
-            var topEdge = sourceRect.top - bodyRect.top + body.scrollTop;
-            d = "M " + x1 + " " + y1 + " L " + x1 + " " + topEdge + " L " + x2 + " " + topEdge + " L " + x2 + " " + y2;
-          }
+          // Right-angle elbows: horizontal midpoint
+          var midX = x1 + (x2 - x1) / 2;
+          d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
         } else {
-          // Curved
-          var cpx1 = x1 + Math.abs(dx) * 0.3;
-          var cpx2 = x2 - Math.abs(dx) * 0.3;
+          // Curved bezier
+          var cpx1 = x1 + Math.abs(x2 - x1) * 0.3;
+          var cpx2 = x2 - Math.abs(x2 - x1) * 0.3;
           d = "M " + x1 + " " + y1 + " C " + cpx1 + " " + y1 + " " + cpx2 + " " + y2 + " " + x2 + " " + y2;
         }
         path.setAttribute("d", d);
