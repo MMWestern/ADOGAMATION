@@ -64,9 +64,10 @@
       var project = getSelectedProject();
       var seriesId = Number(project && project.series_id || 0);
       var bookId = Number(project && (project.project_id || project.id) || 0);
+      console.log("[SCE] initSCE - project:", project ? project.title : "null", "seriesId:", seriesId, "bookId:", bookId, "initialized:", _sceState.initialized);
       if (!seriesId || !bookId) {
         var root = document.getElementById("sceRoot");
-        if (root) root.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted);'>Select a book project to use the Story Composition Editor.</div>";
+        if (root) root.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted);'>Select a book project to use the Story Composition Editor.<br><small>seriesId: " + seriesId + " bookId: " + bookId + "</small></div>";
         return;
       }
       _sceState.initialized = true;
