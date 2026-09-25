@@ -274,6 +274,18 @@
           renderSCEConnections();
         });
       }
+
+      // Toggle line style (curved ↔ angular)
+      var lineStyleBtn = document.getElementById("sceToggleLineStyle");
+      if (lineStyleBtn && !lineStyleBtn._wired) {
+        lineStyleBtn._wired = true;
+        lineStyleBtn.addEventListener("click", function () {
+          _sceConnectionLineStyle = _sceConnectionLineStyle === "angular" ? "curved" : "angular";
+          lineStyleBtn.textContent = _sceConnectionLineStyle === "angular" ? "⌐" : "⌒";
+          lineStyleBtn.title = "Connection line style: " + (_sceConnectionLineStyle === "angular" ? "Angular" : "Curved");
+          renderSCEConnections();
+        });
+      }
     }
 
     function scePushUndo(action) {
