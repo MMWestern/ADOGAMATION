@@ -78,7 +78,14 @@
       var img = document.getElementById("sceProjectImage");
       var title = document.getElementById("sceProjectTitle");
       var series = document.getElementById("sceProjectSeries");
-      if (img) img.src = project.image_url || "";
+      if (img) {
+        if (typeof getProjectDisplayImageUrl === "function") {
+          img.src = getProjectDisplayImageUrl(project);
+        } else {
+          img.src = project.image_url || project.series_image_url || "";
+        }
+        img.alt = project.title ? project.title + " cover" : "";
+      }
       if (title) title.textContent = project.title || "Untitled";
       if (series) series.textContent = project.series_name || project.series || "";
     }
