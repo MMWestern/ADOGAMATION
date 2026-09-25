@@ -78,15 +78,22 @@
         var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
-        // Check if target is adjacent (within 1.5 column widths)
-        var dx = Math.abs(x2 - x1);
-        var isAdjacent = dx < 150;
+        // Check position relative to dot
+        var dx = x2 - x1; // positive = target is to the right, negative = to the left
+        var isAdjacent = Math.abs(dx) < 150;
+        var isToTheLeft = dx < 0;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
 
-        if (isAdjacent) {
+        if (isToTheLeft) {
+          // Target is to the left — exit right from dot, go down to target row,
+          // go past target to the right, loop back to enter from left
+          var exitX = x1 + 12;
+          var loopX = Math.max(x1, x2) + 16; // past both source and target to the right
+          d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + y2 + " L " + loopX + " " + y2 + " L " + loopX + " " + (y2 + (y2 > y1 ? 8 : -8)) + " L " + x2 + " " + (y2 + (y2 > y1 ? 8 : -8)) + " L " + x2 + " " + y2;
+        } else if (isAdjacent) {
           // Adjacent block — exit vertically from dot, go to target row, then horizontal
           d = "M " + x1 + " " + y1 + " L " + x1 + " " + y2 + " L " + x2 + " " + y2;
         } else if (_sceConnectionLineStyle === "angular") {
