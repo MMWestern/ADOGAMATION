@@ -78,21 +78,15 @@
         var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
-        // Check if target is in same column or adjacent
+        // Check if target is adjacent (within 1.5 column widths)
         var dx = Math.abs(x2 - x1);
-        var dy = Math.abs(y2 - y1);
         var isAdjacent = dx < 150;
-        var isSameColumn = dx < 20;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
 
-        if (isSameColumn) {
-          // Same column — exit right from dot, go down to target row, then left to target
-          var exitX = x1 + 16;
-          d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + y2 + " L " + x2 + " " + y2;
-        } else if (isAdjacent) {
+        if (isAdjacent) {
           // Adjacent block — exit vertically from dot, go to target row, then horizontal
           d = "M " + x1 + " " + y1 + " L " + x1 + " " + y2 + " L " + x2 + " " + y2;
         } else if (_sceConnectionLineStyle === "angular") {
