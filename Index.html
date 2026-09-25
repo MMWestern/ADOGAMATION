@@ -42,8 +42,9 @@
       </div>
     </div>
 
-    <div class="layout">
-      <aside class="panel sidebar">
+    <div class="layout" id="appLayout">
+      <aside class="panel sidebar" id="sidebarPanel">
+        <div class="panel-resize-handle" id="sidebarResizeHandle"></div>
         <div class="sidebar-scroll-area">
         <div id="searchPanelContent">
           <div class="section">
@@ -1278,7 +1279,8 @@
 
     </main>
 
-      <section class="panel details">
+      <section class="panel details" id="detailsPanel">
+        <div class="panel-resize-handle" id="detailsResizeHandle" style="left:-4px;right:auto;"></div>
         <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
           <div class="plan-genre-guide-header">
             <div class="plan-genre-guide-title">

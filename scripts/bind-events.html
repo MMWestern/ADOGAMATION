@@ -2316,4 +2316,65 @@
           }
         });
       }
+
+      // Panel resize handles
+      var layout = document.getElementById("appLayout");
+      var sidebarHandle = document.getElementById("sidebarResizeHandle");
+      var detailsHandle = document.getElementById("detailsResizeHandle");
+
+      if (layout && (sidebarHandle || detailsHandle)) {
+        var dragState = null;
+        var sidebarW = 400;
+        var detailsW = 520;
+
+        // Restore saved widths
+        try {
+          var saved = localStorage.getItem("app_panel_widths");
+          if (saved) {
+            var w = JSON.parse(saved);
+            if (w.sidebar) sidebarW = w.sidebar;
+            if (w.details) detailsW = w.details;
+            layout.style.gridTemplateColumns = sidebarW + "px minmax(820px, 1fr) " + detailsW + "px";
+          }
+        } catch (e) {}
+
+        function onStartResize(handle, e) {
+          e.preventDefault();
+          dragState = {
+            handle: handle,
+            startX: e.clientX,
+            startSidebar: sidebarW,
+            startDetails: detailsW
+          };
+          handle.style.background = "rgba(59,130,246,0.4)";
+          document.body.style.cursor = "col-resize";
+          document.body.style.userSelect = "none";
+        }
+
+        document.addEventListener("mousemove", function (e) {
+          if (!dragState) return;
+          var dx = e.clientX - dragState.startX;
+          if (dragState.handle.id === "sidebarResizeHandle") {
+            sidebarW = Math.max(200, Math.min(600, dragState.startSidebar + dx));
+            layout.style.gridTemplateColumns = sidebarW + "px minmax(820px, 1fr) " + detailsW + "px";
+          } else if (dragState.handle.id === "detailsResizeHandle") {
+            detailsW = Math.max(280, Math.min(800, dragState.startDetails - dx));
+            layout.style.gridTemplateColumns = sidebarW + "px minmax(820px, 1fr) " + detailsW + "px";
+          }
+        });
+
+        document.addEventListener("mouseup", function () {
+          if (!dragState) return;
+          dragState.handle.style.background = "";
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          try {
+            localStorage.setItem("app_panel_widths", JSON.stringify({ sidebar: sidebarW, details: detailsW }));
+          } catch (e) {}
+          dragState = null;
+        });
+
+        if (sidebarHandle) sidebarHandle.addEventListener("mousedown", function (e) { onStartResize(sidebarHandle, e); });
+        if (detailsHandle) detailsHandle.addEventListener("mousedown", function (e) { onStartResize(detailsHandle, e); });
+      }
     }

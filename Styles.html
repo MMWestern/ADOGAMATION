@@ -88,6 +88,38 @@
       height: calc(100vh - 100px);
     }
 
+    .panel-resize-handle {
+      position: absolute;
+      top: 0;
+      right: -4px;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 50;
+    }
+    .panel-resize-handle::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 1px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .panel-resize-handle:hover::after {
+      opacity: 1;
+    }
+    .sidebar {
+      position: relative;
+    }
+    .panel.details {
+      position: relative;
+    }
+
     .sidebar {
       min-width: 400px;
       display: flex;
