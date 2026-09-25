@@ -94,10 +94,9 @@
             var midX = x1 + (x2 - x1) / 2;
             d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
           } else {
-            // Different row — exit right from dot, then up to top edge, then horizontal to target
-            var exitX = x1 + 8; // step right from dot
-            var exitY = sourceRect.top - bodyRect.top + body.scrollTop; // top edge of source
-            d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + exitY + " L " + x2 + " " + exitY + " L " + x2 + " " + y2;
+            // Different row — go up from dot to top edge, then horizontal to target, then down
+            var topEdge = sourceRect.top - bodyRect.top + body.scrollTop;
+            d = "M " + x1 + " " + y1 + " L " + x1 + " " + topEdge + " L " + x2 + " " + topEdge + " L " + x2 + " " + y2;
           }
         } else {
           // Curved
