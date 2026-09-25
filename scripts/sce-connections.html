@@ -79,14 +79,29 @@
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
         var dx = x2 - x1;
-        var isForward = dx > 20;
+        var isGoingLeft = dx < -10; // target is clearly to the left
         var radius = 6;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
 
-        if (isForward) {
+        if (isGoingLeft) {
+          // Going left: U-shaped return path below both cards
+          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
+          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
+          var laneY = Math.max(sourceBottom, targetBottom) + 24;
+          var leftEdge = Math.min(x1, x2) - 16;
+          var r = Math.min(radius, 12);
+          d = "M " + x1 + " " + y1 +
+              " L " + x1 + " " + (laneY - r) +
+              " Q " + x1 + " " + laneY + " " + (x1 - r) + " " + laneY +
+              " L " + (leftEdge + r) + " " + laneY +
+              " Q " + leftEdge + " " + laneY + " " + leftEdge + " " + (laneY - r) +
+              " L " + leftEdge + " " + (y2 + r) +
+              " Q " + leftEdge + " " + y2 + " " + (leftEdge + r) + " " + y2 +
+              " L " + x2 + " " + y2;
+        } else {
           // Forward: horizontal path with vertical bends for different rows
           var dy = y2 - y1;
           if (Math.abs(dy) < 10) {
@@ -110,21 +125,6 @@
                   " L " + x2 + " " + y2;
             }
           }
-        } else {
-          // Backward/return: U-shaped path below both cards
-          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
-          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
-          var laneY = Math.max(sourceBottom, targetBottom) + 24;
-          var leftEdge = Math.min(x1, x2) - 16;
-          var r = Math.min(radius, 12);
-          d = "M " + x1 + " " + y1 +
-              " L " + x1 + " " + (laneY - r) +
-              " Q " + x1 + " " + laneY + " " + (x1 - r) + " " + laneY +
-              " L " + (leftEdge + r) + " " + laneY +
-              " Q " + leftEdge + " " + laneY + " " + leftEdge + " " + (laneY - r) +
-              " L " + leftEdge + " " + (y2 + r) +
-              " Q " + leftEdge + " " + y2 + " " + (leftEdge + r) + " " + y2 +
-              " L " + x2 + " " + y2;
         }
         path.setAttribute("d", d);
         path.setAttribute("stroke", color);
@@ -146,16 +146,16 @@
 
         // Label position
         var labelX, labelY;
-        if (isForward) {
-          labelX = (x1 + x2) / 2;
-          labelY = (y1 + y2) / 2 - 8;
-        } else {
+        if (isGoingLeft) {
           // Backward: place label in the return lane
           var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
           var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
           var laneY = Math.max(sourceBottom, targetBottom) + 24;
           labelX = (x1 + Math.min(x1, x2) - 16) / 2;
           labelY = laneY + 4;
+        } else {
+          labelX = (x1 + x2) / 2;
+          labelY = (y1 + y2) / 2 - 8;
         }
         var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
         label.setAttribute("x", labelX);
