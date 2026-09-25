@@ -83,7 +83,7 @@
         blockEl.setAttribute("data-end", block.end_state);
 
         var title = block.short_title || "Untitled";
-        blockEl.innerHTML = "<div class='sce-block-title'>" + escapeHtml(title) + "</div>";
+        blockEl.innerHTML = "<div class='sce-block-title'>" + escapeHtml(title) + "</div><div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>";
 
         // Click to select
         blockEl.addEventListener("click", function (e) {

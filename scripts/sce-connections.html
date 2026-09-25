@@ -304,3 +304,154 @@
         })
         .sceDeleteConnection(connId);
     }
+
+    // ============================================================
+    // Drag-to-Connect: drag from block node to create connection
+    // ============================================================
+
+    function wireSCEConnectNodes() {
+      var body = document.getElementById("sceTimelineBody");
+      if (!body) return;
+
+      var dragConn = null;
+
+      body.addEventListener("mousedown", function (e) {
+        var node = e.target.closest(".sce-block-connect-node");
+        if (!node) return;
+
+        var blockId = Number(node.getAttribute("data-block-id"));
+        var blockEl = node.closest(".sce-block");
+        if (!blockEl) return;
+
+        var rect = node.getBoundingClientRect();
+        dragConn = {
+          sourceBlockId: blockId,
+          startX: rect.left + rect.width / 2,
+          startY: rect.top + rect.height / 2,
+          line: null
+        };
+
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      document.addEventListener("mousemove", function (e) {
+        if (!dragConn) return;
+
+        // Create/update temporary SVG line
+        if (!dragConn.line) {
+          var body = document.getElementById("sceTimelineBody");
+          if (!body) return;
+          var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.id = "sceDragLineSvg";
+          svg.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;";
+          svg.setAttribute("width", window.innerWidth);
+          svg.setAttribute("height", window.innerHeight);
+          var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("stroke", "#3b82f6");
+          line.setAttribute("stroke-width", "2");
+          line.setAttribute("stroke-dasharray", "6,3");
+          line.setAttribute("opacity", "0.8");
+          svg.appendChild(line);
+          document.body.appendChild(svg);
+          dragConn.line = line;
+        }
+
+        dragConn.line.setAttribute("x1", dragConn.startX);
+        dragConn.line.setAttribute("y1", dragConn.startY);
+        dragConn.line.setAttribute("x2", e.clientX);
+        dragConn.line.setAttribute("y2", e.clientY);
+
+        // Highlight target block
+        document.querySelectorAll(".sce-block-connect-highlight").forEach(function (el) {
+          el.classList.remove("sce-block-connect-highlight");
+        });
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        var targetBlock = target ? target.closest(".sce-block") : null;
+        if (targetBlock && Number(targetBlock.getAttribute("data-block-id")) !== dragConn.sourceBlockId) {
+          targetBlock.classList.add("sce-block-connect-highlight");
+        }
+      });
+
+      document.addEventListener("mouseup", function (e) {
+        if (!dragConn) return;
+
+        // Remove temporary line
+        var svg = document.getElementById("sceDragLineSvg");
+        if (svg) svg.remove();
+
+        // Remove highlight
+        document.querySelectorAll(".sce-block-connect-highlight").forEach(function (el) {
+          el.classList.remove("sce-block-connect-highlight");
+        });
+
+        // Find target block
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        var targetBlock = target ? target.closest(".sce-block") : null;
+        if (targetBlock) {
+          var targetId = Number(targetBlock.getAttribute("data-block-id"));
+          if (targetId && targetId !== dragConn.sourceBlockId) {
+            // Show connection type selector
+            showConnectionTypePicker(dragConn.sourceBlockId, targetId, e.clientX, e.clientY);
+          }
+        }
+
+        dragConn = null;
+      });
+    }
+
+    function showConnectionTypePicker(sourceBlockId, targetBlockId, x, y) {
+      var sourceBlock = _sceState.blocks.find(function (b) { return Number(b.id) === sourceBlockId; });
+      var targetBlock = _sceState.blocks.find(function (b) { return Number(b.id) === targetBlockId; });
+      if (!sourceBlock || !targetBlock) return;
+
+      // Check if connection already exists
+      var existing = _sceState.connections.find(function (c) {
+        return Number(c.source_block_id) === sourceBlockId && Number(c.target_block_id) === targetBlockId;
+      });
+      if (existing) {
+        alert("Connection already exists between these blocks.");
+        return;
+      }
+
+      var menu = document.createElement("div");
+      menu.style.cssText = "position:fixed;z-index:99999;background:#1e1e28;border:1px solid #3a3a42;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);padding:6px 0;min-width:160px;";
+      menu.style.left = x + "px";
+      menu.style.top = y + "px";
+
+      // Header
+      var header = document.createElement("div");
+      header.style.cssText = "padding:4px 10px 6px;font-size:10px;color:var(--muted);border-bottom:1px solid #3a3a42;margin-bottom:4px;";
+      header.innerHTML = escapeHtml(sourceBlock.short_title || "?") + " \u2192 " + escapeHtml(targetBlock.short_title || "?");
+      menu.appendChild(header);
+
+      // Connection type options
+      SCE_CONNECTION_TYPES.forEach(function (ct) {
+        var opt = document.createElement("div");
+        opt.style.cssText = "padding:5px 10px;font-size:12px;cursor:pointer;color:#c5c5ce;display:flex;align-items:center;gap:6px;";
+        var dot = document.createElement("span");
+        dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:" + (SCE_CONNECTION_COLORS[ct.key] || "#888") + ";flex-shrink:0;";
+        opt.appendChild(dot);
+        var label = document.createElement("span");
+        label.textContent = ct.label;
+        opt.appendChild(label);
+        opt.addEventListener("mouseenter", function () { opt.style.background = "rgba(59,130,246,0.18)"; });
+        opt.addEventListener("mouseleave", function () { opt.style.background = ""; });
+        opt.addEventListener("click", function () {
+          menu.remove();
+          createSCEConnection(sourceBlockId, targetBlockId, ct.key);
+        });
+        menu.appendChild(opt);
+      });
+
+      document.body.appendChild(menu);
+
+      // Close on outside click
+      var closer = function (ev) {
+        if (!menu.contains(ev.target)) {
+          menu.remove();
+          document.removeEventListener("click", closer);
+        }
+      };
+      setTimeout(function () { document.addEventListener("click", closer); }, 10);
+    }
