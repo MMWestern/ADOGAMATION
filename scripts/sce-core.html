@@ -232,12 +232,14 @@
     }
 
     function wireSCEToolbar(seriesId) {
-      // Add asset button
+      // Add asset button — always use current project
       var addBtn = document.getElementById("sceAddAssetBtn");
       if (addBtn && !addBtn._wired) {
         addBtn._wired = true;
         addBtn.addEventListener("click", function () {
-          showSCEAssetEditor(null, seriesId);
+          var project = getSelectedProject();
+          var sid = Number(project && project.series_id || 0);
+          if (sid) showSCEAssetEditor(null, sid);
         });
       }
 
