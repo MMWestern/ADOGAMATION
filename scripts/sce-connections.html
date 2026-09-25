@@ -91,15 +91,19 @@
         var d;
 
         if (isSameColumn) {
-          // Same column — exit right from dot, go down the right side, loop to left entry
-          var exitX = sourceRect.right - bodyRect.left + body.scrollLeft + 16; // clear right edge of source
-          var dy = y2 - y1;
-          var loopX = x2 - 6; // just to the left of target's left edge
-          var offsetY = dy > 0 ? 6 : -6;
+          // Same column — exit right, loop below target, enter from left
+          var exitX = sourceRect.right - bodyRect.left + body.scrollLeft + 16;
+          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
+          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
+          var loopY = Math.max(sourceBottom, targetBottom) + 20;
+          var r = 6;
           d = "M " + x1 + " " + y1 +
-              " L " + exitX + " " + y1 +
-              " L " + exitX + " " + (y2 + offsetY) +
-              " L " + loopX + " " + (y2 + offsetY) +
+              " L " + (exitX - r) + " " + y1 +
+              " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 + r) +
+              " L " + exitX + " " + (loopY - r) +
+              " Q " + exitX + " " + loopY + " " + (exitX - r) + " " + loopY +
+              " L " + (x2 + r) + " " + loopY +
+              " Q " + x2 + " " + loopY + " " + x2 + " " + (loopY - r) +
               " L " + x2 + " " + y2;
         } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
