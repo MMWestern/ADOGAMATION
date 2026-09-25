@@ -68,11 +68,40 @@
         var targetRect = targetBlock.getBoundingClientRect();
         var bodyRect = body.getBoundingClientRect();
 
-        // Calculate positions relative to the body
-        var x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
-        var y1 = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
-        var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
-        var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
+        // Centers
+        var sx = sourceRect.left + sourceRect.width / 2 - bodyRect.left + body.scrollLeft;
+        var sy = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
+        var tx = targetRect.left + targetRect.width / 2 - bodyRect.left + body.scrollLeft;
+        var ty = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
+
+        // Determine best exit/entry points based on relative position
+        var dx = tx - sx;
+        var dy = ty - sy;
+        var x1, y1, x2, y2;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          // Target is more horizontal — exit right/left
+          if (dx > 0) {
+            x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
+            x2 = targetRect.left - bodyRect.left + body.scrollLeft;
+          } else {
+            x1 = sourceRect.left - bodyRect.left + body.scrollLeft;
+            x2 = targetRect.right - bodyRect.left + body.scrollLeft;
+          }
+          y1 = sy;
+          y2 = ty;
+        } else {
+          // Target is more vertical — exit top/bottom
+          x1 = sx;
+          x2 = tx;
+          if (dy > 0) {
+            y1 = sourceRect.bottom - bodyRect.top + body.scrollTop;
+            y2 = targetRect.top - bodyRect.top + body.scrollTop;
+          } else {
+            y1 = sourceRect.top - bodyRect.top + body.scrollTop;
+            y2 = targetRect.bottom - bodyRect.top + body.scrollTop;
+          }
+        }
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
 
@@ -80,13 +109,21 @@
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
         if (_sceConnectionLineStyle === "angular") {
-          // Right-angle elbows: horizontal → vertical → horizontal
-          var midX = x1 + (x2 - x1) / 2;
-          d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+          // Right-angle elbows based on exit direction
+          if (Math.abs(dx) > Math.abs(dy)) {
+            // Horizontal exit: go horizontal to midpoint, then vertical, then horizontal
+            var midX = x1 + (x2 - x1) / 2;
+            d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+          } else {
+            // Vertical exit: go vertical to midpoint, then horizontal, then vertical
+            var midY = y1 + (y2 - y1) / 2;
+            d = "M " + x1 + " " + y1 + " L " + x1 + " " + midY + " L " + x2 + " " + midY + " L " + x2 + " " + y2;
+          }
         } else {
           // Curved path
-          var dx = Math.abs(x2 - x1) * 0.4;
-          d = "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + " " + (x2 - dx) + " " + y2 + " " + x2 + " " + y2;
+          var dx2 = Math.abs(x2 - x1) * 0.4;
+          var dy2 = Math.abs(y2 - y1) * 0.4;
+          d = "M " + x1 + " " + y1 + " C " + (x1 + dx2) + " " + y1 + " " + (x2 - dx2) + " " + y2 + " " + x2 + " " + y2;
         }
         path.setAttribute("d", d);
         path.setAttribute("stroke", color);
