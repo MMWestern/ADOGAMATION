@@ -88,33 +88,10 @@
         var d;
 
         if (isSameColumn) {
-          // Same column — exit right from dot, go down, loop around to enter from left
+          // Same column — exit right from dot, go vertical to target row, loop to left entry
           var exitX = x1 + 20;
-          var r = Math.min(radius, 8);
           var dy = y2 - y1;
-          if (dy > 0) {
-            // Target is below
-            d = "M " + x1 + " " + y1 +
-                " L " + (exitX - r) + " " + y1 +
-                " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 + r) +
-                " L " + exitX + " " + (y2 - r) +
-                " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
-                " L " + (x2 - 8) + " " + y2 +
-                " L " + (x2 - 8) + " " + (y2 + 8) +
-                " L " + x2 + " " + (y2 + 8) +
-                " L " + x2 + " " + y2;
-          } else {
-            // Target is above
-            d = "M " + x1 + " " + y1 +
-                " L " + (exitX - r) + " " + y1 +
-                " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 - r) +
-                " L " + exitX + " " + (y2 + r) +
-                " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
-                " L " + (x2 - 8) + " " + y2 +
-                " L " + (x2 - 8) + " " + (y2 - 8) +
-                " L " + x2 + " " + (y2 - 8) +
-                " L " + x2 + " " + y2;
-          }
+          d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + y2 + " L " + (x2 - 8) + " " + y2 + " L " + (x2 - 8) + " " + (y2 + (dy > 0 ? 8 : -8)) + " L " + x2 + " " + (y2 + (dy > 0 ? 8 : -8)) + " L " + x2 + " " + y2;
         } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
           var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
