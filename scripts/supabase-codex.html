@@ -1452,9 +1452,19 @@
     _sbDefine('sceGetConnections', function (compositionId) {
       var safeId = Number(compositionId || 0);
       if (!safeId) throw new Error('Composition id is required.');
-      return sbClient.from('sce_connections').select('*, source:sce_blocks!source_block_id(id,short_title), target:sce_blocks!target_block_id(id,short_title)')
-        .in('source_block_id', sbClient.from('sce_blocks').select('id').eq('composition_id', safeId))
-        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, connections: res.data || [] }); });
+      // First get block IDs for this composition, then get connections
+      return sbClient.from('sce_blocks').select('id').eq('composition_id', safeId)
+        .then(function (blockRes) {
+          if (blockRes.error) throw blockRes.error;
+          var blockIds = (blockRes.data || []).map(function (b) { return b.id; });
+          if (!blockIds.length) return JSON.stringify({ ok: true, connections: [] });
+          return sbClient.from('sce_connections').select('*')
+            .in('source_block_id', blockIds)
+            .then(function (res) {
+              if (res.error) throw res.error;
+              return JSON.stringify({ ok: true, connections: res.data || [] });
+            });
+        });
     });
 
     _sbDefine('sceSaveConnection', function (connJson) {

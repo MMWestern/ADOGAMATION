@@ -23,14 +23,17 @@
       if (existingSvg) existingSvg.remove();
 
       if (!_sceShowConnections) return;
-      if (!_sceState.connections.length) return;
+      if (!_sceState.connections || !_sceState.connections.length) return;
 
       var timeline = document.getElementById("sceTimeline");
       if (!timeline) return;
 
-      // Create SVG overlay positioned over the timeline body
       var body = document.getElementById("sceTimelineBody");
       if (!body) return;
+
+      // Log for debugging refresh issue
+      var blocksInDom = body.querySelectorAll('[data-block-id]').length;
+      console.log("[SCE] Rendering", _sceState.connections.length, "connections,", blocksInDom, "blocks in DOM");
 
       var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.id = "sceConnectionSvg";
