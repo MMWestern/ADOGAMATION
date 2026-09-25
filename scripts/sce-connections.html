@@ -107,21 +107,20 @@
           if (Math.abs(dy) < 10) {
             d = "M " + x1 + " " + y1 + " L " + x2 + " " + y2;
           } else {
-            var midX = x1 + (x2 - x1) / 2;
-            var r = Math.min(radius, (midX - x1) / 2, (x2 - midX) / 2, Math.abs(dy) / 2);
+            // Exit right from dot, go vertical to target row, then horizontal to target
+            var exitX = x1 + 12;
+            var r = Math.min(radius, 8, Math.abs(dy) / 2);
             if (dy > 0) {
               d = "M " + x1 + " " + y1 +
-                  " L " + (midX - r) + " " + y1 +
-                  " Q " + midX + " " + y1 + " " + midX + " " + (y1 + r) +
-                  " L " + midX + " " + (y2 - r) +
-                  " Q " + midX + " " + y2 + " " + (midX + r) + " " + y2 +
+                  " L " + exitX + " " + y1 +
+                  " L " + exitX + " " + (y2 - r) +
+                  " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
                   " L " + x2 + " " + y2;
             } else {
               d = "M " + x1 + " " + y1 +
-                  " L " + (midX - r) + " " + y1 +
-                  " Q " + midX + " " + y1 + " " + midX + " " + (y1 - r) +
-                  " L " + midX + " " + (y2 + r) +
-                  " Q " + midX + " " + y2 + " " + (midX + r) + " " + y2 +
+                  " L " + exitX + " " + y1 +
+                  " L " + exitX + " " + (y2 + r) +
+                  " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
                   " L " + x2 + " " + y2;
             }
           }
