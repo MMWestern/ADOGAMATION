@@ -3095,6 +3095,17 @@
       if (activeMainTab === "workspace" && !isSameProject) {
         openWritingWorkspace();
       }
+      // SCE tab: reload composition data when project changes
+      if (activeMainTab === "sce" && !isSameProject) {
+        _sceState.initialized = false;
+        _sceState.composition = null;
+        _sceState.states = [];
+        _sceState.layers = [];
+        _sceState.blocks = [];
+        _sceState.assets = [];
+        if (typeof populateSCEProjectInfo === "function") populateSCEProjectInfo(project);
+        if (typeof initSCE === "function") initSCE();
+      }
       if (!isSameProject) {
         if (typeof saveManager !== "undefined" && typeof saveManager.cancelAll === "function") saveManager.cancelAll();
         appState.writingWorkspace.version += 1;
