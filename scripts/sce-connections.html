@@ -72,62 +72,39 @@
         var x1 = sourceRect.right - bodyRect.left + body.scrollLeft;
         var y1 = sourceRect.top + sourceRect.height / 2 - bodyRect.top + body.scrollTop;
 
-        // Target center
-        var tx = targetRect.left + targetRect.width / 2 - bodyRect.left + body.scrollLeft;
-        var ty = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
+        // Target always enters from the left side
+        var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
+        var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
-        // Determine target entry point and routing
-        var dx = tx - x1;
-        var dy = ty - y1;
-        var x2, y2;
-        var exitDir; // "right", "down", "up"
-
-        if (Math.abs(dy) > sourceRect.height * 0.5) {
-          // Target is in a different row — exit vertically
-          if (dy > 0) {
-            exitDir = "down";
-            x2 = tx;
-            y2 = targetRect.top - bodyRect.top + body.scrollTop;
-          } else {
-            exitDir = "up";
-            x2 = tx;
-            y2 = targetRect.bottom - bodyRect.top + body.scrollTop;
-          }
-        } else if (dx > 0) {
-          // Target is to the right, same row — exit right from dot
-          exitDir = "right";
-          x2 = targetRect.left - bodyRect.left + body.scrollLeft;
-          y2 = ty;
-        } else {
-          // Target is to the left, same row — still exit right from dot
-          exitDir = "right";
-          x2 = targetRect.right - bodyRect.left + body.scrollLeft;
-          y2 = ty;
-        }
+        // Is target in a different row?
+        var dy = y2 - y1;
+        var dx = x2 - x1;
+        var sameRow = Math.abs(dy) < sourceRect.height * 0.5;
+        var blockWidth = sourceRect.width;
+        var closeHorizontally = Math.abs(dx) < blockWidth * 1.5;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
 
-        // Draw path based on style
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
+
         if (_sceConnectionLineStyle === "angular") {
-          if (exitDir === "down") {
-            // Exit right from dot, go down, then horizontal to target
-            var exitX = x1 + 8;
-            d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + y2 + " L " + x2 + " " + y2;
-          } else if (exitDir === "up") {
-            // Exit right from dot, go up, then horizontal to target
-            var exitX = x1 + 8;
-            d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + y2 + " L " + x2 + " " + y2;
+          if (sameRow) {
+            // Same row — simple horizontal elbow
+            var midX = x1 + (x2 - x1) / 2;
+            d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+          } else if (closeHorizontally) {
+            // Different row, close horizontally — exit vertically from dot, then horizontal
+            d = "M " + x1 + " " + y1 + " L " + x1 + " " + y2 + " L " + x2 + " " + y2;
           } else {
-            // Horizontal — standard elbow
+            // Different row, far horizontally — exit right, go horizontal, then vertical, then horizontal
             var midX = x1 + (x2 - x1) / 2;
             d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
           }
         } else {
-          // Curved — smooth bezier
-          var cpx1 = x1 + Math.abs(x2 - x1) * 0.3;
-          var cpx2 = x2 - Math.abs(x2 - x1) * 0.3;
+          // Curved
+          var cpx1 = x1 + Math.abs(dx) * 0.3;
+          var cpx2 = x2 - Math.abs(dx) * 0.3;
           d = "M " + x1 + " " + y1 + " C " + cpx1 + " " + y1 + " " + cpx2 + " " + y2 + " " + x2 + " " + y2;
         }
         path.setAttribute("d", d);
