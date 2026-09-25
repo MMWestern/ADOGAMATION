@@ -79,14 +79,43 @@
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
         var dx = x2 - x1;
-        var isGoingLeft = dx < -10; // target is clearly to the left
+        var isGoingLeft = dx < -10;
+        var isSameColumn = Math.abs(dx) <= 10;
         var radius = 6;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
 
-        if (isGoingLeft) {
+        if (isSameColumn) {
+          // Same column — exit right from dot, go down, loop around to enter from left
+          var exitX = x1 + 20;
+          var r = Math.min(radius, 8);
+          var dy = y2 - y1;
+          if (dy > 0) {
+            // Target is below
+            d = "M " + x1 + " " + y1 +
+                " L " + (exitX - r) + " " + y1 +
+                " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 + r) +
+                " L " + exitX + " " + (y2 - r) +
+                " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
+                " L " + (x2 - 8) + " " + y2 +
+                " L " + (x2 - 8) + " " + (y2 + 8) +
+                " L " + x2 + " " + (y2 + 8) +
+                " L " + x2 + " " + y2;
+          } else {
+            // Target is above
+            d = "M " + x1 + " " + y1 +
+                " L " + (exitX - r) + " " + y1 +
+                " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 - r) +
+                " L " + exitX + " " + (y2 + r) +
+                " Q " + exitX + " " + y2 + " " + (exitX + r) + " " + y2 +
+                " L " + (x2 - 8) + " " + y2 +
+                " L " + (x2 - 8) + " " + (y2 - 8) +
+                " L " + x2 + " " + (y2 - 8) +
+                " L " + x2 + " " + y2;
+          }
+        } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
           var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
           var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
