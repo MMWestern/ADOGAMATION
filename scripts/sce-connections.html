@@ -96,14 +96,17 @@
           var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
           var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
           var loopY = Math.max(sourceBottom, targetBottom) + 20;
+          var leftX = x2 - 16; // go past target's left edge
           var r = 6;
           d = "M " + x1 + " " + y1 +
               " L " + (exitX - r) + " " + y1 +
               " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 + r) +
               " L " + exitX + " " + (loopY - r) +
               " Q " + exitX + " " + loopY + " " + (exitX - r) + " " + loopY +
-              " L " + (x2 + r) + " " + loopY +
-              " Q " + x2 + " " + loopY + " " + x2 + " " + (loopY - r) +
+              " L " + (leftX + r) + " " + loopY +
+              " Q " + leftX + " " + loopY + " " + leftX + " " + (loopY - r) +
+              " L " + leftX + " " + (y2 + r) +
+              " Q " + leftX + " " + y2 + " " + (leftX + r) + " " + y2 +
               " L " + x2 + " " + y2;
         } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
