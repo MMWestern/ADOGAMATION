@@ -69,6 +69,7 @@
         var block = e.target.closest(".sce-block");
         if (!block) return;
         if (e.target.closest(".sce-block-resize-handle")) return;
+        if (e.target.closest(".sce-block-connect-node")) return;
 
         var blockId = Number(block.getAttribute("data-block-id"));
         var blockData = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
