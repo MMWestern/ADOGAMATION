@@ -79,8 +79,11 @@
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
         var dx = x2 - x1;
-        var isGoingLeft = dx < -10;
-        var isSameColumn = Math.abs(dx) <= 10;
+        // Detect same-column by comparing block center positions (not dot-to-edge)
+        var sourceCenterX = sourceRect.left + sourceRect.width / 2;
+        var targetCenterX = targetRect.left + targetRect.width / 2;
+        var isSameColumn = Math.abs(sourceCenterX - targetCenterX) < sourceRect.width * 0.6;
+        var isGoingLeft = !isSameColumn && dx < -10;
         var radius = 6;
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
@@ -88,16 +91,15 @@
         var d;
 
         if (isSameColumn) {
-          // Same column — exit right from dot, go vertical to target row, loop to left entry
-          var exitX = Math.max(x1, x2) + 20; // clear both source and target to the right
+          // Same column — exit right from dot, go down the right side, loop to left entry
+          var exitX = sourceRect.right - bodyRect.left + body.scrollLeft + 16; // clear right edge of source
           var dy = y2 - y1;
-          // Path: dot → right → vertical to target row → left loop → enter from left
+          var loopX = x2 - 6; // just to the left of target's left edge
+          var offsetY = dy > 0 ? 6 : -6;
           d = "M " + x1 + " " + y1 +
               " L " + exitX + " " + y1 +
-              " L " + exitX + " " + y2 +
-              " L " + (x2 + 6) + " " + y2 +
-              " L " + (x2 + 6) + " " + (y2 + (dy > 0 ? 6 : -6)) +
-              " L " + x2 + " " + (y2 + (dy > 0 ? 6 : -6)) +
+              " L " + exitX + " " + (y2 + offsetY) +
+              " L " + loopX + " " + (y2 + offsetY) +
               " L " + x2 + " " + y2;
         } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
