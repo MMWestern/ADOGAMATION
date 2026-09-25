@@ -88,16 +88,14 @@
         var d;
 
         if (isSameColumn) {
-          // Same column — exit right from dot, go vertical to target row, loop to left entry
-          var exitX = Math.max(x1, x2) + 20; // clear both source and target to the right
+          // Same column — exit right from dot, go down, loop left to enter target from left
+          var exitX = Math.max(x1, x2) + 20; // clear both source and target
           var dy = y2 - y1;
-          // Path: dot → right → vertical to target row → left loop → enter from left
+          var loopY = dy > 0 ? y2 + 8 : y2 - 8;
           d = "M " + x1 + " " + y1 +
               " L " + exitX + " " + y1 +
-              " L " + exitX + " " + y2 +
-              " L " + (x2 + 6) + " " + y2 +
-              " L " + (x2 + 6) + " " + (y2 + (dy > 0 ? 6 : -6)) +
-              " L " + x2 + " " + (y2 + (dy > 0 ? 6 : -6)) +
+              " L " + exitX + " " + loopY +
+              " L " + x2 + " " + loopY +
               " L " + x2 + " " + y2;
         } else if (isGoingLeft) {
           // Going left: U-shaped return path below both cards
