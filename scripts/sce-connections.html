@@ -74,15 +74,25 @@
         var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
         var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
 
+        // Check if target is in a different row and horizontally close (next section)
+        var dy = Math.abs(y2 - y1);
+        var dx = Math.abs(x2 - x1);
+        var differentRow = dy > sourceRect.height * 0.5;
+        var closeHorizontal = dx < sourceRect.width * 1.5;
+
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
 
-        // Draw path based on style
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         var d;
         if (_sceConnectionLineStyle === "angular") {
-          // Right-angle elbows: horizontal midpoint
-          var midX = x1 + (x2 - x1) / 2;
-          d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+          if (differentRow && closeHorizontal) {
+            // Next section, different row — exit vertically from dot, go to target row, then horizontal
+            d = "M " + x1 + " " + y1 + " L " + x1 + " " + y2 + " L " + x2 + " " + y2;
+          } else {
+            // Standard horizontal elbow
+            var midX = x1 + (x2 - x1) / 2;
+            d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+          }
         } else {
           // Curved bezier
           var cpx1 = x1 + Math.abs(x2 - x1) * 0.3;
