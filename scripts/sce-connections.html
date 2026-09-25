@@ -90,16 +90,14 @@
 
         if (_sceConnectionLineStyle === "angular") {
           if (sameRow) {
-            // Same row — simple horizontal elbow
+            // Same row — horizontal elbow from dot
             var midX = x1 + (x2 - x1) / 2;
             d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
-          } else if (closeHorizontally) {
-            // Different row, close horizontally — exit vertically from dot, then horizontal
-            d = "M " + x1 + " " + y1 + " L " + x1 + " " + y2 + " L " + x2 + " " + y2;
           } else {
-            // Different row, far horizontally — exit right, go horizontal, then vertical, then horizontal
-            var midX = x1 + (x2 - x1) / 2;
-            d = "M " + x1 + " " + y1 + " L " + midX + " " + y1 + " L " + midX + " " + y2 + " L " + x2 + " " + y2;
+            // Different row — exit right from dot, then up to top edge, then horizontal to target
+            var exitX = x1 + 8; // step right from dot
+            var exitY = sourceRect.top - bodyRect.top + body.scrollTop; // top edge of source
+            d = "M " + x1 + " " + y1 + " L " + exitX + " " + y1 + " L " + exitX + " " + exitY + " L " + x2 + " " + exitY + " L " + x2 + " " + y2;
           }
         } else {
           // Curved
