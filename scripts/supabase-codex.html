@@ -1508,7 +1508,8 @@
         start_state: Number(parsed.start_state || 1),
         end_state: Number(parsed.end_state || 1),
         sort_order: Number(parsed.sort_order || 0),
-        notes: parsed.notes ? String(parsed.notes).trim() : null
+        notes: parsed.notes ? String(parsed.notes).trim() : null,
+        color: parsed.color || null
       };
       if (chapterId) payload.id = chapterId;
       var op = chapterId ? sbClient.from('sce_chapters').update(payload).eq('id', chapterId).select().single()
