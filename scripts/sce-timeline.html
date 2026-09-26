@@ -42,8 +42,23 @@
       headerHtml += "</div>";
       header.innerHTML = headerHtml;
 
-      // Render body (layers with blocks)
+      // Build body HTML
       var bodyHtml = "";
+
+      // Chapter row (first row in body)
+      bodyHtml += "<div id='sceStoryBand' class='sce-layer-row' style='--layer-color:#3b82f6;background:rgba(59,130,246,0.05);'>";
+      bodyHtml += "<div class='sce-layer-label'>Chapters</div>";
+      bodyHtml += "<div class='sce-layer-cells' id='sceChapterCells'>";
+      states.forEach(function (state) {
+        var w = colWidths[state.position] || 100;
+        bodyHtml += "<div class='sce-story-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;'></div>";
+      });
+      bodyHtml += "<div class='sce-story-column' data-state-pos='-1' style='min-width:100px;max-width:100px;position:relative;'></div>";
+      bodyHtml += "<div class='sce-story-column' data-state-pos='-2' style='min-width:100px;max-width:100px;position:relative;'></div>";
+      bodyHtml += "</div>";
+      bodyHtml += "</div>";
+
+      // Layer rows
       var hasSolo = layers.some(function (l) { return l.is_solo; });
       var visibleLayers = layers.filter(function (l) {
         if (hasSolo) return l.is_solo;
@@ -66,8 +81,64 @@
 
       body.innerHTML = bodyHtml;
 
+      // Place chapter blocks into chapter cells
+      renderSCEChapterBlocks(chapters, colWidths);
+
       // Place blocks on the timeline
       renderSCEBlocks();
+    }
+
+    function renderSCEChapterBlocks(chapters, colWidths) {
+      chapters.forEach(function (chapter) {
+        var statePos = chapter.start_state;
+        var col = document.querySelector('.sce-story-column[data-state-pos="' + statePos + '"]');
+        if (!col) return;
+
+        var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
+
+        var wrapper = document.createElement("div");
+        wrapper.className = "sce-chapter-block";
+        wrapper.setAttribute("data-chapter-id", chapter.id);
+        wrapper.draggable = true;
+        wrapper.style.cssText = "margin-bottom:3px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:grab;position:relative;";
+
+        // Chapter title
+        var title = document.createElement("div");
+        title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#3b82f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+        title.textContent = chapter.title || "Untitled";
+        wrapper.appendChild(title);
+
+        // Scenes
+        scenes.forEach(function (scene) {
+          var sceneEl = document.createElement("div");
+          sceneEl.className = "sce-scene-block";
+          sceneEl.setAttribute("data-scene-id", scene.id);
+          sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:3px;font-size:9px;color:#10b981;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+          sceneEl.textContent = scene.title || "Scene";
+          wrapper.appendChild(sceneEl);
+        });
+
+        // Click to edit
+        wrapper.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEChapter(chapter.id);
+        });
+
+        // Drag start
+        wrapper.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
+          wrapper.style.opacity = "0.5";
+        });
+
+        wrapper.addEventListener("dragend", function () {
+          wrapper.style.opacity = "1";
+        });
+
+        col.appendChild(wrapper);
+      });
+
+      // Make columns drop targets for chapters
+      wireChapterDragDrop();
     }
 
     function renderSCEBlocks() {
@@ -138,146 +209,6 @@
       }
     }
 
-    function renderSCEChapterStrip() {
-      // Remove existing story band
-      var existing = document.getElementById("sceStoryBand");
-      if (existing) existing.remove();
-
-      var states = _sceState.states;
-      if (!states.length) return;
-      states.sort(function (a, b) { return a.position - b.position; });
-
-      var chapters = _sceState.chapters || [];
-      var body = document.getElementById("sceTimelineBody");
-      if (!body) return;
-
-      // Calculate column widths based on chapter count per state
-      var colWidths = {};
-      states.forEach(function (state) {
-        var count = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
-        colWidths[state.position] = Math.max(1, count) * 100;
-      });
-
-      // Create story band as a timeline row
-      var band = document.createElement("div");
-      band.id = "sceStoryBand";
-      band.style.cssText = "display:flex;border-bottom:1px solid var(--border);background:rgba(59,130,246,0.05);";
-
-      // Label column
-      var label = document.createElement("div");
-      label.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);padding:4px 8px;font-size:10px;font-weight:600;color:var(--muted);display:flex;align-items:flex-start;";
-      label.textContent = "Chapters";
-      band.appendChild(label);
-
-      // State columns container
-      var columns = document.createElement("div");
-      columns.id = "sceStoryColumns";
-      columns.style.cssText = "display:flex;flex:1;min-width:fit-content;";
-
-      states.forEach(function (state) {
-        var w = colWidths[state.position] || 100;
-        var col = document.createElement("div");
-        col.className = "sce-story-column";
-        col.setAttribute("data-state-pos", state.position);
-        col.style.cssText = "min-width:" + w + "px;max-width:" + w + "px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;vertical-align:top;display:flex;flex-wrap:wrap;gap:2px;";
-
-        // Get chapters for this state
-        var stateChapters = chapters.filter(function (ch) {
-          return ch.start_state === state.position;
-        });
-        stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-
-        stateChapters.forEach(function (chapter) {
-          var chapterEl = createChapterBlock(chapter);
-          chapterEl.style.flex = "1 1 90px";
-          col.appendChild(chapterEl);
-        });
-
-        columns.appendChild(col);
-      });
-
-      // Parking column
-      var parkingCol = document.createElement("div");
-      parkingCol.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;";
-      var parkingChapters = chapters.filter(function (ch) { return ch.start_state === -1; });
-      parkingChapters.forEach(function (ch) {
-        parkingCol.appendChild(createChapterBlock(ch));
-      });
-      columns.appendChild(parkingCol);
-
-      // Later column
-      var laterCol = document.createElement("div");
-      laterCol.style.cssText = "min-width:100px;max-width:100px;flex-shrink:0;box-sizing:border-box;padding:2px;";
-      var laterChapters = chapters.filter(function (ch) { return ch.start_state === -2; });
-      laterChapters.forEach(function (ch) {
-        laterCol.appendChild(createChapterBlock(ch));
-      });
-      columns.appendChild(laterCol);
-
-      band.appendChild(columns);
-
-      // Insert at the top of the timeline body
-      if (body.firstChild) {
-        body.insertBefore(band, body.firstChild);
-      } else {
-        body.appendChild(band);
-      }
-
-      // Make columns drop targets for chapters
-      wireChapterDragDrop();
-    }
-
-    function createChapterBlock(chapter) {
-      var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
-
-      var wrapper = document.createElement("div");
-      wrapper.className = "sce-chapter-block";
-      wrapper.setAttribute("data-chapter-id", chapter.id);
-      wrapper.draggable = true;
-      wrapper.style.cssText = "margin-bottom:3px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:grab;";
-
-      // Chapter title
-      var title = document.createElement("div");
-      title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#3b82f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-      title.textContent = chapter.title || "Untitled";
-      wrapper.appendChild(title);
-
-      // Scenes container
-      var scenesContainer = document.createElement("div");
-      scenesContainer.className = "sce-chapter-scenes";
-      scenesContainer.style.cssText = "padding:0 3px 3px;";
-
-      scenes.forEach(function (scene) {
-        var sceneEl = document.createElement("div");
-        sceneEl.className = "sce-scene-block";
-        sceneEl.setAttribute("data-scene-id", scene.id);
-        sceneEl.draggable = true;
-        sceneEl.style.cssText = "padding:2px 4px;margin-bottom:2px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:3px;font-size:9px;color:#10b981;cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-        sceneEl.textContent = scene.title || "Scene";
-        scenesContainer.appendChild(sceneEl);
-      });
-
-      wrapper.appendChild(scenesContainer);
-
-      // Click to edit
-      wrapper.addEventListener("click", function (e) {
-        e.stopPropagation();
-        selectSCEChapter(chapter.id);
-      });
-
-      // Drag start
-      wrapper.addEventListener("dragstart", function (e) {
-        e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
-        wrapper.style.opacity = "0.5";
-      });
-
-      wrapper.addEventListener("dragend", function () {
-        wrapper.style.opacity = "1";
-      });
-
-      return wrapper;
-    }
-
     function wireChapterDragDrop() {
       var columns = document.querySelectorAll(".sce-story-column");
       columns.forEach(function (col) {
@@ -315,7 +246,6 @@
         .withSuccessHandler(function () {
           // Re-render entire timeline since column widths may change
           renderSCETimeline();
-          renderSCEChapterStrip();
           renderSCEConnections();
         })
         .withFailureHandler(function (err) {
