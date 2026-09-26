@@ -144,22 +144,21 @@
       var body = document.getElementById("sceTimelineBody");
       if (!body) return;
 
-      // Create story band between header and layers
-      var header = document.getElementById("sceTimelineHeader");
+      // Create story band as a timeline row (same structure as layer rows)
       var band = document.createElement("div");
       band.id = "sceStoryBand";
-      band.style.cssText = "display:flex;border-bottom:2px solid var(--border);background:rgba(59,130,246,0.03);";
+      band.style.cssText = "display:flex;border-bottom:1px solid var(--border);background:rgba(59,130,246,0.05);";
 
-      // Label column
+      // Label column (matches layer label width)
       var label = document.createElement("div");
       label.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);padding:4px 8px;font-size:10px;font-weight:600;color:var(--muted);display:flex;align-items:flex-start;";
       label.textContent = "Chapters";
       band.appendChild(label);
 
-      // State columns container
+      // State columns container (matches layer cells structure)
       var columns = document.createElement("div");
       columns.id = "sceStoryColumns";
-      columns.style.cssText = "display:flex;flex:1;";
+      columns.style.cssText = "display:flex;flex:1;min-width:fit-content;";
 
       states.forEach(function (state) {
         var col = document.createElement("div");
@@ -169,7 +168,7 @@
 
         // Get chapters for this state
         var stateChapters = chapters.filter(function (ch) {
-          return ch.start_state === state.position || (!ch.start_state && state.position === 1);
+          return ch.start_state === state.position;
         });
         stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
 
@@ -201,15 +200,11 @@
 
       band.appendChild(columns);
 
-      // Insert inside the sticky header, after the state row
-      var header = document.getElementById("sceTimelineHeader");
-      if (header) {
-        var stateRow = header.querySelector(".sce-state-header-row");
-        if (stateRow && stateRow.nextSibling) {
-          header.insertBefore(band, stateRow.nextSibling);
-        } else {
-          header.appendChild(band);
-        }
+      // Insert at the top of the timeline body
+      if (body.firstChild) {
+        body.insertBefore(band, body.firstChild);
+      } else {
+        body.appendChild(band);
       }
 
       // Make columns drop targets for chapters
