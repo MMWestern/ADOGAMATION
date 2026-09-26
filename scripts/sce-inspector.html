@@ -402,7 +402,7 @@
             .sceSaveScene(JSON.stringify({
               chapter_id: chapter.id,
               title: title,
-              sort_order: Date.now()
+              sort_order: Date.now() % 1000000
             }));
         });
       }
