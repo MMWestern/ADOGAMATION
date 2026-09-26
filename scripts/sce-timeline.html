@@ -221,7 +221,7 @@
       wrapper.setAttribute("data-scene-id", scene.id);
       wrapper.setAttribute("data-chapter-id", chapter.id);
       wrapper.draggable = true;
-      wrapper.style.cssText = "width:100%;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;cursor:grab;position:relative;box-sizing:border-box;padding:2px 4px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      wrapper.style.cssText = "flex:1 1 0;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;padding:4px 8px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       wrapper.textContent = scene.title || "Scene";
 
       wrapper.addEventListener("click", function (e) {
