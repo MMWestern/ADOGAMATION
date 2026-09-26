@@ -170,25 +170,45 @@
     }
 
     function renderSCESceneBlocks(chapters) {
-      // Collect all scenes with their parent chapter's state
+      // Group scenes by chapter, then by state
       var scenesByState = {};
       chapters.forEach(function (chapter) {
         var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
-        scenes.forEach(function (scene) {
-          if (!scenesByState[chapter.start_state]) scenesByState[chapter.start_state] = [];
-          scenesByState[chapter.start_state].push({ scene: scene, chapter: chapter });
-        });
+        if (!scenesByState[chapter.start_state]) scenesByState[chapter.start_state] = [];
+        scenesByState[chapter.start_state].push({ chapter: chapter, scenes: scenes });
       });
 
       // Get all scene columns
       var allCols = document.querySelectorAll(".sce-scene-column[data-state-pos]");
       allCols.forEach(function (col) {
         var statePos = Number(col.getAttribute("data-state-pos"));
-        var stateScenes = scenesByState[statePos] || [];
+        var chapterGroups = scenesByState[statePos] || [];
 
-        stateScenes.forEach(function (item) {
-          col.appendChild(createSceneBlockEl(item.scene, item.chapter));
+        // Sort chapters by sort_order
+        chapterGroups.sort(function (a, b) { return (a.chapter.sort_order || 0) - (b.chapter.sort_order || 0); });
+
+        chapterGroups.forEach(function (group) {
+          // Create chapter group container
+          var groupEl = document.createElement("div");
+          groupEl.className = "sce-scene-chapter-group";
+          groupEl.style.cssText = "width:100%;display:flex;flex-direction:column;gap:1px;margin-bottom:3px;";
+
+          // Chapter label
+          var label = document.createElement("div");
+          var chColor = group.chapter.color || "#10b981";
+          label.style.cssText = "font-size:8px;font-weight:600;color:" + chColor + ";padding:1px 4px;opacity:0.7;";
+          var chNum = getChapterNumber(group.chapter.id);
+          label.textContent = "Ch" + chNum;
+          groupEl.appendChild(label);
+
+          // Scene blocks
+          group.scenes.forEach(function (scene) {
+            groupEl.appendChild(createSceneBlockEl(scene, group.chapter));
+          });
+
+          col.appendChild(groupEl);
         });
+
         // Add drop zone at end
         col.appendChild(createSceneDropZone(statePos));
       });
