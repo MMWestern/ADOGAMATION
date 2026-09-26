@@ -57,8 +57,7 @@
         hdr.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
-          var data = e.dataTransfer.getData("text/plain");
-          if (!data.startsWith("chapter:")) return;
+          if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
           hdr.style.background = "rgba(59,130,246,0.2)";
         });
         hdr.addEventListener("dragleave", function () {
@@ -164,8 +163,7 @@
       zone.addEventListener("dragover", function (e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        var data = e.dataTransfer.getData("text/plain");
-        if (!data.startsWith("chapter:")) return;
+        if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
         clearChapterDropIndicators();
         zone.style.borderColor = "#3b82f6";
         zone.style.background = "rgba(59,130,246,0.15)";
@@ -247,10 +245,8 @@
       wrapper.addEventListener("dragover", function (e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        var data = e.dataTransfer.getData("text/plain");
-        if (!data.startsWith("chapter:")) return;
-        var draggedId = Number(data.split(":")[1]);
-        if (draggedId === chapter.id) return;
+        // Can't read getData during dragover, only check types
+        if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
 
         clearChapterDropIndicators();
         wrapper.style.borderStyle = "dashed";
