@@ -265,12 +265,14 @@
         wrapper.style.borderColor = "";
 
         var data = e.dataTransfer.getData("text/plain");
+        console.log("[SCE] Chapter drop data:", data);
         if (!data.startsWith("chapter:")) return;
         var draggedId = Number(data.split(":")[1]);
         if (draggedId === chapter.id) return;
 
         var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-        if (!dragged) return;
+        if (!dragged) { console.log("[SCE] Dragged not found"); return; }
+        console.log("[SCE] Dragged state:", dragged.start_state, "Target chapter state:", chapter.start_state);
 
         // Determine insert position based on mouse X relative to target
         var rect = wrapper.getBoundingClientRect();
@@ -282,10 +284,13 @@
         stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
         var targetIdx = stateChapters.findIndex(function (c) { return Number(c.id) === chapter.id; });
         var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+        console.log("[SCE] insertIdx:", insertIdx, "insertBefore:", insertBefore);
 
         if (dragged.start_state !== chapter.start_state) {
+          console.log("[SCE] Calling moveChapterToStateAt");
           moveChapterToStateAt(draggedId, chapter.start_state, insertIdx);
         } else {
+          console.log("[SCE] Calling reorderChapterToIndex");
           reorderChapterToIndex(draggedId, chapter.start_state, insertIdx);
         }
       });
@@ -323,8 +328,9 @@
     }
 
     function moveChapterToStateAt(chapterId, statePos, insertIdx) {
+      console.log("[SCE] moveChapterToStateAt called:", chapterId, "->", statePos, "at idx:", insertIdx);
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
-      if (!chapter) return;
+      if (!chapter) { console.log("[SCE] Chapter not found"); return; }
       chapter.start_state = statePos;
       chapter.end_state = statePos;
 
