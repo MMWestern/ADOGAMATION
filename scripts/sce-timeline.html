@@ -104,123 +104,180 @@
         if (a.start_state !== b.start_state) return a.start_state - b.start_state;
         return (a.sort_order || 0) - (b.sort_order || 0);
       });
-      sorted.forEach(function (chapter) {
-        var statePos = chapter.start_state;
-        var col = document.querySelector('.sce-story-column[data-state-pos="' + statePos + '"]');
-        if (!col) return;
 
-        var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
-
-        var wrapper = document.createElement("div");
-        wrapper.className = "sce-chapter-block";
-        wrapper.setAttribute("data-chapter-id", chapter.id);
-        wrapper.draggable = true;
-        var chColor = chapter.color || "#3b82f6";
-        wrapper.style.cssText = "flex:0 0 96px;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;";
-
-        // Chapter title with number
-        var title = document.createElement("div");
-        title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-        var chNum = getChapterNumber(chapter.id);
-        title.innerHTML = "<span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
-        wrapper.appendChild(title);
-
-        // Scenes
-        scenes.forEach(function (scene) {
-          var sceneEl = document.createElement("div");
-          sceneEl.className = "sce-scene-block";
-          sceneEl.setAttribute("data-scene-id", scene.id);
-          sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-          sceneEl.textContent = scene.title || "Scene";
-          wrapper.appendChild(sceneEl);
-        });
-
-        // Click to edit
-        wrapper.addEventListener("click", function (e) {
-          e.stopPropagation();
-          selectSCEChapter(chapter.id);
-        });
-
-        // Drag start
-        wrapper.addEventListener("dragstart", function (e) {
-          e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
-          e.dataTransfer.effectAllowed = "move";
-          wrapper.style.opacity = "0.4";
-        });
-
-        wrapper.addEventListener("dragend", function () {
-          wrapper.style.opacity = "1";
-          clearChapterDropIndicators();
-        });
-
-        // Make chapter droppable for reordering
-        wrapper.addEventListener("dragover", function (e) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          var data = e.dataTransfer.getData("text/plain");
-          if (!data.startsWith("chapter:")) return;
-
-          var draggedId = Number(data.split(":")[1]);
-          if (draggedId === chapter.id) return;
-
-          // Only clear and highlight THIS target
-          clearChapterDropIndicators();
-
-          // Highlight this chapter
-          wrapper.style.background = "rgba(59,130,246,0.25)";
-          wrapper.style.borderStyle = "dashed";
-          wrapper.style.borderColor = "#3b82f6";
-
-          // Determine position
-          var rect = wrapper.getBoundingClientRect();
-          var midY = rect.top + rect.height / 2;
-          var insertBefore = e.clientY < midY;
-          wrapper._dropBefore = insertBefore;
-
-          // Add placeholder
-          var placeholder = document.createElement("div");
-          placeholder.className = "sce-chapter-placeholder";
-          placeholder.style.cssText = "height:28px;background:rgba(59,130,246,0.15);border:2px dashed #3b82f6;border-radius:4px;margin:2px 0;";
-          if (insertBefore) {
-            wrapper.parentNode.insertBefore(placeholder, wrapper);
-          } else {
-            wrapper.parentNode.insertBefore(placeholder, wrapper.nextSibling);
-          }
-        });
-
-        wrapper.addEventListener("drop", function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log("[SCE] Chapter drop event fired on chapter:", chapter.id);
-
-          var data = e.dataTransfer.getData("text/plain");
-          console.log("[SCE] Drop data:", data);
-          if (!data.startsWith("chapter:")) return;
-          var draggedId = Number(data.split(":")[1]);
-          console.log("[SCE] Dragged ID:", draggedId, "Target ID:", chapter.id);
-          if (draggedId === chapter.id) return;
-
-          var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-          if (!dragged) { console.log("[SCE] Dragged chapter not found"); return; }
-
-          clearChapterDropIndicators();
-          console.log("[SCE] Dragged state:", dragged.start_state, "Target state:", chapter.start_state);
-
-          if (dragged.start_state === chapter.start_state) {
-            console.log("[SCE] Same state - calling reorderChapter");
-            var insertBefore = wrapper._dropBefore !== null ? wrapper._dropBefore : true;
-            reorderChapter(draggedId, chapter.id, insertBefore);
-          } else {
-            console.log("[SCE] Different state - calling moveChapterToState");
-            moveChapterToState(draggedId, chapter.start_state);
-          }
-        });
-
-        col.appendChild(wrapper);
+      // Group by state
+      var byState = {};
+      sorted.forEach(function (ch) {
+        if (!byState[ch.start_state]) byState[ch.start_state] = [];
+        byState[ch.start_state].push(ch);
       });
 
-      // Make columns drop targets for chapters
-      wireChapterDragDrop();
+      // Render each state column
+      Object.keys(byState).forEach(function (statePos) {
+        var col = document.querySelector('.sce-story-column[data-state-pos="' + statePos + '"]');
+        if (!col) return;
+        var stateChapters = byState[statePos];
+
+        // Add drop zone before first chapter
+        col.appendChild(createChapterDropZone(Number(statePos), 0));
+
+        stateChapters.forEach(function (chapter, idx) {
+          // Add chapter block
+          col.appendChild(createChapterBlockEl(chapter));
+          // Add drop zone after chapter
+          col.appendChild(createChapterDropZone(Number(statePos), idx + 1));
+        });
+      });
+    }
+
+    function createChapterDropZone(statePos, insertIdx) {
+      var zone = document.createElement("div");
+      zone.className = "sce-chapter-drop-zone";
+      zone.setAttribute("data-state-pos", statePos);
+      zone.setAttribute("data-insert-idx", insertIdx);
+      zone.style.cssText = "height:6px;margin:1px 0;transition:all 0.15s;border-radius:3px;";
+
+      zone.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        var data = e.dataTransfer.getData("text/plain");
+        if (!data.startsWith("chapter:")) return;
+
+        clearChapterDropIndicators();
+        zone.style.height = "28px";
+        zone.style.background = "rgba(59,130,246,0.2)";
+        zone.style.border = "2px dashed #3b82f6";
+      });
+
+      zone.addEventListener("dragleave", function () {
+        zone.style.height = "6px";
+        zone.style.background = "";
+        zone.style.border = "";
+      });
+
+      zone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.style.height = "6px";
+        zone.style.background = "";
+        zone.style.border = "";
+
+        var data = e.dataTransfer.getData("text/plain");
+        if (!data.startsWith("chapter:")) return;
+        var draggedId = Number(data.split(":")[1]);
+
+        var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+        if (!dragged) return;
+
+        var targetState = Number(zone.getAttribute("data-state-pos"));
+        var insertIdx = Number(zone.getAttribute("data-insert-idx"));
+
+        if (dragged.start_state !== targetState) {
+          // Different state: move and insert at position
+          moveChapterToStateAt(draggedId, targetState, insertIdx);
+        } else {
+          // Same state: reorder to position
+          reorderChapterToIndex(draggedId, targetState, insertIdx);
+        }
+      });
+
+      return zone;
+    }
+
+    function createChapterBlockEl(chapter) {
+      var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
+      var chColor = chapter.color || "#3b82f6";
+
+      var wrapper = document.createElement("div");
+      wrapper.className = "sce-chapter-block";
+      wrapper.setAttribute("data-chapter-id", chapter.id);
+      wrapper.draggable = true;
+      wrapper.style.cssText = "flex:0 0 96px;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;";
+
+      var title = document.createElement("div");
+      title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      var chNum = getChapterNumber(chapter.id);
+      title.innerHTML = "<span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
+      wrapper.appendChild(title);
+
+      scenes.forEach(function (scene) {
+        var sceneEl = document.createElement("div");
+        sceneEl.className = "sce-scene-block";
+        sceneEl.setAttribute("data-scene-id", scene.id);
+        sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+        sceneEl.textContent = scene.title || "Scene";
+        wrapper.appendChild(sceneEl);
+      });
+
+      wrapper.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectSCEChapter(chapter.id);
+      });
+
+      wrapper.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
+        e.dataTransfer.effectAllowed = "move";
+        wrapper.style.opacity = "0.4";
+      });
+
+      wrapper.addEventListener("dragend", function () {
+        wrapper.style.opacity = "1";
+        clearChapterDropIndicators();
+      });
+
+      return wrapper;
+    }
+
+    function reorderChapterToIndex(chapterId, statePos, insertIdx) {
+      var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
+      stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+
+      // Remove dragged
+      var dragged = null;
+      stateChapters = stateChapters.filter(function (c) {
+        if (Number(c.id) === chapterId) { dragged = c; return false; }
+        return true;
+      });
+      if (!dragged) return;
+
+      // Insert at position
+      stateChapters.splice(insertIdx, 0, dragged);
+
+      // Update sort_order
+      stateChapters.forEach(function (ch, idx) { ch.sort_order = idx + 1; });
+
+      // Save all and re-render
+      var savesNeeded = stateChapters.length;
+      var savesDone = 0;
+      stateChapters.forEach(function (ch) {
+        supabaseRunner
+          .withSuccessHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
+          .withFailureHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
+          .sceSaveChapter(JSON.stringify(ch));
+      });
+    }
+
+    function moveChapterToStateAt(chapterId, statePos, insertIdx) {
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      if (!chapter) return;
+      chapter.start_state = statePos;
+      chapter.end_state = statePos;
+
+      // Set sort_order to insert at position
+      var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos && Number(c.id) !== chapterId; });
+      stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      stateChapters.splice(insertIdx, 0, chapter);
+      stateChapters.forEach(function (ch, idx) { ch.sort_order = idx + 1; });
+
+      // Save all and re-render
+      var savesNeeded = stateChapters.length;
+      var savesDone = 0;
+      stateChapters.forEach(function (ch) {
+        supabaseRunner
+          .withSuccessHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
+          .withFailureHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
+          .sceSaveChapter(JSON.stringify(ch));
+      });
     }
 
     function renderSCEBlocks() {
@@ -388,64 +445,61 @@
     }
 
     function clearChapterDropIndicators() {
-      // Remove all placeholders
-      var phs = document.querySelectorAll(".sce-chapter-placeholder");
-      for (var i = 0; i < phs.length; i++) phs[i].remove();
-      // Reset all chapter block styles
-      var blocks = document.querySelectorAll(".sce-chapter-block");
-      for (var j = 0; j < blocks.length; j++) {
-        blocks[j].style.background = "";
-        blocks[j].style.borderStyle = "";
-        blocks[j].style.borderColor = "";
-        blocks[j]._dropBefore = null;
+      // Reset all drop zones
+      var zones = document.querySelectorAll(".sce-chapter-drop-zone");
+      for (var i = 0; i < zones.length; i++) {
+        zones[i].style.height = "6px";
+        zones[i].style.background = "";
+        zones[i].style.border = "";
       }
     }
 
-    function reorderChapter(draggedId, targetId, insertBefore) {
-      console.log("[SCE] reorderChapter called:", draggedId, "->", targetId, "before:", insertBefore);
-      var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-      var target = _sceState.chapters.find(function (c) { return Number(c.id) === targetId; });
-      if (!dragged || !target) { console.log("[SCE] reorderChapter: not found"); return; }
-      if (dragged.start_state !== target.start_state) { console.log("[SCE] reorderChapter: different states"); return; }
-
-      // Get chapters in the same state, sorted by sort_order
-      var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === dragged.start_state; });
-      stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-      console.log("[SCE] stateChapters before reorder:", stateChapters.map(function (c) { return c.title; }));
-
-      // Remove dragged from list
-      stateChapters = stateChapters.filter(function (c) { return Number(c.id) !== draggedId; });
-
-      // Find target index and insert
-      var targetIdx = -1;
-      for (var i = 0; i < stateChapters.length; i++) {
-        if (Number(stateChapters[i].id) === targetId) { targetIdx = i; break; }
+    function selectSCEChapter(chapterId) {
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      if (chapter) {
+        renderSCEInspectorChapter(chapter);
       }
-      if (targetIdx === -1) { console.log("[SCE] reorderChapter: target not found in list"); return; }
-      var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
-      stateChapters.splice(insertIdx, 0, dragged);
-      console.log("[SCE] stateChapters after reorder:", stateChapters.map(function (c) { return c.title; }));
+    }
 
-      // Update sort_order and save
-      var savesNeeded = stateChapters.length;
-      var savesDone = 0;
-      stateChapters.forEach(function (ch, idx) {
-        ch.sort_order = idx + 1;
-        console.log("[SCE] Saving chapter", ch.id, "sort_order:", ch.sort_order);
-        supabaseRunner
-          .withSuccessHandler(function (json) {
-            console.log("[SCE] Chapter saved:", ch.id);
-            savesDone++;
-            if (savesDone >= savesNeeded) {
-              console.log("[SCE] All chapters saved, re-rendering");
-              renderSCETimeline();
-            }
-          })
-          .withFailureHandler(function (err) {
-            console.error("[SCE] Failed to save chapter:", err);
-            savesDone++;
-            if (savesDone >= savesNeeded) renderSCETimeline();
-          })
-          .sceSaveChapter(JSON.stringify(ch));
+    function quickCreateChapter(statePos) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var title = prompt("Chapter title:");
+      if (!title) return;
+
+      var sortOrder = _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1;
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.chapter) {
+            _sceState.chapters.push(result.chapter);
+            renderSCETimeline();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to add chapter:", err);
+          alert("Failed to add chapter: " + (err.message || err));
+        })
+        .sceSaveChapter(JSON.stringify({
+          composition_id: compositionId,
+          title: title,
+          start_state: statePos,
+          end_state: statePos,
+          sort_order: sortOrder
+        }));
+    }
+
+    function getChapterNumber(chapterId) {
+      var sorted = (_sceState.chapters || []).slice().sort(function (a, b) {
+        if (a.start_state !== b.start_state) return a.start_state - b.start_state;
+        return (a.sort_order || 0) - (b.sort_order || 0);
       });
+      for (var i = 0; i < sorted.length; i++) {
+        if (Number(sorted[i].id) === Number(chapterId)) return i + 1;
+      }
+      return 0;
     }
