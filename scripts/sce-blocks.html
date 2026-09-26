@@ -54,6 +54,17 @@
         renderSCEInspector();
       });
 
+      // Double-click on block to open precomp
+      timelineBody.addEventListener("dblclick", function (e) {
+        var blockEl = e.target.closest(".sce-block");
+        if (!blockEl) return;
+        var blockId = Number(blockEl.getAttribute("data-block-id"));
+        var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+        if (block && block.precomp_composition_id) {
+          openPrecomp(block);
+        }
+      });
+
       // Wire block drag (for moving blocks)
       wireSCEBlockDrag();
     }

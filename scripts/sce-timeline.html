@@ -97,8 +97,9 @@
         blockEl.style.bottom = "3px";
 
         var title = block.short_title || "Untitled";
+        var precompIcon = block.precomp_composition_id ? "<span class='sce-block-precomp-icon' title='Has internal timeline'>\u25A0</span>" : "";
         blockEl.innerHTML = "<div class='sce-block-resize-handle sce-block-resize-left' data-block-id='" + block.id + "'></div>" +
-          "<div class='sce-block-title'>" + escapeHtml(title) + "</div>" +
+          "<div class='sce-block-title'>" + precompIcon + escapeHtml(title) + "</div>" +
           "<div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>" +
           "<div class='sce-block-resize-handle sce-block-resize-right' data-block-id='" + block.id + "'></div>";
 

@@ -1434,7 +1434,8 @@
         notes: parsed.notes ? String(parsed.notes).trim() : null,
         is_detached: !!parsed.is_detached,
         is_parked: !!parsed.is_parked,
-        is_later_book: !!parsed.is_later_book
+        is_later_book: !!parsed.is_later_book,
+        precomp_composition_id: parsed.precomp_composition_id ? Number(parsed.precomp_composition_id) : null
       };
       if (blockId) payload.id = blockId;
       var op = blockId ? sbClient.from('sce_blocks').update(payload).eq('id', blockId).select().single()
@@ -1487,6 +1488,30 @@
       if (!safeId) throw new Error('Connection id is required.');
       return sbClient.from('sce_connections').delete().eq('id', safeId)
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    _sbDefine('sceCreatePrecomp', function (seriesId, blockId, title) {
+      var safeSeriesId = Number(seriesId || 0);
+      var safeBlockId = Number(blockId || 0);
+      if (!safeSeriesId || !safeBlockId) throw new Error('Series id and block id are required.');
+      // Create a new composition for the precomp
+      return sbClient.from('sce_compositions').insert([{
+        series_id: safeSeriesId,
+        name: title || 'Untitled Precomp',
+        structure_template: 'precomp'
+      }]).select().single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var comp = res.data;
+          // Link the block to the new composition
+          return sbClient.from('sce_blocks')
+            .update({ precomp_composition_id: comp.id })
+            .eq('id', safeBlockId)
+            .then(function (updRes) {
+              if (updRes.error) throw updRes.error;
+              return JSON.stringify({ ok: true, composition: comp });
+            });
+        });
     });
 
     _sbDefine('saveCodexEntityFieldValue', function (valueJson) {

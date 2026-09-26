@@ -113,7 +113,19 @@
       }
       html += "</div></div>";
 
+      // Precomp section
+      if (block.precomp_composition_id) {
+        html += "<div class='sce-inspector-section'>";
+        html += "<label class='sce-inspector-label'>Precomp</label>";
+        html += "<div style='font-size:12px;color:#22c55e;'>This block has an internal timeline</div>";
+        html += "<button id='sceBlockOpenPrecomp' type='button' class='sce-inspector-btn' style='margin-top:4px;color:#22c55e;border-color:#22c55e;'>Open Precomp</button>";
+        html += "</div>";
+      }
+
       html += "<div class='sce-inspector-actions'>";
+      if (!block.precomp_composition_id) {
+        html += "<button id='sceBlockConvertPrecomp' type='button' class='sce-inspector-btn' style='color:#a855f7;border-color:#a855f7;'>Convert to Precomp</button>";
+      }
       html += "<button id='sceBlockConnectBtn' type='button' class='sce-inspector-btn' style='color:#3b82f6;border-color:#3b82f6;'>Connect</button>";
       html += "<button id='sceBlockSaveBtn' type='button' class='sce-inspector-btn primary'>Save</button>";
       html += "<button id='sceBlockDeleteBtn' type='button' class='sce-inspector-btn danger'>Delete</button>";
@@ -163,6 +175,42 @@
       if (connectBtn) {
         connectBtn.addEventListener("click", function () {
           showSCEConnectionCreator(block.id);
+        });
+      }
+
+      // Wire convert to precomp button
+      var convertBtn = document.getElementById("sceBlockConvertPrecomp");
+      if (convertBtn) {
+        convertBtn.addEventListener("click", function () {
+          var project = getSelectedProject();
+          var seriesId = Number(project && project.series_id || 0);
+          if (!seriesId) return;
+          var title = block.short_title || "Untitled Precomp";
+          convertBtn.disabled = true;
+          convertBtn.textContent = "Creating...";
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result.composition) {
+                block.precomp_composition_id = result.composition.id;
+                renderSCEInspector();
+                renderSCETimeline();
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to create precomp:", err);
+              convertBtn.disabled = false;
+              convertBtn.textContent = "Convert to Precomp";
+            })
+            .sceCreatePrecomp(seriesId, block.id, title);
+        });
+      }
+
+      // Wire open precomp button
+      var openBtn = document.getElementById("sceBlockOpenPrecomp");
+      if (openBtn) {
+        openBtn.addEventListener("click", function () {
+          openPrecomp(block);
         });
       }
     }

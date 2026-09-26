@@ -344,3 +344,63 @@
       if (undoBtn) undoBtn.disabled = !_sceState.undoStack.length;
       if (redoBtn) redoBtn.disabled = !_sceState.redoStack.length;
     }
+
+    // Precomp: store parent state when entering a precomp
+    var _sceParentState = null;
+
+    function openPrecomp(block) {
+      if (!block.precomp_composition_id) return;
+      var project = getSelectedProject();
+      var seriesId = Number(project && project.series_id || 0);
+      if (!seriesId) return;
+
+      // Save parent state
+      _sceParentState = {
+        composition: _sceState.composition,
+        states: _sceState.states,
+        layers: _sceState.layers,
+        blocks: _sceState.blocks,
+        assets: _sceState.assets,
+        connections: _sceState.connections,
+        blockTitle: block.short_title || "Precomp"
+      };
+
+      // Show back button
+      var header = document.querySelector(".sce-header-left");
+      if (header) {
+        var backBtn = document.createElement("button");
+        backBtn.id = "sceClosePrecomp";
+        backBtn.type = "button";
+        backBtn.className = "sce-toolbar-btn";
+        backBtn.style.cssText = "margin-right:8px;font-size:11px;";
+        backBtn.textContent = "\u2190 Back to " + (_sceParentState.blockTitle || "Timeline");
+        backBtn.addEventListener("click", function () { closePrecomp(seriesId); });
+        header.insertBefore(backBtn, header.firstChild);
+      }
+
+      // Load precomp composition
+      _sceState.initialized = false;
+      loadSCECompositionData(block.precomp_composition_id, seriesId);
+    }
+
+    function closePrecomp(seriesId) {
+      if (!_sceParentState) return;
+
+      // Restore parent state
+      _sceState.composition = _sceParentState.composition;
+      _sceState.states = _sceParentState.states;
+      _sceState.layers = _sceParentState.layers;
+      _sceState.blocks = _sceParentState.blocks;
+      _sceState.assets = _sceParentState.assets;
+      _sceState.connections = _sceParentState.connections;
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      _sceParentState = null;
+
+      // Remove back button
+      var backBtn = document.getElementById("sceClosePrecomp");
+      if (backBtn) backBtn.remove();
+
+      // Re-render
+      renderSCE(seriesId);
+    }
