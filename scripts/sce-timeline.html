@@ -139,6 +139,7 @@
         // Drag start
         wrapper.addEventListener("dragstart", function (e) {
           e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
+          e.dataTransfer.effectAllowed = "move";
           wrapper.style.opacity = "0.4";
         });
 
@@ -150,43 +151,36 @@
         // Make chapter droppable for reordering
         wrapper.addEventListener("dragover", function (e) {
           e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
           var data = e.dataTransfer.getData("text/plain");
           if (!data.startsWith("chapter:")) return;
 
           var draggedId = Number(data.split(":")[1]);
           if (draggedId === chapter.id) return;
 
+          // Only clear and highlight THIS target
           clearChapterDropIndicators();
 
-          // Determine if dropping before or after based on mouse position
-          var rect = wrapper.getBoundingClientRect();
-          var midY = rect.top + rect.height / 2;
-          var insertBefore = e.clientY < midY;
-
-          // Show blank placeholder on the target
+          // Highlight this chapter
           wrapper.style.background = "rgba(59,130,246,0.25)";
           wrapper.style.borderStyle = "dashed";
           wrapper.style.borderColor = "#3b82f6";
+
+          // Determine position
+          var rect = wrapper.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          var insertBefore = e.clientY < midY;
           wrapper._dropBefore = insertBefore;
 
-          // Insert visual placeholder
+          // Add placeholder
           var placeholder = document.createElement("div");
           placeholder.className = "sce-chapter-placeholder";
-          placeholder.style.cssText = "height:28px;background:rgba(59,130,246,0.15);border:2px dashed #3b82f6;border-radius:4px;margin:2px 0;transition:all 0.15s;";
+          placeholder.style.cssText = "height:28px;background:rgba(59,130,246,0.15);border:2px dashed #3b82f6;border-radius:4px;margin:2px 0;";
           if (insertBefore) {
             wrapper.parentNode.insertBefore(placeholder, wrapper);
           } else {
             wrapper.parentNode.insertBefore(placeholder, wrapper.nextSibling);
           }
-        });
-
-        wrapper.addEventListener("dragleave", function () {
-          wrapper.style.background = "";
-          wrapper.style.borderStyle = "";
-          wrapper.style.borderColor = "";
-          wrapper._dropBefore = null;
-          var ph = wrapper.parentNode ? wrapper.parentNode.querySelector(".sce-chapter-placeholder") : null;
-          if (ph) ph.remove();
         });
 
         wrapper.addEventListener("drop", function (e) {
@@ -199,18 +193,17 @@
           if (draggedId === chapter.id) return;
 
           var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-          var target = _sceState.chapters.find(function (c) { return Number(c.id) === chapter.id; });
-          if (!dragged || !target) return;
+          if (!dragged) return;
 
           clearChapterDropIndicators();
 
-          if (dragged.start_state === target.start_state) {
+          if (dragged.start_state === chapter.start_state) {
             // Same state: reorder
             var insertBefore = wrapper._dropBefore !== null ? wrapper._dropBefore : true;
             reorderChapter(draggedId, chapter.id, insertBefore);
           } else {
-            // Different state: move to target's state and insert near it
-            moveChapterToState(draggedId, target.start_state);
+            // Different state: move to target's state
+            moveChapterToState(draggedId, chapter.start_state);
           }
         });
 
@@ -386,13 +379,17 @@
     }
 
     function clearChapterDropIndicators() {
-      document.querySelectorAll(".sce-chapter-placeholder").forEach(function (el) { el.remove(); });
-      document.querySelectorAll(".sce-chapter-block").forEach(function (el) {
-        el.style.background = "";
-        el.style.borderStyle = "";
-        el.style.borderColor = "";
-        el._dropBefore = null;
-      });
+      // Remove all placeholders
+      var phs = document.querySelectorAll(".sce-chapter-placeholder");
+      for (var i = 0; i < phs.length; i++) phs[i].remove();
+      // Reset all chapter block styles
+      var blocks = document.querySelectorAll(".sce-chapter-block");
+      for (var j = 0; j < blocks.length; j++) {
+        blocks[j].style.background = "";
+        blocks[j].style.borderStyle = "";
+        blocks[j].style.borderColor = "";
+        blocks[j]._dropBefore = null;
+      }
     }
 
     function reorderChapter(draggedId, targetId, insertBefore) {
