@@ -9,6 +9,7 @@
 
       var states = _sceState.states;
       var layers = _sceState.layers;
+      var chapters = _sceState.chapters || [];
 
       if (!states.length) {
         header.innerHTML = "<div style='padding:20px;color:var(--muted);'>No states defined.</div>";
@@ -19,16 +20,23 @@
       // Sort states by position
       states.sort(function (a, b) { return a.position - b.position; });
 
-      // Render header (state columns) with spacer for layer label
+      // Calculate column widths based on chapter count per state
+      var colWidths = {};
+      states.forEach(function (state) {
+        var count = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
+        colWidths[state.position] = Math.max(1, count) * 100;
+      });
+
+      // Render header (state columns) with dynamic widths
       var headerHtml = "<div class='sce-state-header-row'>";
       headerHtml += "<div class='sce-state-header-spacer'></div>";
       states.forEach(function (state) {
-        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "'>";
+        var w = colWidths[state.position] || 100;
+        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;'>";
         headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
         headerHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
         headerHtml += "</div>";
       });
-      // Parking and Later Books columns
       headerHtml += "<div class='sce-state-header sce-state-parking' data-state='parking'><div class='sce-state-number'>P</div><div class='sce-state-name'>Parking</div></div>";
       headerHtml += "<div class='sce-state-header sce-state-later' data-state='later'><div class='sce-state-number'>L</div><div class='sce-state-name'>Later Books</div></div>";
       headerHtml += "</div>";
@@ -38,21 +46,20 @@
       var bodyHtml = "";
       var hasSolo = layers.some(function (l) { return l.is_solo; });
       var visibleLayers = layers.filter(function (l) {
-        if (hasSolo) return l.is_solo; // Solo mode: only show solo layers
-        return !l.is_hidden; // Normal mode: hide hidden layers
+        if (hasSolo) return l.is_solo;
+        return !l.is_hidden;
       });
 
       visibleLayers.forEach(function (layer) {
         bodyHtml += "<div class='sce-layer-row' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
         bodyHtml += "<div class='sce-layer-label'>" + escapeHtml(layer.name) + "</div>";
         bodyHtml += "<div class='sce-layer-cells'>";
-        // Empty cells for grid positioning
         states.forEach(function (state) {
-          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
+          var w = colWidths[state.position] || 100;
+          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;'></div>";
         });
         bodyHtml += "<div class='sce-layer-cell sce-layer-cell-parking' data-layer-id='" + layer.id + "' data-state='parking'></div>";
         bodyHtml += "<div class='sce-layer-cell sce-layer-cell-later' data-layer-id='" + layer.id + "' data-state='later'></div>";
-        // Blocks will be positioned absolutely over the cells
         bodyHtml += "</div>";
         bodyHtml += "</div>";
       });
@@ -144,27 +151,35 @@
       var body = document.getElementById("sceTimelineBody");
       if (!body) return;
 
-      // Create story band as a timeline row (same structure as layer rows)
+      // Calculate column widths based on chapter count per state
+      var colWidths = {};
+      states.forEach(function (state) {
+        var count = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
+        colWidths[state.position] = Math.max(1, count) * 100;
+      });
+
+      // Create story band as a timeline row
       var band = document.createElement("div");
       band.id = "sceStoryBand";
       band.style.cssText = "display:flex;border-bottom:1px solid var(--border);background:rgba(59,130,246,0.05);";
 
-      // Label column (matches layer label width)
+      // Label column
       var label = document.createElement("div");
       label.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);padding:4px 8px;font-size:10px;font-weight:600;color:var(--muted);display:flex;align-items:flex-start;";
       label.textContent = "Chapters";
       band.appendChild(label);
 
-      // State columns container (matches layer cells structure)
+      // State columns container
       var columns = document.createElement("div");
       columns.id = "sceStoryColumns";
       columns.style.cssText = "display:flex;flex:1;min-width:fit-content;";
 
       states.forEach(function (state) {
+        var w = colWidths[state.position] || 100;
         var col = document.createElement("div");
         col.className = "sce-story-column";
         col.setAttribute("data-state-pos", state.position);
-        col.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;vertical-align:top;";
+        col.style.cssText = "min-width:" + w + "px;max-width:" + w + "px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;vertical-align:top;display:flex;flex-wrap:wrap;gap:2px;";
 
         // Get chapters for this state
         var stateChapters = chapters.filter(function (ch) {
@@ -174,6 +189,7 @@
 
         stateChapters.forEach(function (chapter) {
           var chapterEl = createChapterBlock(chapter);
+          chapterEl.style.flex = "1 1 90px";
           col.appendChild(chapterEl);
         });
 
@@ -297,7 +313,10 @@
       // Save to database
       supabaseRunner
         .withSuccessHandler(function () {
+          // Re-render entire timeline since column widths may change
+          renderSCETimeline();
           renderSCEChapterStrip();
+          renderSCEConnections();
         })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to move chapter:", err);
