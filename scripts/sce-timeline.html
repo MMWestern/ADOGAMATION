@@ -52,6 +52,34 @@
         });
       });
 
+      // Make state headers droppable for cross-state moves
+      header.querySelectorAll(".sce-state-header[data-state]").forEach(function (hdr) {
+        hdr.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          var data = e.dataTransfer.getData("text/plain");
+          if (!data.startsWith("chapter:")) return;
+          hdr.style.background = "rgba(59,130,246,0.2)";
+        });
+        hdr.addEventListener("dragleave", function () {
+          hdr.style.background = "";
+        });
+        hdr.addEventListener("drop", function (e) {
+          e.preventDefault();
+          hdr.style.background = "";
+          var data = e.dataTransfer.getData("text/plain");
+          if (!data.startsWith("chapter:")) return;
+          var draggedId = Number(data.split(":")[1]);
+          var statePos = Number(hdr.getAttribute("data-state"));
+          if (isNaN(statePos)) return;
+          var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+          if (!dragged) return;
+          // Move to end of target state
+          var targetChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
+          moveChapterToStateAt(draggedId, statePos, targetChapters.length);
+        });
+      });
+
       // Build body HTML
       var bodyHtml = "";
 
@@ -112,17 +140,17 @@
         byState[ch.start_state].push(ch);
       });
 
-      // Render each state column
-      Object.keys(byState).forEach(function (statePos) {
-        var col = document.querySelector('.sce-story-column[data-state-pos="' + statePos + '"]');
-        if (!col) return;
-        var stateChapters = byState[statePos];
+      // Get all state positions from columns
+      var allCols = document.querySelectorAll(".sce-story-column[data-state-pos]");
+      allCols.forEach(function (col) {
+        var statePos = Number(col.getAttribute("data-state-pos"));
+        var stateChapters = byState[statePos] || [];
 
         stateChapters.forEach(function (chapter, idx) {
           col.appendChild(createChapterBlockEl(chapter, idx));
         });
-        // Add drop zone at end of column
-        col.appendChild(createChapterDropZone(Number(statePos), stateChapters.length));
+        // Always add drop zone at end of column
+        col.appendChild(createChapterDropZone(statePos, stateChapters.length));
       });
     }
 
