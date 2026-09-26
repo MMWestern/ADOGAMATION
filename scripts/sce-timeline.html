@@ -144,6 +144,47 @@
 
         wrapper.addEventListener("dragend", function () {
           wrapper.style.opacity = "1";
+          // Clear all drop indicators
+          document.querySelectorAll(".sce-chapter-drop-before").forEach(function (el) { el.classList.remove("sce-chapter-drop-before"); });
+          document.querySelectorAll(".sce-chapter-drop-after").forEach(function (el) { el.classList.remove("sce-chapter-drop-after"); });
+        });
+
+        // Make chapter droppable for reordering
+        wrapper.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var data = e.dataTransfer.types.indexOf("text/plain") >= 0;
+          if (!data) return;
+          // Determine if dropping before or after
+          var rect = wrapper.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          if (e.clientY < midY) {
+            wrapper.classList.add("sce-chapter-drop-before");
+            wrapper.classList.remove("sce-chapter-drop-after");
+          } else {
+            wrapper.classList.add("sce-chapter-drop-after");
+            wrapper.classList.remove("sce-chapter-drop-before");
+          }
+        });
+
+        wrapper.addEventListener("dragleave", function () {
+          wrapper.classList.remove("sce-chapter-drop-before", "sce-chapter-drop-after");
+        });
+
+        wrapper.addEventListener("drop", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          wrapper.classList.remove("sce-chapter-drop-before", "sce-chapter-drop-after");
+          var data = e.dataTransfer.getData("text/plain");
+          if (!data.startsWith("chapter:")) return;
+          var draggedId = Number(data.split(":")[1]);
+          if (draggedId === chapter.id) return;
+
+          var rect = wrapper.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          var insertBefore = e.clientY < midY;
+
+          reorderChapter(draggedId, chapter.id, insertBefore);
         });
 
         col.appendChild(wrapper);
@@ -315,4 +356,41 @@
         if (Number(sorted[i].id) === Number(chapterId)) return i + 1;
       }
       return 0;
+    }
+
+    function reorderChapter(draggedId, targetId, insertBefore) {
+      var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+      var target = _sceState.chapters.find(function (c) { return Number(c.id) === targetId; });
+      if (!dragged || !target) return;
+      if (dragged.start_state !== target.start_state) return;
+
+      // Get chapters in the same state, sorted by sort_order
+      var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === dragged.start_state; });
+      stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+
+      // Remove dragged from list
+      stateChapters = stateChapters.filter(function (c) { return Number(c.id) !== draggedId; });
+
+      // Find target index and insert
+      var targetIdx = stateChapters.findIndex(function (c) { return Number(c.id) === targetId; });
+      var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+      stateChapters.splice(insertIdx, 0, dragged);
+
+      // Update sort_order for all chapters in this state
+      var toSave = 0;
+      var saved = 0;
+      stateChapters.forEach(function (ch, idx) {
+        ch.sort_order = idx + 1;
+        toSave++;
+        supabaseRunner
+          .withSuccessHandler(function () {
+            saved++;
+            if (saved >= toSave) renderSCETimeline();
+          })
+          .withFailureHandler(function () {
+            saved++;
+            if (saved >= toSave) renderSCETimeline();
+          })
+          .sceSaveChapter(JSON.stringify(ch));
+      });
     }
