@@ -187,11 +187,15 @@
         // Sort chapters by sort_order
         chapterGroups.sort(function (a, b) { return (a.chapter.sort_order || 0) - (b.chapter.sort_order || 0); });
 
+        // Calculate width based on chapter count (same as chapter blocks)
+        var totalCount = chapterGroups.length;
+        var blockWidth = totalCount > 1 ? "calc(" + (100 / totalCount) + "% - 4px)" : "100%";
+
         chapterGroups.forEach(function (group) {
           // Create chapter group container
           var groupEl = document.createElement("div");
           groupEl.className = "sce-scene-chapter-group";
-          groupEl.style.cssText = "flex:0 0 150px;display:flex;flex-direction:column;gap:1px;";
+          groupEl.style.cssText = "width:" + blockWidth + ";display:flex;flex-direction:column;gap:1px;";
 
           // Chapter label
           var label = document.createElement("div");
