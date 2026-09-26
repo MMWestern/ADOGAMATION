@@ -101,7 +101,7 @@
       bodyHtml += "<div class='sce-layer-cells' id='sceSceneCells'>";
       states.forEach(function (state) {
         var w = colWidths[state.position] || 100;
-        bodyHtml += "<div class='sce-scene-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;display:flex;flex-direction:row;flex-wrap:wrap;gap:2px;padding:2px;'></div>";
+        bodyHtml += "<div class='sce-scene-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;display:flex;flex-direction:column;gap:2px;padding:2px;'></div>";
       });
       bodyHtml += "<div class='sce-scene-column' data-state-pos='-1' style='min-width:100px;max-width:100px;position:relative;'></div>";
       bodyHtml += "<div class='sce-scene-column' data-state-pos='-2' style='min-width:100px;max-width:100px;position:relative;'></div>";
@@ -201,7 +201,7 @@
       wrapper.setAttribute("data-scene-id", scene.id);
       wrapper.setAttribute("data-chapter-id", chapter.id);
       wrapper.draggable = true;
-      wrapper.style.cssText = "flex:1 1 0;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;cursor:grab;position:relative;box-sizing:border-box;padding:2px 4px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      wrapper.style.cssText = "width:100%;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;cursor:grab;position:relative;box-sizing:border-box;padding:2px 4px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       wrapper.textContent = scene.title || "Scene";
 
       wrapper.addEventListener("click", function (e) {
@@ -333,15 +333,6 @@
       var chNum = getChapterNumber(chapter.id);
       title.innerHTML = "<span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
       wrapper.appendChild(title);
-
-      scenes.forEach(function (scene) {
-        var sceneEl = document.createElement("div");
-        sceneEl.className = "sce-scene-block";
-        sceneEl.setAttribute("data-scene-id", scene.id);
-        sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-        sceneEl.textContent = scene.title || "Scene";
-        wrapper.appendChild(sceneEl);
-      });
 
       wrapper.addEventListener("click", function (e) {
         e.stopPropagation();
