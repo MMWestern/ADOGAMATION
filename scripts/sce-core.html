@@ -365,7 +365,9 @@
         blockTitle: block.short_title || "Precomp"
       };
 
-      // Show back button
+      // Show back button (avoid duplicates)
+      var existingBackBtn = document.getElementById("sceClosePrecomp");
+      if (existingBackBtn) existingBackBtn.remove();
       var header = document.querySelector(".sce-header-left");
       if (header) {
         var backBtn = document.createElement("button");
