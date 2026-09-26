@@ -406,22 +406,31 @@
       stateChapters = stateChapters.filter(function (c) { return Number(c.id) !== draggedId; });
 
       // Find target index and insert
-      var targetIdx = stateChapters.findIndex(function (c) { return Number(c.id) === targetId; });
+      var targetIdx = -1;
+      for (var i = 0; i < stateChapters.length; i++) {
+        if (Number(stateChapters[i].id) === targetId) { targetIdx = i; break; }
+      }
+      if (targetIdx === -1) return;
       var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
       stateChapters.splice(insertIdx, 0, dragged);
 
-      // Update sort_order for all chapters in this state
-      var toSave = 0;
-      var saved = 0;
+      // Update sort_order and save
+      var savesNeeded = stateChapters.length;
+      var savesDone = 0;
       stateChapters.forEach(function (ch, idx) {
         ch.sort_order = idx + 1;
-        toSave++;
         supabaseRunner
           .withSuccessHandler(function () {
-            saved++;
-            if (saved >= toSave) renderSCETimeline();
+            savesDone++;
+            if (savesDone >= savesNeeded) renderSCETimeline();
           })
           .withFailureHandler(function () {
+            savesDone++;
+            if (savesDone >= savesNeeded) renderSCETimeline();
+          })
+          .sceSaveChapter(JSON.stringify(ch));
+      });
+    }
             saved++;
             if (saved >= toSave) renderSCETimeline();
           })
