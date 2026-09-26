@@ -101,7 +101,7 @@
       bodyHtml += "<div class='sce-layer-cells' id='sceSceneCells'>";
       states.forEach(function (state) {
         var w = colWidths[state.position] || 100;
-        bodyHtml += "<div class='sce-scene-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;display:flex;flex-direction:column;gap:2px;padding:2px;'></div>";
+        bodyHtml += "<div class='sce-scene-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;display:flex;flex-direction:row;gap:2px;padding:2px;'></div>";
       });
       bodyHtml += "<div class='sce-scene-column' data-state-pos='-1' style='min-width:100px;max-width:100px;position:relative;'></div>";
       bodyHtml += "<div class='sce-scene-column' data-state-pos='-2' style='min-width:100px;max-width:100px;position:relative;'></div>";
@@ -191,7 +191,7 @@
           // Create chapter group container
           var groupEl = document.createElement("div");
           groupEl.className = "sce-scene-chapter-group";
-          groupEl.style.cssText = "width:100%;display:flex;flex-direction:column;gap:1px;margin-bottom:3px;";
+          groupEl.style.cssText = "flex:1 1 0;display:flex;flex-direction:column;gap:1px;";
 
           // Chapter label
           var label = document.createElement("div");
