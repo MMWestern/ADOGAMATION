@@ -376,9 +376,7 @@
           var states = _sceState.states || [];
           states.sort(function (a, b) { return a.position - b.position; });
 
-          // Build state list for selection
-          var stateList = states.map(function (s) { return s.position + ": " + s.name; }).join("\n");
-          var stateInput = prompt("Which state does this chapter belong to?\n\n" + stateList + "\n\nEnter state number (1-" + states.length + "):", "1");
+          var stateInput = prompt("Which state does this chapter belong to?\n\nEnter state number (1-" + states.length + "):", "1");
           if (!stateInput) return;
           var statePos = parseInt(stateInput, 10);
           if (isNaN(statePos) || statePos < 1 || statePos > states.length) {
@@ -394,7 +392,7 @@
               var result = typeof json === 'string' ? JSON.parse(json) : json;
               if (result.chapter) {
                 _sceState.chapters.push(result.chapter);
-                renderSCEChapterStrip();
+                renderSCETimeline();
               }
             })
             .withFailureHandler(function (err) {

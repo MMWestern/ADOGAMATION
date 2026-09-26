@@ -18688,6 +18688,29 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       box-sizing: border-box;
       overflow: hidden;
     }
+    .sce-state-add-chapter {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .sce-state-header:hover .sce-state-add-chapter {
+      opacity: 1;
+    }
+    .sce-state-add-chapter:hover {
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
+    }
     .sce-state-number {
       font-size: 10px;
       font-weight: 700;

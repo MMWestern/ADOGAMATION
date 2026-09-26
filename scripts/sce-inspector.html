@@ -361,7 +361,7 @@
           chapter.end_state = Number(document.getElementById("sceChapterEnd").value);
           chapter.notes = document.getElementById("sceChapterNotes").value;
           saveSCEChapter(chapter);
-          renderSCEChapterStrip();
+          renderSCETimeline();
         });
       }
 
@@ -373,7 +373,7 @@
           supabaseRunner
             .withSuccessHandler(function () {
               _sceState.chapters = _sceState.chapters.filter(function (c) { return Number(c.id) !== Number(chapter.id); });
-              renderSCEChapterStrip();
+              renderSCETimeline();
               renderSCEInspector();
             })
             .withFailureHandler(function (err) {
@@ -399,7 +399,7 @@
                 }
                 _sceState.chapters._scenes[chapter.id].push(result.scene);
                 loadSCEChapterScenes(chapter.id);
-                renderSCEChapterStrip();
+                renderSCETimeline();
               }
             })
             .withFailureHandler(function (err) {
@@ -538,7 +538,7 @@
               }
               var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
               if (chapter) renderSCEInspectorChapter(chapter);
-              renderSCEChapterStrip();
+              renderSCETimeline();
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to delete scene:", err);

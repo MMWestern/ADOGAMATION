@@ -32,15 +32,25 @@
       headerHtml += "<div class='sce-state-header-spacer'></div>";
       states.forEach(function (state) {
         var w = colWidths[state.position] || 100;
-        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;'>";
+        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;'>";
         headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
         headerHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
+        headerHtml += "<div class='sce-state-add-chapter' data-state-pos='" + state.position + "' title='Add chapter'>+</div>";
         headerHtml += "</div>";
       });
       headerHtml += "<div class='sce-state-header sce-state-parking' data-state='parking'><div class='sce-state-number'>P</div><div class='sce-state-name'>Parking</div></div>";
       headerHtml += "<div class='sce-state-header sce-state-later' data-state='later'><div class='sce-state-number'>L</div><div class='sce-state-name'>Later Books</div></div>";
       headerHtml += "</div>";
       header.innerHTML = headerHtml;
+
+      // Wire + buttons to create chapters
+      header.querySelectorAll(".sce-state-add-chapter").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var statePos = Number(btn.getAttribute("data-state-pos"));
+          quickCreateChapter(statePos);
+        });
+      });
 
       // Build body HTML
       var bodyHtml = "";
@@ -102,10 +112,11 @@
         wrapper.draggable = true;
         wrapper.style.cssText = "flex:0 0 96px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;";
 
-        // Chapter title
+        // Chapter title with number
         var title = document.createElement("div");
         title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#3b82f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-        title.textContent = chapter.title || "Untitled";
+        var chNum = getChapterNumber(chapter.id);
+        title.textContent = "Ch" + chNum + " - " + (chapter.title || "Untitled");
         wrapper.appendChild(title);
 
         // Scenes
@@ -261,4 +272,46 @@
       if (chapter) {
         renderSCEInspectorChapter(chapter);
       }
+    }
+
+    function quickCreateChapter(statePos) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var title = prompt("Chapter title:");
+      if (!title) return;
+
+      var sortOrder = _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1;
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.chapter) {
+            _sceState.chapters.push(result.chapter);
+            renderSCETimeline();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to add chapter:", err);
+          alert("Failed to add chapter: " + (err.message || err));
+        })
+        .sceSaveChapter(JSON.stringify({
+          composition_id: compositionId,
+          title: title,
+          start_state: statePos,
+          end_state: statePos,
+          sort_order: sortOrder
+        }));
+    }
+
+    function getChapterNumber(chapterId) {
+      // Sort all chapters by position then sort_order to assign numbers
+      var sorted = (_sceState.chapters || []).slice().sort(function (a, b) {
+        if (a.start_state !== b.start_state) return a.start_state - b.start_state;
+        return (a.sort_order || 0) - (b.sort_order || 0);
+      });
+      for (var i = 0; i < sorted.length; i++) {
+        if (Number(sorted[i].id) === Number(chapterId)) return i + 1;
+      }
+      return 0;
     }
