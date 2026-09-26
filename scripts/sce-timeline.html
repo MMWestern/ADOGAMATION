@@ -24,7 +24,7 @@
       var colWidths = {};
       states.forEach(function (state) {
         var count = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
-        colWidths[state.position] = Math.max(1, count) * 100;
+        colWidths[state.position] = Math.max(1, count) * 150;
       });
 
       // Render header (state columns) with dynamic widths
