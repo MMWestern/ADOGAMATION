@@ -344,7 +344,10 @@
           var title = prompt("Chapter title:");
           if (!title) return;
           var compositionId = _sceState.composition ? _sceState.composition.id : 0;
-          if (!compositionId) return;
+          if (!compositionId) {
+            alert("No composition found. Please wait for the SCE to fully load.");
+            return;
+          }
           supabaseRunner
             .withSuccessHandler(function (json) {
               var result = typeof json === 'string' ? JSON.parse(json) : json;
@@ -355,6 +358,7 @@
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to add chapter:", err);
+              alert("Failed to add chapter: " + (err.message || err));
             })
             .sceSaveChapter(JSON.stringify({
               composition_id: compositionId,
