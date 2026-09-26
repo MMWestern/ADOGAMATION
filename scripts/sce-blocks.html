@@ -6,9 +6,9 @@
       var timelineBody = document.getElementById("sceTimelineBody");
       if (!timelineBody) return;
 
-      // Allow drops on layer cells (portrait layout)
+      // Allow drops on layer cells
       timelineBody.addEventListener("dragover", function (e) {
-        var cell = e.target.closest(".sce-state-cell-layer");
+        var cell = e.target.closest(".sce-layer-cell");
         if (cell) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
@@ -17,14 +17,14 @@
       });
 
       timelineBody.addEventListener("dragleave", function (e) {
-        var cell = e.target.closest(".sce-state-cell-layer");
+        var cell = e.target.closest(".sce-layer-cell");
         if (cell) {
           cell.classList.remove("sce-drop-target");
         }
       });
 
       timelineBody.addEventListener("drop", function (e) {
-        var cell = e.target.closest(".sce-state-cell-layer");
+        var cell = e.target.closest(".sce-layer-cell");
         if (!cell) return;
         cell.classList.remove("sce-drop-target");
         e.preventDefault();
@@ -149,7 +149,7 @@
         if (dragState.moved) {
           // Find drop target
           var target = document.elementFromPoint(e.clientX, e.clientY);
-          var cell = target ? target.closest(".sce-state-cell-layer") : null;
+          var cell = target ? target.closest(".sce-layer-cell") : null;
           if (cell) {
             var newLayerId = Number(cell.getAttribute("data-layer-id"));
             var newState = cell.getAttribute("data-state");
@@ -242,7 +242,7 @@
 
         var isRight = handle.classList.contains("sce-block-resize-right");
         var cells = blockEl.parentElement;
-        var cellWidth = cells.querySelector('.sce-state-cell-layer') ? cells.querySelector('.sce-state-cell-layer').offsetWidth : 100;
+        var cellWidth = cells.querySelector('.sce-layer-cell') ? cells.querySelector('.sce-layer-cell').offsetWidth : 100;
 
         resizeState = {
           blockId: blockId,
