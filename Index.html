@@ -349,6 +349,13 @@
             <button id="sceAddAssetBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
           </div>
           <div id="sceAssetBinList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
+          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
+              <span style="font-size:11px;font-weight:600;color:var(--muted);">Layers</span>
+              <button id="sceAddLayerBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
+            </div>
+            <div id="sceLayerControls" style="overflow-y:auto;max-height:200px;"></div>
+          </div>
         </div>
 
         <div id="hubHomeSidebar" class="hub-sidebar-panel" hidden></div>
@@ -791,7 +798,6 @@
           </div>
           <div class="sce-body">
             <div id="sceTimelineWrap" class="sce-timeline-wrap">
-              <div id="sceLayerControls" class="sce-layer-controls"></div>
               <div id="sceTimeline" class="sce-timeline">
                 <div id="sceTimelineHeader" class="sce-timeline-header"></div>
                 <div id="sceTimelineBody" class="sce-timeline-body"></div>
