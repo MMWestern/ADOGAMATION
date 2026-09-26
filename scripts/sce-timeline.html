@@ -114,9 +114,9 @@
 
         // Chapter title with number
         var title = document.createElement("div");
-        title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#3b82f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+        title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
         var chNum = getChapterNumber(chapter.id);
-        title.textContent = "Ch" + chNum + " - " + (chapter.title || "Untitled");
+        title.innerHTML = "<span style='color:#3b82f6;'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
         wrapper.appendChild(title);
 
         // Scenes
