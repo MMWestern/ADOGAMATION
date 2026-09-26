@@ -184,6 +184,32 @@
       header.parentNode.insertBefore(strip, header);
 
       // Position chapter blocks over the cells
+      // Sort chapters by start_state to handle overlaps
+      chapters.sort(function (a, b) { return a.start_state - b.start_state; });
+      
+      // Assign rows to avoid overlaps
+      var rows = []; // Each row tracks the end_state of the last chapter in that row
+      chapters.forEach(function (chapter) {
+        var placed = false;
+        for (var r = 0; r < rows.length; r++) {
+          if (chapter.start_state > rows[r]) {
+            chapter._row = r;
+            rows[r] = chapter.end_state;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          chapter._row = rows.length;
+          rows.push(chapter.end_state);
+        }
+      });
+
+      var rowHeight = 24;
+      var totalHeight = Math.max(24, rows.length * rowHeight);
+      chapterCells.style.minHeight = totalHeight + "px";
+      strip.style.minHeight = totalHeight + "px";
+
       chapters.forEach(function (chapter) {
         var startCell = chapterCells.children[chapter.start_state - 1];
         var endCell = chapterCells.children[chapter.end_state - 1] || startCell;
@@ -196,7 +222,8 @@
         var chapterEl = document.createElement("div");
         chapterEl.className = "sce-chapter-block";
         chapterEl.setAttribute("data-chapter-id", chapter.id);
-        chapterEl.style.cssText = "position:absolute;top:1px;height:22px;left:" + (startRect.left - cellsRect2.left) + "px;width:" + (endRect.right - startRect.left) + "px;background:#3b82f6;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;display:flex;align-items:center;";
+        var topOffset = (chapter._row || 0) * rowHeight + 1;
+        chapterEl.style.cssText = "position:absolute;top:" + topOffset + "px;height:22px;left:" + (startRect.left - cellsRect2.left) + "px;width:" + (endRect.right - startRect.left) + "px;background:#3b82f6;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;display:flex;align-items:center;";
         chapterEl.textContent = chapter.title || "Untitled Chapter";
 
         chapterEl.addEventListener("click", function (e) {

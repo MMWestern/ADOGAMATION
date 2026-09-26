@@ -348,6 +348,12 @@
             alert("No composition found. Please wait for the SCE to fully load.");
             return;
           }
+          var states = _sceState.states || [];
+          states.sort(function (a, b) { return a.position - b.position; });
+          var maxPos = states.length ? states[states.length - 1].position : 1;
+          var lastChapter = _sceState.chapters.length ? _sceState.chapters[_sceState.chapters.length - 1] : null;
+          var nextStart = lastChapter ? Math.min(lastChapter.end_state + 1, maxPos) : 1;
+          var nextEnd = Math.min(nextStart + 1, maxPos);
           supabaseRunner
             .withSuccessHandler(function (json) {
               var result = typeof json === 'string' ? JSON.parse(json) : json;
@@ -363,8 +369,8 @@
             .sceSaveChapter(JSON.stringify({
               composition_id: compositionId,
               title: title,
-              start_state: 1,
-              end_state: 1,
+              start_state: nextStart,
+              end_state: nextEnd,
               sort_order: _sceState.chapters.length + 1
             }));
         });
