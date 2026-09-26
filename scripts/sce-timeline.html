@@ -393,14 +393,16 @@
     }
 
     function reorderChapter(draggedId, targetId, insertBefore) {
+      console.log("[SCE] reorderChapter called:", draggedId, "->", targetId, "before:", insertBefore);
       var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
       var target = _sceState.chapters.find(function (c) { return Number(c.id) === targetId; });
-      if (!dragged || !target) return;
-      if (dragged.start_state !== target.start_state) return;
+      if (!dragged || !target) { console.log("[SCE] reorderChapter: not found"); return; }
+      if (dragged.start_state !== target.start_state) { console.log("[SCE] reorderChapter: different states"); return; }
 
       // Get chapters in the same state, sorted by sort_order
       var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === dragged.start_state; });
       stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      console.log("[SCE] stateChapters before reorder:", stateChapters.map(function (c) { return c.title; }));
 
       // Remove dragged from list
       stateChapters = stateChapters.filter(function (c) { return Number(c.id) !== draggedId; });
@@ -410,21 +412,28 @@
       for (var i = 0; i < stateChapters.length; i++) {
         if (Number(stateChapters[i].id) === targetId) { targetIdx = i; break; }
       }
-      if (targetIdx === -1) return;
+      if (targetIdx === -1) { console.log("[SCE] reorderChapter: target not found in list"); return; }
       var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
       stateChapters.splice(insertIdx, 0, dragged);
+      console.log("[SCE] stateChapters after reorder:", stateChapters.map(function (c) { return c.title; }));
 
       // Update sort_order and save
       var savesNeeded = stateChapters.length;
       var savesDone = 0;
       stateChapters.forEach(function (ch, idx) {
         ch.sort_order = idx + 1;
+        console.log("[SCE] Saving chapter", ch.id, "sort_order:", ch.sort_order);
         supabaseRunner
-          .withSuccessHandler(function () {
+          .withSuccessHandler(function (json) {
+            console.log("[SCE] Chapter saved:", ch.id);
             savesDone++;
-            if (savesDone >= savesNeeded) renderSCETimeline();
+            if (savesDone >= savesNeeded) {
+              console.log("[SCE] All chapters saved, re-rendering");
+              renderSCETimeline();
+            }
           })
-          .withFailureHandler(function () {
+          .withFailureHandler(function (err) {
+            console.error("[SCE] Failed to save chapter:", err);
             savesDone++;
             if (savesDone >= savesNeeded) renderSCETimeline();
           })
