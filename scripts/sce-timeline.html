@@ -201,11 +201,13 @@
 
       band.appendChild(columns);
 
-      // Insert before the timeline header
-      if (header) {
-        header.parentNode.insertBefore(band, header);
-      } else {
-        body.parentNode.insertBefore(band, body);
+      // Insert inside the timeline, between header and body
+      var timeline = document.getElementById("sceTimeline");
+      var timelineBody = document.getElementById("sceTimelineBody");
+      if (timeline && timelineBody) {
+        timeline.insertBefore(band, timelineBody);
+      } else if (timeline) {
+        timeline.appendChild(band);
       }
 
       // Make columns drop targets for chapters
