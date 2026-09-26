@@ -268,12 +268,39 @@
         .withFailureHandler(checkDone)
         .sceGetConnections(compositionId);
 
-      // Load chapters
+      // Load chapters and scenes
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.chapters = result.chapters || [];
-          checkDone();
+          _sceState.chapters._scenes = {};
+          
+          // Now load all scenes for this composition's chapters
+          if (_sceState.chapters.length === 0) {
+            checkDone();
+            return;
+          }
+          
+          var chapterIds = _sceState.chapters.map(function (c) { return c.id; });
+          var scenesLoaded = 0;
+          _sceState.chapters.forEach(function (chapter) {
+            supabaseRunner
+              .withSuccessHandler(function (json2) {
+                var result2 = typeof json2 === 'string' ? JSON.parse(json2) : json2;
+                _sceState.chapters._scenes[chapter.id] = result2.scenes || [];
+                scenesLoaded++;
+                if (scenesLoaded >= chapterIds.length) {
+                  checkDone();
+                }
+              })
+              .withFailureHandler(function () {
+                scenesLoaded++;
+                if (scenesLoaded >= chapterIds.length) {
+                  checkDone();
+                }
+              })
+              .sceGetScenes(chapter.id);
+          });
         })
         .withFailureHandler(checkDone)
         .sceGetChapters(compositionId);
@@ -341,19 +368,28 @@
       if (addChapterBtn && !addChapterBtn._wired) {
         addChapterBtn._wired = true;
         addChapterBtn.addEventListener("click", function () {
-          var title = prompt("Chapter title:");
-          if (!title) return;
           var compositionId = _sceState.composition ? _sceState.composition.id : 0;
           if (!compositionId) {
             alert("No composition found. Please wait for the SCE to fully load.");
             return;
           }
+
           var states = _sceState.states || [];
           states.sort(function (a, b) { return a.position - b.position; });
-          var maxPos = states.length ? states[states.length - 1].position : 1;
-          var lastChapter = _sceState.chapters.length ? _sceState.chapters[_sceState.chapters.length - 1] : null;
-          var nextStart = lastChapter ? Math.min(lastChapter.end_state + 1, maxPos) : 1;
-          var nextEnd = Math.min(nextStart + 1, maxPos);
+
+          // Build state list for selection
+          var stateList = states.map(function (s) { return s.position + ": " + s.name; }).join("\n");
+          var stateInput = prompt("Which state does this chapter belong to?\n\n" + stateList + "\n\nEnter state number (1-" + states.length + "):", "1");
+          if (!stateInput) return;
+          var statePos = parseInt(stateInput, 10);
+          if (isNaN(statePos) || statePos < 1 || statePos > states.length) {
+            alert("Invalid state number.");
+            return;
+          }
+
+          var title = prompt("Chapter title:");
+          if (!title) return;
+
           supabaseRunner
             .withSuccessHandler(function (json) {
               var result = typeof json === 'string' ? JSON.parse(json) : json;
@@ -369,9 +405,9 @@
             .sceSaveChapter(JSON.stringify({
               composition_id: compositionId,
               title: title,
-              start_state: nextStart,
-              end_state: nextEnd,
-              sort_order: _sceState.chapters.length + 1
+              start_state: statePos,
+              end_state: statePos,
+              sort_order: _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1
             }));
         });
       }

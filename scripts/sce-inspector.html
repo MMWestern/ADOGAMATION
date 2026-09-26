@@ -393,7 +393,13 @@
             .withSuccessHandler(function (json) {
               var result = typeof json === 'string' ? JSON.parse(json) : json;
               if (result.scene) {
+                // Update scenes cache
+                if (!_sceState.chapters._scenes[chapter.id]) {
+                  _sceState.chapters._scenes[chapter.id] = [];
+                }
+                _sceState.chapters._scenes[chapter.id].push(result.scene);
                 loadSCEChapterScenes(chapter.id);
+                renderSCEChapterStrip();
               }
             })
             .withFailureHandler(function (err) {
@@ -524,8 +530,15 @@
           if (!confirm("Delete this scene?")) return;
           supabaseRunner
             .withSuccessHandler(function () {
+              // Update scenes cache
+              if (_sceState.chapters._scenes[chapterId]) {
+                _sceState.chapters._scenes[chapterId] = _sceState.chapters._scenes[chapterId].filter(function (s) {
+                  return Number(s.id) !== Number(scene.id);
+                });
+              }
               var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
               if (chapter) renderSCEInspectorChapter(chapter);
+              renderSCEChapterStrip();
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to delete scene:", err);

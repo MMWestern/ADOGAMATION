@@ -132,107 +132,178 @@
     }
 
     function renderSCEChapterStrip() {
-      var header = document.getElementById("sceTimelineHeader");
-      if (!header) return;
-
-      // Remove existing chapter strip
-      var existing = document.getElementById("sceChapterStrip");
+      // Remove existing story band
+      var existing = document.getElementById("sceStoryBand");
       if (existing) existing.remove();
-
-      var chapters = _sceState.chapters;
-      if (!chapters || !chapters.length) return;
 
       var states = _sceState.states;
       if (!states.length) return;
       states.sort(function (a, b) { return a.position - b.position; });
 
+      var chapters = _sceState.chapters || [];
       var body = document.getElementById("sceTimelineBody");
       if (!body) return;
-      var cellsContainer = body.querySelector(".sce-layer-cells");
-      if (!cellsContainer) return;
-      var cellsRect = cellsContainer.getBoundingClientRect();
 
-      var strip = document.createElement("div");
-      strip.id = "sceChapterStrip";
-      strip.style.cssText = "position:relative;display:flex;min-height:24px;border-bottom:1px solid var(--border);";
+      // Create story band between header and layers
+      var header = document.getElementById("sceTimelineHeader");
+      var band = document.createElement("div");
+      band.id = "sceStoryBand";
+      band.style.cssText = "display:flex;border-bottom:2px solid var(--border);background:rgba(59,130,246,0.03);";
 
-      // Spacer for layer label width
-      var spacer = document.createElement("div");
-      spacer.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);";
-      strip.appendChild(spacer);
+      // Label column
+      var label = document.createElement("div");
+      label.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);padding:4px 8px;font-size:10px;font-weight:600;color:var(--muted);display:flex;align-items:flex-start;";
+      label.textContent = "Chapters";
+      band.appendChild(label);
 
-      // Chapter cells container
-      var chapterCells = document.createElement("div");
-      chapterCells.style.cssText = "display:flex;flex:1;position:relative;min-height:24px;";
+      // State columns container
+      var columns = document.createElement("div");
+      columns.id = "sceStoryColumns";
+      columns.style.cssText = "display:flex;flex:1;";
 
-      // Add state column cells for alignment
       states.forEach(function (state) {
-        var cell = document.createElement("div");
-        cell.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;";
-        chapterCells.appendChild(cell);
-      });
+        var col = document.createElement("div");
+        col.className = "sce-story-column";
+        col.setAttribute("data-state-pos", state.position);
+        col.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;vertical-align:top;";
 
-      // Add parking/later cells
-      var parkingCell = document.createElement("div");
-      parkingCell.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;";
-      chapterCells.appendChild(parkingCell);
-      var laterCell = document.createElement("div");
-      laterCell.style.cssText = "min-width:100px;max-width:100px;flex-shrink:0;box-sizing:border-box;";
-      chapterCells.appendChild(laterCell);
+        // Get chapters for this state
+        var stateChapters = chapters.filter(function (ch) {
+          return ch.start_state === state.position || (!ch.start_state && state.position === 1);
+        });
+        stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
 
-      strip.appendChild(chapterCells);
-      header.parentNode.insertBefore(strip, header);
-
-      // Position chapter blocks over the cells
-      // Sort chapters by start_state to handle overlaps
-      chapters.sort(function (a, b) { return a.start_state - b.start_state; });
-      
-      // Assign rows to avoid overlaps
-      var rows = []; // Each row tracks the end_state of the last chapter in that row
-      chapters.forEach(function (chapter) {
-        var placed = false;
-        for (var r = 0; r < rows.length; r++) {
-          if (chapter.start_state > rows[r]) {
-            chapter._row = r;
-            rows[r] = chapter.end_state;
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) {
-          chapter._row = rows.length;
-          rows.push(chapter.end_state);
-        }
-      });
-
-      var rowHeight = 24;
-      var totalHeight = Math.max(24, rows.length * rowHeight);
-      chapterCells.style.minHeight = totalHeight + "px";
-      strip.style.minHeight = totalHeight + "px";
-
-      chapters.forEach(function (chapter) {
-        var startCell = chapterCells.children[chapter.start_state - 1];
-        var endCell = chapterCells.children[chapter.end_state - 1] || startCell;
-        if (!startCell) return;
-
-        var startRect = startCell.getBoundingClientRect();
-        var endRect = endCell.getBoundingClientRect();
-        var cellsRect2 = chapterCells.getBoundingClientRect();
-
-        var chapterEl = document.createElement("div");
-        chapterEl.className = "sce-chapter-block";
-        chapterEl.setAttribute("data-chapter-id", chapter.id);
-        var topOffset = (chapter._row || 0) * rowHeight + 1;
-        chapterEl.style.cssText = "position:absolute;top:" + topOffset + "px;height:22px;left:" + (startRect.left - cellsRect2.left) + "px;width:" + (endRect.right - startRect.left) + "px;background:#3b82f6;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;display:flex;align-items:center;";
-        chapterEl.textContent = chapter.title || "Untitled Chapter";
-
-        chapterEl.addEventListener("click", function (e) {
-          e.stopPropagation();
-          selectSCEChapter(chapter.id);
+        stateChapters.forEach(function (chapter) {
+          var chapterEl = createChapterBlock(chapter);
+          col.appendChild(chapterEl);
         });
 
-        chapterCells.appendChild(chapterEl);
+        columns.appendChild(col);
       });
+
+      // Parking column
+      var parkingCol = document.createElement("div");
+      parkingCol.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;padding:2px;";
+      var parkingChapters = chapters.filter(function (ch) { return ch.start_state === -1; });
+      parkingChapters.forEach(function (ch) {
+        parkingCol.appendChild(createChapterBlock(ch));
+      });
+      columns.appendChild(parkingCol);
+
+      // Later column
+      var laterCol = document.createElement("div");
+      laterCol.style.cssText = "min-width:100px;max-width:100px;flex-shrink:0;box-sizing:border-box;padding:2px;";
+      var laterChapters = chapters.filter(function (ch) { return ch.start_state === -2; });
+      laterChapters.forEach(function (ch) {
+        laterCol.appendChild(createChapterBlock(ch));
+      });
+      columns.appendChild(laterCol);
+
+      band.appendChild(columns);
+
+      // Insert before the timeline header
+      if (header) {
+        header.parentNode.insertBefore(band, header);
+      } else {
+        body.parentNode.insertBefore(band, body);
+      }
+
+      // Make columns drop targets for chapters
+      wireChapterDragDrop();
+    }
+
+    function createChapterBlock(chapter) {
+      var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
+
+      var wrapper = document.createElement("div");
+      wrapper.className = "sce-chapter-block";
+      wrapper.setAttribute("data-chapter-id", chapter.id);
+      wrapper.draggable = true;
+      wrapper.style.cssText = "margin-bottom:3px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:grab;";
+
+      // Chapter title
+      var title = document.createElement("div");
+      title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#3b82f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      title.textContent = chapter.title || "Untitled";
+      wrapper.appendChild(title);
+
+      // Scenes container
+      var scenesContainer = document.createElement("div");
+      scenesContainer.className = "sce-chapter-scenes";
+      scenesContainer.style.cssText = "padding:0 3px 3px;";
+
+      scenes.forEach(function (scene) {
+        var sceneEl = document.createElement("div");
+        sceneEl.className = "sce-scene-block";
+        sceneEl.setAttribute("data-scene-id", scene.id);
+        sceneEl.draggable = true;
+        sceneEl.style.cssText = "padding:2px 4px;margin-bottom:2px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:3px;font-size:9px;color:#10b981;cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+        sceneEl.textContent = scene.title || "Scene";
+        scenesContainer.appendChild(sceneEl);
+      });
+
+      wrapper.appendChild(scenesContainer);
+
+      // Click to edit
+      wrapper.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectSCEChapter(chapter.id);
+      });
+
+      // Drag start
+      wrapper.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
+        wrapper.style.opacity = "0.5";
+      });
+
+      wrapper.addEventListener("dragend", function () {
+        wrapper.style.opacity = "1";
+      });
+
+      return wrapper;
+    }
+
+    function wireChapterDragDrop() {
+      var columns = document.querySelectorAll(".sce-story-column");
+      columns.forEach(function (col) {
+        col.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          col.style.background = "rgba(59,130,246,0.1)";
+        });
+
+        col.addEventListener("dragleave", function () {
+          col.style.background = "";
+        });
+
+        col.addEventListener("drop", function (e) {
+          e.preventDefault();
+          col.style.background = "";
+          var data = e.dataTransfer.getData("text/plain");
+          if (data.startsWith("chapter:")) {
+            var chapterId = Number(data.split(":")[1]);
+            var statePos = Number(col.getAttribute("data-state-pos"));
+            moveChapterToState(chapterId, statePos);
+          }
+        });
+      });
+    }
+
+    function moveChapterToState(chapterId, newStatePos) {
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      if (!chapter) return;
+
+      chapter.start_state = newStatePos;
+      chapter.end_state = newStatePos;
+
+      // Save to database
+      supabaseRunner
+        .withSuccessHandler(function () {
+          renderSCEChapterStrip();
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to move chapter:", err);
+        })
+        .sceSaveChapter(JSON.stringify(chapter));
     }
 
     function selectSCEChapter(chapterId) {
