@@ -21,6 +21,7 @@
 
       // Render header (state columns) with spacer for layer label
       var headerHtml = "<div class='sce-state-header-row'>";
+      headerHtml += "<div class='sce-state-header-spacer'></div>";
       states.forEach(function (state) {
         headerHtml += "<div class='sce-state-header' data-state='" + state.position + "'>";
         headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
@@ -43,6 +44,7 @@
 
       visibleLayers.forEach(function (layer) {
         bodyHtml += "<div class='sce-layer-row' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
+        bodyHtml += "<div class='sce-layer-label'>" + escapeHtml(layer.name) + "</div>";
         bodyHtml += "<div class='sce-layer-cells'>";
         // Empty cells for grid positioning
         states.forEach(function (state) {
