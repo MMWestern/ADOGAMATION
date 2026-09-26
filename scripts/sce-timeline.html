@@ -99,7 +99,12 @@
     }
 
     function renderSCEChapterBlocks(chapters, colWidths) {
-      chapters.forEach(function (chapter) {
+      // Sort chapters by state then sort_order
+      var sorted = chapters.slice().sort(function (a, b) {
+        if (a.start_state !== b.start_state) return a.start_state - b.start_state;
+        return (a.sort_order || 0) - (b.sort_order || 0);
+      });
+      sorted.forEach(function (chapter) {
         var statePos = chapter.start_state;
         var col = document.querySelector('.sce-story-column[data-state-pos="' + statePos + '"]');
         if (!col) return;
