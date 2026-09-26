@@ -119,12 +119,9 @@
         var stateChapters = byState[statePos];
 
         stateChapters.forEach(function (chapter, idx) {
-          // Add drop zone before chapter
-          col.appendChild(createChapterDropZone(Number(statePos), idx));
-          // Add chapter block
-          col.appendChild(createChapterBlockEl(chapter));
+          col.appendChild(createChapterBlockEl(chapter, idx));
         });
-        // Add drop zone after last chapter
+        // Add drop zone at end of column
         col.appendChild(createChapterDropZone(Number(statePos), stateChapters.length));
       });
     }
@@ -134,37 +131,32 @@
       zone.className = "sce-chapter-drop-zone";
       zone.setAttribute("data-state-pos", statePos);
       zone.setAttribute("data-insert-idx", insertIdx);
-      zone.style.cssText = "width:6px;height:100%;min-height:40px;flex-shrink:0;transition:all 0.15s;border-radius:3px;";
+      zone.style.cssText = "width:30px;height:100%;min-height:40px;flex-shrink:0;border:2px dashed transparent;border-radius:4px;transition:all 0.15s;";
 
       zone.addEventListener("dragover", function (e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         var data = e.dataTransfer.getData("text/plain");
         if (!data.startsWith("chapter:")) return;
-
         clearChapterDropIndicators();
-        zone.style.width = "30px";
-        zone.style.background = "rgba(59,130,246,0.2)";
-        zone.style.border = "2px dashed #3b82f6";
+        zone.style.borderColor = "#3b82f6";
+        zone.style.background = "rgba(59,130,246,0.15)";
       });
 
       zone.addEventListener("dragleave", function () {
-        zone.style.width = "6px";
+        zone.style.borderColor = "transparent";
         zone.style.background = "";
-        zone.style.border = "";
       });
 
       zone.addEventListener("drop", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        zone.style.width = "6px";
+        zone.style.borderColor = "transparent";
         zone.style.background = "";
-        zone.style.border = "";
 
         var data = e.dataTransfer.getData("text/plain");
         if (!data.startsWith("chapter:")) return;
         var draggedId = Number(data.split(":")[1]);
-
         var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
         if (!dragged) return;
 
@@ -181,7 +173,7 @@
       return zone;
     }
 
-    function createChapterBlockEl(chapter) {
+    function createChapterBlockEl(chapter, idx) {
       var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
       var chColor = chapter.color || "#3b82f6";
 
@@ -211,6 +203,7 @@
         selectSCEChapter(chapter.id);
       });
 
+      // Drag start
       wrapper.addEventListener("dragstart", function (e) {
         e.dataTransfer.setData("text/plain", "chapter:" + chapter.id);
         e.dataTransfer.effectAllowed = "move";
@@ -220,6 +213,57 @@
       wrapper.addEventListener("dragend", function () {
         wrapper.style.opacity = "1";
         clearChapterDropIndicators();
+      });
+
+      // Drop on chapter: insert before or after based on mouse position
+      wrapper.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        var data = e.dataTransfer.getData("text/plain");
+        if (!data.startsWith("chapter:")) return;
+        var draggedId = Number(data.split(":")[1]);
+        if (draggedId === chapter.id) return;
+
+        clearChapterDropIndicators();
+        wrapper.style.borderStyle = "dashed";
+        wrapper.style.borderColor = "#3b82f6";
+      });
+
+      wrapper.addEventListener("dragleave", function () {
+        wrapper.style.borderStyle = "";
+        wrapper.style.borderColor = "";
+      });
+
+      wrapper.addEventListener("drop", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        wrapper.style.borderStyle = "";
+        wrapper.style.borderColor = "";
+
+        var data = e.dataTransfer.getData("text/plain");
+        if (!data.startsWith("chapter:")) return;
+        var draggedId = Number(data.split(":")[1]);
+        if (draggedId === chapter.id) return;
+
+        var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+        if (!dragged) return;
+
+        // Determine insert position based on mouse X relative to target
+        var rect = wrapper.getBoundingClientRect();
+        var midX = rect.left + rect.width / 2;
+        var insertBefore = e.clientX < midX;
+
+        // Get index of this chapter in its state
+        var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === chapter.start_state; });
+        stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+        var targetIdx = stateChapters.findIndex(function (c) { return Number(c.id) === chapter.id; });
+        var insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+
+        if (dragged.start_state !== chapter.start_state) {
+          moveChapterToStateAt(draggedId, chapter.start_state, insertIdx);
+        } else {
+          reorderChapterToIndex(draggedId, chapter.start_state, insertIdx);
+        }
       });
 
       return wrapper;
