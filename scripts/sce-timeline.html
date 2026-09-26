@@ -204,7 +204,12 @@
       // Insert inside the sticky header, after the state row
       var header = document.getElementById("sceTimelineHeader");
       if (header) {
-        header.appendChild(band);
+        var stateRow = header.querySelector(".sce-state-header-row");
+        if (stateRow && stateRow.nextSibling) {
+          header.insertBefore(band, stateRow.nextSibling);
+        } else {
+          header.appendChild(band);
+        }
       }
 
       // Make columns drop targets for chapters
