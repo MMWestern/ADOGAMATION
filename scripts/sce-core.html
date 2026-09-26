@@ -9,6 +9,7 @@
       blocks: [],
       assets: [],
       connections: [],
+      chapters: [],
       selectedBlockId: null,
       selectedAssetId: null,
       undoStack: [],
@@ -201,7 +202,7 @@
 
     function loadSCECompositionData(compositionId, seriesId) {
       var loaded = 0;
-      var total = 5;
+      var total = 6;
 
       function checkDone() {
         loaded++;
@@ -266,12 +267,23 @@
         })
         .withFailureHandler(checkDone)
         .sceGetConnections(compositionId);
+
+      // Load chapters
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.chapters = result.chapters || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetChapters(compositionId);
     }
 
     function renderSCE(seriesId) {
       renderSCEAssetBin(seriesId);
       renderSCELayerControls();
       renderSCETimeline();
+      renderSCEChapterStrip();
       renderSCEConnections();
       renderSCEInspector();
       wireSCEToolbar(seriesId);
@@ -321,6 +333,36 @@
           lineStyleBtn.textContent = _sceConnectionLineStyle === "angular" ? "⌐" : "⌒";
           lineStyleBtn.title = "Connection line style: " + (_sceConnectionLineStyle === "angular" ? "Angular" : "Curved");
           renderSCEConnections();
+        });
+      }
+
+      // Add Chapter button
+      var addChapterBtn = document.getElementById("sceAddChapterBtn");
+      if (addChapterBtn && !addChapterBtn._wired) {
+        addChapterBtn._wired = true;
+        addChapterBtn.addEventListener("click", function () {
+          var title = prompt("Chapter title:");
+          if (!title) return;
+          var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+          if (!compositionId) return;
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result.chapter) {
+                _sceState.chapters.push(result.chapter);
+                renderSCEChapterStrip();
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to add chapter:", err);
+            })
+            .sceSaveChapter(JSON.stringify({
+              composition_id: compositionId,
+              title: title,
+              start_state: 1,
+              end_state: 1,
+              sort_order: Date.now()
+            }));
         });
       }
 

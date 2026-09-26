@@ -18782,6 +18782,31 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       margin-right: 3px;
       vertical-align: middle;
     }
+    .sce-chapter-block {
+      position: absolute;
+      top: 1px;
+      height: 22px;
+      background: #3b82f6;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+    }
+    .sce-chapter-block:hover {
+      filter: brightness(1.15);
+    }
+    .sce-chapter-block.is-selected {
+      outline: 2px solid #fff;
+      outline-offset: -1px;
+    }
     .sce-block-connect-node {
       width: 10px;
       height: 10px;

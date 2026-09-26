@@ -130,3 +130,89 @@
         renderSCEInspectorBlock(block);
       }
     }
+
+    function renderSCEChapterStrip() {
+      var header = document.getElementById("sceTimelineHeader");
+      if (!header) return;
+
+      // Remove existing chapter strip
+      var existing = document.getElementById("sceChapterStrip");
+      if (existing) existing.remove();
+
+      var chapters = _sceState.chapters;
+      if (!chapters || !chapters.length) return;
+
+      var states = _sceState.states;
+      if (!states.length) return;
+      states.sort(function (a, b) { return a.position - b.position; });
+
+      var body = document.getElementById("sceTimelineBody");
+      if (!body) return;
+      var cellsContainer = body.querySelector(".sce-layer-cells");
+      if (!cellsContainer) return;
+      var cellsRect = cellsContainer.getBoundingClientRect();
+
+      var strip = document.createElement("div");
+      strip.id = "sceChapterStrip";
+      strip.style.cssText = "position:relative;display:flex;min-height:24px;border-bottom:1px solid var(--border);";
+
+      // Spacer for layer label width
+      var spacer = document.createElement("div");
+      spacer.style.cssText = "width:120px;min-width:120px;flex-shrink:0;border-right:1px solid var(--border);";
+      strip.appendChild(spacer);
+
+      // Chapter cells container
+      var chapterCells = document.createElement("div");
+      chapterCells.style.cssText = "display:flex;flex:1;position:relative;min-height:24px;";
+
+      // Add state column cells for alignment
+      states.forEach(function (state) {
+        var cell = document.createElement("div");
+        cell.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;";
+        chapterCells.appendChild(cell);
+      });
+
+      // Add parking/later cells
+      var parkingCell = document.createElement("div");
+      parkingCell.style.cssText = "min-width:100px;max-width:100px;border-right:1px solid var(--border);flex-shrink:0;box-sizing:border-box;";
+      chapterCells.appendChild(parkingCell);
+      var laterCell = document.createElement("div");
+      laterCell.style.cssText = "min-width:100px;max-width:100px;flex-shrink:0;box-sizing:border-box;";
+      chapterCells.appendChild(laterCell);
+
+      strip.appendChild(chapterCells);
+      header.parentNode.insertBefore(strip, header);
+
+      // Position chapter blocks over the cells
+      chapters.forEach(function (chapter) {
+        var startCell = chapterCells.children[chapter.start_state - 1];
+        var endCell = chapterCells.children[chapter.end_state - 1] || startCell;
+        if (!startCell) return;
+
+        var startRect = startCell.getBoundingClientRect();
+        var endRect = endCell.getBoundingClientRect();
+        var cellsRect2 = chapterCells.getBoundingClientRect();
+
+        var chapterEl = document.createElement("div");
+        chapterEl.className = "sce-chapter-block";
+        chapterEl.setAttribute("data-chapter-id", chapter.id);
+        chapterEl.style.cssText = "position:absolute;top:1px;height:22px;left:" + (startRect.left - cellsRect2.left) + "px;width:" + (endRect.right - startRect.left) + "px;background:#3b82f6;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;display:flex;align-items:center;";
+        chapterEl.textContent = chapter.title || "Untitled Chapter";
+
+        chapterEl.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEChapter(chapter.id);
+        });
+
+        chapterCells.appendChild(chapterEl);
+      });
+    }
+
+    function selectSCEChapter(chapterId) {
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      if (chapter) {
+        renderSCEInspectorChapter(chapter);
+      }
+    }

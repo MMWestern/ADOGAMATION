@@ -1490,6 +1490,74 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
 
+    // --- Chapters ---
+
+    _sbDefine('sceGetChapters', function (compositionId) {
+      var safeId = Number(compositionId || 0);
+      if (!safeId) throw new Error('Composition id is required.');
+      return sbClient.from('sce_chapters').select('*').eq('composition_id', safeId).order('sort_order')
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, chapters: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveChapter', function (chapterJson) {
+      var parsed = typeof chapterJson === 'string' ? JSON.parse(chapterJson) : (chapterJson || {});
+      var chapterId = Number(parsed.id || 0);
+      var payload = {
+        composition_id: Number(parsed.composition_id || 0),
+        title: String(parsed.title || 'Untitled Chapter').trim(),
+        start_state: Number(parsed.start_state || 1),
+        end_state: Number(parsed.end_state || 1),
+        sort_order: Number(parsed.sort_order || 0),
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (chapterId) payload.id = chapterId;
+      var op = chapterId ? sbClient.from('sce_chapters').update(payload).eq('id', chapterId).select().single()
+        : sbClient.from('sce_chapters').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, chapter: res.data }); });
+    });
+
+    _sbDefine('sceDeleteChapter', function (chapterId) {
+      var safeId = Number(chapterId || 0);
+      if (!safeId) throw new Error('Chapter id is required.');
+      return sbClient.from('sce_chapters').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
+    // --- Scenes ---
+
+    _sbDefine('sceGetScenes', function (chapterId) {
+      var safeId = Number(chapterId || 0);
+      if (!safeId) throw new Error('Chapter id is required.');
+      return sbClient.from('sce_scenes').select('*').eq('chapter_id', safeId).order('sort_order')
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, scenes: res.data || [] }); });
+    });
+
+    _sbDefine('sceSaveScene', function (sceneJson) {
+      var parsed = typeof sceneJson === 'string' ? JSON.parse(sceneJson) : (sceneJson || {});
+      var sceneId = Number(parsed.id || 0);
+      var payload = {
+        chapter_id: Number(parsed.chapter_id || 0),
+        title: String(parsed.title || 'Untitled Scene').trim(),
+        sort_order: Number(parsed.sort_order || 0),
+        before_text: parsed.before_text ? String(parsed.before_text).trim() : null,
+        what_happens: parsed.what_happens ? String(parsed.what_happens).trim() : null,
+        after_text: parsed.after_text ? String(parsed.after_text).trim() : null,
+        next_text: parsed.next_text ? String(parsed.next_text).trim() : null,
+        notes: parsed.notes ? String(parsed.notes).trim() : null
+      };
+      if (sceneId) payload.id = sceneId;
+      var op = sceneId ? sbClient.from('sce_scenes').update(payload).eq('id', sceneId).select().single()
+        : sbClient.from('sce_scenes').insert([payload]).select().single();
+      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, scene: res.data }); });
+    });
+
+    _sbDefine('sceDeleteScene', function (sceneId) {
+      var safeId = Number(sceneId || 0);
+      if (!safeId) throw new Error('Scene id is required.');
+      return sbClient.from('sce_scenes').delete().eq('id', safeId)
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
+    });
+
     _sbDefine('sceCreatePrecomp', function (seriesId, blockId, title) {
       var safeSeriesId = Number(seriesId || 0);
       var safeBlockId = Number(blockId || 0);

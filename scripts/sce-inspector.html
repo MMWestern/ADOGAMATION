@@ -297,3 +297,249 @@
         });
       }
     }
+
+    function renderSCEInspectorChapter(chapter) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var states = _sceState.states || [];
+      states.sort(function (a, b) { return a.position - b.position; });
+
+      var html = "";
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Chapter Title</label>";
+      html += "<input id='sceChapterTitle' type='text' class='sce-inspector-input' value='" + escapeHtml(chapter.title || "") + "' placeholder='Chapter title...' />";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-row'>";
+      html += "<div class='sce-inspector-section' style='flex:1;'>";
+      html += "<label class='sce-inspector-label'>Start State</label>";
+      html += "<select id='sceChapterStart' class='sce-inspector-select'>";
+      states.forEach(function (s) {
+        var sel = s.position === chapter.start_state ? " selected" : "";
+        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
+      });
+      html += "</select></div>";
+      html += "<div class='sce-inspector-section' style='flex:1;'>";
+      html += "<label class='sce-inspector-label'>End State</label>";
+      html += "<select id='sceChapterEnd' class='sce-inspector-select'>";
+      states.forEach(function (s) {
+        var sel = s.position === chapter.end_state ? " selected" : "";
+        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
+      });
+      html += "</select></div>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Notes</label>";
+      html += "<textarea id='sceChapterNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(chapter.notes || "") + "</textarea>";
+      html += "</div>";
+
+      // Scenes list
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Scenes</label>";
+      html += "<div id='sceChapterScenes' style='font-size:11px;color:var(--muted);'>Loading scenes...</div>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceChapterAddScene' type='button' class='sce-inspector-btn'>+ Add Scene</button>";
+      html += "<button id='sceChapterSave' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "<button id='sceChapterDelete' type='button' class='sce-inspector-btn danger'>Delete</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      // Load scenes
+      loadSCEChapterScenes(chapter.id);
+
+      // Wire save
+      var saveBtn = document.getElementById("sceChapterSave");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          chapter.title = document.getElementById("sceChapterTitle").value;
+          chapter.start_state = Number(document.getElementById("sceChapterStart").value);
+          chapter.end_state = Number(document.getElementById("sceChapterEnd").value);
+          chapter.notes = document.getElementById("sceChapterNotes").value;
+          saveSCEChapter(chapter);
+          renderSCEChapterStrip();
+        });
+      }
+
+      // Wire delete
+      var deleteBtn = document.getElementById("sceChapterDelete");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this chapter and all its scenes?")) return;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              _sceState.chapters = _sceState.chapters.filter(function (c) { return Number(c.id) !== Number(chapter.id); });
+              renderSCEChapterStrip();
+              renderSCEInspector();
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to delete chapter:", err);
+            })
+            .sceDeleteChapter(chapter.id);
+        });
+      }
+
+      // Wire add scene
+      var addSceneBtn = document.getElementById("sceChapterAddScene");
+      if (addSceneBtn) {
+        addSceneBtn.addEventListener("click", function () {
+          var title = prompt("Scene title:");
+          if (!title) return;
+          supabaseRunner
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result.scene) {
+                loadSCEChapterScenes(chapter.id);
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to add scene:", err);
+            })
+            .sceSaveScene(JSON.stringify({
+              chapter_id: chapter.id,
+              title: title,
+              sort_order: Date.now()
+            }));
+        });
+      }
+    }
+
+    function loadSCEChapterScenes(chapterId) {
+      var scenesDiv = document.getElementById("sceChapterScenes");
+      if (!scenesDiv) return;
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          var scenes = result.scenes || [];
+          if (!scenes.length) {
+            scenesDiv.innerHTML = "<div style='color:var(--muted);font-style:italic;'>No scenes yet. Click '+ Add Scene' to create one.</div>";
+            return;
+          }
+          var html = "";
+          scenes.forEach(function (scene) {
+            html += "<div style='padding:4px 6px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;cursor:pointer;' data-scene-id='" + scene.id + "'>";
+            html += "<div style='font-weight:600;'>" + escapeHtml(scene.title || "Untitled") + "</div>";
+            if (scene.what_happens) {
+              html += "<div style='font-size:10px;color:var(--muted);margin-top:2px;'>" + escapeHtml(scene.what_happens.substring(0, 60)) + "</div>";
+            }
+            html += "</div>";
+          });
+          scenesDiv.innerHTML = html;
+
+          // Wire scene clicks
+          scenesDiv.querySelectorAll("[data-scene-id]").forEach(function (el) {
+            el.addEventListener("click", function () {
+              var sceneId = Number(el.getAttribute("data-scene-id"));
+              var scene = scenes.find(function (s) { return Number(s.id) === sceneId; });
+              if (scene) renderSCEInspectorScene(scene, chapterId);
+            });
+          });
+        })
+        .withFailureHandler(function () {
+          scenesDiv.innerHTML = "<div style='color:var(--muted);'>Error loading scenes.</div>";
+        })
+        .sceGetScenes(chapterId);
+    }
+
+    function renderSCEInspectorScene(scene, chapterId) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var html = "";
+      html += "<div style='margin-bottom:8px;'>";
+      html += "<button type='button' id='sceSceneBack' style='font-size:11px;padding:2px 8px;background:transparent;border:1px solid #3a3a42;border-radius:4px;color:#a5a5ad;cursor:pointer;'>\u2190 Back to Chapter</button>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Scene Title</label>";
+      html += "<input id='sceSceneTitle' type='text' class='sce-inspector-input' value='" + escapeHtml(scene.title || "") + "' />";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Before</label>";
+      html += "<textarea id='sceSceneBefore' class='sce-inspector-textarea' rows='2' placeholder='What is the situation before this scene...'>" + escapeHtml(scene.before_text || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>What Happens</label>";
+      html += "<textarea id='sceSceneWhat' class='sce-inspector-textarea' rows='2' placeholder='What happens in this scene...'>" + escapeHtml(scene.what_happens || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>After</label>";
+      html += "<textarea id='sceSceneAfter' class='sce-inspector-textarea' rows='2' placeholder='What changed after this scene...'>" + escapeHtml(scene.after_text || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Next</label>";
+      html += "<textarea id='sceSceneNext' class='sce-inspector-textarea' rows='2' placeholder='What happens next...'>" + escapeHtml(scene.next_text || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceSceneSave' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "<button id='sceSceneDelete' type='button' class='sce-inspector-btn danger'>Delete</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      // Wire back button
+      var backBtn = document.getElementById("sceSceneBack");
+      if (backBtn) {
+        backBtn.addEventListener("click", function () {
+          var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+          if (chapter) renderSCEInspectorChapter(chapter);
+        });
+      }
+
+      // Wire save
+      var saveBtn = document.getElementById("sceSceneSave");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          scene.title = document.getElementById("sceSceneTitle").value;
+          scene.before_text = document.getElementById("sceSceneBefore").value;
+          scene.what_happens = document.getElementById("sceSceneWhat").value;
+          scene.after_text = document.getElementById("sceSceneAfter").value;
+          scene.next_text = document.getElementById("sceSceneNext").value;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+              if (chapter) renderSCEInspectorChapter(chapter);
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to save scene:", err);
+            })
+            .sceSaveScene(JSON.stringify(scene));
+        });
+      }
+
+      // Wire delete
+      var deleteBtn = document.getElementById("sceSceneDelete");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", function () {
+          if (!confirm("Delete this scene?")) return;
+          supabaseRunner
+            .withSuccessHandler(function () {
+              var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+              if (chapter) renderSCEInspectorChapter(chapter);
+            })
+            .withFailureHandler(function (err) {
+              console.error("[SCE] Failed to delete scene:", err);
+            })
+            .sceDeleteScene(scene.id);
+        });
+      }
+    }
+
+    function saveSCEChapter(chapter) {
+      supabaseRunner
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save chapter:", err);
+        })
+        .sceSaveChapter(JSON.stringify(chapter));
+    }
