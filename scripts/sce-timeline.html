@@ -667,32 +667,19 @@
 
       _sceState.blocks.forEach(function (block) {
         if (block.is_parked || block.is_later_book) return;
-        var layerRow = document.querySelector('.sce-layer-row[data-layer-id="' + block.layer_id + '"]');
-        if (!layerRow) return;
-        var cells = layerRow.querySelector(".sce-layer-cells");
-        if (!cells) return;
 
-        // Find start and end cells to calculate position and width
-        var startCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
-        var endCell = cells.querySelector('.sce-layer-cell[data-state="' + block.end_state + '"]');
-        if (!startCell) return;
-        if (!endCell) endCell = startCell;
-
-        // Position block absolutely over the cells
-        var cellsRect = cells.getBoundingClientRect();
-        var startRect = startCell.getBoundingClientRect();
-        var endRect = endCell.getBoundingClientRect();
+        var layerCell = document.querySelector('.sce-state-cell-layer[data-state="' + block.start_state + '"][data-layer-id="' + block.layer_id + '"]');
+        if (!layerCell) return;
 
         var blockEl = document.createElement("div");
         blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
         blockEl.setAttribute("data-block-id", block.id);
         blockEl.setAttribute("data-start", block.start_state);
         blockEl.setAttribute("data-end", block.end_state);
-        blockEl.style.position = "absolute";
-        blockEl.style.left = (startRect.left - cellsRect.left) + "px";
-        blockEl.style.width = (endRect.right - startRect.left) + "px";
-        blockEl.style.top = "3px";
-        blockEl.style.bottom = "3px";
+        blockEl.style.position = "relative";
+        blockEl.style.width = "100%";
+        blockEl.style.height = "28px";
+        blockEl.style.marginBottom = "2px";
 
         var title = block.short_title || "Untitled";
         var precompIcon = block.precomp_composition_id ? "<span class='sce-block-precomp-icon' title='Has internal timeline'>\u25A0</span>" : "";
@@ -707,6 +694,10 @@
           if (e.target.closest(".sce-block-resize-handle") || e.target.closest(".sce-block-connect-node")) return;
           selectSCEBlock(block.id);
         });
+
+        layerCell.appendChild(blockEl);
+      });
+    }
 
         cells.style.position = "relative";
         cells.appendChild(blockEl);
