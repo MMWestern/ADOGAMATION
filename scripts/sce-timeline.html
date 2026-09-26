@@ -110,13 +110,14 @@
         wrapper.className = "sce-chapter-block";
         wrapper.setAttribute("data-chapter-id", chapter.id);
         wrapper.draggable = true;
-        wrapper.style.cssText = "flex:0 0 96px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;";
+        var chColor = chapter.color || "#3b82f6";
+        wrapper.style.cssText = "flex:0 0 96px;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;";
 
         // Chapter title with number
         var title = document.createElement("div");
         title.style.cssText = "padding:3px 5px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
         var chNum = getChapterNumber(chapter.id);
-        title.innerHTML = "<span style='color:#3b82f6;'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
+        title.innerHTML = "<span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled");
         wrapper.appendChild(title);
 
         // Scenes
@@ -124,7 +125,7 @@
           var sceneEl = document.createElement("div");
           sceneEl.className = "sce-scene-block";
           sceneEl.setAttribute("data-scene-id", scene.id);
-          sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:3px;font-size:9px;color:#10b981;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+          sceneEl.style.cssText = "padding:2px 4px;margin:0 3px 2px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:3px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
           sceneEl.textContent = scene.title || "Scene";
           wrapper.appendChild(sceneEl);
         });

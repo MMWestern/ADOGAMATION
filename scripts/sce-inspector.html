@@ -311,6 +311,17 @@
       html += "<input id='sceChapterTitle' type='text' class='sce-inspector-input' value='" + escapeHtml(chapter.title || "") + "' placeholder='Chapter title...' />";
       html += "</div>";
 
+      // Color picker
+      var chapterColors = ["#3b82f6","#ef4444","#22c55e","#f59e0b","#8b5cf6","#ec4899","#06b6d4","#f97316","#14b8a6","#6366f1","#84cc16","#e11d48","#0ea5e9","#a855f7","#d946ef","#facc15","#fb923c","#2dd4bf","#4ade80","#c084fc"];
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Color</label>";
+      html += "<div id='sceChapterColor' style='display:flex;flex-wrap:wrap;gap:4px;'>";
+      chapterColors.forEach(function (c) {
+        var sel = (chapter.color || '#3b82f6') === c;
+        html += "<div data-color='" + c + "' style='width:18px;height:18px;border-radius:3px;background:" + c + ";cursor:pointer;border:2px solid " + (sel ? '#fff' : 'transparent') + ";box-shadow:0 0 0 1px var(--border);'></div>";
+      });
+      html += "</div></div>";
+
       html += "<div class='sce-inspector-row'>";
       html += "<div class='sce-inspector-section' style='flex:1;'>";
       html += "<label class='sce-inspector-label'>Start State</label>";
@@ -348,6 +359,22 @@
       html += "</div>";
 
       content.innerHTML = html;
+
+      // Wire color picker
+      var colorPicker = document.getElementById("sceChapterColor");
+      if (colorPicker) {
+        colorPicker.addEventListener("click", function (e) {
+          var swatch = e.target.closest("[data-color]");
+          if (!swatch) return;
+          chapter.color = swatch.getAttribute("data-color");
+          // Update selection visual
+          colorPicker.querySelectorAll("[data-color]").forEach(function (el) {
+            el.style.borderColor = el.getAttribute("data-color") === chapter.color ? "#fff" : "transparent";
+          });
+          saveSCEChapter(chapter);
+          renderSCETimeline();
+        });
+      }
 
       // Load scenes
       loadSCEChapterScenes(chapter.id);
