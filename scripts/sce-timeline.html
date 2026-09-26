@@ -149,16 +149,21 @@
           col.appendChild(createChapterBlockEl(chapter, idx));
         });
         // Always add drop zone at end of column
-        col.appendChild(createChapterDropZone(statePos, stateChapters.length));
+        col.appendChild(createChapterDropZone(statePos, stateChapters.length, stateChapters.length === 0));
       });
     }
 
-    function createChapterDropZone(statePos, insertIdx) {
+    function createChapterDropZone(statePos, insertIdx, isEmpty) {
       var zone = document.createElement("div");
       zone.className = "sce-chapter-drop-zone";
       zone.setAttribute("data-state-pos", statePos);
       zone.setAttribute("data-insert-idx", insertIdx);
-      zone.style.cssText = "width:20px;flex-shrink:0;border:2px dashed transparent;border-radius:4px;transition:all 0.15s;";
+      if (isEmpty) {
+        zone.style.cssText = "flex:1;min-height:30px;border:2px dashed rgba(59,130,246,0.3);border-radius:4px;transition:all 0.15s;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted);";
+        zone.textContent = "Drop here";
+      } else {
+        zone.style.cssText = "width:20px;flex-shrink:0;border:2px dashed transparent;border-radius:4px;transition:all 0.15s;";
+      }
 
       zone.addEventListener("dragover", function (e) {
         e.preventDefault();
