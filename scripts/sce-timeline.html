@@ -230,7 +230,7 @@
 
       wrapper.addEventListener("click", function (e) {
         e.stopPropagation();
-        selectSCEChapter(chapter.id);
+        selectSCEScene(scene.id, chapter.id);
       });
 
       wrapper.addEventListener("dragstart", function (e) {
@@ -598,15 +598,6 @@
         .sceSaveChapter(JSON.stringify(chapter));
     }
 
-    function selectSCEChapter(chapterId) {
-      _sceState.selectedBlockId = null;
-      _sceState.selectedAssetId = null;
-      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
-      if (chapter) {
-        renderSCEInspectorChapter(chapter);
-      }
-    }
-
     function quickCreateChapter(statePos) {
       var compositionId = _sceState.composition ? _sceState.composition.id : 0;
       if (!compositionId) return;
@@ -665,6 +656,18 @@
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (chapter) {
         renderSCEInspectorChapter(chapter);
+      }
+    }
+
+    function selectSCEScene(sceneId, chapterId) {
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      if (!chapter) return;
+      var scenes = (_sceState.chapters._scenes || {})[chapterId] || [];
+      var scene = scenes.find(function (s) { return Number(s.id) === sceneId; });
+      if (scene) {
+        renderSCEInspectorScene(scene, chapterId);
       }
     }
 
