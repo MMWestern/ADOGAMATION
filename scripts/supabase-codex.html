@@ -1503,14 +1503,46 @@
         .then(function (res) {
           if (res.error) throw res.error;
           var comp = res.data;
-          // Link the block to the new composition
-          return sbClient.from('sce_blocks')
-            .update({ precomp_composition_id: comp.id })
-            .eq('id', safeBlockId)
-            .then(function (updRes) {
-              if (updRes.error) throw updRes.error;
-              return JSON.stringify({ ok: true, composition: comp });
-            });
+          // Create default precomp states
+          var defaultStates = [
+            { position: 1, name: "Setup", purpose: "Setting the scene" },
+            { position: 2, name: "Action", purpose: "The main event" },
+            { position: 3, name: "Turning Point", purpose: "Something changes" },
+            { position: 4, name: "Climax", purpose: "Peak moment" },
+            { position: 5, name: "Resolution", purpose: "Aftermath and consequences" }
+          ];
+          var statePromises = defaultStates.map(function (s) {
+            return sbClient.from('sce_states').insert([{
+              composition_id: comp.id,
+              position: s.position,
+              name: s.name,
+              purpose: s.purpose
+            }]);
+          });
+          // Create default precomp layers
+          var defaultLayers = [
+            { name: "Main Action", color: "#3b82f6", position: 0 },
+            { name: "Details", color: "#a855f7", position: 1 }
+          ];
+          var layerPromises = defaultLayers.map(function (l) {
+            return sbClient.from('sce_layers').insert([{
+              composition_id: comp.id,
+              name: l.name,
+              color: l.color,
+              position: l.position,
+              is_default: true
+            }]);
+          });
+          return Promise.all(statePromises.concat(layerPromises)).then(function () {
+            // Link the block to the new composition
+            return sbClient.from('sce_blocks')
+              .update({ precomp_composition_id: comp.id })
+              .eq('id', safeBlockId)
+              .then(function (updRes) {
+                if (updRes.error) throw updRes.error;
+                return JSON.stringify({ ok: true, composition: comp });
+              });
+          });
         });
     });
 
