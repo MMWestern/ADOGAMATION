@@ -241,6 +241,7 @@
       renderSCEInspector();
       wireSCEToolbar(seriesId);
       wireSCEBlockInteractions();
+      wireSCEBlockResize();
       wireSCEConnectNodes();
     }
 
@@ -287,6 +288,31 @@
           renderSCEConnections();
         });
       }
+
+      // Undo/Redo buttons
+      var undoBtn = document.getElementById("sceUndoBtn");
+      if (undoBtn && !undoBtn._wired) {
+        undoBtn._wired = true;
+        undoBtn.addEventListener("click", function () { sceUndo(); });
+      }
+      var redoBtn = document.getElementById("sceRedoBtn");
+      if (redoBtn && !redoBtn._wired) {
+        redoBtn._wired = true;
+        redoBtn.addEventListener("click", function () { sceRedo(); });
+      }
+
+      // Keyboard shortcuts: Ctrl+Z = undo, Ctrl+Y = redo
+      if (!window._sceKeyboardWired) {
+        window._sceKeyboardWired = true;
+        document.addEventListener("keydown", function (e) {
+          if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+          if (e.ctrlKey && e.key === "z") { e.preventDefault(); sceUndo(); }
+          if (e.ctrlKey && e.key === "y") { e.preventDefault(); sceRedo(); }
+        });
+      }
+
+      // Update button states
+      updateSCEUndoRedoButtons();
     }
 
     function scePushUndo(action) {

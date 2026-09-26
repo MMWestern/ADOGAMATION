@@ -207,3 +207,120 @@
         })
         .sceSaveBlock(JSON.stringify(block));
     }
+
+    function wireSCEBlockResize() {
+      var body = document.getElementById("sceTimelineBody");
+      if (!body) return;
+
+      var resizeState = null;
+
+      body.addEventListener("mousedown", function (e) {
+        var handle = e.target.closest(".sce-block-resize-handle");
+        if (!handle) return;
+
+        var blockId = Number(handle.getAttribute("data-block-id"));
+        var blockEl = handle.closest(".sce-block");
+        if (!blockEl) return;
+
+        var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+        if (!block) return;
+
+        // Check if layer is locked
+        var layer = _sceState.layers.find(function (l) { return Number(l.id) === Number(block.layer_id); });
+        if (layer && layer.is_locked) return;
+
+        var isRight = handle.classList.contains("sce-block-resize-right");
+        var cells = blockEl.parentElement;
+        var cellWidth = cells.querySelector('.sce-layer-cell') ? cells.querySelector('.sce-layer-cell').offsetWidth : 100;
+
+        resizeState = {
+          blockId: blockId,
+          blockEl: blockEl,
+          isRight: isRight,
+          startX: e.clientX,
+          origStart: block.start_state,
+          origEnd: block.end_state,
+          cellWidth: cellWidth,
+          cellsRect: cells.getBoundingClientRect()
+        };
+
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      document.addEventListener("mousemove", function (e) {
+        if (!resizeState) return;
+
+        var dx = e.clientX - resizeState.startX;
+        var cellsDelta = Math.round(dx / resizeState.cellWidth);
+
+        var newStart = resizeState.origStart;
+        var newEnd = resizeState.origEnd;
+
+        if (resizeState.isRight) {
+          newEnd = Math.max(resizeState.origStart, resizeState.origEnd + cellsDelta);
+        } else {
+          newStart = Math.min(resizeState.origEnd, resizeState.origStart + cellsDelta);
+        }
+
+        // Find start and end cells
+        var cells = resizeState.blockEl.parentElement;
+        var startCell = cells.querySelector('[data-state="' + newStart + '"]');
+        var endCell = cells.querySelector('[data-state="' + newEnd + '"]');
+        if (!startCell || !endCell) return;
+
+        // Update block visual position
+        var cellsRect = cells.getBoundingClientRect();
+        var startRect = startCell.getBoundingClientRect();
+        var endRect = endCell.getBoundingClientRect();
+        resizeState.blockEl.style.left = (startRect.left - cellsRect.left) + "px";
+        resizeState.blockEl.style.width = (endRect.right - startRect.left) + "px";
+
+        // Store new values for save
+        resizeState.newStart = newStart;
+        resizeState.newEnd = newEnd;
+      });
+
+      document.addEventListener("mouseup", function () {
+        if (!resizeState) return;
+
+        if (resizeState.newStart !== undefined && resizeState.newEnd !== undefined) {
+          var block = _sceState.blocks.find(function (b) { return Number(b.id) === resizeState.blockId; });
+          if (block) {
+            var oldStart = block.start_state;
+            var oldEnd = block.end_state;
+            block.start_state = resizeState.newStart;
+            block.end_state = resizeState.newEnd;
+
+            scePushUndo({
+              type: "resize_block",
+              blockId: resizeState.blockId,
+              undo: function () {
+                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === resizeState.blockId; });
+                if (b) {
+                  b.start_state = oldStart;
+                  b.end_state = oldEnd;
+                  saveSCEBlock(b);
+                  renderSCETimeline();
+                  renderSCEConnections();
+                }
+              },
+              redo: function () {
+                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === resizeState.blockId; });
+                if (b) {
+                  b.start_state = resizeState.newStart;
+                  b.end_state = resizeState.newEnd;
+                  saveSCEBlock(b);
+                  renderSCETimeline();
+                  renderSCEConnections();
+                }
+              }
+            });
+
+            saveSCEBlock(block);
+          }
+        }
+
+        resizeState = null;
+      });
+    }

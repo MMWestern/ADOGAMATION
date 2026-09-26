@@ -46,11 +46,13 @@
         bodyHtml += "<div class='sce-layer-row' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
         bodyHtml += "<div class='sce-layer-label'>" + escapeHtml(layer.name) + "</div>";
         bodyHtml += "<div class='sce-layer-cells'>";
+        // Empty cells for grid positioning
         states.forEach(function (state) {
           bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
         });
         bodyHtml += "<div class='sce-layer-cell sce-layer-cell-parking' data-layer-id='" + layer.id + "' data-state='parking'></div>";
         bodyHtml += "<div class='sce-layer-cell sce-layer-cell-later' data-layer-id='" + layer.id + "' data-state='later'></div>";
+        // Blocks will be positioned absolutely over the cells
         bodyHtml += "</div>";
         bodyHtml += "</div>";
       });
@@ -72,26 +74,43 @@
         var cells = layerRow.querySelector(".sce-layer-cells");
         if (!cells) return;
 
-        // Find the cell for this block's start_state and insert the block inside it
-        var targetCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
-        if (!targetCell) return;
+        // Find start and end cells to calculate position and width
+        var startCell = cells.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"]');
+        var endCell = cells.querySelector('.sce-layer-cell[data-state="' + block.end_state + '"]');
+        if (!startCell) return;
+        if (!endCell) endCell = startCell;
+
+        // Position block absolutely over the cells
+        var cellsRect = cells.getBoundingClientRect();
+        var startRect = startCell.getBoundingClientRect();
+        var endRect = endCell.getBoundingClientRect();
 
         var blockEl = document.createElement("div");
         blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
         blockEl.setAttribute("data-block-id", block.id);
         blockEl.setAttribute("data-start", block.start_state);
         blockEl.setAttribute("data-end", block.end_state);
+        blockEl.style.position = "absolute";
+        blockEl.style.left = (startRect.left - cellsRect.left) + "px";
+        blockEl.style.width = (endRect.right - startRect.left) + "px";
+        blockEl.style.top = "3px";
+        blockEl.style.bottom = "3px";
 
         var title = block.short_title || "Untitled";
-        blockEl.innerHTML = "<div class='sce-block-title'>" + escapeHtml(title) + "</div><div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>";
+        blockEl.innerHTML = "<div class='sce-block-resize-handle sce-block-resize-left' data-block-id='" + block.id + "'></div>" +
+          "<div class='sce-block-title'>" + escapeHtml(title) + "</div>" +
+          "<div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>" +
+          "<div class='sce-block-resize-handle sce-block-resize-right' data-block-id='" + block.id + "'></div>";
 
         // Click to select
         blockEl.addEventListener("click", function (e) {
           e.stopPropagation();
+          if (e.target.closest(".sce-block-resize-handle") || e.target.closest(".sce-block-connect-node")) return;
           selectSCEBlock(block.id);
         });
 
-        targetCell.appendChild(blockEl);
+        cells.style.position = "relative";
+        cells.appendChild(blockEl);
       });
     }
 
