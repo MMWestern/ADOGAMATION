@@ -186,23 +186,27 @@
         wrapper.addEventListener("drop", function (e) {
           e.preventDefault();
           e.stopPropagation();
+          console.log("[SCE] Chapter drop event fired on chapter:", chapter.id);
 
           var data = e.dataTransfer.getData("text/plain");
+          console.log("[SCE] Drop data:", data);
           if (!data.startsWith("chapter:")) return;
           var draggedId = Number(data.split(":")[1]);
+          console.log("[SCE] Dragged ID:", draggedId, "Target ID:", chapter.id);
           if (draggedId === chapter.id) return;
 
           var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-          if (!dragged) return;
+          if (!dragged) { console.log("[SCE] Dragged chapter not found"); return; }
 
           clearChapterDropIndicators();
+          console.log("[SCE] Dragged state:", dragged.start_state, "Target state:", chapter.start_state);
 
           if (dragged.start_state === chapter.start_state) {
-            // Same state: reorder
+            console.log("[SCE] Same state - calling reorderChapter");
             var insertBefore = wrapper._dropBefore !== null ? wrapper._dropBefore : true;
             reorderChapter(draggedId, chapter.id, insertBefore);
           } else {
-            // Different state: move to target's state
+            console.log("[SCE] Different state - calling moveChapterToState");
             moveChapterToState(draggedId, chapter.start_state);
           }
         });
