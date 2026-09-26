@@ -146,7 +146,7 @@
         var stateChapters = byState[statePos] || [];
 
         stateChapters.forEach(function (chapter, idx) {
-          col.appendChild(createChapterBlockEl(chapter, idx));
+          col.appendChild(createChapterBlockEl(chapter, idx, stateChapters.length));
         });
         // Always add drop zone at end of column
         col.appendChild(createChapterDropZone(statePos, stateChapters.length, stateChapters.length === 0));
@@ -204,15 +204,16 @@
       return zone;
     }
 
-    function createChapterBlockEl(chapter, idx) {
+    function createChapterBlockEl(chapter, idx, totalCount) {
       var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
       var chColor = chapter.color || "#3b82f6";
+      var blockWidth = totalCount > 1 ? "calc(" + (100 / totalCount) + "% - 4px)" : "100%";
 
       var wrapper = document.createElement("div");
       wrapper.className = "sce-chapter-block";
       wrapper.setAttribute("data-chapter-id", chapter.id);
       wrapper.draggable = true;
-      wrapper.style.cssText = "flex:1 1 0;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;padding:4px 8px;min-width:0;";
+      wrapper.style.cssText = "width:" + blockWidth + ";background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;padding:4px 8px;";
 
       var title = document.createElement("div");
       title.style.cssText = "font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
