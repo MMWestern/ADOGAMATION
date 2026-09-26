@@ -118,15 +118,14 @@
         if (!col) return;
         var stateChapters = byState[statePos];
 
-        // Add drop zone before first chapter
-        col.appendChild(createChapterDropZone(Number(statePos), 0));
-
         stateChapters.forEach(function (chapter, idx) {
+          // Add drop zone before chapter
+          col.appendChild(createChapterDropZone(Number(statePos), idx));
           // Add chapter block
           col.appendChild(createChapterBlockEl(chapter));
-          // Add drop zone after chapter
-          col.appendChild(createChapterDropZone(Number(statePos), idx + 1));
         });
+        // Add drop zone after last chapter
+        col.appendChild(createChapterDropZone(Number(statePos), stateChapters.length));
       });
     }
 
@@ -135,7 +134,7 @@
       zone.className = "sce-chapter-drop-zone";
       zone.setAttribute("data-state-pos", statePos);
       zone.setAttribute("data-insert-idx", insertIdx);
-      zone.style.cssText = "height:6px;margin:1px 0;transition:all 0.15s;border-radius:3px;";
+      zone.style.cssText = "width:6px;height:100%;min-height:40px;flex-shrink:0;transition:all 0.15s;border-radius:3px;";
 
       zone.addEventListener("dragover", function (e) {
         e.preventDefault();
@@ -144,13 +143,13 @@
         if (!data.startsWith("chapter:")) return;
 
         clearChapterDropIndicators();
-        zone.style.height = "28px";
+        zone.style.width = "30px";
         zone.style.background = "rgba(59,130,246,0.2)";
         zone.style.border = "2px dashed #3b82f6";
       });
 
       zone.addEventListener("dragleave", function () {
-        zone.style.height = "6px";
+        zone.style.width = "6px";
         zone.style.background = "";
         zone.style.border = "";
       });
@@ -158,7 +157,7 @@
       zone.addEventListener("drop", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        zone.style.height = "6px";
+        zone.style.width = "6px";
         zone.style.background = "";
         zone.style.border = "";
 
@@ -173,10 +172,8 @@
         var insertIdx = Number(zone.getAttribute("data-insert-idx"));
 
         if (dragged.start_state !== targetState) {
-          // Different state: move and insert at position
           moveChapterToStateAt(draggedId, targetState, insertIdx);
         } else {
-          // Same state: reorder to position
           reorderChapterToIndex(draggedId, targetState, insertIdx);
         }
       });
