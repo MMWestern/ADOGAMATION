@@ -18661,14 +18661,107 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       flex: 1;
       overflow: auto;
     }
+
+    /* Portrait/Vertical Layout */
+    .sce-layer-header-row {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 5;
+    }
+    .sce-state-header-spacer {
+      width: 120px;
+      min-width: 120px;
+      flex-shrink: 0;
+      padding: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      left: 0;
+      background: var(--bg);
+      z-index: 6;
+    }
+    .sce-layer-header {
+      padding: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .sce-state-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      min-height: 50px;
+    }
+    .sce-state-label {
+      width: 120px;
+      min-width: 120px;
+      flex-shrink: 0;
+      padding: 8px;
+      border-right: 1px solid var(--border);
+      position: sticky;
+      left: 0;
+      background: var(--bg);
+      z-index: 4;
+    }
+    .sce-state-label .sce-state-add-chapter {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .sce-state-label:hover .sce-state-add-chapter {
+      opacity: 1;
+    }
+    .sce-state-cell {
+      border-right: 1px solid var(--border);
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sce-state-cell-chapters {
+      width: 150px;
+      min-width: 150px;
+    }
+    .sce-state-cell-scenes {
+      width: 150px;
+      min-width: 150px;
+    }
+    .sce-state-cell-layer {
+      width: 200px;
+      min-width: 200px;
+      position: relative;
+    }
+    .sce-chapter-drop-zone {
+      height: 4px;
+      transition: all 0.15s;
+      border-radius: 3px;
+    }
+    .sce-chapter-drop-zone:hover {
+      height: 28px;
+      border: 2px dashed #3b82f6;
+    }
+
+    /* Legacy landscape styles (kept for compatibility) */
     .sce-state-header-row {
       display: flex;
       min-width: fit-content;
-    }
-    .sce-state-header-spacer {
-      width: 140px;
-      flex-shrink: 0;
-      border-right: 1px solid var(--border);
     }
     .sce-timeline-header {
       border-bottom: 1px solid var(--border);
@@ -18688,49 +18781,9 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       box-sizing: border-box;
       overflow: hidden;
     }
-    .sce-state-add-chapter {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      width: 16px;
-      height: 16px;
-      line-height: 16px;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      border-radius: 3px;
-      opacity: 0;
-      transition: opacity 0.15s;
-    }
-    .sce-state-header:hover .sce-state-add-chapter {
-      opacity: 1;
-    }
-    .sce-state-add-chapter:hover {
-      background: rgba(59,130,246,0.2);
-      color: #3b82f6;
-    }
-    .sce-state-number {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--muted);
-    }
-    .sce-state-name {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text);
-      margin-top: 2px;
-      outline: none;
-    }
-    .sce-state-name:focus {
-      background: var(--hover);
-      border-radius: 3px;
-    }
     .sce-state-parking, .sce-state-later {
       background: var(--panel);
     }
-
     .sce-timeline-body {
       min-height: 200px;
     }

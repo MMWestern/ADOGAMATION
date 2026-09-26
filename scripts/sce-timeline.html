@@ -1,5 +1,5 @@
     // ============================================================
-    // Story Composition Editor — Timeline Rendering
+    // Story Composition Editor — Timeline Rendering (Portrait)
     // ============================================================
 
     function renderSCETimeline() {
@@ -20,31 +20,146 @@
       // Sort states by position
       states.sort(function (a, b) { return a.position - b.position; });
 
-      // Calculate column widths based on chapter count per state
-      var colWidths = {};
-      states.forEach(function (state) {
-        var count = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
-        colWidths[state.position] = Math.max(1, count) * 150;
+      // Get visible layers
+      var hasSolo = layers.some(function (l) { return l.is_solo; });
+      var visibleLayers = layers.filter(function (l) {
+        if (hasSolo) return l.is_solo;
+        return !l.is_hidden;
       });
 
-      // Render header (state columns) with dynamic widths
-      var headerHtml = "<div class='sce-state-header-row'>";
-      headerHtml += "<div class='sce-state-header-spacer'></div>";
+      // Calculate row heights based on chapter count per state
+      var rowHeights = {};
       states.forEach(function (state) {
-        var w = colWidths[state.position] || 100;
-        headerHtml += "<div class='sce-state-header' data-state='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;'>";
-        headerHtml += "<div class='sce-state-number'>" + state.position + "</div>";
-        headerHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
-        headerHtml += "<div class='sce-state-add-chapter' data-state-pos='" + state.position + "' title='Add chapter'>+</div>";
-        headerHtml += "</div>";
+        var chCount = chapters.filter(function (ch) { return ch.start_state === state.position; }).length;
+        var sceneCount = 0;
+        chapters.filter(function (ch) { return ch.start_state === state.position; }).forEach(function (ch) {
+          var scenes = (_sceState.chapters._scenes || {})[ch.id] || [];
+          sceneCount += scenes.length;
+        });
+        var maxItems = Math.max(1, chCount, sceneCount);
+        rowHeights[state.position] = maxItems * 30 + 10; // 30px per item + padding
       });
-      headerHtml += "<div class='sce-state-header sce-state-parking' data-state='parking'><div class='sce-state-number'>P</div><div class='sce-state-name'>Parking</div></div>";
-      headerHtml += "<div class='sce-state-header sce-state-later' data-state='later'><div class='sce-state-number'>L</div><div class='sce-state-name'>Later Books</div></div>";
+
+      // Render header (layer columns)
+      var headerHtml = "<div class='sce-layer-header-row'>";
+      headerHtml += "<div class='sce-state-header-spacer'>States</div>";
+      headerHtml += "<div class='sce-layer-header' data-layer='chapters' style='width:150px;'>Chapters</div>";
+      headerHtml += "<div class='sce-layer-header' data-layer='scenes' style='width:150px;'>Scenes</div>";
+      visibleLayers.forEach(function (layer) {
+        headerHtml += "<div class='sce-layer-header' data-layer-id='" + layer.id + "' style='width:200px;'>" + escapeHtml(layer.name) + "</div>";
+      });
       headerHtml += "</div>";
       header.innerHTML = headerHtml;
 
+      // Build body HTML
+      var bodyHtml = "";
+
+      // State rows
+      states.forEach(function (state) {
+        var h = rowHeights[state.position] || 50;
+        var stateChapters = chapters.filter(function (ch) { return ch.start_state === state.position; });
+        stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+
+        bodyHtml += "<div class='sce-state-row' data-state='" + state.position + "' style='min-height:" + h + "px;'>";
+
+        // State label (sticky left)
+        bodyHtml += "<div class='sce-state-label'>";
+        bodyHtml += "<div class='sce-state-number'>" + state.position + "</div>";
+        bodyHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
+        bodyHtml += "<div class='sce-state-add-chapter' data-state-pos='" + state.position + "' title='Add chapter'>+</div>";
+        bodyHtml += "</div>";
+
+        // Chapter cell
+        bodyHtml += "<div class='sce-state-cell sce-state-cell-chapters' data-state='" + state.position + "'>";
+        stateChapters.forEach(function (chapter) {
+          bodyHtml += createChapterBlockHtml(chapter);
+        });
+        bodyHtml += "<div class='sce-chapter-drop-zone' data-state-pos='" + state.position + "'></div>";
+        bodyHtml += "</div>";
+
+        // Scene cell
+        bodyHtml += "<div class='sce-state-cell sce-state-cell-scenes' data-state='" + state.position + "'>";
+        stateChapters.forEach(function (chapter) {
+          var scenes = (_sceState.chapters._scenes || {})[chapter.id] || [];
+          scenes.forEach(function (scene) {
+            bodyHtml += createSceneBlockHtml(scene, chapter);
+          });
+        });
+        bodyHtml += "</div>";
+
+        // Layer cells
+        visibleLayers.forEach(function (layer) {
+          bodyHtml += "<div class='sce-state-cell sce-state-cell-layer' data-state='" + state.position + "' data-layer-id='" + layer.id + "'></div>";
+        });
+
+        bodyHtml += "</div>";
+      });
+
+      body.innerHTML = bodyHtml;
+
+      // Place blocks on the timeline
+      renderSCEBlocksPortrait();
+
+      // Wire interactions
+      wireSCEPortraitInteractions();
+    }
+
+    function createChapterBlockHtml(chapter) {
+      var chColor = chapter.color || "#3b82f6";
+      var chNum = getChapterNumber(chapter.id);
+      return "<div class='sce-chapter-block' data-chapter-id='" + chapter.id + "' draggable='true' style='background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;padding:4px 8px;cursor:grab;margin-bottom:2px;'>" +
+        "<div style='font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled") + "</div>" +
+        "</div>";
+    }
+
+    function createSceneBlockHtml(scene, chapter) {
+      var chColor = chapter.color || "#10b981";
+      return "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;padding:4px 8px;cursor:grab;margin-bottom:2px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>" +
+        escapeHtml(scene.title || "Scene") +
+        "</div>";
+    }
+
+    function renderSCEBlocksPortrait() {
+      // Clear existing blocks
+      document.querySelectorAll(".sce-block").forEach(function (el) { el.remove(); });
+
+      _sceState.blocks.forEach(function (block) {
+        if (block.is_parked || block.is_later_book) return;
+
+        var layerCell = document.querySelector('.sce-state-cell-layer[data-state="' + block.start_state + '"][data-layer-id="' + block.layer_id + '"]');
+        if (!layerCell) return;
+
+        var blockEl = document.createElement("div");
+        blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
+        blockEl.setAttribute("data-block-id", block.id);
+        blockEl.setAttribute("data-start", block.start_state);
+        blockEl.setAttribute("data-end", block.end_state);
+        blockEl.style.position = "relative";
+        blockEl.style.width = "100%";
+        blockEl.style.height = "28px";
+        blockEl.style.marginBottom = "2px";
+
+        var title = block.short_title || "Untitled";
+        var precompIcon = block.precomp_composition_id ? "<span class='sce-block-precomp-icon' title='Has internal timeline'>\u25A0</span>" : "";
+        blockEl.innerHTML = "<div class='sce-block-resize-handle sce-block-resize-left' data-block-id='" + block.id + "'></div>" +
+          "<div class='sce-block-title'>" + precompIcon + escapeHtml(title) + "</div>" +
+          "<div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>" +
+          "<div class='sce-block-resize-handle sce-block-resize-right' data-block-id='" + block.id + "'></div>";
+
+        // Click to select
+        blockEl.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (e.target.closest(".sce-block-resize-handle") || e.target.closest(".sce-block-connect-node")) return;
+          selectSCEBlock(block.id);
+        });
+
+        layerCell.appendChild(blockEl);
+      });
+    }
+
+    function wireSCEPortraitInteractions() {
       // Wire + buttons to create chapters
-      header.querySelectorAll(".sce-state-add-chapter").forEach(function (btn) {
+      document.querySelectorAll(".sce-state-add-chapter").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
           var statePos = Number(btn.getAttribute("data-state-pos"));
@@ -52,52 +167,113 @@
         });
       });
 
-      // Make state headers droppable for cross-state moves
-      header.querySelectorAll(".sce-state-header[data-state]").forEach(function (hdr) {
-        hdr.addEventListener("dragover", function (e) {
+      // Wire chapter blocks for drag and click
+      document.querySelectorAll(".sce-chapter-block").forEach(function (block) {
+        var chapterId = Number(block.getAttribute("data-chapter-id"));
+
+        block.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEChapter(chapterId);
+        });
+
+        block.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", "chapter:" + chapterId);
+          e.dataTransfer.effectAllowed = "move";
+          block.style.opacity = "0.4";
+        });
+
+        block.addEventListener("dragend", function () {
+          block.style.opacity = "1";
+        });
+      });
+
+      // Wire scene blocks for drag and click
+      document.querySelectorAll(".sce-scene-block").forEach(function (block) {
+        var sceneId = Number(block.getAttribute("data-scene-id"));
+        var chapterId = Number(block.getAttribute("data-chapter-id"));
+
+        block.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selectSCEScene(sceneId, chapterId);
+        });
+
+        block.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", "scene:" + sceneId);
+          e.dataTransfer.effectAllowed = "move";
+          block.style.opacity = "0.4";
+        });
+
+        block.addEventListener("dragend", function () {
+          block.style.opacity = "1";
+        });
+      });
+
+      // Wire chapter drop zones
+      document.querySelectorAll(".sce-chapter-drop-zone").forEach(function (zone) {
+        zone.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
           if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
-          hdr.style.background = "rgba(59,130,246,0.2)";
+          zone.style.height = "28px";
+          zone.style.border = "2px dashed #3b82f6";
         });
-        hdr.addEventListener("dragleave", function () {
-          hdr.style.background = "";
+
+        zone.addEventListener("dragleave", function () {
+          zone.style.height = "";
+          zone.style.border = "";
         });
-        hdr.addEventListener("drop", function (e) {
+
+        zone.addEventListener("drop", function (e) {
           e.preventDefault();
-          hdr.style.background = "";
+          zone.style.height = "";
+          zone.style.border = "";
+
           var data = e.dataTransfer.getData("text/plain");
           if (!data.startsWith("chapter:")) return;
           var draggedId = Number(data.split(":")[1]);
-          var statePos = Number(hdr.getAttribute("data-state"));
-          if (isNaN(statePos)) return;
+          var statePos = Number(zone.getAttribute("data-state-pos"));
+
           var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
           if (!dragged) return;
-          // Move to end of target state
+
+          // Move chapter to this state
+          moveChapterToStateAt(draggedId, statePos, 0);
+        });
+      });
+
+      // Wire state labels for cross-state chapter drops
+      document.querySelectorAll(".sce-state-label").forEach(function (label) {
+        label.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
+          label.style.background = "rgba(59,130,246,0.2)";
+        });
+
+        label.addEventListener("dragleave", function () {
+          label.style.background = "";
+        });
+
+        label.addEventListener("drop", function (e) {
+          e.preventDefault();
+          label.style.background = "";
+
+          var data = e.dataTransfer.getData("text/plain");
+          if (!data.startsWith("chapter:")) return;
+          var draggedId = Number(data.split(":")[1]);
+          var stateRow = label.closest(".sce-state-row");
+          if (!stateRow) return;
+          var statePos = Number(stateRow.getAttribute("data-state"));
+
+          var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+          if (!dragged) return;
+
+          // Move chapter to this state
           var targetChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
           moveChapterToStateAt(draggedId, statePos, targetChapters.length);
         });
       });
-
-      // Build body HTML
-      var bodyHtml = "";
-
-      // Chapter row (first row in body)
-      bodyHtml += "<div id='sceStoryBand' class='sce-layer-row' style='--layer-color:#3b82f6;background:rgba(59,130,246,0.05);'>";
-      bodyHtml += "<div class='sce-layer-label'>Chapters</div>";
-      bodyHtml += "<div class='sce-layer-cells' id='sceChapterCells'>";
-      states.forEach(function (state) {
-        var w = colWidths[state.position] || 100;
-        bodyHtml += "<div class='sce-story-column' data-state-pos='" + state.position + "' style='min-width:" + w + "px;max-width:" + w + "px;position:relative;display:flex;flex-direction:row;flex-wrap:wrap;gap:2px;padding:2px;'></div>";
-      });
-      bodyHtml += "<div class='sce-story-column' data-state-pos='-1' style='min-width:100px;max-width:100px;position:relative;'></div>";
-      bodyHtml += "<div class='sce-story-column' data-state-pos='-2' style='min-width:100px;max-width:100px;position:relative;'></div>";
-      bodyHtml += "</div>";
-      bodyHtml += "</div>";
-
-      // Scene row (second row in body)
-      bodyHtml += "<div id='sceSceneBand' class='sce-layer-row' style='--layer-color:#10b981;background:rgba(16,185,129,0.03);'>";
-      bodyHtml += "<div class='sce-layer-label'>Scenes</div>";
+    }
       bodyHtml += "<div class='sce-layer-cells' id='sceSceneCells'>";
       states.forEach(function (state) {
         var w = colWidths[state.position] || 100;

@@ -3,16 +3,12 @@
 ## Phase 0: Backup and Inventory
 
 ### 0.1 Database Backup
+- [x] Create database inventory script (`migrations/20260905_phase0_inventory.sql`)
+- [ ] Run inventory script in Supabase SQL Editor (manual step)
 - [ ] Create Supabase database snapshot (manual step in Supabase dashboard)
-- [ ] Document current row counts for all 19 codex tables
-- [ ] Export current schema definitions (table/column/index/RLS)
 
 ### 0.2 Code Inventory
-- [ ] Document all code paths that write to `codex_connections`
-- [ ] Document all code paths that write to `codex_entities`
-- [ ] Document all code paths that use `relationship` entity type
-- [ ] Document all code paths that use `equipment` entity type
-- [ ] Document all code paths that use `quest` vs `story_thread`
+- [x] Documented in `.opencode/plans/codex-categories-audit.md`
 
 ### 0.3 Staging Validation
 - [ ] Verify Patrick's Part-Time Universe data exists and is complete
@@ -21,7 +17,9 @@
 
 ---
 
-## Phase 1: Additive Schema Only
+## Phase 1: Additive Schema Only — COMPLETE
+
+All migrations created, committed, and applied to Supabase.
 
 ### 1.1 Extend `codex_connections` (ALTER TABLE)
 
