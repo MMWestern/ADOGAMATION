@@ -171,6 +171,34 @@
       });
     }
 
+    function createDefaultStatesForComposition(compositionId, seriesId, callback) {
+      var defaultStates = [
+        { position: 1, name: "Setup", purpose: "Setting the scene" },
+        { position: 2, name: "Action", purpose: "The main event" },
+        { position: 3, name: "Turning Point", purpose: "Something changes" },
+        { position: 4, name: "Climax", purpose: "Peak moment" },
+        { position: 5, name: "Resolution", purpose: "Aftermath and consequences" }
+      ];
+      var done = 0;
+      var total = defaultStates.length;
+      defaultStates.forEach(function (s) {
+        supabaseRunner
+          .withSuccessHandler(function (json) {
+            var result = typeof json === 'string' ? JSON.parse(json) : json;
+            if (result.state) _sceState.states.push(result.state);
+            done++;
+            if (done >= total) callback();
+          })
+          .withFailureHandler(function () { done++; if (done >= total) callback(); })
+          .sceSaveState(JSON.stringify({
+            composition_id: compositionId,
+            position: s.position,
+            name: s.name,
+            purpose: s.purpose
+          }));
+      });
+    }
+
     function loadSCECompositionData(compositionId, seriesId) {
       var loaded = 0;
       var total = 5;
@@ -178,7 +206,14 @@
       function checkDone() {
         loaded++;
         if (loaded >= total) {
-          renderSCE(seriesId);
+          // If no states exist (e.g., old precomp), create defaults
+          if (!_sceState.states.length && _sceState.composition) {
+            createDefaultStatesForComposition(_sceState.composition.id, seriesId, function () {
+              renderSCE(seriesId);
+            });
+          } else {
+            renderSCE(seriesId);
+          }
         }
       }
 
