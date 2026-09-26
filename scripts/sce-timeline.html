@@ -202,8 +202,9 @@
           groupEl.appendChild(label);
 
           // Scene blocks
+          var sceneCount = group.scenes.length;
           group.scenes.forEach(function (scene) {
-            groupEl.appendChild(createSceneBlockEl(scene, group.chapter));
+            groupEl.appendChild(createSceneBlockEl(scene, group.chapter, sceneCount));
           });
 
           col.appendChild(groupEl);
@@ -214,14 +215,15 @@
       });
     }
 
-    function createSceneBlockEl(scene, chapter) {
+    function createSceneBlockEl(scene, chapter, totalCount) {
       var chColor = chapter.color || "#10b981";
+      var blockWidth = totalCount > 1 ? "calc(" + (100 / totalCount) + "% - 4px)" : "100%";
       var wrapper = document.createElement("div");
       wrapper.className = "sce-scene-block";
       wrapper.setAttribute("data-scene-id", scene.id);
       wrapper.setAttribute("data-chapter-id", chapter.id);
       wrapper.draggable = true;
-      wrapper.style.cssText = "flex:1 1 0;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;padding:4px 8px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      wrapper.style.cssText = "width:" + blockWidth + ";background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;cursor:grab;position:relative;box-sizing:border-box;padding:4px 8px;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       wrapper.textContent = scene.title || "Scene";
 
       wrapper.addEventListener("click", function (e) {
