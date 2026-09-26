@@ -279,6 +279,9 @@
         // Store new values for save
         resizeState.newStart = newStart;
         resizeState.newEnd = newEnd;
+
+        // Update connections in real-time during drag
+        renderSCEConnections();
       });
 
       document.addEventListener("mouseup", function () {
@@ -318,6 +321,8 @@
             });
 
             saveSCEBlock(block);
+            renderSCETimeline();
+            renderSCEConnections();
           }
         }
 
