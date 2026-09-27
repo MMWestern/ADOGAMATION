@@ -399,17 +399,13 @@
           if (!confirm("Delete this chapter and all its scenes?")) return;
           supabaseRunner
             .withSuccessHandler(function () {
-              var deletedId = Number(chapter.id);
-              _sceState.chapters = _sceState.chapters.filter(function (c) { return Number(c.id) !== deletedId; });
-              // Drop the deleted chapter's scenes from the cache. The cache
-              // lives on _sceState.sceneCache, so the filter() above no longer
-              // takes the other chapters' scenes with it.
-              var cache = sceSceneCache();
-              if (Object.prototype.hasOwnProperty.call(cache, deletedId)) {
-                delete cache[deletedId];
-              }
-              renderSCETimeline();
-              renderSCEInspector();
+              // Re-read chapters and scenes from the database rather than
+              // editing _sceState by hand, so the client ends up in exactly the
+              // state a page refresh would produce.
+              loadSCEChaptersAndScenes(function () {
+                renderSCETimeline();
+                renderSCEInspector();
+              });
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to delete chapter:", err);
@@ -425,18 +421,11 @@
           var title = prompt("Scene title:");
           if (!title) return;
           supabaseRunner
-            .withSuccessHandler(function (json) {
-              var result = typeof json === 'string' ? JSON.parse(json) : json;
-              if (result.scene) {
-                // Update scenes cache
-                var cache = sceSceneCache();
-                if (!cache[chapter.id]) {
-                  cache[chapter.id] = [];
-                }
-                cache[chapter.id].push(result.scene);
+            .withSuccessHandler(function () {
+              loadSCEChaptersAndScenes(function () {
                 loadSCEChapterScenes(chapter.id);
                 renderSCETimeline();
-              }
+              });
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to add scene:", err);
@@ -567,16 +556,11 @@
           if (!confirm("Delete this scene?")) return;
           supabaseRunner
             .withSuccessHandler(function () {
-              // Update scenes cache
-              var cache = sceSceneCache();
-              if (cache[chapterId]) {
-                cache[chapterId] = cache[chapterId].filter(function (s) {
-                  return Number(s.id) !== Number(scene.id);
-                });
-              }
-              var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
-              if (chapter) renderSCEInspectorChapter(chapter);
-              renderSCETimeline();
+              loadSCEChaptersAndScenes(function () {
+                var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+                if (chapter) renderSCEInspectorChapter(chapter);
+                renderSCETimeline();
+              });
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to delete scene:", err);
