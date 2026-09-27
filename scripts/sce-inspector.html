@@ -399,7 +399,15 @@
           if (!confirm("Delete this chapter and all its scenes?")) return;
           supabaseRunner
             .withSuccessHandler(function () {
-              _sceState.chapters = _sceState.chapters.filter(function (c) { return Number(c.id) !== Number(chapter.id); });
+              var deletedId = Number(chapter.id);
+              _sceState.chapters = _sceState.chapters.filter(function (c) { return Number(c.id) !== deletedId; });
+              // Drop the deleted chapter's scenes from the cache. The cache
+              // lives on _sceState.sceneCache, so the filter() above no longer
+              // takes the other chapters' scenes with it.
+              var cache = sceSceneCache();
+              if (Object.prototype.hasOwnProperty.call(cache, deletedId)) {
+                delete cache[deletedId];
+              }
               renderSCETimeline();
               renderSCEInspector();
             })
@@ -421,10 +429,11 @@
               var result = typeof json === 'string' ? JSON.parse(json) : json;
               if (result.scene) {
                 // Update scenes cache
-                if (!_sceState.chapters._scenes[chapter.id]) {
-                  _sceState.chapters._scenes[chapter.id] = [];
+                var cache = sceSceneCache();
+                if (!cache[chapter.id]) {
+                  cache[chapter.id] = [];
                 }
-                _sceState.chapters._scenes[chapter.id].push(result.scene);
+                cache[chapter.id].push(result.scene);
                 loadSCEChapterScenes(chapter.id);
                 renderSCETimeline();
               }
@@ -559,8 +568,9 @@
           supabaseRunner
             .withSuccessHandler(function () {
               // Update scenes cache
-              if (_sceState.chapters._scenes[chapterId]) {
-                _sceState.chapters._scenes[chapterId] = _sceState.chapters._scenes[chapterId].filter(function (s) {
+              var cache = sceSceneCache();
+              if (cache[chapterId]) {
+                cache[chapterId] = cache[chapterId].filter(function (s) {
                   return Number(s.id) !== Number(scene.id);
                 });
               }
