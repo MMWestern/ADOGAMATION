@@ -18662,6 +18662,9 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
 
     .sce-timeline {
+      --sce-col-state: 120px;
+      --sce-col-chapters: 150px;
+      --sce-col-scenes: 150px;
       flex: 1;
       overflow: auto;
     }
@@ -18676,8 +18679,8 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       z-index: 5;
     }
     .sce-state-header-spacer {
-      width: 120px;
-      min-width: 120px;
+      width: var(--sce-col-state);
+      min-width: var(--sce-col-state);
       flex-shrink: 0;
       padding: 8px;
       font-size: 11px;
@@ -18696,6 +18699,23 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       color: var(--text);
       border-right: 1px solid var(--border);
       text-align: center;
+      position: relative;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    .sce-col-resizer {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 7px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 7;
+    }
+    .sce-col-resizer:hover,
+    .sce-col-resizer.is-active {
+      background: rgba(59,130,246,0.4);
     }
     .sce-state-row {
       display: flex;
@@ -18704,8 +18724,8 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       min-height: 50px;
     }
     .sce-state-label {
-      width: 120px;
-      min-width: 120px;
+      width: var(--sce-col-state);
+      min-width: var(--sce-col-state);
       flex-shrink: 0;
       padding: 8px;
       border-right: 1px solid var(--border);
@@ -18743,16 +18763,16 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       box-sizing: border-box;
     }
     .sce-state-cell-chapters {
-      width: 150px;
-      min-width: 150px;
+      width: var(--sce-col-chapters);
+      min-width: var(--sce-col-chapters);
     }
     .sce-state-cell-scenes {
-      width: 150px;
-      min-width: 150px;
+      width: var(--sce-col-scenes);
+      min-width: var(--sce-col-scenes);
     }
     .sce-layer-cell {
-      width: 200px;
-      min-width: 200px;
+      width: var(--sce-col-layer, 200px);
+      min-width: var(--sce-col-layer, 200px);
       min-height: 32px;
       border-right: 1px solid var(--border);
       flex-shrink: 0;
