@@ -87,19 +87,22 @@
         bodyHtml += "<div class='sce-chapter-drop-zone' data-state-pos='" + state.position + "'></div>";
         bodyHtml += "</div>";
 
-        // Scene cell — one cell per scene, stacked in the same slot rhythm
+        // Scene cell — one dedicated group per chapter, aligned to its chapter cell
         bodyHtml += "<div class='sce-state-cell sce-state-cell-scenes' data-state='" + state.position + "'>";
         model.entries.forEach(function (entry) {
           var chapter = entry.chapter;
           var scenes = entry.scenes;
           var chColor = chapter.color || "#10b981";
+          var groupH = entry.slots * SLOT_H - 4;
+          bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='height:" + groupH + "px;border-left:2px solid " + chColor + "55;'>";
           if (!scenes.length) {
             bodyHtml += "<div class='sce-scene-empty' data-chapter-id='" + chapter.id + "'></div>";
-            return;
+          } else {
+            scenes.forEach(function (scene) {
+              bodyHtml += "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + (SLOT_H - 4) + "px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;padding:4px 8px;cursor:grab;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>" + escapeHtml(scene.title || "Scene") + "</div>";
+            });
           }
-          scenes.forEach(function (scene) {
-            bodyHtml += "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + (SLOT_H - 4) + "px;background:" + chColor + "11;border:1px solid " + chColor + "33;border-radius:4px;padding:4px 8px;cursor:grab;font-size:9px;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>" + escapeHtml(scene.title || "Scene") + "</div>";
-          });
+          bodyHtml += "</div>";
         });
         bodyHtml += "</div>";
 
