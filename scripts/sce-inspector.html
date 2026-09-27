@@ -542,6 +542,7 @@
             .withSuccessHandler(function () {
               var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
               if (chapter) renderSCEInspectorChapter(chapter);
+              renderSCETimeline();
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to save scene:", err);
