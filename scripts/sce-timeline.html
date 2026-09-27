@@ -165,6 +165,18 @@
       // Place blocks on the timeline
       renderSCEBlocks();
 
+      // Ungated render diagnostic. The connection renderer bails out early
+      // when connections are hidden or empty, so it cannot be used to tell
+      // whether a render actually happened.
+      console.log("[SCE] render", {
+        states: states.length,
+        chapters: chapters.length,
+        scenesCached: Object.keys(sceSceneCache()).reduce(function (n, k) { return n + (sceSceneCache()[k] || []).length; }, 0),
+        blocks: _sceState.blocks.length,
+        blocksInDom: document.querySelectorAll(".sce-block").length,
+        slots: document.querySelectorAll(".sce-scene-slot").length
+      });
+
       // Wire interactions
       wirePortraitInteractions();
       wireSCEColumnResize();
@@ -553,17 +565,10 @@
       var title = "Scene " + (existing.length + 1);
 
       supabaseRunner
-        .withSuccessHandler(function (json) {
-          var result = typeof json === 'string' ? JSON.parse(json) : json;
-          if (result.scene) {
-            var cache = sceSceneCache();
-            if (!cache[chapter.id]) cache[chapter.id] = [];
-            cache[chapter.id].push(result.scene);
-            cache[chapter.id].sort(function (a, b) {
-              return (a.sort_order || 0) - (b.sort_order || 0);
-            });
+        .withSuccessHandler(function () {
+          loadSCEChaptersAndScenes(function () {
             renderSCETimeline();
-          }
+          });
         })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to add scene:", err);
@@ -584,12 +589,10 @@
       var sortOrder = _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1;
 
       supabaseRunner
-        .withSuccessHandler(function (json) {
-          var result = typeof json === 'string' ? JSON.parse(json) : json;
-          if (result.chapter) {
-            _sceState.chapters.push(result.chapter);
+        .withSuccessHandler(function () {
+          loadSCEChaptersAndScenes(function () {
             renderSCETimeline();
-          }
+          });
         })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to add chapter:", err);

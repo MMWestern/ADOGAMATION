@@ -281,18 +281,34 @@
         .sceGetConnections(compositionId);
 
       // Load chapters and scenes
+      loadSCEChaptersAndScenes(checkDone);
+    }
+
+    // Single source of truth for chapters + their scenes. Every mutation that
+    // can change either (chapter add/delete/move, scene add/delete) re-runs
+    // this instead of patching _sceState in place, so the in-memory state can
+    // never drift from what a full page load would produce. Incremental
+    // patching was the cause of the timeline scrambling after a chapter
+    // delete: the row model, the scene cache and the block anchors all had to
+    // be kept consistent by hand, and anything missed corrupted the layout.
+    function loadSCEChaptersAndScenes(onDone) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) { if (onDone) onDone(); return; }
+
+      var finish = function () { if (onDone) onDone(); };
+
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.chapters = result.chapters || [];
-          sceSceneCache();
-          
-          // Now load all scenes for this composition's chapters
-          if (_sceState.chapters.length === 0) {
-            checkDone();
-            return;
-          }
-          
+
+          // Rebuild the scene cache from scratch so keys for deleted chapters
+          // cannot survive.
+          var cache = sceSceneCache();
+          Object.keys(cache).forEach(function (k) { delete cache[k]; });
+
+          if (_sceState.chapters.length === 0) { finish(); return; }
+
           var chapterIds = _sceState.chapters.map(function (c) { return c.id; });
           var scenesLoaded = 0;
           _sceState.chapters.forEach(function (chapter) {
@@ -301,20 +317,17 @@
                 var result2 = typeof json2 === 'string' ? JSON.parse(json2) : json2;
                 sceSceneCache()[chapter.id] = result2.scenes || [];
                 scenesLoaded++;
-                if (scenesLoaded >= chapterIds.length) {
-                  checkDone();
-                }
+                if (scenesLoaded >= chapterIds.length) finish();
               })
               .withFailureHandler(function () {
+                sceSceneCache()[chapter.id] = [];
                 scenesLoaded++;
-                if (scenesLoaded >= chapterIds.length) {
-                  checkDone();
-                }
+                if (scenesLoaded >= chapterIds.length) finish();
               })
               .sceGetScenes(chapter.id);
           });
         })
-        .withFailureHandler(checkDone)
+        .withFailureHandler(finish)
         .sceGetChapters(compositionId);
     }
 
