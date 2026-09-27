@@ -79,11 +79,39 @@ while a replay is in flight should start with `sceMutationBlocked()`.
 | `scripts/sce-connections.html` | Connection overlay |
 | `scripts/sce-inspector.html` | Chapter/scene/block editing |
 
+## Connections
+
+A connection is a bracket on the right-hand side of its layer column. The
+path leaves the source block's right edge, runs down a vertical lane just
+past the rightmost of the two blocks, and re-enters the target's right edge.
+Both ends are on the right because a block's connect dot only exists there.
+
+This is deliberately a single shape. The previous renderer picked between four
+hand-rolled branches (same column, going left, adjacent column, far away) by
+comparing rectangles, which is what allowed a connection to leave its column
+and cross the rest of the timeline. Connections are now same-column only, so
+one shape covers every case:
+
+- `sceSameColumn()` compares `layer_id` on the two blocks.
+- `wireSCEConnectNodes()` only highlights same-column blocks as valid drop
+  targets and shows `.sce-block-connect-rejected` on the rest, so the rule is
+  taught during the drag. A cross-column drop flashes "Connections stay
+  within one column" and creates nothing.
+- The corner radius is clamped to half the vertical gap. Without that clamp a
+  gap under 12px (blocks in neighbouring states) made the vertical leg run
+  backwards through itself.
+
+Lines sit at `0.5` opacity. Selecting a block walks the connection graph in
+both directions and lights the whole reachable thread at `1.0`, adding
+`.is-linked` to the partner blocks. The anchor block keeps the brighter
+`.is-selected` outline and is excluded from `.is-linked`.
+
 ## Known gaps
 
 - The stats bar estimates total words from a user-set average words per
   chapter; it does not read actual scene word counts.
 - Connection lines have not been visually verified in portrait mode.
 - Mutation guards are applied at individual entry points, not centrally.
-  The header `+ Ch` path in `wireSCEToolbar()` and connection field
-  updates are not currently guarded.
+- Connections created before the same-column rule are still drawn with the
+  new shape. Any that cross columns need deleting and recreating within one
+  column; the renderer intentionally does not delete data on its own.
