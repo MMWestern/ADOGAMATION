@@ -107,11 +107,15 @@
         });
       }
       var selectedId = _sceState.selectedBlockId;
+      // The gold anchor ring only earns its place when the block actually has
+      // connections, so a lone selection keeps the plain white outline.
+      var anchorHasConns = selectedId !== null && selectedId !== undefined && thread.conns.size > 0;
       document.querySelectorAll(".sce-block").forEach(function (el) {
         var id = Number(el.getAttribute("data-block-id"));
         // The anchor block already has the brighter is-selected outline, so
         // only its partners get the softer linked ring.
         el.classList.toggle("is-linked", id !== selectedId && thread.blocks.has(id));
+        el.classList.toggle("is-thread-anchor", id === selectedId && anchorHasConns);
       });
     }
 
