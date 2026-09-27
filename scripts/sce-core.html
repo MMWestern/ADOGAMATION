@@ -307,6 +307,7 @@
     }
 
     function renderSCE(seriesId) {
+      renderSCEStats();
       renderSCEAssetBin(seriesId);
       renderSCELayerControls();
       renderSCETimeline();
@@ -316,6 +317,36 @@
       wireSCEBlockInteractions();
       wireSCEBlockResize();
       wireSCEConnectNodes();
+    }
+
+    var SCE_AVG_WORDS_DEFAULT = 2500;
+
+    function sceGetAvgWords() {
+      var v = parseInt(localStorage.getItem("sce_avg_words"), 10);
+      return (isNaN(v) || v <= 0) ? SCE_AVG_WORDS_DEFAULT : v;
+    }
+
+    function renderSCEStats() {
+      var chaptersEl = document.getElementById("sceStatChapters");
+      var estEl = document.getElementById("sceStatEst");
+      var input = document.getElementById("sceAvgWords");
+      if (!chaptersEl || !estEl) return;
+
+      if (input && !input._wired) {
+        input._wired = true;
+        input.value = sceGetAvgWords();
+        input.addEventListener("input", function () {
+          var v = parseInt(input.value, 10);
+          if (isNaN(v) || v <= 0) return;
+          try { localStorage.setItem("sce_avg_words", String(v)); } catch (e) {}
+          renderSCEStats();
+        });
+      }
+
+      var count = (_sceState.chapters || []).length;
+      var avg = sceGetAvgWords();
+      chaptersEl.textContent = String(count);
+      estEl.textContent = (count * avg).toLocaleString();
     }
 
     function wireSCEToolbar(seriesId) {

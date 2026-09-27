@@ -7,6 +7,8 @@
       var body = document.getElementById("sceTimelineBody");
       if (!header || !body) return;
 
+      if (typeof renderSCEStats === "function") renderSCEStats();
+
       var states = _sceState.states;
       var layers = _sceState.layers;
       var chapters = _sceState.chapters || [];
