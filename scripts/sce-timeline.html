@@ -34,6 +34,16 @@
       var SLOT_H = 30;
       var GAP = 2;
       var ADD_H = 18;
+
+      // Which scenes currently exist. A block whose scene_id points at a scene
+      // that no longer exists (e.g. its chapter was deleted) can no longer
+      // resolve to a scene slot, so it falls through to the unscoped bucket.
+      var liveSceneIds = {};
+      var sceneCache = sceSceneCache();
+      Object.keys(sceneCache).forEach(function (cid) {
+        (sceneCache[cid] || []).forEach(function (s) { liveSceneIds[s.id] = true; });
+      });
+
       var stateSlots = {};
       states.forEach(function (state) {
         var chs = chapters.filter(function (ch) { return ch.start_state === state.position; });
@@ -41,12 +51,28 @@
         var entries = [];
         var total = 0;
         chs.forEach(function (ch) {
-          var scenes = sceSceneCache()[ch.id] || [];
+          var scenes = sceneCache[ch.id] || [];
           var count = Math.max(1, scenes.length);
           entries.push({ chapter: ch, scenes: scenes, slots: count });
           total += count;
         });
-        stateSlots[state.position] = { entries: entries, total: total, count: entries.length };
+
+        // Reserve height for the unscoped bucket. It is a plain flex stack
+        // outside the slot model, so without this the layer cell grows past the
+        // row and spills over the state below it.
+        var unscopedMax = 0;
+        visibleLayers.forEach(function (layer) {
+          var n = 0;
+          _sceState.blocks.forEach(function (b) {
+            if (b.is_parked || b.is_later_book) return;
+            if (Number(b.layer_id) !== Number(layer.id)) return;
+            if (Number(b.start_state) !== Number(state.position)) return;
+            if (!b.scene_id || !liveSceneIds[b.scene_id]) n++;
+          });
+          if (n > unscopedMax) unscopedMax = n;
+        });
+
+        stateSlots[state.position] = { entries: entries, total: total, count: entries.length, unscoped: unscopedMax };
       });
 
       // Render header (layer columns)
@@ -66,7 +92,7 @@
       // State rows
       states.forEach(function (state) {
         var model = stateSlots[state.position];
-        var rowH = model.total * SLOT_H + model.count * (ADD_H + GAP) + 10 + (ADD_H + GAP);
+        var rowH = model.total * SLOT_H + model.count * (ADD_H + GAP) + 10 + (ADD_H + GAP) + model.unscoped * 30;
 
         bodyHtml += "<div class='sce-state-row' data-state='" + state.position + "' style='min-height:" + rowH + "px;'>";
 
@@ -142,6 +168,14 @@
       // Wire interactions
       wirePortraitInteractions();
       wireSCEColumnResize();
+
+      // The connection overlay is a child of #sceTimelineBody, so the
+      // innerHTML assignment above destroyed it. Rebuild it here rather than
+      // relying on renderSCE() to do it, otherwise every operation that
+      // re-renders the timeline on its own (delete chapter, add chapter,
+      // reorder chapter, add/delete scene) leaves the overlay missing and
+      // misaligned against the new layout.
+      if (typeof renderSCEConnections === "function") renderSCEConnections();
     }
 
     var SCE_COL_DEFAULTS = { state: 120, chapters: 150, scenes: 150 };
