@@ -167,6 +167,7 @@
     }
 
     function moveSCEBlock(blockId, newLayerId, newPosition, newSceneId) {
+      if (sceMutationBlocked("block move")) return;
       var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
       if (!block) return;
 
@@ -311,6 +312,13 @@
         if (resizeState.newStart !== undefined && resizeState.newEnd !== undefined) {
           var block = _sceState.blocks.find(function (b) { return Number(b.id) === resizeState.blockId; });
           if (block) {
+            // Re-render first so the timeline snaps back to the un-resized
+            // layout, then abandon the edit if a replay is in flight.
+            if (sceMutationBlocked("block resize")) {
+              renderSCETimeline();
+              resizeState = null;
+              return;
+            }
             var oldStart = block.start_state;
             var oldEnd = block.end_state;
             block.start_state = resizeState.newStart;

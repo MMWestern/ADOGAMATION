@@ -529,6 +529,7 @@
     }
 
     function quickCreateChapter(statePos) {
+      if (sceMutationBlocked("add chapter")) return;
       var compositionId = _sceState.composition ? _sceState.composition.id : 0;
       if (!compositionId) return;
 
@@ -559,6 +560,7 @@
     }
 
     function quickCreateScene(chapterId) {
+      if (sceMutationBlocked("add scene")) return;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
 
@@ -585,6 +587,7 @@
     }
 
     function quickCreateChapterFast(statePos) {
+      if (sceMutationBlocked("add chapter")) return;
       var compositionId = _sceState.composition ? _sceState.composition.id : 0;
       if (!compositionId) return;
 
@@ -661,6 +664,7 @@
     }
 
     function moveChapterToStateAt(chapterId, statePos, insertIdx) {
+      if (sceMutationBlocked("chapter move")) return;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
 
@@ -684,6 +688,7 @@
     }
 
     function reorderChapterToIndex(chapterId, statePos, insertIdx) {
+      if (sceMutationBlocked("chapter reorder")) return;
       var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
       stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
 

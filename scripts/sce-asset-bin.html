@@ -95,6 +95,7 @@
     }
 
     function createSCEBlockFromAsset(assetId, layerId, statePosition, sceneId) {
+      if (sceMutationBlocked("add block")) return;
       var asset = _sceState.assets.find(function (a) { return Number(a.id) === Number(assetId); });
       if (!asset) return;
 

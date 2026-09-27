@@ -362,6 +362,7 @@
     }
 
     function createSCEConnection(sourceBlockId, targetBlockId, connectionType) {
+      if (sceMutationBlocked("create connection")) return;
       var compositionId = _sceState.composition ? _sceState.composition.id : 0;
       if (!compositionId) return;
 
@@ -395,6 +396,7 @@
     }
 
     function deleteSCEConnection(connId) {
+      if (sceMutationBlocked("delete connection")) return;
       supabaseRunner
         .withSuccessHandler(function () {
           _sceState.connections = _sceState.connections.filter(function (c) { return Number(c.id) !== connId; });
