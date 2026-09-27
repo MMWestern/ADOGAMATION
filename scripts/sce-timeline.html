@@ -66,7 +66,7 @@
       // State rows
       states.forEach(function (state) {
         var model = stateSlots[state.position];
-        var rowH = model.total * SLOT_H + model.count * (ADD_H + GAP) + 10;
+        var rowH = model.total * SLOT_H + model.count * (ADD_H + GAP) + 10 + (ADD_H + GAP);
 
         bodyHtml += "<div class='sce-state-row' data-state='" + state.position + "' style='min-height:" + rowH + "px;'>";
 
@@ -88,7 +88,7 @@
           bodyHtml += "<div style='font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled") + "</div>";
           bodyHtml += "</div>";
         });
-        bodyHtml += "<div class='sce-chapter-drop-zone' data-state-pos='" + state.position + "'></div>";
+        bodyHtml += "<button type='button' class='sce-chapter-add sce-chapter-drop-zone' data-state-pos='" + state.position + "' title='Add chapter to state " + state.position + "'>+</button>";
         bodyHtml += "</div>";
 
         // Scene cell — one dedicated group per chapter, aligned to its chapter cell
@@ -339,28 +339,34 @@
         });
       });
 
+      // Wire chapter add button (also acts as a chapter drop target)
+      document.querySelectorAll(".sce-chapter-add").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          quickCreateChapterFast(Number(btn.getAttribute("data-state-pos")));
+        });
+      });
+
       // Wire chapter drop zones
       document.querySelectorAll(".sce-chapter-drop-zone").forEach(function (zone) {
         zone.addEventListener("dragover", function (e) {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
           if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
-          zone.style.height = "28px";
-          zone.style.border = "2px dashed #3b82f6";
+          zone.classList.add("is-drop-target");
         });
 
         zone.addEventListener("dragleave", function () {
-          zone.style.height = "";
-          zone.style.border = "";
+          zone.classList.remove("is-drop-target");
         });
 
         zone.addEventListener("drop", function (e) {
           e.preventDefault();
-          zone.style.height = "";
-          zone.style.border = "";
+          zone.classList.remove("is-drop-target");
 
           var data = e.dataTransfer.getData("text/plain");
-          if (!data.startsWith("chapter:")) return;
+          if (!data || data.indexOf("chapter:") !== 0) return;
           var draggedId = Number(data.split(":")[1]);
           var statePos = Number(zone.getAttribute("data-state-pos"));
 
@@ -542,6 +548,34 @@
           chapter_id: chapter.id,
           title: title,
           sort_order: existing.length + 1
+        }));
+    }
+
+    function quickCreateChapterFast(statePos) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      var title = "Chapter " + ((_sceState.chapters || []).length + 1);
+      var sortOrder = _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1;
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.chapter) {
+            _sceState.chapters.push(result.chapter);
+            renderSCETimeline();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to add chapter:", err);
+          alert("Failed to add chapter: " + (err.message || err));
+        })
+        .sceSaveChapter(JSON.stringify({
+          composition_id: compositionId,
+          title: title,
+          start_state: statePos,
+          end_state: statePos,
+          sort_order: sortOrder
         }));
     }
 
