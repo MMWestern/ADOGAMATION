@@ -186,29 +186,31 @@
       scePushUndo({
         type: "move_block",
         blockId: blockId,
-        undo: function () {
+        undo: function (done) {
           var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
           if (b) {
             b.layer_id = oldLayerId;
             b.start_state = oldStart;
             b.end_state = oldEnd;
             b.scene_id = oldSceneId;
-            saveSCEBlock(b);
-            renderSCETimeline();
-            renderSCEConnections();
-          }
+            saveSCEBlock(b, function () {
+              renderSCETimeline();
+              if (done) done();
+            });
+          } else if (done) done();
         },
-        redo: function () {
+        redo: function (done) {
           var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
           if (b) {
             b.layer_id = newLayerId;
             b.start_state = newPosition;
             b.end_state = anchorScene ? newPosition : newPosition + span;
             b.scene_id = anchorScene;
-            saveSCEBlock(b);
-            renderSCETimeline();
-            renderSCEConnections();
-          }
+            saveSCEBlock(b, function () {
+              renderSCETimeline();
+              if (done) done();
+            });
+          } else if (done) done();
         }
       });
 
@@ -217,11 +219,12 @@
       renderSCEConnections();
     }
 
-    function saveSCEBlock(block) {
+    function saveSCEBlock(block, done) {
       supabaseRunner
-        .withSuccessHandler(function () {})
+        .withSuccessHandler(function () { if (done) done(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to save block:", err);
+          if (done) done();
         })
         .sceSaveBlock(JSON.stringify(block));
     }
@@ -316,25 +319,27 @@
             scePushUndo({
               type: "resize_block",
               blockId: resizeState.blockId,
-              undo: function () {
-                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === resizeState.blockId; });
+              undo: function (done) {
+                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === Number(resizeState.blockId); });
                 if (b) {
                   b.start_state = oldStart;
                   b.end_state = oldEnd;
-                  saveSCEBlock(b);
-                  renderSCETimeline();
-                  renderSCEConnections();
-                }
+                  saveSCEBlock(b, function () {
+                    renderSCETimeline();
+                    if (done) done();
+                  });
+                } else if (done) done();
               },
-              redo: function () {
-                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === resizeState.blockId; });
+              redo: function (done) {
+                var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === Number(resizeState.blockId); });
                 if (b) {
                   b.start_state = resizeState.newStart;
                   b.end_state = resizeState.newEnd;
-                  saveSCEBlock(b);
-                  renderSCETimeline();
-                  renderSCEConnections();
-                }
+                  saveSCEBlock(b, function () {
+                    renderSCETimeline();
+                    if (done) done();
+                  });
+                } else if (done) done();
               }
             });
 

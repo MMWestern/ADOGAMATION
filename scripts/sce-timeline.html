@@ -654,8 +654,8 @@
     function sceCommitChapterMove(before, after) {
       scePushUndo({
         type: "move_chapter",
-        undo: function () { sceWriteChapterRows(before, sceReloadAndRender); },
-        redo: function () { sceWriteChapterRows(after, sceReloadAndRender); }
+        undo: function (done) { sceWriteChapterRows(before, function () { sceReloadAndRender(done); }); },
+        redo: function (done) { sceWriteChapterRows(after, function () { sceReloadAndRender(done); }); }
       });
       sceWriteChapterRows(after, sceReloadAndRender);
     }

@@ -15,6 +15,7 @@
       selectedAssetId: null,
       undoStack: [],
       redoStack: [],
+      replayBusy: false,
       dirty: false,
       initialized: false
     };
@@ -497,27 +498,52 @@
       updateSCEUndoRedoButtons();
     }
 
-    function sceUndo() {
-      if (!_sceState.undoStack.length) return;
-      var action = _sceState.undoStack.pop();
-      _sceState.redoStack.push(action);
-      action.undo();
+    // Replaying a record is asynchronous: it writes rows and then re-reads the
+    // chapters and scenes. Two replays in flight at once can write the same rows
+    // in either order, so only one is allowed at a time and the rest are
+    // ignored until it reports back through its done() callback.
+    function sceRunReplay(stackName) {
+      if (_sceState.replayBusy) return;
+
+      var from = stackName === "redo" ? _sceState.redoStack : _sceState.undoStack;
+      var to = stackName === "redo" ? _sceState.undoStack : _sceState.redoStack;
+      if (!from.length) return;
+
+      var action = from.pop();
+      to.push(action);
+
+      var finished = false;
+      var release = function () {
+        if (finished) return;
+        finished = true;
+        _sceState.replayBusy = false;
+        updateSCEUndoRedoButtons();
+      };
+
+      _sceState.replayBusy = true;
       updateSCEUndoRedoButtons();
+
+      var run = stackName === "redo" ? action.redo : action.undo;
+      try {
+        run(release);
+      } catch (err) {
+        // Never leave the guard set, or undo would be dead for the session.
+        console.error("[SCE] Undo/redo failed:", err);
+        release();
+      }
     }
 
-    function sceRedo() {
-      if (!_sceState.redoStack.length) return;
-      var action = _sceState.redoStack.pop();
-      _sceState.undoStack.push(action);
-      action.redo();
-      updateSCEUndoRedoButtons();
-    }
+    function sceUndo() { sceRunReplay("undo"); }
+
+    function sceRedo() { sceRunReplay("redo"); }
 
     function updateSCEUndoRedoButtons() {
       var undoBtn = document.getElementById("sceUndoBtn");
       var redoBtn = document.getElementById("sceRedoBtn");
-      if (undoBtn) undoBtn.disabled = !_sceState.undoStack.length;
-      if (redoBtn) redoBtn.disabled = !_sceState.redoStack.length;
+      // Both buttons go dead during a replay: a record is moved between the
+      // stacks before it runs, so the other direction would desync them.
+      if (undoBtn) undoBtn.disabled = _sceState.replayBusy || !_sceState.undoStack.length;
+      if (redoBtn) redoBtn.disabled = _sceState.replayBusy || !_sceState.redoStack.length;
     }
 
     // ----------------------------------------------------------
@@ -534,10 +560,11 @@
     // variables that are consumed at call time.
     // ----------------------------------------------------------
 
-    function sceReloadAndRender() {
+    function sceReloadAndRender(done) {
       loadSCEChaptersAndScenes(function () {
         renderSCETimeline();
         renderSCEInspector();
+        if (done) done();
       });
     }
 
@@ -671,13 +698,14 @@
     }
 
     // Undo record for creating a chapter. Undo removes it, redo puts the same
-    // row back under its original id.
+    // row back under its original id. Each takes a done() callback so the
+    // replay guard knows when the round trip has finished.
     function sceUndoAddChapter(chapterRow) {
       scePushUndo({
         type: "add_chapter",
         chapterId: chapterRow.id,
-        undo: function () { sceDeleteChapterRow(chapterRow.id, sceReloadAndRender); },
-        redo: function () { sceWriteChapterRow(chapterRow, sceReloadAndRender); }
+        undo: function (done) { sceDeleteChapterRow(chapterRow.id, function () { sceReloadAndRender(done); }); },
+        redo: function (done) { sceWriteChapterRow(chapterRow, function () { sceReloadAndRender(done); }); }
       });
     }
 
@@ -686,16 +714,16 @@
       scePushUndo({
         type: "delete_chapter",
         chapterId: snap.id,
-        undo: function () {
+        undo: function (done) {
           sceWriteChapterRow(snap, function () {
             var i = 0;
             (function nextScene() {
-              if (i >= snap.scenes.length) { sceReanchorBlocks(snap.blocks, sceReloadAndRender); return; }
+              if (i >= snap.scenes.length) { sceReanchorBlocks(snap.blocks, function () { sceReloadAndRender(done); }); return; }
               sceWriteSceneRow(snap.scenes[i++], nextScene);
             })();
           });
         },
-        redo: function () { sceDeleteChapterRow(snap.id, sceReloadAndRender); }
+        redo: function (done) { sceDeleteChapterRow(snap.id, function () { sceReloadAndRender(done); }); }
       });
     }
 
@@ -703,8 +731,8 @@
       scePushUndo({
         type: "add_scene",
         sceneId: sceneRow.id,
-        undo: function () { sceDeleteSceneRow(sceneRow.id, sceReloadAndRender); },
-        redo: function () { sceWriteSceneRow(sceneRow, sceReloadAndRender); }
+        undo: function (done) { sceDeleteSceneRow(sceneRow.id, function () { sceReloadAndRender(done); }); },
+        redo: function (done) { sceWriteSceneRow(sceneRow, function () { sceReloadAndRender(done); }); }
       });
     }
 
@@ -713,12 +741,12 @@
       scePushUndo({
         type: "delete_scene",
         sceneId: snap.scene.id,
-        undo: function () {
+        undo: function (done) {
           sceWriteSceneRow(snap.scene, function () {
-            sceReanchorBlocks(snap.blocks, sceReloadAndRender);
+            sceReanchorBlocks(snap.blocks, function () { sceReloadAndRender(done); });
           });
         },
-        redo: function () { sceDeleteSceneRow(snap.scene.id, sceReloadAndRender); }
+        redo: function (done) { sceDeleteSceneRow(snap.scene.id, function () { sceReloadAndRender(done); }); }
       });
     }
 
