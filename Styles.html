@@ -18697,6 +18697,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       display: flex;
       border-bottom: 1px solid var(--border);
       min-height: 50px;
+      align-items: flex-start;
     }
     .sce-state-label {
       width: 120px;
@@ -18731,9 +18732,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-state-cell {
       border-right: 1px solid var(--border);
       padding: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+      box-sizing: border-box;
     }
     .sce-state-cell-chapters {
       width: 150px;
@@ -18743,10 +18742,14 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       width: 150px;
       min-width: 150px;
     }
-    .sce-state-cell-layer {
+    .sce-layer-cell {
       width: 200px;
       min-width: 200px;
-      position: relative;
+      min-height: 32px;
+      border-right: 1px solid var(--border);
+      flex-shrink: 0;
+      box-sizing: border-box;
+      padding: 4px;
     }
     .sce-chapter-drop-zone {
       height: 4px;
