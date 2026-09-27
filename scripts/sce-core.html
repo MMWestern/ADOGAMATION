@@ -537,6 +537,35 @@
 
     function sceRedo() { sceRunReplay("redo"); }
 
+    // Transient notice. The app has no toast system and alert() is far too
+    // heavy for a condition that clears in under a second.
+    function sceFlash(message) {
+      var host = document.getElementById("sceRoot") || document.body;
+      if (!host) return;
+      var el = document.createElement("div");
+      el.textContent = message;
+      el.style.cssText = "position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:9999;" +
+        "padding:6px 12px;border-radius:4px;font-size:12px;font-weight:600;color:#fff;" +
+        "background:rgba(20,20,24,0.94);border:1px solid #3a3a42;pointer-events:none;";
+      host.appendChild(el);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1400);
+    }
+
+    // An undo/redo replay issues several row writes and then re-reads. A new
+    // edit started in that window can land before or after the replay's writes
+    // and leave the two interleaved, so mutations refuse to begin while a
+    // replay is in flight.
+    //
+    // Only user-initiated actions are guarded. The helpers the replay itself
+    // uses (sceWriteChapterRow and friends) must never check this, or the
+    // replay would block itself and the guard would never release.
+    function sceMutationBlocked(actionName) {
+      if (!_sceState.replayBusy) return false;
+      console.warn("[SCE] Ignored " + (actionName || "change") + ": an undo/redo is still in progress.");
+      sceFlash("Finishing undo/redo…");
+      return true;
+    }
+
     function updateSCEUndoRedoButtons() {
       var undoBtn = document.getElementById("sceUndoBtn");
       var redoBtn = document.getElementById("sceRedoBtn");

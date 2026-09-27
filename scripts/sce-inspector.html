@@ -155,6 +155,7 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete this block?")) return;
+          if (sceMutationBlocked("delete block")) return;
           supabaseRunner
             .withSuccessHandler(function () {
               _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.id) !== Number(block.id); });
@@ -182,6 +183,7 @@
       var convertBtn = document.getElementById("sceBlockConvertPrecomp");
       if (convertBtn) {
         convertBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("convert to precomp")) return;
           var project = getSelectedProject();
           var seriesId = Number(project && project.series_id || 0);
           if (!seriesId) return;
@@ -366,6 +368,7 @@
         colorPicker.addEventListener("click", function (e) {
           var swatch = e.target.closest("[data-color]");
           if (!swatch) return;
+          if (sceMutationBlocked("chapter colour")) return;
           chapter.color = swatch.getAttribute("data-color");
           // Update selection visual
           colorPicker.querySelectorAll("[data-color]").forEach(function (el) {
@@ -383,6 +386,7 @@
       var saveBtn = document.getElementById("sceChapterSave");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("save chapter")) return;
           chapter.title = document.getElementById("sceChapterTitle").value;
           chapter.start_state = Number(document.getElementById("sceChapterStart").value);
           chapter.end_state = Number(document.getElementById("sceChapterEnd").value);
@@ -397,6 +401,7 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete this chapter and all its scenes?")) return;
+          if (sceMutationBlocked("delete chapter")) return;
           // Capture the chapter, its scenes and any blocks anchored to them
           // before the delete, so undo can put all three back.
           var snap = sceSnapshotChapter(chapter.id);
@@ -419,6 +424,7 @@
       var addSceneBtn = document.getElementById("sceChapterAddScene");
       if (addSceneBtn) {
         addSceneBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("add scene")) return;
           var title = prompt("Scene title:");
           if (!title) return;
           supabaseRunner
@@ -536,6 +542,7 @@
       var saveBtn = document.getElementById("sceSceneSave");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("save scene")) return;
           scene.title = document.getElementById("sceSceneTitle").value;
           scene.before_text = document.getElementById("sceSceneBefore").value;
           scene.what_happens = document.getElementById("sceSceneWhat").value;
@@ -559,6 +566,7 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete this scene?")) return;
+          if (sceMutationBlocked("delete scene")) return;
           var snap = sceSnapshotScene(scene.id);
           supabaseRunner
             .withSuccessHandler(function () {
