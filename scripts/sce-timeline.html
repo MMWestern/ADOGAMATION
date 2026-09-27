@@ -59,7 +59,6 @@
         var h = rowHeights[state.position] || 50;
         var stateChapters = chapters.filter(function (ch) { return ch.start_state === state.position; });
         stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-        console.log("[SCE] State", state.position, "has", stateChapters.length, "chapters");
 
         bodyHtml += "<div class='sce-state-row' data-state='" + state.position + "' style='min-height:" + h + "px;'>";
 
