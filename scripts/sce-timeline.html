@@ -119,6 +119,7 @@
               var scene = entry.scenes[si];
               bodyHtml += "<div class='sce-scene-slot' data-layer-id='" + layer.id + "' data-state='" + state.position + "' data-chapter-id='" + chapter.id + "' data-scene-id='" + (scene ? scene.id : "") + "' style='height:" + (SLOT_H - GAP) + "px;'></div>";
             }
+            bodyHtml += "<div class='sce-slot-pad' style='height:" + ADD_H + "px;'></div>";
             bodyHtml += "</div>";
           });
           bodyHtml += "<div class='sce-layer-unscoped' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
