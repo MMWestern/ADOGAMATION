@@ -274,6 +274,56 @@
         });
       });
 
+      // Wire chapter blocks as within-state reorder drop targets
+      document.querySelectorAll(".sce-chapter-block").forEach(function (cell) {
+        cell.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
+          var r = cell.getBoundingClientRect();
+          cell.style.boxShadow = ((e.clientY - r.top) < r.height / 2)
+            ? "inset 0 3px 0 #3b82f6"
+            : "inset 0 -3px 0 #3b82f6";
+        });
+
+        cell.addEventListener("dragleave", function () {
+          cell.style.boxShadow = "";
+        });
+
+        cell.addEventListener("drop", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          cell.style.boxShadow = "";
+
+          var data = e.dataTransfer.getData("text/plain");
+          if (!data || data.indexOf("chapter:") !== 0) return;
+          var draggedId = Number(data.split(":")[1]);
+          var targetId = Number(cell.getAttribute("data-chapter-id"));
+          if (!draggedId || !targetId || draggedId === targetId) return;
+
+          var stateRow = cell.closest(".sce-state-row");
+          if (!stateRow) return;
+          var statePos = Number(stateRow.getAttribute("data-state"));
+
+          var rect = cell.getBoundingClientRect();
+          var before = (e.clientY - rect.top) < rect.height / 2;
+
+          // Mirror the list moveChapterToStateAt builds: target state minus the dragged chapter
+          var withoutDragged = _sceState.chapters.filter(function (c) {
+            return c.start_state === statePos && Number(c.id) !== draggedId;
+          }).sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+
+          var tIdx = -1;
+          for (var i = 0; i < withoutDragged.length; i++) {
+            if (Number(withoutDragged[i].id) === targetId) { tIdx = i; break; }
+          }
+          if (tIdx === -1) return;
+
+          moveChapterToStateAt(draggedId, statePos, before ? tIdx : tIdx + 1);
+        });
+      });
+
       // Wire chapter drop zones
       document.querySelectorAll(".sce-chapter-drop-zone").forEach(function (zone) {
         zone.addEventListener("dragover", function (e) {
