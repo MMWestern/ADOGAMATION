@@ -18611,13 +18611,11 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-timeline-wrap {
       flex: 1;
       display: flex;
-      flex-direction: column;
       overflow: auto;
     }
     .sce-timeline {
       flex: 1;
       overflow: auto;
-      display: block;
     }
     .sce-layer-controls {
       padding: 2px;
@@ -18666,7 +18664,6 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-timeline {
       flex: 1;
       overflow: auto;
-      display: block;
     }
 
     /* Portrait/Vertical Layout */
@@ -18701,16 +18698,15 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       text-align: center;
     }
     .sce-state-row {
-      display: block;
+      display: flex;
+      align-items: stretch;
       border-bottom: 1px solid var(--border);
       min-height: 50px;
-      white-space: nowrap;
     }
     .sce-state-label {
-      display: inline-block;
-      vertical-align: top;
       width: 120px;
       min-width: 120px;
+      flex-shrink: 0;
       padding: 8px;
       border-right: 1px solid var(--border);
       position: sticky;
@@ -18738,12 +18734,13 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       opacity: 1;
     }
     .sce-state-cell {
-      display: inline-block;
-      vertical-align: top;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      justify-content: flex-start;
       border-right: 1px solid var(--border);
       padding: 4px;
       box-sizing: border-box;
-      white-space: normal;
     }
     .sce-state-cell-chapters {
       width: 150px;
@@ -18754,12 +18751,11 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       min-width: 150px;
     }
     .sce-layer-cell {
-      display: inline-block;
-      vertical-align: top;
       width: 200px;
       min-width: 200px;
       min-height: 32px;
       border-right: 1px solid var(--border);
+      flex-shrink: 0;
       box-sizing: border-box;
       padding: 4px;
     }
@@ -18873,9 +18869,11 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       vertical-align: middle;
     }
     .sce-chapter-block {
-      position: absolute;
-      top: 1px;
-      height: 22px;
+      position: static;
+      top: auto;
+      left: auto;
+      height: auto;
+      min-height: 22px;
       background: #3b82f6;
       border-radius: 3px;
       padding: 2px 6px;
@@ -18887,8 +18885,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       overflow: hidden;
       text-overflow: ellipsis;
       z-index: 2;
-      display: flex;
-      align-items: center;
+      display: block;
     }
     .sce-chapter-block:hover {
       filter: brightness(1.15);
