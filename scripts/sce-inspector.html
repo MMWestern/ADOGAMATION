@@ -86,12 +86,27 @@
       var topDelta = eRect.top - tRect.top;
       var leftDelta = eRect.left - tRect.left;
 
+      // Work out where to land, but leave the offsets alone unless the block
+      // is actually off screen, so an already-visible block is left strictly
+      // where it is.
+      var top = timeline.scrollTop;
+      var left = timeline.scrollLeft;
       if (topDelta < 0 || topDelta + eRect.height > tRect.height) {
-        timeline.scrollTop += topDelta - (tRect.height - eRect.height) / 2;
+        top += topDelta - (tRect.height - eRect.height) / 2;
       }
       if (leftDelta < 0 || leftDelta + eRect.width > tRect.width) {
-        timeline.scrollLeft += leftDelta;
+        left += leftDelta;
       }
+      if (top === timeline.scrollTop && left === timeline.scrollLeft) return;
+
+      // Slide rather than snap. With reduced motion requested an instant jump
+      // is the point of the setting, so honour that instead.
+      var reduce = false;
+      try {
+        reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      } catch (e) {}
+
+      timeline.scrollTo({ top: top, left: left, behavior: reduce ? "auto" : "smooth" });
     }
 
     function renderSCEInspector() {
