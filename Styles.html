@@ -18895,6 +18895,11 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       outline: 2px solid #fff;
       outline-offset: -1px;
     }
+    /* A block in the selected block's connection thread. Distinct from
+       is-selected so the anchor block stays the brightest thing on screen. */
+    .sce-block.is-linked {
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55);
+    }
     .sce-block-title {
       font-size: 11px;
       font-weight: 600;
@@ -19017,6 +19022,12 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
     .sce-block-connect-highlight {
       outline: 2px solid #3b82f6 !important;
+      outline-offset: 1px;
+    }
+    /* Dropped a connect drag on a block in another column. Connections never
+       cross columns, so this target can never accept the line. */
+    .sce-block-connect-rejected {
+      outline: 2px solid #ef4444 !important;
       outline-offset: 1px;
     }
 

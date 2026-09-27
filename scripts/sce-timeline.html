@@ -493,22 +493,27 @@
 
     function selectSCEBlock(blockId) {
       _sceState.selectedBlockId = blockId;
+      _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
-
+      
       // Update visual selection
       document.querySelectorAll(".sce-block").forEach(function (el) {
-        el.classList.toggle("is-selected", Number(el.getAttribute("data-block-id")) === blockId);
+      el.classList.toggle("is-selected", Number(el.getAttribute("data-block-id")) === blockId);
       });
-
+      
+      // Light this block's connection thread
+      sceApplyConnectionEmphasis();
+      
       // Update inspector
       var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
       if (block) {
-        renderSCEInspectorBlock(block);
+      renderSCEInspectorBlock(block);
       }
     }
-
+    
     function selectSCEChapter(chapterId) {
       _sceState.selectedBlockId = null;
+      _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (chapter) {

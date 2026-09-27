@@ -12,6 +12,7 @@
       chapters: [],
       sceneCache: {},
       selectedBlockId: null,
+      selectedConnectionId: null,
       selectedAssetId: null,
       undoStack: [],
       redoStack: [],
@@ -401,18 +402,6 @@
         toggleBtn.addEventListener("click", function () {
           _sceShowConnections = !_sceShowConnections;
           toggleBtn.style.opacity = _sceShowConnections ? "1" : "0.4";
-          renderSCEConnections();
-        });
-      }
-
-      // Toggle line style (curved ↔ angular)
-      var lineStyleBtn = document.getElementById("sceToggleLineStyle");
-      if (lineStyleBtn && !lineStyleBtn._wired) {
-        lineStyleBtn._wired = true;
-        lineStyleBtn.addEventListener("click", function () {
-          _sceConnectionLineStyle = _sceConnectionLineStyle === "angular" ? "curved" : "angular";
-          lineStyleBtn.textContent = _sceConnectionLineStyle === "angular" ? "⌐" : "⌒";
-          lineStyleBtn.title = "Connection line style: " + (_sceConnectionLineStyle === "angular" ? "Angular" : "Curved");
           renderSCEConnections();
         });
       }
@@ -857,6 +846,7 @@
       _sceState.assets = _sceParentState.assets;
       _sceState.connections = _sceParentState.connections;
       _sceState.selectedBlockId = null;
+      _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
       _sceParentState = null;
 

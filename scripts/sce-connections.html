@@ -15,25 +15,121 @@
     };
 
     var _sceShowConnections = true;
-    var _sceConnectionLineStyle = "angular"; // "curved" or "angular"
+
+    // Every connection is drawn as a bracket on the right-hand side of its
+    // column: leave the source's right edge, run down a vertical lane just
+    // past the rightmost edge, and re-enter the target's right edge. Both
+    // ends are on the right because a block's connect dot only exists there.
+    //
+    // There used to be four hand-rolled branches (same column, going left,
+    // adjacent column, far away) chosen by comparing rectangles. Connections
+    // are always vertical within one layer column now, so one shape covers
+    // every case and the columns can never be crossed.
+    var SCE_CONNECTION_LANE_GAP = 14;
+    var SCE_CONNECTION_CORNER = 6;
+    var SCE_CONNECTION_DIM_OPACITY = 0.5;
+    var SCE_CONNECTION_LIT_OPACITY = 1;
+
+    // Blocks carry no data-layer-id of their own, so resolve the column from
+    // state. Used to reject a drop that would cross columns.
+    function sceBlockLayerId(blockId) {
+      var b = _sceState.blocks.find(function (x) { return Number(x.id) === Number(blockId); });
+      return b ? Number(b.layer_id) : null;
+    }
+
+    function sceSameColumn(sourceBlockId, targetBlockId) {
+      var a = sceBlockLayerId(sourceBlockId);
+      var b = sceBlockLayerId(targetBlockId);
+      return a !== null && b !== null && a === b;
+    }
+
+    // Every connection reachable from the selected block, following the graph
+    // in both directions. Selecting one block lights the whole thread so a
+    // chain of setups and payoffs can be read at a glance.
+    function sceConnectionThread(blockId) {
+      var conns = new Set();
+      var blocks = new Set();
+      if (!blockId) return { conns: conns, blocks: blocks };
+
+      var byId = new Map();
+      _sceState.connections.forEach(function (c) {
+        byId.set(Number(c.id), c);
+      });
+
+      var queue = [Number(blockId)];
+      blocks.add(Number(blockId));
+      while (queue.length) {
+        var current = queue.shift();
+        _sceState.connections.forEach(function (c) {
+          var s = Number(c.source_block_id);
+          var t = Number(c.target_block_id);
+          if (s !== current && t !== current) return;
+          if (!conns.has(Number(c.id))) conns.add(Number(c.id));
+          [s, t].forEach(function (id) {
+            if (!blocks.has(id)) {
+              blocks.add(id);
+              queue.push(id);
+            }
+          });
+        });
+      }
+      return { conns: conns, blocks: blocks };
+    }
+
+    // Called after every render and every selection change. Dim every line,
+    // then light the selected block's thread and outline its partner blocks.
+    function sceApplyConnectionEmphasis() {
+      var thread = sceConnectionThread(_sceState.selectedBlockId);
+
+      // A connection open in the inspector counts as a thread of one, so
+      // clicking a dim line gives visible feedback instead of a dead click.
+      if (_sceState.selectedConnectionId) {
+        var open = _sceState.connections.find(function (c) {
+          return Number(c.id) === Number(_sceState.selectedConnectionId);
+        });
+        if (open) {
+          thread.conns.add(Number(open.id));
+          thread.blocks.add(Number(open.source_block_id));
+          thread.blocks.add(Number(open.target_block_id));
+        }
+      }
+
+      var svg = document.getElementById("sceConnectionSvg");
+      if (svg) {
+        svg.querySelectorAll("path[data-connection-id]").forEach(function (p) {
+          var lit = thread.conns.has(Number(p.getAttribute("data-connection-id")));
+          p.setAttribute("opacity", lit ? SCE_CONNECTION_LIT_OPACITY : SCE_CONNECTION_DIM_OPACITY);
+          p.setAttribute("stroke-width", lit ? "2.5" : "2");
+        });
+        svg.querySelectorAll("text[data-connection-id]").forEach(function (t) {
+          t.setAttribute("opacity", thread.conns.has(Number(t.getAttribute("data-connection-id")))
+            ? SCE_CONNECTION_LIT_OPACITY : SCE_CONNECTION_DIM_OPACITY);
+        });
+      }
+      var selectedId = _sceState.selectedBlockId;
+      document.querySelectorAll(".sce-block").forEach(function (el) {
+        var id = Number(el.getAttribute("data-block-id"));
+        // The anchor block already has the brighter is-selected outline, so
+        // only its partners get the softer linked ring.
+        el.classList.toggle("is-linked", id !== selectedId && thread.blocks.has(id));
+      });
+    }
 
     function renderSCEConnections() {
-      // Remove existing SVG overlay
       var existingSvg = document.getElementById("sceConnectionSvg");
       if (existingSvg) existingSvg.remove();
 
-      if (!_sceShowConnections) return;
-      if (!_sceState.connections || !_sceState.connections.length) return;
-
-      var timeline = document.getElementById("sceTimeline");
-      if (!timeline) return;
+      if (!_sceShowConnections) {
+        sceApplyConnectionEmphasis();
+        return;
+      }
+      if (!_sceState.connections || !_sceState.connections.length) {
+        sceApplyConnectionEmphasis();
+        return;
+      }
 
       var body = document.getElementById("sceTimelineBody");
       if (!body) return;
-
-      // Log for debugging refresh issue
-      var blocksInDom = body.querySelectorAll('[data-block-id]').length;
-      console.log("[SCE] Rendering", _sceState.connections.length, "connections,", blocksInDom, "blocks in DOM");
 
       var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.id = "sceConnectionSvg";
@@ -41,7 +137,6 @@
       svg.setAttribute("width", body.scrollWidth);
       svg.setAttribute("height", body.scrollHeight);
 
-      // Add arrowhead marker
       var defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
       SCE_CONNECTION_TYPES.forEach(function (ct) {
         var color = SCE_CONNECTION_COLORS[ct.key] || "#888";
@@ -61,127 +156,63 @@
       });
       svg.appendChild(defs);
 
-      // Draw connections
+      // The overlay is absolutely positioned inside the body, which is itself
+      // inside the scrolling .sce-timeline, so rect differences are already in
+      // the body's own coordinate space. No scroll offset is needed here.
+      var bodyRect = body.getBoundingClientRect();
+
       _sceState.connections.forEach(function (conn) {
         var sourceBlock = body.querySelector('[data-block-id="' + conn.source_block_id + '"]');
         var targetBlock = body.querySelector('[data-block-id="' + conn.target_block_id + '"]');
         if (!sourceBlock || !targetBlock) return;
 
-        var sourceRect = sourceBlock.getBoundingClientRect();
-        var targetRect = targetBlock.getBoundingClientRect();
-        var bodyRect = body.getBoundingClientRect();
+        var sRect = sourceBlock.getBoundingClientRect();
+        var tRect = targetBlock.getBoundingClientRect();
 
-        // Get dot position (source exit point)
-        var dot = sourceBlock.querySelector('.sce-block-connect-node');
-        var dotRect = dot ? dot.getBoundingClientRect() : sourceRect;
-        var x1 = dotRect.left + dotRect.width / 2 - bodyRect.left + body.scrollLeft;
-        var y1 = dotRect.top + dotRect.height / 2 - bodyRect.top + body.scrollTop;
+        // Anchor on the right edge, vertically centred, for both ends.
+        var x1 = sRect.right - bodyRect.left;
+        var y1 = sRect.top + sRect.height / 2 - bodyRect.top;
+        var x2 = tRect.right - bodyRect.left;
+        var y2 = tRect.top + tRect.height / 2 - bodyRect.top;
 
-        // Target entry point (left side, vertically centered)
-        var x2 = targetRect.left - bodyRect.left + body.scrollLeft;
-        var y2 = targetRect.top + targetRect.height / 2 - bodyRect.top + body.scrollTop;
+        // Run the vertical leg just past the wider of the two blocks so the
+        // lane never crosses back over the column it belongs to.
+        var laneX = Math.max(x1, x2) + SCE_CONNECTION_LANE_GAP;
+        var dy = y2 - y1;
+        // The corners consume r of travel at each end, so a gap shorter than
+        // 2r would make the vertical leg run backwards through itself. Blocks
+        // in neighbouring states are only a few pixels apart, so clamp.
+        var r = Math.min(SCE_CONNECTION_CORNER, Math.abs(dy) / 2);
+        var d;
 
-        var dx = x2 - x1;
-        // Detect same-column by comparing block center positions (not dot-to-edge)
-        var sourceCenterX = sourceRect.left + sourceRect.width / 2;
-        var targetCenterX = targetRect.left + targetRect.width / 2;
-        var isSameColumn = Math.abs(sourceCenterX - targetCenterX) < sourceRect.width * 0.6;
-        var isGoingLeft = !isSameColumn && dx < -10;
-        var isAdjacent = !isSameColumn && !isGoingLeft && dx < 150; // next column over
-        var radius = 6;
+        if (r < 1) {
+          // No room for corners. Bump out and back so the connection is still
+          // visible rather than collapsing into a dot.
+          d = "M " + x1 + " " + y1 +
+              " C " + (x1 + 8) + " " + (y1 - 8) + " " + (laneX - 4) + " " + (y1 - 8) + " " + laneX + " " + y1 +
+              " C " + (laneX + 4) + " " + (y2 + 8) + " " + (x2 + 8) + " " + (y2 + 8) + " " + x2 + " " + y2;
+        } else {
+          var dir = dy > 0 ? 1 : -1;
+          d = "M " + x1 + " " + y1 +
+              " L " + (laneX - r) + " " + y1 +
+              " Q " + laneX + " " + y1 + " " + laneX + " " + (y1 + dir * r) +
+              " L " + laneX + " " + (y2 - dir * r) +
+              " Q " + laneX + " " + y2 + " " + (laneX - r) + " " + y2 +
+              " L " + x2 + " " + y2;
+        }
 
         var color = SCE_CONNECTION_COLORS[conn.connection_type] || "#888";
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        var d;
-
-        if (isSameColumn) {
-          // Same column — exit right, loop below target, enter from left
-          var exitX = sourceRect.right - bodyRect.left + body.scrollLeft + 16;
-          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
-          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
-          var loopY = Math.max(sourceBottom, targetBottom) + 20;
-          var leftX = x2 - 16; // go past target's left edge
-          var r = 6;
-          d = "M " + x1 + " " + y1 +
-              " L " + (exitX - r) + " " + y1 +
-              " Q " + exitX + " " + y1 + " " + exitX + " " + (y1 + r) +
-              " L " + exitX + " " + (loopY - r) +
-              " Q " + exitX + " " + loopY + " " + (exitX - r) + " " + loopY +
-              " L " + (leftX + r) + " " + loopY +
-              " Q " + leftX + " " + loopY + " " + leftX + " " + (loopY - r) +
-              " L " + leftX + " " + (y2 + r) +
-              " Q " + leftX + " " + y2 + " " + (leftX + r) + " " + y2 +
-              " L " + x2 + " " + y2;
-        } else if (isGoingLeft) {
-          // Going left: U-shaped return path below both cards
-          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
-          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
-          var laneY = Math.max(sourceBottom, targetBottom) + 24;
-          var leftEdge = Math.min(x1, x2) - 16;
-          var r = Math.min(radius, 12);
-          d = "M " + x1 + " " + y1 +
-              " L " + x1 + " " + (laneY - r) +
-              " Q " + x1 + " " + laneY + " " + (x1 - r) + " " + laneY +
-              " L " + (leftEdge + r) + " " + laneY +
-              " Q " + leftEdge + " " + laneY + " " + leftEdge + " " + (laneY - r) +
-              " L " + leftEdge + " " + (y2 + r) +
-              " Q " + leftEdge + " " + y2 + " " + (leftEdge + r) + " " + y2 +
-              " L " + x2 + " " + y2;
-        } else if (isAdjacent) {
-          // Adjacent column — exit vertically from dot, then horizontal to target
-          var dy = y2 - y1;
-          if (Math.abs(dy) < 10) {
-            d = "M " + x1 + " " + y1 + " L " + x2 + " " + y2;
-          } else {
-            var r = Math.min(radius, Math.abs(dy) / 2);
-            if (dy > 0) {
-              d = "M " + x1 + " " + y1 +
-                  " L " + x1 + " " + (y2 - r) +
-                  " Q " + x1 + " " + y2 + " " + (x1 + r) + " " + y2 +
-                  " L " + x2 + " " + y2;
-            } else {
-              d = "M " + x1 + " " + y1 +
-                  " L " + x1 + " " + (y2 + r) +
-                  " Q " + x1 + " " + y2 + " " + (x1 + r) + " " + y2 +
-                  " L " + x2 + " " + y2;
-            }
-          }
-        } else {
-          // Far away — horizontal midpoint elbow
-          var dy = y2 - y1;
-          if (Math.abs(dy) < 10) {
-            d = "M " + x1 + " " + y1 + " L " + x2 + " " + y2;
-          } else {
-            var midX = x1 + (x2 - x1) / 2;
-            var r = Math.min(radius, (midX - x1) / 2, (x2 - midX) / 2, Math.abs(dy) / 2);
-            if (dy > 0) {
-              d = "M " + x1 + " " + y1 +
-                  " L " + (midX - r) + " " + y1 +
-                  " Q " + midX + " " + y1 + " " + midX + " " + (y1 + r) +
-                  " L " + midX + " " + (y2 - r) +
-                  " Q " + midX + " " + y2 + " " + (midX + r) + " " + y2 +
-                  " L " + x2 + " " + y2;
-            } else {
-              d = "M " + x1 + " " + y1 +
-                  " L " + (midX - r) + " " + y1 +
-                  " Q " + midX + " " + y1 + " " + midX + " " + (y1 - r) +
-                  " L " + midX + " " + (y2 + r) +
-                  " Q " + midX + " " + y2 + " " + (midX + r) + " " + y2 +
-                  " L " + x2 + " " + y2;
-            }
-          }
-        }
         path.setAttribute("d", d);
         path.setAttribute("stroke", color);
         path.setAttribute("stroke-width", "2");
         path.setAttribute("fill", "none");
-        path.setAttribute("opacity", "0.7");
+        path.setAttribute("opacity", String(SCE_CONNECTION_DIM_OPACITY));
         path.setAttribute("marker-end", "url(#arrow-" + conn.connection_type + ")");
         path.setAttribute("data-connection-id", conn.id);
         path.style.pointerEvents = "stroke";
         path.style.cursor = "pointer";
 
-        // Click to select connection
         path.addEventListener("click", function (e) {
           e.stopPropagation();
           selectSCEConnection(conn.id);
@@ -189,26 +220,14 @@
 
         svg.appendChild(path);
 
-        // Label position
-        var labelX, labelY;
-        if (isGoingLeft) {
-          // Backward: place label in the return lane
-          var sourceBottom = sourceRect.bottom - bodyRect.top + body.scrollTop;
-          var targetBottom = targetRect.bottom - bodyRect.top + body.scrollTop;
-          var laneY = Math.max(sourceBottom, targetBottom) + 24;
-          labelX = (x1 + Math.min(x1, x2) - 16) / 2;
-          labelY = laneY + 4;
-        } else {
-          labelX = (x1 + x2) / 2;
-          labelY = (y1 + y2) / 2 - 8;
-        }
+        // Label sits on the lane beside the vertical leg, clear of the blocks.
         var label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        label.setAttribute("x", labelX);
-        label.setAttribute("y", labelY);
-        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("x", laneX + 4);
+        label.setAttribute("y", (y1 + y2) / 2);
+        label.setAttribute("text-anchor", "start");
         label.setAttribute("font-size", "9");
         label.setAttribute("fill", color);
-        label.setAttribute("opacity", "0.8");
+        label.setAttribute("opacity", String(SCE_CONNECTION_DIM_OPACITY));
         label.setAttribute("data-connection-id", conn.id);
         var typeObj = SCE_CONNECTION_TYPES.find(function (t) { return t.key === conn.connection_type; });
         label.textContent = typeObj ? typeObj.label : conn.connection_type;
@@ -217,18 +236,18 @@
 
       body.style.position = "relative";
       body.appendChild(svg);
+
+      sceApplyConnectionEmphasis();
     }
 
     function selectSCEConnection(connId) {
       _sceState.selectedBlockId = null;
+      _sceState.selectedConnectionId = Number(connId);
       _sceState.selectedAssetId = null;
-      // Highlight the connection
-      document.querySelectorAll("#sceConnectionSvg path").forEach(function (p) {
-        var isThis = Number(p.getAttribute("data-connection-id")) === connId;
-        p.setAttribute("stroke-width", isThis ? "3" : "2");
-        p.setAttribute("opacity", isThis ? "1" : "0.7");
+      document.querySelectorAll(".sce-block").forEach(function (el) {
+        el.classList.remove("is-selected");
       });
-      // Show connection in inspector
+      sceApplyConnectionEmphasis();
       var conn = _sceState.connections.find(function (c) { return Number(c.id) === connId; });
       if (conn) renderSCEInspectorConnection(conn);
     }
@@ -467,14 +486,20 @@
         dragConn.line.setAttribute("x2", e.clientX);
         dragConn.line.setAttribute("y2", e.clientY);
 
-        // Highlight target block
+        // Only same-column blocks are valid drop targets. Keeping the
+        // highlight off the others during the drag teaches the rule before
+        // the drop instead of rejecting afterwards.
         document.querySelectorAll(".sce-block-connect-highlight").forEach(function (el) {
           el.classList.remove("sce-block-connect-highlight");
         });
         var target = document.elementFromPoint(e.clientX, e.clientY);
         var targetBlock = target ? target.closest(".sce-block") : null;
         if (targetBlock && Number(targetBlock.getAttribute("data-block-id")) !== dragConn.sourceBlockId) {
-          targetBlock.classList.add("sce-block-connect-highlight");
+          if (sceSameColumn(dragConn.sourceBlockId, Number(targetBlock.getAttribute("data-block-id")))) {
+            targetBlock.classList.add("sce-block-connect-highlight");
+          } else {
+            targetBlock.classList.add("sce-block-connect-rejected");
+          }
         }
       });
 
@@ -486,8 +511,9 @@
         if (svg) svg.remove();
 
         // Remove highlight
-        document.querySelectorAll(".sce-block-connect-highlight").forEach(function (el) {
+        document.querySelectorAll(".sce-block-connect-highlight, .sce-block-connect-rejected").forEach(function (el) {
           el.classList.remove("sce-block-connect-highlight");
+          el.classList.remove("sce-block-connect-rejected");
         });
 
         // Find target block
@@ -496,8 +522,11 @@
         if (targetBlock) {
           var targetId = Number(targetBlock.getAttribute("data-block-id"));
           if (targetId && targetId !== dragConn.sourceBlockId) {
-            // Show connection type selector
-            showConnectionTypePicker(dragConn.sourceBlockId, targetId, e.clientX, e.clientY);
+            if (sceSameColumn(dragConn.sourceBlockId, targetId)) {
+              showConnectionTypePicker(dragConn.sourceBlockId, targetId, e.clientX, e.clientY);
+            } else {
+              sceFlash("Connections stay within one column");
+            }
           }
         }
 
