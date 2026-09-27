@@ -18836,6 +18836,21 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       gap: 2px;
       flex-shrink: 0;
     }
+    /* Drop target shared by the asset drag path in wireSCEBlockInteractions().
+       closest() resolves to the innermost match, so every container it can
+       return needs its own rule or the drag shows no highlight at all. */
+    .sce-scene-slot.sce-drop-target,
+    .sce-layer-unscoped.sce-drop-target,
+    .sce-layer-cell.sce-drop-target {
+      background: rgba(59, 130, 246, 0.18);
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+      border-radius: 4px;
+    }
+    .sce-scene-slot.sce-drop-target {
+      border-style: solid;
+      border-color: #3b82f6;
+    }
     /* The old landscape grid is gone; only rules that the current portrait
        timeline still uses remain below. */
     .sce-timeline-header {
@@ -18848,16 +18863,6 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
     .sce-timeline-body {
       min-height: 200px;
-    }
-    .sce-layer-cell {
-      min-height: 32px;
-      border-right: 1px solid var(--border);
-      flex-shrink: 0;
-      box-sizing: border-box;
-      padding: 4px;
-    }
-    .sce-layer-cell.sce-drop-target {
-      background: rgba(59,130,246,0.15);
     }
 
     /* Blocks */
