@@ -165,17 +165,18 @@
       // Place blocks on the timeline
       renderSCEBlocks();
 
-      // Ungated render diagnostic. The connection renderer bails out early
-      // when connections are hidden or empty, so it cannot be used to tell
-      // whether a render actually happened.
-      console.log("[SCE] render", {
-        states: states.length,
-        chapters: chapters.length,
-        scenesCached: Object.keys(sceSceneCache()).reduce(function (n, k) { return n + (sceSceneCache()[k] || []).length; }, 0),
-        blocks: _sceState.blocks.length,
-        blocksInDom: document.querySelectorAll(".sce-block").length,
-        slots: document.querySelectorAll(".sce-scene-slot").length
-      });
+      // Render diagnostic for tracking down layout drift. Off by default;
+      // set window.SCE_DEBUG = true in the console to enable.
+      if (window.SCE_DEBUG) {
+        console.log("[SCE] render", {
+          states: states.length,
+          chapters: chapters.length,
+          scenesCached: Object.keys(sceSceneCache()).reduce(function (n, k) { return n + (sceSceneCache()[k] || []).length; }, 0),
+          blocks: _sceState.blocks.length,
+          blocksInDom: document.querySelectorAll(".sce-block").length,
+          slots: document.querySelectorAll(".sce-scene-slot").length
+        });
+      }
 
       // Wire interactions
       wirePortraitInteractions();
