@@ -18838,18 +18838,25 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
     /* Drop target shared by the asset drag path in wireSCEBlockInteractions().
        closest() resolves to the innermost match, so every container it can
-       return needs its own rule or the drag shows no highlight at all. */
+       return needs its own rule or the drag shows no highlight at all.
+       outline (not border) so the ring never reflows the grid. */
     .sce-scene-slot.sce-drop-target,
     .sce-layer-unscoped.sce-drop-target,
     .sce-layer-cell.sce-drop-target {
-      background: rgba(59, 130, 246, 0.18);
-      outline: 2px solid #3b82f6;
+      outline: 2px dotted #3b82f6;
       outline-offset: -2px;
-      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.18);
     }
     .sce-scene-slot.sce-drop-target {
-      border-style: solid;
       border-color: #3b82f6;
+    }
+    /* Blocks are opaque and paint above the container's own background, so a
+       ring on the container is hidden whenever the slot is already filled.
+       Ring the blocks themselves to keep the target visible. */
+    .sce-scene-slot.sce-drop-target .sce-block,
+    .sce-layer-unscoped.sce-drop-target .sce-block {
+      outline: 2px dotted #3b82f6;
+      outline-offset: -2px;
     }
     /* The old landscape grid is gone; only rules that the current portrait
        timeline still uses remain below. */
