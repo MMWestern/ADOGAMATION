@@ -74,7 +74,6 @@
         bodyHtml += "<div class='sce-state-label'>";
         bodyHtml += "<div class='sce-state-number'>" + state.position + "</div>";
         bodyHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
-        bodyHtml += "<div class='sce-state-add-chapter' data-state-pos='" + state.position + "' title='Add chapter'>+</div>";
         bodyHtml += "</div>";
 
         // Chapter cell
@@ -230,15 +229,6 @@
     }
 
     function wirePortraitInteractions() {
-      // Wire + buttons to create chapters
-      document.querySelectorAll(".sce-state-add-chapter").forEach(function (btn) {
-        btn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          var statePos = Number(btn.getAttribute("data-state-pos"));
-          quickCreateChapter(statePos);
-        });
-      });
-
       // Wire chapter blocks for drag and click
       document.querySelectorAll(".sce-chapter-block").forEach(function (block) {
         var chapterId = Number(block.getAttribute("data-chapter-id"));
