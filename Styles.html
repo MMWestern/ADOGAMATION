@@ -18874,6 +18874,9 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       left: auto;
       height: auto;
       min-height: 22px;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      overflow: hidden;
       background: #3b82f6;
       border-radius: 3px;
       padding: 2px 6px;
@@ -18882,7 +18885,6 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       color: #fff;
       cursor: pointer;
       white-space: nowrap;
-      overflow: hidden;
       text-overflow: ellipsis;
       z-index: 2;
       display: block;
@@ -18905,10 +18907,19 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       cursor: grabbing;
     }
     .sce-scene-block {
+      box-sizing: border-box;
+      flex-shrink: 0;
       transition: background 0.15s;
     }
     .sce-scene-block:hover {
       background: rgba(16,185,129,0.25) !important;
+    }
+    .sce-scene-empty {
+      height: 26px;
+      flex-shrink: 0;
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      box-sizing: border-box;
     }
     .sce-chapter-placeholder {
       pointer-events: none;
