@@ -422,6 +422,8 @@
       if (addChapterBtn && !addChapterBtn._wired) {
         addChapterBtn._wired = true;
         addChapterBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("add chapter")) return;
+
           var compositionId = _sceState.composition ? _sceState.composition.id : 0;
           if (!compositionId) {
             alert("No composition found. Please wait for the SCE to fully load.");
@@ -512,10 +514,20 @@
       to.push(action);
 
       var finished = false;
-      var release = function () {
+      var release = function (failed) {
         if (finished) return;
         finished = true;
         _sceState.replayBusy = false;
+        if (failed) {
+          // The record was moved to the opposite stack before the replay ran,
+          // so a half-applied replay would otherwise leave both stacks
+          // describing a change that never happened. Put it back and let the
+          // user retry.
+          var at = to.lastIndexOf(action);
+          if (at !== -1) to.splice(at, 1);
+          from.push(action);
+          sceFlash("Undo/redo did not complete — record kept so you can retry.");
+        }
         updateSCEUndoRedoButtons();
       };
 
@@ -528,7 +540,7 @@
       } catch (err) {
         // Never leave the guard set, or undo would be dead for the session.
         console.error("[SCE] Undo/redo failed:", err);
-        release();
+        release(true);
       }
     }
 
@@ -596,12 +608,15 @@
       });
     }
 
+    // These four helpers report a boolean so a failed write is distinguishable
+    // from a successful one. Without it sceRunReplay cannot tell a completed
+    // replay from a half-applied one and would drop the undo record.
     function sceWriteChapterRow(row, cb) {
       supabaseRunner
         .withSuccessHandler(function () { if (cb) cb(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to write chapter:", err);
-          if (cb) cb();
+          if (cb) cb(true);
         })
         .sceSaveChapter(JSON.stringify(row));
     }
@@ -611,7 +626,7 @@
         .withSuccessHandler(function () { if (cb) cb(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to delete chapter:", err);
-          if (cb) cb();
+          if (cb) cb(true);
         })
         .sceDeleteChapter(chapterId);
     }
@@ -621,7 +636,7 @@
         .withSuccessHandler(function () { if (cb) cb(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to write scene:", err);
-          if (cb) cb();
+          if (cb) cb(true);
         })
         .sceSaveScene(JSON.stringify(row));
     }
@@ -631,7 +646,7 @@
         .withSuccessHandler(function () { if (cb) cb(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to delete scene:", err);
-          if (cb) cb();
+          if (cb) cb(true);
         })
         .sceDeleteScene(sceneId);
     }
@@ -641,8 +656,9 @@
     // bucket instead of on their scenes.
     function sceReanchorBlocks(anchors, cb) {
       var i = 0;
+      var failed = false;
       (function next() {
-        if (i >= anchors.length) { if (cb) cb(); return; }
+        if (i >= anchors.length) { if (cb) cb(failed); return; }
         var a = anchors[i++];
         var block = _sceState.blocks.find(function (b) { return Number(b.id) === Number(a.id); });
         if (!block) { next(); return; }
@@ -651,6 +667,7 @@
           .withSuccessHandler(function () { next(); })
           .withFailureHandler(function (err) {
             console.error("[SCE] Failed to re-anchor block:", err);
+            failed = true;
             next();
           })
           .sceSaveBlock(JSON.stringify(block));
@@ -732,8 +749,8 @@
       scePushUndo({
         type: "add_chapter",
         chapterId: chapterRow.id,
-        undo: function (done) { sceDeleteChapterRow(chapterRow.id, function () { sceReloadAndRender(done); }); },
-        redo: function (done) { sceWriteChapterRow(chapterRow, function () { sceReloadAndRender(done); }); }
+        undo: function (done) { sceDeleteChapterRow(chapterRow.id, function (failed) { sceReloadAndRender(function () { done(failed); }); }); },
+        redo: function (done) { sceWriteChapterRow(chapterRow, function (failed) { sceReloadAndRender(function () { done(failed); }); }); }
       });
     }
 
@@ -743,15 +760,24 @@
         type: "delete_chapter",
         chapterId: snap.id,
         undo: function (done) {
-          sceWriteChapterRow(snap, function () {
+          sceWriteChapterRow(snap, function (chapterFailed) {
+            var failed = !!chapterFailed;
             var i = 0;
             (function nextScene() {
-              if (i >= snap.scenes.length) { sceReanchorBlocks(snap.blocks, function () { sceReloadAndRender(done); }); return; }
-              sceWriteSceneRow(snap.scenes[i++], nextScene);
+              if (i >= snap.scenes.length) {
+                sceReanchorBlocks(snap.blocks, function (bad) {
+                  sceReloadAndRender(function () { done(failed || bad); });
+                });
+                return;
+              }
+              sceWriteSceneRow(snap.scenes[i++], function (bad) {
+                failed = failed || !!bad;
+                nextScene();
+              });
             })();
           });
         },
-        redo: function (done) { sceDeleteChapterRow(snap.id, function () { sceReloadAndRender(done); }); }
+        redo: function (done) { sceDeleteChapterRow(snap.id, function (failed) { sceReloadAndRender(function () { done(failed); }); }); }
       });
     }
 
@@ -759,8 +785,8 @@
       scePushUndo({
         type: "add_scene",
         sceneId: sceneRow.id,
-        undo: function (done) { sceDeleteSceneRow(sceneRow.id, function () { sceReloadAndRender(done); }); },
-        redo: function (done) { sceWriteSceneRow(sceneRow, function () { sceReloadAndRender(done); }); }
+        undo: function (done) { sceDeleteSceneRow(sceneRow.id, function (failed) { sceReloadAndRender(function () { done(failed); }); }); },
+        redo: function (done) { sceWriteSceneRow(sceneRow, function (failed) { sceReloadAndRender(function () { done(failed); }); }); }
       });
     }
 
@@ -770,11 +796,13 @@
         type: "delete_scene",
         sceneId: snap.scene.id,
         undo: function (done) {
-          sceWriteSceneRow(snap.scene, function () {
-            sceReanchorBlocks(snap.blocks, function () { sceReloadAndRender(done); });
+          sceWriteSceneRow(snap.scene, function (failed) {
+            sceReanchorBlocks(snap.blocks, function (bad) {
+              sceReloadAndRender(function () { done(failed || bad); });
+            });
           });
         },
-        redo: function (done) { sceDeleteSceneRow(snap.scene.id, function () { sceReloadAndRender(done); }); }
+        redo: function (done) { sceDeleteSceneRow(snap.scene.id, function (failed) { sceReloadAndRender(function () { done(failed); }); }); }
       });
     }
 

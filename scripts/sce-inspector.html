@@ -258,6 +258,7 @@
       var saveBtn = document.getElementById("sceAssetSaveBtn");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("save asset")) return;
           asset.name = document.getElementById("sceAssetName").value;
           asset.description = document.getElementById("sceAssetDesc").value;
           asset.what_changes = document.getElementById("sceAssetChanges").value;
@@ -282,6 +283,7 @@
       var deleteBtn = document.getElementById("sceAssetDeleteBtn");
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("delete asset")) return;
           if (!confirm("Delete this asset?")) return;
           supabaseRunner
             .withSuccessHandler(function () {

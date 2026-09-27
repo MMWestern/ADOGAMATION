@@ -646,9 +646,10 @@
 
     function sceWriteChapterRows(rows, cb) {
       var i = 0;
+      var failed = false;
       (function next() {
-        if (i >= rows.length) { if (cb) cb(); return; }
-        sceWriteChapterRow(rows[i++], next);
+        if (i >= rows.length) { if (cb) cb(failed); return; }
+        sceWriteChapterRow(rows[i++], function (bad) { failed = failed || !!bad; next(); });
       })();
     }
 
@@ -657,8 +658,8 @@
     function sceCommitChapterMove(before, after) {
       scePushUndo({
         type: "move_chapter",
-        undo: function (done) { sceWriteChapterRows(before, function () { sceReloadAndRender(done); }); },
-        redo: function (done) { sceWriteChapterRows(after, function () { sceReloadAndRender(done); }); }
+        undo: function (done) { sceWriteChapterRows(before, function (failed) { sceReloadAndRender(function () { done(failed); }); }); },
+        redo: function (done) { sceWriteChapterRows(after, function (failed) { sceReloadAndRender(function () { done(failed); }); }); }
       });
       sceWriteChapterRows(after, sceReloadAndRender);
     }

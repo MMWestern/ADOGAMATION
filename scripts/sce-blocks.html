@@ -226,9 +226,9 @@
             b.start_state = oldStart;
             b.end_state = oldEnd;
             b.scene_id = oldSceneId;
-            saveSCEBlock(b, function () {
+            saveSCEBlock(b, function (failed) {
               renderSCETimeline();
-              if (done) done();
+              if (done) done(failed);
             });
           } else if (done) done();
         },
@@ -239,9 +239,9 @@
             b.start_state = newPosition;
             b.end_state = anchorScene ? newPosition : newPosition + span;
             b.scene_id = anchorScene;
-            saveSCEBlock(b, function () {
+            saveSCEBlock(b, function (failed) {
               renderSCETimeline();
-              if (done) done();
+              if (done) done(failed);
             });
           } else if (done) done();
         }
@@ -257,7 +257,7 @@
         .withSuccessHandler(function () { if (done) done(); })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to save block:", err);
-          if (done) done();
+          if (done) done(true);
         })
         .sceSaveBlock(JSON.stringify(block));
     }
