@@ -107,9 +107,20 @@
         });
         bodyHtml += "</div>";
 
-        // Layer cells
+        // Layer cells — subdivided into the same scene slots as the scene column
         visibleLayers.forEach(function (layer) {
-          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'></div>";
+          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'>";
+          model.entries.forEach(function (entry) {
+            var chapter = entry.chapter;
+            bodyHtml += "<div class='sce-slot-group' data-chapter-id='" + chapter.id + "'>";
+            for (var si = 0; si < entry.slots; si++) {
+              var scene = entry.scenes[si];
+              bodyHtml += "<div class='sce-scene-slot' data-layer-id='" + layer.id + "' data-state='" + state.position + "' data-chapter-id='" + chapter.id + "' data-scene-id='" + (scene ? scene.id : "") + "' style='height:" + (SLOT_H - GAP) + "px;'></div>";
+            }
+            bodyHtml += "</div>";
+          });
+          bodyHtml += "<div class='sce-layer-unscoped' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
+          bodyHtml += "</div>";
         });
 
         bodyHtml += "</div>";
@@ -335,19 +346,26 @@
       _sceState.blocks.forEach(function (block) {
         if (block.is_parked || block.is_later_book) return;
 
-        var layerCell = document.querySelector('.sce-layer-cell[data-state="' + block.start_state + '"][data-layer-id="' + block.layer_id + '"]');
-        if (!layerCell) return;
+        var target = null;
+        if (block.scene_id) {
+          target = document.querySelector('.sce-scene-slot[data-scene-id="' + block.scene_id + '"][data-layer-id="' + block.layer_id + '"]');
+        }
+        if (!target) {
+          target = document.querySelector('.sce-layer-unscoped[data-state="' + block.start_state + '"][data-layer-id="' + block.layer_id + '"]');
+        }
+        if (!target) return;
 
         var blockEl = document.createElement("div");
         blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
         blockEl.setAttribute("data-block-id", block.id);
         blockEl.setAttribute("data-start", block.start_state);
         blockEl.setAttribute("data-end", block.end_state);
+        blockEl.setAttribute("data-scene-id", block.scene_id || "");
         blockEl.style.position = "relative";
         blockEl.style.left = "auto";
         blockEl.style.width = "100%";
-        blockEl.style.height = "28px";
-        blockEl.style.marginBottom = "2px";
+        blockEl.style.height = block.scene_id ? "100%" : "28px";
+        blockEl.style.marginBottom = block.scene_id ? "0" : "2px";
 
         var title = block.short_title || "Untitled";
         var precompIcon = block.precomp_composition_id ? "<span class='sce-block-precomp-icon' title='Has internal timeline'>■</span>" : "";
@@ -361,7 +379,7 @@
           selectSCEBlock(block.id);
         });
 
-        layerCell.appendChild(blockEl);
+        target.appendChild(blockEl);
       });
     }
 

@@ -1424,6 +1424,7 @@
         layer_id: Number(parsed.layer_id || 0),
         start_state: Number(parsed.start_state || 1),
         end_state: Number(parsed.end_state || 1),
+        scene_id: parsed.scene_id ? Number(parsed.scene_id) : null,
         vertical_pos: Number(parsed.vertical_pos || 0),
         short_title: parsed.short_title ? String(parsed.short_title).trim() : null,
         description: parsed.description ? String(parsed.description).trim() : null,
