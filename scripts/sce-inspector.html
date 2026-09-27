@@ -2,6 +2,38 @@
     // Story Composition Editor — Inspector Panel
     // ============================================================
 
+    // Chapters in the order the grid shows them. getChapterNumber sorts the
+    // same way, so the numbers here line up with the Ch labels on the canvas.
+    function sceChaptersInOrder() {
+      return (_sceState.chapters || []).slice().sort(function (a, b) {
+        if (a.start_state !== b.start_state) return a.start_state - b.start_state;
+        return (a.sort_order || 0) - (b.sort_order || 0);
+      });
+    }
+
+    // The chapter that owns a scene, or null.
+    function sceSceneChapterId(sceneId) {
+      if (!sceneId) return null;
+      var found = null;
+      Object.keys(sceSceneCache()).forEach(function (cid) {
+        (sceSceneCache()[cid] || []).forEach(function (s) {
+          if (Number(s.id) === Number(sceneId)) found = Number(cid);
+        });
+      });
+      return found;
+    }
+
+    // The state row a scene sits in. A chapter only ever renders in the row
+    // matching its own start_state, so a scene inherits that row from its
+    // chapter. This is what a block anchored to the scene follows, which is
+    // why the block no longer needs its own start/end state.
+    function sceSceneStartState(sceneId) {
+      var chapterId = sceSceneChapterId(sceneId);
+      if (chapterId === null) return null;
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      return chapter ? Number(chapter.start_state) : null;
+    }
+
     // A block's position in the chapter/scene tree, for the connections list.
     // Resolved through the scene cache rather than the block's own fields,
     // because a block only stores scene_id.
@@ -150,22 +182,39 @@
       html += "<textarea id='sceBlockDesc' class='sce-inspector-textarea' rows='3'>" + escapeHtml(block.description || "") + "</textarea>";
       html += "</div>";
 
+      // Chapter and Scene replace the old Start/End State fields. A block
+      // anchored to a scene is placed by scene + layer alone; the row it lands
+      // in comes from the chapter that owns the scene, so the block's own
+      // start/end state carried no placement information.
+      var blockChapterId = sceSceneChapterId(block.scene_id);
+      var orderedChapters = sceChaptersInOrder();
+
+      function sceneOptionsHtml(selectedSceneId, chapterId) {
+        var out = "<option value=''" + (selectedSceneId ? "" : " selected") + ">None</option>";
+        var scenes = chapterId ? (sceSceneCache()[chapterId] || []) : [];
+        scenes.forEach(function (scene, i) {
+          var sel = Number(selectedSceneId) === Number(scene.id) ? " selected" : "";
+          out += "<option value='" + scene.id + "'" + sel + ">Sc" + (i + 1) + " " +
+            escapeHtml(scene.title || "Scene") + "</option>";
+        });
+        return out;
+      }
+
       html += "<div class='sce-inspector-row'>";
       html += "<div class='sce-inspector-section' style='flex:1;'>";
-      html += "<label class='sce-inspector-label'>Start State</label>";
-      html += "<select id='sceBlockStart' class='sce-inspector-select'>";
-      _sceState.states.forEach(function (s) {
-        var sel = s.position === block.start_state ? " selected" : "";
-        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
+      html += "<label class='sce-inspector-label'>Chapter</label>";
+      html += "<select id='sceBlockChapter' class='sce-inspector-select'>";
+      html += "<option value=''" + (blockChapterId ? "" : " selected") + ">None</option>";
+      orderedChapters.forEach(function (c) {
+        var sel = blockChapterId && Number(blockChapterId) === Number(c.id) ? " selected" : "";
+        html += "<option value='" + c.id + "'" + sel + ">Ch" + getChapterNumber(c.id) + " - " +
+          escapeHtml(c.title || "Untitled") + "</option>";
       });
       html += "</select></div>";
       html += "<div class='sce-inspector-section' style='flex:1;'>";
-      html += "<label class='sce-inspector-label'>End State</label>";
-      html += "<select id='sceBlockEnd' class='sce-inspector-select'>";
-      _sceState.states.forEach(function (s) {
-        var sel = s.position === block.end_state ? " selected" : "";
-        html += "<option value='" + s.position + "'" + sel + ">" + s.position + ". " + escapeHtml(s.name) + "</option>";
-      });
+      html += "<label class='sce-inspector-label'>Scene</label>";
+      html += "<select id='sceBlockScene' class='sce-inspector-select'>";
+      html += sceneOptionsHtml(block.scene_id, blockChapterId);
       html += "</select></div>";
       html += "</div>";
 
@@ -287,17 +336,43 @@
         });
       }
 
+      // Keep the Scene select in step with the Chapter select. Changing the
+      // chapter invalidates the scene, so it falls back to None.
+      var chapterSelect = document.getElementById("sceBlockChapter");
+      var sceneSelect = document.getElementById("sceBlockScene");
+      if (chapterSelect && sceneSelect) {
+        chapterSelect.addEventListener("change", function () {
+          var cid = chapterSelect.value ? Number(chapterSelect.value) : null;
+          sceneSelect.innerHTML = sceneOptionsHtml(null, cid);
+        });
+      }
+
       // Wire save
       var saveBtn = document.getElementById("sceBlockSaveBtn");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
           block.short_title = document.getElementById("sceBlockTitle").value;
           block.description = document.getElementById("sceBlockDesc").value;
-          block.start_state = Number(document.getElementById("sceBlockStart").value);
-          block.end_state = Number(document.getElementById("sceBlockEnd").value);
-          block.layer_id = Number(document.getElementById("sceBlockLayer").value);
           block.what_happens = document.getElementById("sceBlockWhat").value;
           block.notes = document.getElementById("sceBlockNotes").value;
+
+          var newLayerId = Number(document.getElementById("sceBlockLayer").value);
+          var nextSceneId = sceneSelect && sceneSelect.value ? Number(sceneSelect.value) : null;
+          var prevSceneId = block.scene_id ? Number(block.scene_id) : null;
+          var layerChanged = newLayerId !== Number(block.layer_id);
+
+          if (nextSceneId !== prevSceneId || layerChanged) {
+            // Placement changed, so go through the move path. That keeps it
+            // undoable like a drag, and derives the row from the scene's
+            // chapter instead of trusting a state number on the block.
+            // With no scene the block stays in the unscoped bucket and keeps
+            // the start_state it already had, which is what places it there.
+            var newPosition = nextSceneId ? sceSceneStartState(nextSceneId) : block.start_state;
+            if (newPosition === null) newPosition = block.start_state;
+            moveSCEBlock(block.id, newLayerId, newPosition, nextSceneId);
+            return;
+          }
+
           saveSCEBlock(block);
           renderSCETimeline();
           renderSCELayerControls();

@@ -46,6 +46,27 @@ Row height is derived from the scene count in that state, not stored.
 - Column widths live in `--sce-col-*` custom properties and are persisted.
 - Layers with `is_locked` set reject block moves.
 
+## Block placement
+
+A block's row is derived, not stored. Nothing reads a block's own
+`start_state` to place a scene-anchored block:
+
+- `renderSCEBlocks()` looks the block up by
+  `.sce-scene-slot[data-scene-id][data-layer-id]`, so `scene_id` + `layer_id`
+  are sufficient.
+- A chapter renders only in the row equal to its own `start_state`, and a
+  scene lives in its chapter's group. A scene therefore inherits its row from
+  the chapter, which is what `sceSceneStartState(sceneId)` returns.
+- The block inspector edits placement with a Chapter select and a Scene select
+  that it filters, not with state numbers. A scene change routes through
+  `moveSCEBlock()` so it stays undoable exactly like a drag.
+- Blocks with no scene stay in the `.sce-layer-unscoped` band, and for those
+  `start_state` is still load-bearing as the row selector. That is the one
+  remaining reason the column exists on `sce_blocks`.
+- `end_state` is retained only for unscoped blocks, where it encodes a span
+  (`span = end_state - start_state`) that a move must preserve. Scene-anchored
+  blocks always have `end_state === start_state`, so they do not span rows.
+
 ## Data loading
 
 Chapter and scene rows are read from Supabase into
