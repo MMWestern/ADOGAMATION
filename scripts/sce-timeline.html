@@ -96,7 +96,7 @@
           var scenes = entry.scenes;
           var chColor = chapter.color || "#10b981";
           var groupH = entry.slots * SLOT_H + ADD_H;
-          bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='height:" + groupH + "px;border-left:2px solid " + chColor + "55;background:" + chColor + "26;'>";
+          bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='height:" + groupH + "px;border-left:2px solid " + chColor + "55;background:" + chColor + "13;'>";
           if (!scenes.length) {
             bodyHtml += "<div class='sce-scene-empty' data-chapter-id='" + chapter.id + "'></div>";
           } else {
@@ -115,7 +115,7 @@
           model.entries.forEach(function (entry) {
             var chapter = entry.chapter;
             var entryColor = chapter.color || "#10b981";
-            bodyHtml += "<div class='sce-slot-group' data-chapter-id='" + chapter.id + "' style='background:" + entryColor + "26;'>";
+            bodyHtml += "<div class='sce-slot-group' data-chapter-id='" + chapter.id + "' style='background:" + entryColor + "13;'>";
             for (var si = 0; si < entry.slots; si++) {
               var scene = entry.scenes[si];
               bodyHtml += "<div class='sce-scene-slot' data-layer-id='" + layer.id + "' data-state='" + state.position + "' data-chapter-id='" + chapter.id + "' data-scene-id='" + (scene ? scene.id : "") + "' style='height:" + (SLOT_H - GAP) + "px;'></div>";
