@@ -19069,6 +19069,86 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       margin-bottom: 3px;
       text-transform: uppercase;
     }
+
+    /* Connections list on a block: a clickable row per link, with the linked
+       block's title on top and its chapter/scene reference underneath. */
+    .sce-conn-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+    .sce-conn-header .sce-inspector-label {
+      margin-bottom: 0;
+    }
+    .sce-conn-jump {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sce-conn-jump input {
+      margin: 0;
+      cursor: pointer;
+    }
+    .sce-conn-list {
+      max-height: 170px;
+      overflow-y: auto;
+    }
+    .sce-conn-row {
+      padding: 3px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .sce-conn-row:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .sce-conn-row:focus-visible {
+      outline: 1px solid #3b82f6;
+      outline-offset: -1px;
+    }
+    .sce-conn-row-main {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .sce-conn-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sce-conn-arrow {
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .sce-conn-title {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+    .sce-conn-ref {
+      font-size: 10px;
+      color: var(--muted);
+      opacity: 0.8;
+      padding-left: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .sce-inspector-input {
       width: 100%;
       padding: 5px 8px;
