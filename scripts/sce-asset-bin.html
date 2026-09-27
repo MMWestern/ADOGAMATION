@@ -94,7 +94,7 @@
         .sceSaveAsset(JSON.stringify(payload));
     }
 
-    function createSCEBlockFromAsset(assetId, layerId, statePosition) {
+    function createSCEBlockFromAsset(assetId, layerId, statePosition, sceneId) {
       var asset = _sceState.assets.find(function (a) { return Number(a.id) === Number(assetId); });
       if (!asset) return;
 
@@ -107,6 +107,7 @@
         layer_id: layerId,
         start_state: statePosition,
         end_state: statePosition,
+        scene_id: sceneId ? Number(sceneId) : null,
         short_title: asset.name || "Untitled",
         description: asset.description || "",
         what_happens: asset.what_changes || ""
