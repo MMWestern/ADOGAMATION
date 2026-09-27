@@ -18701,6 +18701,10 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       --sce-col-state: 120px;
       --sce-col-chapters: 150px;
       --sce-col-scenes: 150px;
+      /* Clear space between layer columns. The connection lane is drawn 14px
+         to the right of a block's edge, so without this the gutter is only
+         4+1+4px and the line lands on top of the next column. */
+      --sce-col-gap: 5px;
       flex: 1;
       overflow: auto;
     }
@@ -18798,6 +18802,15 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       display: flex;
       flex-direction: column;
       gap: 2px;
+    }
+    /* Extra gutter between layer columns so the connection lane has somewhere
+       to sit. The sticky header takes the same margin, otherwise the header
+       boundaries drift out of line with the body columns. Scoped to
+       [data-layer-id] because the chapters and scenes headers share this
+       class and must stay flush against their neighbours. */
+    .sce-layer-cell:not(:last-child),
+    .sce-layer-header[data-layer-id]:not(:last-child) {
+      margin-right: var(--sce-col-gap);
     }
     .sce-slot-group {
       box-sizing: border-box;

@@ -15,12 +15,33 @@
       }
     }
 
-    function sceDropCellFrom(e) {
-      return e.target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
+    function sceDropCellFrom(el) {
+      if (!el) return null;
+      return el.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
+    }
+
+    // The gutter between layer columns is a margin, and margin is not part of
+    // an element's hit-test area. Without this, dropping into the gutter finds
+    // no cell and the move is silently ignored.
+    function sceResolveDropCell(el, clientX, clientY) {
+      var direct = sceDropCellFrom(el);
+      if (direct) return direct;
+      var row = el ? el.closest(".sce-state-row") : null;
+      if (!row) return null;
+      var cells = row.querySelectorAll(".sce-layer-cell");
+      var nearest = null;
+      for (var i = 0; i < cells.length; i++) {
+        var r = cells[i].getBoundingClientRect();
+        if (clientX >= r.left && clientX <= r.right) return cells[i];
+        // Cells are in document order, so the last one ending before the
+        // pointer is the one immediately to its left.
+        if (r.right <= clientX) nearest = cells[i];
+      }
+      return nearest || cells[0] || null;
     }
 
     function onSCEBlockDragOver(e) {
-      var cell = sceDropCellFrom(e);
+      var cell = sceResolveDropCell(e.target, e.clientX, e.clientY);
       if (!cell) {
         clearSCEBlockDropTarget();
         return;
@@ -43,7 +64,7 @@
     }
 
     function onSCEBlockDrop(e) {
-      var cell = sceDropCellFrom(e);
+      var cell = sceResolveDropCell(e.target, e.clientX, e.clientY);
       clearSCEBlockDropTarget();
       if (!cell) return;
       e.preventDefault();
@@ -181,8 +202,8 @@
 
         if (dragState.moved) {
           // Find drop target
-          var target = document.elementFromPoint(e.clientX, e.clientY);
-          var cell = target ? target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell") : null;
+          var under = document.elementFromPoint(e.clientX, e.clientY);
+          var cell = sceResolveDropCell(under, e.clientX, e.clientY);
           if (cell) {
             var newLayerId = Number(cell.getAttribute("data-layer-id"));
             var newState = cell.getAttribute("data-state");
