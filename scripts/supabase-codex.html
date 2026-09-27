@@ -1513,7 +1513,13 @@
         color: parsed.color || null
       };
       if (chapterId) payload.id = chapterId;
-      var op = chapterId ? sbClient.from('sce_chapters').update(payload).eq('id', chapterId).select().single()
+      // Upsert rather than update: a plain update() against a row that no
+      // longer exists matches zero rows and errors out, which makes it
+      // impossible to restore a deleted chapter under its original id (and
+      // therefore impossible to undo a chapter delete). Upsert updates the
+      // existing row when it is there and re-inserts with the same id when it
+      // is not.
+      var op = chapterId ? sbClient.from('sce_chapters').upsert(payload).select().single()
         : sbClient.from('sce_chapters').insert([payload]).select().single();
       return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, chapter: res.data }); });
     });
@@ -1548,7 +1554,9 @@
         notes: parsed.notes ? String(parsed.notes).trim() : null
       };
       if (sceneId) payload.id = sceneId;
-      var op = sceneId ? sbClient.from('sce_scenes').update(payload).eq('id', sceneId).select().single()
+      // Upsert for the same reason as sceSaveChapter: restoring a deleted scene
+      // under its original id has to work, and update() cannot do that.
+      var op = sceneId ? sbClient.from('sce_scenes').upsert(payload).select().single()
         : sbClient.from('sce_scenes').insert([payload]).select().single();
       return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, scene: res.data }); });
     });

@@ -445,10 +445,10 @@
           supabaseRunner
             .withSuccessHandler(function (json) {
               var result = typeof json === 'string' ? JSON.parse(json) : json;
-              if (result.chapter) {
-                _sceState.chapters.push(result.chapter);
+              if (result.chapter) sceUndoAddChapter(result.chapter);
+              loadSCEChaptersAndScenes(function () {
                 renderSCETimeline();
-              }
+              });
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to add chapter:", err);
@@ -518,6 +518,208 @@
       var redoBtn = document.getElementById("sceRedoBtn");
       if (undoBtn) undoBtn.disabled = !_sceState.undoStack.length;
       if (redoBtn) redoBtn.disabled = !_sceState.redoStack.length;
+    }
+
+    // ----------------------------------------------------------
+    // Undo/redo for chapter and scene operations
+    //
+    // Block operations mutate fields on a row that already exists, so their
+    // undo records are just field assignments. Chapters and scenes are created
+    // and destroyed, so an undo has to replay the inverse database call and
+    // then re-read the data. That keeps the database as the source of truth
+    // and means undo can never leave _sceState disagreeing with it.
+    //
+    // These callbacks are nested rather than fired in parallel because
+    // supabaseRunner keeps its success/failure handlers in module-level
+    // variables that are consumed at call time.
+    // ----------------------------------------------------------
+
+    function sceReloadAndRender() {
+      loadSCEChaptersAndScenes(function () {
+        renderSCETimeline();
+        renderSCEInspector();
+      });
+    }
+
+    function sceWriteChapterRow(row, cb) {
+      supabaseRunner
+        .withSuccessHandler(function () { if (cb) cb(); })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to write chapter:", err);
+          if (cb) cb();
+        })
+        .sceSaveChapter(JSON.stringify(row));
+    }
+
+    function sceDeleteChapterRow(chapterId, cb) {
+      supabaseRunner
+        .withSuccessHandler(function () { if (cb) cb(); })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to delete chapter:", err);
+          if (cb) cb();
+        })
+        .sceDeleteChapter(chapterId);
+    }
+
+    function sceWriteSceneRow(row, cb) {
+      supabaseRunner
+        .withSuccessHandler(function () { if (cb) cb(); })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to write scene:", err);
+          if (cb) cb();
+        })
+        .sceSaveScene(JSON.stringify(row));
+    }
+
+    function sceDeleteSceneRow(sceneId, cb) {
+      supabaseRunner
+        .withSuccessHandler(function () { if (cb) cb(); })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to delete scene:", err);
+          if (cb) cb();
+        })
+        .sceDeleteScene(sceneId);
+    }
+
+    // Deleting scenes leaves their blocks behind with scene_id set to null, so
+    // undo has to put the anchors back or the blocks reappear in the unscoped
+    // bucket instead of on their scenes.
+    function sceReanchorBlocks(anchors, cb) {
+      var i = 0;
+      (function next() {
+        if (i >= anchors.length) { if (cb) cb(); return; }
+        var a = anchors[i++];
+        var block = _sceState.blocks.find(function (b) { return Number(b.id) === Number(a.id); });
+        if (!block) { next(); return; }
+        block.scene_id = a.scene_id;
+        supabaseRunner
+          .withSuccessHandler(function () { next(); })
+          .withFailureHandler(function (err) {
+            console.error("[SCE] Failed to re-anchor block:", err);
+            next();
+          })
+          .sceSaveBlock(JSON.stringify(block));
+      })();
+    }
+
+    // Snapshot everything a chapter delete destroys. Undo has to restore the
+    // chapter row, its scenes and the blocks anchored to them, otherwise the
+    // chapter returns empty and its blocks land in the unscoped bucket.
+    function sceSnapshotChapter(chapterId) {
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === Number(chapterId); });
+      if (!chapter) return null;
+
+      var scenes = (sceSceneCache()[chapterId] || []).map(function (s) {
+        return {
+          id: s.id,
+          chapter_id: s.chapter_id,
+          title: s.title,
+          sort_order: s.sort_order,
+          before_text: s.before_text,
+          what_happens: s.what_happens,
+          after_text: s.after_text,
+          next_text: s.next_text,
+          notes: s.notes
+        };
+      });
+
+      var sceneIds = scenes.map(function (s) { return Number(s.id); });
+      var blocks = _sceState.blocks.filter(function (b) {
+        return b.scene_id && sceneIds.indexOf(Number(b.scene_id)) !== -1;
+      }).map(function (b) { return { id: b.id, scene_id: b.scene_id }; });
+
+      return {
+        id: chapter.id,
+        composition_id: chapter.composition_id,
+        title: chapter.title,
+        start_state: chapter.start_state,
+        end_state: chapter.end_state,
+        sort_order: chapter.sort_order,
+        notes: chapter.notes,
+        color: chapter.color,
+        scenes: scenes,
+        blocks: blocks
+      };
+    }
+
+    function sceSnapshotScene(sceneId) {
+      var found = null;
+      Object.keys(sceSceneCache()).forEach(function (cid) {
+        (sceSceneCache()[cid] || []).forEach(function (s) {
+          if (Number(s.id) === Number(sceneId)) {
+            found = {
+              id: s.id,
+              chapter_id: s.chapter_id,
+              title: s.title,
+              sort_order: s.sort_order,
+              before_text: s.before_text,
+              what_happens: s.what_happens,
+              after_text: s.after_text,
+              next_text: s.next_text,
+              notes: s.notes
+            };
+          }
+        });
+      });
+      if (!found) return null;
+
+      var blocks = _sceState.blocks.filter(function (b) {
+        return b.scene_id && Number(b.scene_id) === Number(sceneId);
+      }).map(function (b) { return { id: b.id, scene_id: b.scene_id }; });
+
+      return { scene: found, blocks: blocks };
+    }
+
+    // Undo record for creating a chapter. Undo removes it, redo puts the same
+    // row back under its original id.
+    function sceUndoAddChapter(chapterRow) {
+      scePushUndo({
+        type: "add_chapter",
+        chapterId: chapterRow.id,
+        undo: function () { sceDeleteChapterRow(chapterRow.id, sceReloadAndRender); },
+        redo: function () { sceWriteChapterRow(chapterRow, sceReloadAndRender); }
+      });
+    }
+
+    function sceUndoDeleteChapter(snap) {
+      if (!snap) return;
+      scePushUndo({
+        type: "delete_chapter",
+        chapterId: snap.id,
+        undo: function () {
+          sceWriteChapterRow(snap, function () {
+            var i = 0;
+            (function nextScene() {
+              if (i >= snap.scenes.length) { sceReanchorBlocks(snap.blocks, sceReloadAndRender); return; }
+              sceWriteSceneRow(snap.scenes[i++], nextScene);
+            })();
+          });
+        },
+        redo: function () { sceDeleteChapterRow(snap.id, sceReloadAndRender); }
+      });
+    }
+
+    function sceUndoAddScene(sceneRow) {
+      scePushUndo({
+        type: "add_scene",
+        sceneId: sceneRow.id,
+        undo: function () { sceDeleteSceneRow(sceneRow.id, sceReloadAndRender); },
+        redo: function () { sceWriteSceneRow(sceneRow, sceReloadAndRender); }
+      });
+    }
+
+    function sceUndoDeleteScene(snap) {
+      if (!snap) return;
+      scePushUndo({
+        type: "delete_scene",
+        sceneId: snap.scene.id,
+        undo: function () {
+          sceWriteSceneRow(snap.scene, function () {
+            sceReanchorBlocks(snap.blocks, sceReloadAndRender);
+          });
+        },
+        redo: function () { sceDeleteSceneRow(snap.scene.id, sceReloadAndRender); }
+      });
     }
 
     // Precomp: store parent state when entering a precomp
