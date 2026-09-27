@@ -170,13 +170,24 @@
           var startX = e.clientX;
           var startW = target.getBoundingClientRect().width;
           var isLayer = key.indexOf("layer-") === 0;
+          var layerEls = [];
+          if (isLayer) {
+            var layerId = key.slice(6);
+            tl.querySelectorAll(".sce-layer-cell[data-layer-id='" + layerId + "'], .sce-layer-header[data-layer-id='" + layerId + "']").forEach(function (el) {
+              layerEls.push(el);
+            });
+          }
           handle.classList.add("is-active");
           try { handle.setPointerCapture(e.pointerId); } catch (err) {}
 
           function onMove(ev) {
             var w = Math.max(SCE_COL_MIN, Math.round(startW + (ev.clientX - startX)));
-            if (isLayer) target.style.setProperty("--sce-col-layer", w + "px");
-            else tl.style.setProperty("--sce-col-" + key, w + "px");
+            if (isLayer) {
+              layerEls.forEach(function (el) { el.style.setProperty("--sce-col-layer", w + "px"); });
+            } else {
+              tl.style.setProperty("--sce-col-" + key, w + "px");
+            }
+            if (typeof renderSCEConnections === "function") renderSCEConnections();
           }
 
           function onUp(ev) {
