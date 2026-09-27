@@ -2,6 +2,98 @@
     // Story Composition Editor — Inspector Panel
     // ============================================================
 
+    // A block's position in the chapter/scene tree, for the connections list.
+    // Resolved through the scene cache rather than the block's own fields,
+    // because a block only stores scene_id.
+    function sceBlockSceneRef(blockId) {
+      var block = _sceState.blocks.find(function (b) { return Number(b.id) === Number(blockId); });
+      if (!block) return null;
+
+      var scene = null;
+      var chapterId = null;
+      var sceneIndex = -1;
+      Object.keys(sceSceneCache()).forEach(function (cid) {
+        (sceSceneCache()[cid] || []).forEach(function (s, i) {
+          if (Number(s.id) === Number(block.scene_id)) {
+            scene = s;
+            chapterId = Number(cid);
+            sceneIndex = i;
+          }
+        });
+      });
+      if (chapterId === null) {
+        return { chapterNum: 0, chapterTitle: "", sceneNum: 0, sceneTitle: "" };
+      }
+
+      var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+      return {
+        chapterNum: getChapterNumber(chapterId),
+        chapterTitle: chapter ? (chapter.title || "") : "",
+        sceneNum: sceneIndex >= 0 ? sceneIndex + 1 : 0,
+        sceneTitle: scene ? (scene.title || "") : ""
+      };
+    }
+
+    // Compact "Ch3 · Sc2" for the row, matching how the timeline labels the
+    // chapter and scene columns.
+    function sceBlockRefText(ref) {
+      if (!ref) return "";
+      var parts = [];
+      if (ref.chapterNum) parts.push("Ch" + ref.chapterNum);
+      if (ref.sceneNum) parts.push("Sc" + ref.sceneNum);
+      return parts.length ? parts.join(" · ") : "Unscoped";
+    }
+
+    // Full titles for the row's tooltip, since the compact ref hides them.
+    function sceBlockRefTitle(ref) {
+      if (!ref) return "";
+      var parts = [];
+      if (ref.chapterNum) {
+        parts.push("Ch" + ref.chapterNum + (ref.chapterTitle ? " - " + ref.chapterTitle : ""));
+      }
+      if (ref.sceneNum) {
+        parts.push("Sc" + ref.sceneNum + (ref.sceneTitle ? " " + ref.sceneTitle : ""));
+      }
+      return parts.length ? parts.join("   ·   ") : "Not in a scene";
+    }
+
+    var SCE_JUMP_TO_BLOCK_KEY = "sce_jump_to_block";
+
+    function sceJumpToBlockEnabled() {
+      try {
+        // Default on: clicking a linked block and expecting to be taken there
+        // is the point of listing it. Untick to select without moving.
+        var raw = localStorage.getItem(SCE_JUMP_TO_BLOCK_KEY);
+        return raw === null ? true : raw === "1";
+      } catch (e) {
+        return true;
+      }
+    }
+
+    function sceSetJumpToBlock(on) {
+      try { localStorage.setItem(SCE_JUMP_TO_BLOCK_KEY, on ? "1" : "0"); } catch (e) {}
+    }
+
+    // Scroll the timeline so a block is on screen. #sceTimeline is the
+    // scroller; sceTimelineBody inside it never scrolls on its own.
+    function sceRevealBlock(blockId) {
+      var timeline = document.getElementById("sceTimeline");
+      var el = document.querySelector('.sce-block[data-block-id="' + blockId + '"]');
+      if (!timeline || !el) return;
+
+      var tRect = timeline.getBoundingClientRect();
+      var eRect = el.getBoundingClientRect();
+      var topDelta = eRect.top - tRect.top;
+      var leftDelta = eRect.left - tRect.left;
+
+      if (topDelta < 0 || topDelta + eRect.height > tRect.height) {
+        timeline.scrollTop += topDelta - (tRect.height - eRect.height) / 2;
+      }
+      if (leftDelta < 0 || leftDelta + eRect.width > tRect.width) {
+        timeline.scrollLeft += leftDelta;
+      }
+    }
+
     function renderSCEInspector() {
       var content = document.getElementById("sceInspectorContent");
       if (!content) return;
@@ -93,19 +185,37 @@
         return Number(c.source_block_id) === Number(block.id) || Number(c.target_block_id) === Number(block.id);
       });
       html += "<div class='sce-inspector-section'>";
+      html += "<div class='sce-conn-header'>";
       html += "<label class='sce-inspector-label'>Connections (" + blockConns.length + ")</label>";
-      html += "<div id='sceBlockConnections' style='max-height:100px;overflow-y:auto;'>";
+      if (blockConns.length) {
+        html += "<label class='sce-conn-jump' title='Selecting a linked block also scrolls the timeline to it'>";
+        html += "<input type='checkbox' id='sceJumpToBlock'" + (sceJumpToBlockEnabled() ? " checked" : "") + ">";
+        html += "<span>Jump to block</span>";
+        html += "</label>";
+      }
+      html += "</div>";
+      html += "<div id='sceBlockConnections' class='sce-conn-list'>";
       if (blockConns.length) {
         blockConns.forEach(function (c) {
           var isSource = Number(c.source_block_id) === Number(block.id);
-          var otherBlock = _sceState.blocks.find(function (b) {
-            return Number(b.id) === (isSource ? Number(c.target_block_id) : Number(c.source_block_id));
-          });
-          var arrow = isSource ? " → " : " ← ";
+          var otherId = isSource ? Number(c.target_block_id) : Number(c.source_block_id);
+          var otherBlock = _sceState.blocks.find(function (b) { return Number(b.id) === otherId; });
+          var arrow = isSource ? "\u2192" : "\u2190";
           var color = (typeof SCE_CONNECTION_COLORS !== "undefined") ? (SCE_CONNECTION_COLORS[c.connection_type] || "#888") : "#888";
-          html += "<div style='font-size:11px;padding:2px 0;display:flex;align-items:center;gap:4px;'>";
-          html += "<span style='display:inline-block;width:8px;height:8px;border-radius:50%;background:" + color + ";flex-shrink:0;'></span>";
-          html += "<span style='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + arrow + escapeHtml(otherBlock ? otherBlock.short_title || "Untitled" : "?") + "</span>";
+          var ref = otherBlock ? sceBlockSceneRef(otherId) : null;
+          var title = otherBlock ? (otherBlock.short_title || "Untitled") : "?";
+
+          // data-conn-block-id, not data-block-id: several places resolve a
+          // block with a bare document.querySelector('[data-block-id=...]'),
+          // and reusing the attribute here would depend on DOM order.
+          html += "<div class='sce-conn-row' data-conn-block-id='" + otherId + "' role='button' tabindex='0'";
+          html += " title='" + escapeHtml(sceBlockRefTitle(ref)) + "'>";
+          html += "<div class='sce-conn-row-main'>";
+          html += "<span class='sce-conn-dot' style='background:" + color + "'></span>";
+          html += "<span class='sce-conn-arrow'>" + arrow + "</span>";
+          html += "<span class='sce-conn-title'>" + escapeHtml(title) + "</span>";
+          html += "</div>";
+          html += "<div class='sce-conn-ref'>" + escapeHtml(sceBlockRefText(ref)) + "</div>";
           html += "</div>";
         });
       } else {
@@ -132,6 +242,35 @@
       html += "</div>";
 
       content.innerHTML = html;
+
+      // Wire the connections list. Clicking a row selects that block, and
+      // scrolls the timeline to it when "Jump to block" is ticked.
+      var connList = document.getElementById("sceBlockConnections");
+      if (connList) {
+        connList.querySelectorAll(".sce-conn-row").forEach(function (row) {
+          var go = function () {
+            var otherId = Number(row.getAttribute("data-conn-block-id"));
+            if (!otherId) return;
+            selectSCEBlock(otherId);
+            if (sceJumpToBlockEnabled()) sceRevealBlock(otherId);
+          };
+          row.addEventListener("click", go);
+          // The rows are divs, so Enter/Space have to be wired by hand.
+          row.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              go();
+            }
+          });
+        });
+      }
+
+      var jumpToggle = document.getElementById("sceJumpToBlock");
+      if (jumpToggle) {
+        jumpToggle.addEventListener("change", function () {
+          sceSetJumpToBlock(jumpToggle.checked);
+        });
+      }
 
       // Wire save
       var saveBtn = document.getElementById("sceBlockSaveBtn");
