@@ -47,11 +47,11 @@
 
       // Render header (layer columns)
       var headerHtml = "<div class='sce-layer-header-row'>";
-      headerHtml += "<div class='sce-state-header-spacer'>States</div>";
-      headerHtml += "<div class='sce-layer-header' data-layer='chapters' style='width:150px;'>Chapters</div>";
-      headerHtml += "<div class='sce-layer-header' data-layer='scenes' style='width:150px;'>Scenes</div>";
+      headerHtml += "<div class='sce-state-header-spacer'>States<div class='sce-col-resizer' data-col-key='state'></div></div>";
+      headerHtml += "<div class='sce-layer-header' data-layer='chapters' style='width:var(--sce-col-chapters);min-width:var(--sce-col-chapters);'>Chapters<div class='sce-col-resizer' data-col-key='chapters'></div></div>";
+      headerHtml += "<div class='sce-layer-header' data-layer='scenes' style='width:var(--sce-col-scenes);min-width:var(--sce-col-scenes);'>Scenes<div class='sce-col-resizer' data-col-key='scenes'></div></div>";
       visibleLayers.forEach(function (layer) {
-        headerHtml += "<div class='sce-layer-header' data-layer-id='" + layer.id + "' style='width:200px;'>" + escapeHtml(layer.name) + "</div>";
+        headerHtml += "<div class='sce-layer-header' data-layer-id='" + layer.id + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'>" + escapeHtml(layer.name) + "<div class='sce-col-resizer' data-col-key='layer-" + layer.id + "'></div></div>";
       });
       headerHtml += "</div>";
       header.innerHTML = headerHtml;
@@ -105,7 +105,7 @@
 
         // Layer cells
         visibleLayers.forEach(function (layer) {
-          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "'></div>";
+          bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'></div>";
         });
 
         bodyHtml += "</div>";
@@ -113,11 +113,88 @@
 
       body.innerHTML = bodyHtml;
 
+      // Apply persisted column widths and enable drag-to-resize
+      sceApplyColWidths();
+
       // Place blocks on the timeline
       renderSCEBlocks();
 
       // Wire interactions
       wirePortraitInteractions();
+      wireSCEColumnResize();
+    }
+
+    var SCE_COL_DEFAULTS = { state: 120, chapters: 150, scenes: 150 };
+    var SCE_COL_LAYER_DEFAULT = 200;
+    var SCE_COL_MIN = 70;
+
+    function sceGetColWidths() {
+      try {
+        var raw = localStorage.getItem("sce_col_widths");
+        var parsed = raw ? JSON.parse(raw) : null;
+        return (parsed && typeof parsed === "object") ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function sceSaveColWidth(key, px) {
+      var widths = sceGetColWidths();
+      widths[key] = Math.max(SCE_COL_MIN, Math.round(px));
+      try { localStorage.setItem("sce_col_widths", JSON.stringify(widths)); } catch (e) {}
+    }
+
+    function sceApplyColWidths() {
+      var tl = document.getElementById("sceTimeline");
+      if (!tl) return;
+      var widths = sceGetColWidths();
+      tl.style.setProperty("--sce-col-state", (widths.state || SCE_COL_DEFAULTS.state) + "px");
+      tl.style.setProperty("--sce-col-chapters", (widths.chapters || SCE_COL_DEFAULTS.chapters) + "px");
+      tl.style.setProperty("--sce-col-scenes", (widths.scenes || SCE_COL_DEFAULTS.scenes) + "px");
+      tl.querySelectorAll(".sce-layer-cell, .sce-layer-header[data-layer-id]").forEach(function (el) {
+        var id = el.getAttribute("data-layer-id");
+        if (!id) return;
+        el.style.setProperty("--sce-col-layer", (widths["layer-" + id] || SCE_COL_LAYER_DEFAULT) + "px");
+      });
+    }
+
+    function wireSCEColumnResize() {
+      var tl = document.getElementById("sceTimeline");
+      if (!tl) return;
+      tl.querySelectorAll(".sce-col-resizer").forEach(function (handle) {
+        handle.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var key = handle.getAttribute("data-col-key");
+          var target = handle.parentElement;
+          var startX = e.clientX;
+          var startW = target.getBoundingClientRect().width;
+          var isLayer = key.indexOf("layer-") === 0;
+          handle.classList.add("is-active");
+          try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+
+          function onMove(ev) {
+            var w = Math.max(SCE_COL_MIN, Math.round(startW + (ev.clientX - startX)));
+            if (isLayer) target.style.setProperty("--sce-col-layer", w + "px");
+            else tl.style.setProperty("--sce-col-" + key, w + "px");
+          }
+
+          function onUp(ev) {
+            handle.classList.remove("is-active");
+            try { handle.releasePointerCapture(ev.pointerId); } catch (err) {}
+            handle.removeEventListener("pointermove", onMove);
+            handle.removeEventListener("pointerup", onUp);
+            handle.removeEventListener("pointercancel", onUp);
+            var finalW = Math.max(SCE_COL_MIN, Math.round(startW + (ev.clientX - startX)));
+            sceSaveColWidth(key, finalW);
+            if (typeof renderSCEConnections === "function") renderSCEConnections();
+          }
+
+          handle.addEventListener("pointermove", onMove);
+          handle.addEventListener("pointerup", onUp);
+          handle.addEventListener("pointercancel", onUp);
+        });
+      });
     }
 
     function wirePortraitInteractions() {
