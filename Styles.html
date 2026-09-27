@@ -18894,6 +18894,13 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-block.is-selected {
       outline: 2px solid #fff;
       outline-offset: -1px;
+      /* Tint the block itself toward gold so it reads as a different colour
+         from its layer and from its linked partners. A background-image wash
+         sits above background-color but below the text, unlike a pseudo
+         element overlay which would cover the block title. */
+      background-image: linear-gradient(rgba(250, 204, 21, 0.34), rgba(250, 204, 21, 0.34));
+      /* Lift clear of overlapping neighbours, still under the pointer. */
+      z-index: 3;
     }
     /* A block in the selected block's connection thread. Distinct from
        is-selected so the anchor block stays the brightest thing on screen. */

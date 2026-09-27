@@ -29,6 +29,8 @@
     var SCE_CONNECTION_CORNER = 6;
     var SCE_CONNECTION_DIM_OPACITY = 0.5;
     var SCE_CONNECTION_LIT_OPACITY = 1;
+    var SCE_CONNECTION_STROKE = 1;
+    var SCE_CONNECTION_STROKE_LIT = 1.5;
 
     // Blocks carry no data-layer-id of their own, so resolve the column from
     // state. Used to reject a drop that would cross columns.
@@ -99,7 +101,7 @@
         svg.querySelectorAll("path[data-connection-id]").forEach(function (p) {
           var lit = thread.conns.has(Number(p.getAttribute("data-connection-id")));
           p.setAttribute("opacity", lit ? SCE_CONNECTION_LIT_OPACITY : SCE_CONNECTION_DIM_OPACITY);
-          p.setAttribute("stroke-width", lit ? "2.5" : "2");
+          p.setAttribute("stroke-width", lit ? SCE_CONNECTION_STROKE_LIT : SCE_CONNECTION_STROKE);
         });
         svg.querySelectorAll("text[data-connection-id]").forEach(function (t) {
           t.setAttribute("opacity", thread.conns.has(Number(t.getAttribute("data-connection-id")))
@@ -209,7 +211,7 @@
         var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", d);
         path.setAttribute("stroke", color);
-        path.setAttribute("stroke-width", "2");
+        path.setAttribute("stroke-width", String(SCE_CONNECTION_STROKE));
         path.setAttribute("fill", "none");
         path.setAttribute("opacity", String(SCE_CONNECTION_DIM_OPACITY));
         path.setAttribute("marker-end", "url(#arrow-" + conn.connection_type + ")");
@@ -477,7 +479,7 @@
           svg.setAttribute("height", window.innerHeight);
           var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
           line.setAttribute("stroke", "#3b82f6");
-          line.setAttribute("stroke-width", "2");
+          line.setAttribute("stroke-width", String(SCE_CONNECTION_STROKE_LIT));
           line.setAttribute("stroke-dasharray", "6,3");
           line.setAttribute("opacity", "0.8");
           svg.appendChild(line);
