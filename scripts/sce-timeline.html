@@ -30,6 +30,7 @@
       // Slot model: each scene is one vertical slot. A chapter with no scenes
       // still occupies a single slot so both columns stay aligned.
       var SLOT_H = 30;
+      var GAP = 2;
       var stateSlots = {};
       states.forEach(function (state) {
         var chs = chapters.filter(function (ch) { return ch.start_state === state.position; });
@@ -79,7 +80,7 @@
           var chapter = entry.chapter;
           var chColor = chapter.color || "#3b82f6";
           var chNum = getChapterNumber(chapter.id);
-          var chH = entry.slots * SLOT_H - 4;
+          var chH = entry.slots * SLOT_H - GAP;
           bodyHtml += "<div class='sce-chapter-block' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + chH + "px;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;padding:4px 8px;cursor:grab;'>";
           bodyHtml += "<div style='font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled") + "</div>";
           bodyHtml += "</div>";
@@ -93,13 +94,13 @@
           var chapter = entry.chapter;
           var scenes = entry.scenes;
           var chColor = chapter.color || "#10b981";
-          var groupH = entry.slots * SLOT_H - 4;
+          var groupH = entry.slots * SLOT_H - GAP;
           bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='height:" + groupH + "px;border-left:2px solid " + chColor + "55;'>";
           if (!scenes.length) {
             bodyHtml += "<div class='sce-scene-empty' data-chapter-id='" + chapter.id + "'></div>";
           } else {
             scenes.forEach(function (scene, si) {
-              bodyHtml += "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + (SLOT_H - 4) + "px;background:" + chColor + "2e;border:1px solid " + chColor + "88;border-radius:4px;padding:4px 8px;cursor:grab;font-size:10px;font-weight:600;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:#fff;opacity:0.85'>Sc" + (si + 1) + "</span> <span style='opacity:0.9'>" + escapeHtml(scene.title || "Scene") + "</span></div>";
+              bodyHtml += "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + (SLOT_H - GAP) + "px;background:" + chColor + "2e;border:1px solid " + chColor + "88;border-radius:4px;padding:4px 8px;cursor:grab;font-size:10px;font-weight:600;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:#fff;opacity:0.85'>Sc" + (si + 1) + "</span> <span style='opacity:0.9'>" + escapeHtml(scene.title || "Scene") + "</span></div>";
             });
           }
           bodyHtml += "</div>";
