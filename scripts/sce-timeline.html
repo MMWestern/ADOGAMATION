@@ -540,10 +540,10 @@
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
-          if (result.chapter) {
-            _sceState.chapters.push(result.chapter);
+          if (result.chapter) sceUndoAddChapter(result.chapter);
+          loadSCEChaptersAndScenes(function () {
             renderSCETimeline();
-          }
+          });
         })
         .withFailureHandler(function (err) {
           console.error("[SCE] Failed to add chapter:", err);
@@ -566,7 +566,9 @@
       var title = "Scene " + (existing.length + 1);
 
       supabaseRunner
-        .withSuccessHandler(function () {
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.scene) sceUndoAddScene(result.scene);
           loadSCEChaptersAndScenes(function () {
             renderSCETimeline();
           });
@@ -590,7 +592,9 @@
       var sortOrder = _sceState.chapters.filter(function (c) { return c.start_state === statePos; }).length + 1;
 
       supabaseRunner
-        .withSuccessHandler(function () {
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.chapter) sceUndoAddChapter(result.chapter);
           loadSCEChaptersAndScenes(function () {
             renderSCETimeline();
           });
@@ -619,9 +623,54 @@
       return 0;
     }
 
+    // A chapter move rewrites sort_order on every chapter in the states it
+    // touches, so its undo record has to hold the whole before/after set
+    // rather than one chapter's fields.
+    function sceChapterOrderSnapshot(chapters) {
+      return chapters.map(function (c) {
+        return {
+          id: c.id,
+          composition_id: c.composition_id,
+          title: c.title,
+          start_state: c.start_state,
+          end_state: c.end_state,
+          sort_order: c.sort_order,
+          notes: c.notes,
+          color: c.color
+        };
+      });
+    }
+
+    function sceWriteChapterRows(rows, cb) {
+      var i = 0;
+      (function next() {
+        if (i >= rows.length) { if (cb) cb(); return; }
+        sceWriteChapterRow(rows[i++], next);
+      })();
+    }
+
+    // Shared tail for both chapter-move entry points: record the undo, then
+    // write the new order out.
+    function sceCommitChapterMove(before, after) {
+      scePushUndo({
+        type: "move_chapter",
+        undo: function () { sceWriteChapterRows(before, sceReloadAndRender); },
+        redo: function () { sceWriteChapterRows(after, sceReloadAndRender); }
+      });
+      sceWriteChapterRows(after, sceReloadAndRender);
+    }
+
     function moveChapterToStateAt(chapterId, statePos, insertIdx) {
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
+
+      // Everything that can be renumbered by this move: the chapters already in
+      // the destination state plus the ones being left behind in the source.
+      var touched = _sceState.chapters.filter(function (c) {
+        return c.start_state === statePos || Number(c.id) === chapterId;
+      });
+      var before = sceChapterOrderSnapshot(touched);
+
       chapter.start_state = statePos;
       chapter.end_state = statePos;
 
@@ -631,20 +680,14 @@
       stateChapters.splice(insertIdx, 0, chapter);
       stateChapters.forEach(function (ch, idx) { ch.sort_order = idx + 1; });
 
-      // Save all and re-render
-      var savesNeeded = stateChapters.length;
-      var savesDone = 0;
-      stateChapters.forEach(function (ch) {
-        supabaseRunner
-          .withSuccessHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
-          .withFailureHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
-          .sceSaveChapter(JSON.stringify(ch));
-      });
+      sceCommitChapterMove(before, sceChapterOrderSnapshot(stateChapters));
     }
 
     function reorderChapterToIndex(chapterId, statePos, insertIdx) {
       var stateChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
       stateChapters.sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+
+      var before = sceChapterOrderSnapshot(stateChapters);
 
       // Remove dragged
       var dragged = null;
@@ -660,13 +703,5 @@
       // Update sort_order
       stateChapters.forEach(function (ch, idx) { ch.sort_order = idx + 1; });
 
-      // Save all and re-render
-      var savesNeeded = stateChapters.length;
-      var savesDone = 0;
-      stateChapters.forEach(function (ch) {
-        supabaseRunner
-          .withSuccessHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
-          .withFailureHandler(function () { savesDone++; if (savesDone >= savesNeeded) renderSCETimeline(); })
-          .sceSaveChapter(JSON.stringify(ch));
-      });
+      sceCommitChapterMove(before, sceChapterOrderSnapshot(stateChapters));
     }

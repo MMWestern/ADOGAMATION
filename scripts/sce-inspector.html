@@ -397,11 +397,12 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete this chapter and all its scenes?")) return;
+          // Capture the chapter, its scenes and any blocks anchored to them
+          // before the delete, so undo can put all three back.
+          var snap = sceSnapshotChapter(chapter.id);
           supabaseRunner
             .withSuccessHandler(function () {
-              // Re-read chapters and scenes from the database rather than
-              // editing _sceState by hand, so the client ends up in exactly the
-              // state a page refresh would produce.
+              sceUndoDeleteChapter(snap);
               loadSCEChaptersAndScenes(function () {
                 renderSCETimeline();
                 renderSCEInspector();
@@ -421,11 +422,15 @@
           var title = prompt("Scene title:");
           if (!title) return;
           supabaseRunner
-            .withSuccessHandler(function () {
-              loadSCEChaptersAndScenes(function () {
-                loadSCEChapterScenes(chapter.id);
-                renderSCETimeline();
-              });
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result.scene) {
+                sceUndoAddScene(result.scene);
+                loadSCEChaptersAndScenes(function () {
+                  loadSCEChapterScenes(chapter.id);
+                  renderSCETimeline();
+                });
+              }
             })
             .withFailureHandler(function (err) {
               console.error("[SCE] Failed to add scene:", err);
@@ -554,8 +559,10 @@
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
           if (!confirm("Delete this scene?")) return;
+          var snap = sceSnapshotScene(scene.id);
           supabaseRunner
             .withSuccessHandler(function () {
+              sceUndoDeleteScene(snap);
               loadSCEChaptersAndScenes(function () {
                 var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
                 if (chapter) renderSCEInspectorChapter(chapter);
