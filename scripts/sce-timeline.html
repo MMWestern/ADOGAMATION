@@ -483,7 +483,7 @@
         // Click to select
         blockEl.addEventListener("click", function (e) {
           e.stopPropagation();
-          if (e.target.closest(".sce-block-resize-handle") || e.target.closest(".sce-block-connect-node")) return;
+          if (e.target.closest(".sce-block-connect-node")) return;
           selectSCEBlock(block.id);
         });
 

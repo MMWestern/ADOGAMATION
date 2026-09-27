@@ -2,69 +2,99 @@
     // Story Composition Editor — Block Drag/Drop and Resize
     // ============================================================
 
+    // #sceTimelineBody survives re-renders (only its innerHTML is replaced),
+    // so handlers live at script scope. Re-creating them per render stacks
+    // duplicate listeners and fires one drop handler N times.
+    var sceBlockDropCell = null;
+    var sceBlockDragWired = false;
+
+    function clearSCEBlockDropTarget() {
+      if (sceBlockDropCell) {
+        sceBlockDropCell.classList.remove("sce-drop-target");
+        sceBlockDropCell = null;
+      }
+    }
+
+    function sceDropCellFrom(e) {
+      return e.target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
+    }
+
+    function onSCEBlockDragOver(e) {
+      var cell = sceDropCellFrom(e);
+      if (!cell) {
+        clearSCEBlockDropTarget();
+        return;
+      }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      // closest() returns the innermost match, and dragover fires for every
+      // child, so only mark the cell that actually changed.
+      if (cell !== sceBlockDropCell) {
+        clearSCEBlockDropTarget();
+        sceBlockDropCell = cell;
+        cell.classList.add("sce-drop-target");
+      }
+    }
+
+    function onSCEBlockDragLeave(e) {
+      if (sceBlockDropCell && !sceBlockDropCell.contains(e.relatedTarget)) {
+        clearSCEBlockDropTarget();
+      }
+    }
+
+    function onSCEBlockDrop(e) {
+      var cell = sceDropCellFrom(e);
+      clearSCEBlockDropTarget();
+      if (!cell) return;
+      e.preventDefault();
+
+      var data;
+      try {
+        data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      } catch (err) { return; }
+
+      if (data.type === "asset") {
+        var layerId = Number(cell.getAttribute("data-layer-id"));
+        var state = cell.getAttribute("data-state");
+        if (state === "parking" || state === "later") return;
+        var statePosition = Number(state);
+        var sceneId = cell.getAttribute("data-scene-id") || null;
+        createSCEBlockFromAsset(data.assetId, layerId, statePosition, sceneId ? Number(sceneId) : null);
+      }
+    }
+
+    function onSCEBlockClick(e) {
+      if (e.target.closest(".sce-block")) return;
+      _sceState.selectedBlockId = null;
+      _sceState.selectedAssetId = null;
+      document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
+        el.classList.remove("is-selected");
+      });
+      renderSCEInspector();
+    }
+
+    function onSCEBlockDblClick(e) {
+      var blockEl = e.target.closest(".sce-block");
+      if (!blockEl) return;
+      var blockId = Number(blockEl.getAttribute("data-block-id"));
+      var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+      if (block && block.precomp_composition_id) {
+        openPrecomp(block);
+      }
+    }
+
     function wireSCEBlockInteractions() {
       var timelineBody = document.getElementById("sceTimelineBody");
       if (!timelineBody) return;
 
       // Allow drops on layer cells and scene slots
-      timelineBody.addEventListener("dragover", function (e) {
-        var cell = e.target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
-        if (cell) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          cell.classList.add("sce-drop-target");
-        }
-      });
-
-      timelineBody.addEventListener("dragleave", function (e) {
-        var cell = e.target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
-        if (cell) {
-          cell.classList.remove("sce-drop-target");
-        }
-      });
-
-      timelineBody.addEventListener("drop", function (e) {
-        var cell = e.target.closest(".sce-scene-slot, .sce-layer-unscoped, .sce-layer-cell");
-        if (!cell) return;
-        cell.classList.remove("sce-drop-target");
-        e.preventDefault();
-
-        var data;
-        try {
-          data = JSON.parse(e.dataTransfer.getData("text/plain"));
-        } catch (err) { return; }
-
-        if (data.type === "asset") {
-          var layerId = Number(cell.getAttribute("data-layer-id"));
-          var state = cell.getAttribute("data-state");
-          if (state === "parking" || state === "later") return;
-          var statePosition = Number(state);
-          var sceneId = cell.getAttribute("data-scene-id") || null;
-          createSCEBlockFromAsset(data.assetId, layerId, statePosition, sceneId ? Number(sceneId) : null);
-        }
-      });
-
-      // Click on empty cell to deselect
-      timelineBody.addEventListener("click", function (e) {
-        if (e.target.closest(".sce-block")) return;
-        _sceState.selectedBlockId = null;
-        _sceState.selectedAssetId = null;
-        document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
-          el.classList.remove("is-selected");
-        });
-        renderSCEInspector();
-      });
-
-      // Double-click on block to open precomp
-      timelineBody.addEventListener("dblclick", function (e) {
-        var blockEl = e.target.closest(".sce-block");
-        if (!blockEl) return;
-        var blockId = Number(blockEl.getAttribute("data-block-id"));
-        var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
-        if (block && block.precomp_composition_id) {
-          openPrecomp(block);
-        }
-      });
+      timelineBody.addEventListener("dragover", onSCEBlockDragOver);
+      timelineBody.addEventListener("dragleave", onSCEBlockDragLeave);
+      timelineBody.addEventListener("drop", onSCEBlockDrop);
+      timelineBody.addEventListener("click", onSCEBlockClick);
+      timelineBody.addEventListener("dblclick", onSCEBlockDblClick);
+      // A drag cancelled with Escape fires no drop, so clear on dragend.
+      document.addEventListener("dragend", clearSCEBlockDropTarget);
 
       // Wire block drag (for moving blocks)
       wireSCEBlockDrag();
@@ -74,13 +104,15 @@
       // Use mousedown/mousemove/mouseup for block dragging
       var timelineBody = document.getElementById("sceTimelineBody");
       if (!timelineBody) return;
+      // Adds document-level listeners, so only wire once.
+      if (sceBlockDragWired) return;
+      sceBlockDragWired = true;
 
       var dragState = null;
 
       timelineBody.addEventListener("mousedown", function (e) {
         var block = e.target.closest(".sce-block");
         if (!block) return;
-        if (e.target.closest(".sce-block-resize-handle")) return;
         if (e.target.closest(".sce-block-connect-node")) return;
 
         var blockId = Number(block.getAttribute("data-block-id"));
