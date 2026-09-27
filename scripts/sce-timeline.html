@@ -41,7 +41,7 @@
         var entries = [];
         var total = 0;
         chs.forEach(function (ch) {
-          var scenes = (_sceState.chapters._scenes || {})[ch.id] || [];
+          var scenes = sceSceneCache()[ch.id] || [];
           var count = Math.max(1, scenes.length);
           entries.push({ chapter: ch, scenes: scenes, slots: count });
           total += count;
@@ -474,7 +474,7 @@
       _sceState.selectedAssetId = null;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
-      var scenes = (_sceState.chapters._scenes || {})[chapterId] || [];
+      var scenes = sceSceneCache()[chapterId] || [];
       var scene = scenes.find(function (s) { return Number(s.id) === sceneId; });
       if (scene) {
         renderSCEInspectorScene(scene, chapterId);
@@ -515,16 +515,17 @@
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
 
-      var existing = (_sceState.chapters._scenes || {})[chapter.id] || [];
+      var existing = sceSceneCache()[chapter.id] || [];
       var title = "Scene " + (existing.length + 1);
 
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           if (result.scene) {
-            if (!_sceState.chapters._scenes[chapter.id]) _sceState.chapters._scenes[chapter.id] = [];
-            _sceState.chapters._scenes[chapter.id].push(result.scene);
-            _sceState.chapters._scenes[chapter.id].sort(function (a, b) {
+            var cache = sceSceneCache();
+            if (!cache[chapter.id]) cache[chapter.id] = [];
+            cache[chapter.id].push(result.scene);
+            cache[chapter.id].sort(function (a, b) {
               return (a.sort_order || 0) - (b.sort_order || 0);
             });
             renderSCETimeline();

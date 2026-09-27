@@ -10,6 +10,7 @@
       assets: [],
       connections: [],
       chapters: [],
+      sceneCache: {},
       selectedBlockId: null,
       selectedAssetId: null,
       undoStack: [],
@@ -17,6 +18,17 @@
       dirty: false,
       initialized: false
     };
+
+    // Scene lists live in their own slot on _sceState, keyed by chapter id.
+    // Never stash them on _sceState.chapters: that array gets reassigned by
+    // filter()/slice() and a plain array carries no custom properties, which
+    // silently wipes every chapter's scenes.
+    function sceSceneCache() {
+      if (!_sceState.sceneCache || typeof _sceState.sceneCache !== "object") {
+        _sceState.sceneCache = {};
+      }
+      return _sceState.sceneCache;
+    }
 
     var SCE_DEFAULT_STATES = [
       { position: 1, name: "Before", purpose: "The starting situation before anything changes" },
@@ -273,7 +285,7 @@
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           _sceState.chapters = result.chapters || [];
-          _sceState.chapters._scenes = {};
+          sceSceneCache();
           
           // Now load all scenes for this composition's chapters
           if (_sceState.chapters.length === 0) {
@@ -287,7 +299,7 @@
             supabaseRunner
               .withSuccessHandler(function (json2) {
                 var result2 = typeof json2 === 'string' ? JSON.parse(json2) : json2;
-                _sceState.chapters._scenes[chapter.id] = result2.scenes || [];
+                sceSceneCache()[chapter.id] = result2.scenes || [];
                 scenesLoaded++;
                 if (scenesLoaded >= chapterIds.length) {
                   checkDone();
