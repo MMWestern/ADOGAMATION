@@ -18515,6 +18515,42 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-toolbar-btn:hover { background: var(--hover); }
     .sce-toolbar-btn:disabled { opacity: 0.4; cursor: default; }
 
+    .sce-stats {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      flex-shrink: 0;
+    }
+    .sce-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sce-stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .sce-stat-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sce-stat-input {
+      width: 70px;
+      padding: 2px 5px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+    }
+
     .sce-body {
       display: flex;
       flex: 1;
