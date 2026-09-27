@@ -65,6 +65,7 @@
     }
 
     function showSCEAssetEditor(asset, seriesId) {
+      if (sceMutationBlocked(asset ? "edit asset" : "add asset")) return;
       var isNew = !asset;
       var name = prompt(isNew ? "Asset name:" : "Asset name:", asset ? asset.name : "");
       if (name === null) return;

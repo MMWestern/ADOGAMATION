@@ -103,6 +103,7 @@
     }
 
     function deleteSCELayer(layerId) {
+      if (sceMutationBlocked("delete layer")) return;
       var layer = _sceState.layers.find(function (l) { return Number(l.id) === layerId; });
       if (!layer) return;
       // Count blocks on this layer
@@ -128,6 +129,7 @@
     }
 
     function addSCELayer() {
+      if (sceMutationBlocked("add layer")) return;
       var name = prompt("Layer name:");
       if (!name) return;
       var compositionId = _sceState.composition ? _sceState.composition.id : 0;
@@ -156,6 +158,7 @@
     }
 
     function saveSCELayer(layer) {
+      if (sceMutationBlocked("layer edit")) return;
       supabaseRunner
         .withSuccessHandler(function () {})
         .withFailureHandler(function (err) {

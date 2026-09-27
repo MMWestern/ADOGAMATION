@@ -387,6 +387,7 @@
     }
 
     function saveSCEConnection(conn) {
+      if (sceMutationBlocked("connection edit")) return;
       supabaseRunner
         .withSuccessHandler(function () {})
         .withFailureHandler(function (err) {
