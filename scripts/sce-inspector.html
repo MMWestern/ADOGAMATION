@@ -34,6 +34,50 @@
       return chapter ? Number(chapter.start_state) : null;
     }
 
+    // Where a block sits in the story, keyed the same way the canvas orders
+    // it: state row, then chapter order within the row, then scene order within
+    // the chapter, then the order the blocks were loaded in. A block with no
+    // scene belongs to the unscoped band at the bottom of its row, so it sorts
+    // after every scene in that row.
+    function sceBlockStoryOrder(block) {
+      var blockIndex = block
+        ? _sceState.blocks.findIndex(function (b) { return Number(b.id) === Number(block.id); })
+        : -1;
+      var statePosition = Number(block && block.start_state);
+      var chapterSort = 0;
+      var sceneIndex = Infinity;
+      var chapterId = sceSceneChapterId(block && block.scene_id);
+
+      if (chapterId !== null) {
+        var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
+        if (chapter) {
+          chapterSort = Number(chapter.sort_order || 0);
+          statePosition = Number(chapter.start_state);
+        }
+        var scenes = sceSceneCache()[chapterId] || [];
+        var found = scenes.findIndex(function (s) { return Number(s.id) === Number(block.scene_id); });
+        if (found >= 0) sceneIndex = found;
+      }
+
+      return [statePosition, chapterSort, sceneIndex, blockIndex];
+    }
+
+    // The chain's blocks in story order, so the list reads the way the canvas
+    // reads rather than the way the links happen to be stored. The selected
+    // block keeps its place in that order instead of being hoisted to the top.
+    function sceChainInStoryOrder(chain) {
+      var byId = {};
+      _sceState.blocks.forEach(function (b) { byId[Number(b.id)] = b; });
+      return chain.order.slice().sort(function (a, b) {
+        var oa = sceBlockStoryOrder(byId[Number(a.blockId)]);
+        var ob = sceBlockStoryOrder(byId[Number(b.blockId)]);
+        for (var i = 0; i < oa.length; i++) {
+          if (oa[i] !== ob[i]) return oa[i] - ob[i];
+        }
+        return 0;
+      });
+    }
+
     // A block's position in the chapter/scene tree, for the connections list.
     // Resolved through the scene cache rather than the block's own fields,
     // because a block only stores scene_id.
@@ -246,9 +290,10 @@
 
       // Chain list. This walks the whole thread the selected block belongs to,
       // not just its direct links, so a long run of setups and payoffs can be
-      // read in one place. The selected block is listed as its own row so you
-      // can see where you are sitting in the chain.
+      // read in one place. Listed in chapter and scene order, with the
+      // selected block marked in place rather than lifted to the top.
       var chain = sceBlockChain(block.id);
+      var chainRows = sceChainInStoryOrder(chain);
       var linkedCount = chain.order.length - 1;
       html += "<div class='sce-inspector-section'>";
       html += "<div class='sce-conn-header'>";
@@ -261,8 +306,8 @@
       }
       html += "</div>";
       html += "<div id='sceBlockConnections' class='sce-conn-list'>";
-      if (chain.order.length) {
-        chain.order.forEach(function (entry) {
+      if (chainRows.length) {
+        chainRows.forEach(function (entry) {
           var isSelf = entry.depth === 0;
           var otherId = Number(entry.blockId);
           var otherBlock = _sceState.blocks.find(function (b) { return Number(b.id) === otherId; });
