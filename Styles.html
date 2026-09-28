@@ -19127,6 +19127,30 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       outline: 1px solid #3b82f6;
       outline-offset: -1px;
     }
+    /* The selected block's own row in the chain list. It is a position marker,
+       not a link, so it is not clickable and does not take the hover state.
+       Gold matches the selected block on the canvas. */
+    .sce-conn-row.is-self {
+      cursor: default;
+      background: rgba(212, 175, 55, 0.16);
+      border-color: rgba(212, 175, 55, 0.55);
+    }
+    .sce-conn-row.is-self:hover {
+      background: rgba(212, 175, 55, 0.16);
+      border-color: rgba(212, 175, 55, 0.55);
+    }
+    .sce-conn-row.is-self .sce-conn-title {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .sce-conn-self-tag {
+      flex-shrink: 0;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #d4af37;
+      opacity: 0.9;
+    }
     .sce-conn-row-main {
       display: flex;
       align-items: center;

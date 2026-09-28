@@ -45,37 +45,49 @@
       return a !== null && b !== null && a === b;
     }
 
-    // Every connection reachable from the selected block, following the graph
-    // in both directions. Selecting one block lights the whole thread so a
-    // chain of setups and payoffs can be read at a glance.
-    function sceConnectionThread(blockId) {
+    // Every connection reachable from the given block, following the graph in
+    // both directions, in the order the blocks are reached. Selecting one block
+    // lights the whole thread so a chain of setups and payoffs can be read at a
+    // glance, and the inspector lists the same walk.
+    //
+    // `conns` is every connection touching a block in the chain, which is not
+    // the same set as the connections that first reached each block: a link
+    // between two already-reached blocks still belongs to the thread, so it is
+    // collected on sight rather than derived from `viaConnId`.
+    // `viaConnId` is the connection that first reached each block, which is what
+    // the inspector uses to tint a row by the link that joins it to the chain.
+    function sceBlockChain(blockId) {
       var conns = new Set();
       var blocks = new Set();
-      if (!blockId) return { conns: conns, blocks: blocks };
+      var order = [];
+      if (!blockId) return { order: order, conns: conns, blocks: blocks };
 
-      var byId = new Map();
-      _sceState.connections.forEach(function (c) {
-        byId.set(Number(c.id), c);
-      });
-
-      var queue = [Number(blockId)];
-      blocks.add(Number(blockId));
+      var start = Number(blockId);
+      blocks.add(start);
+      order.push({ blockId: start, depth: 0, viaConnId: null });
+      var queue = [{ blockId: start, depth: 0 }];
       while (queue.length) {
-        var current = queue.shift();
+        var item = queue.shift();
         _sceState.connections.forEach(function (c) {
           var s = Number(c.source_block_id);
           var t = Number(c.target_block_id);
-          if (s !== current && t !== current) return;
+          if (s !== item.blockId && t !== item.blockId) return;
           if (!conns.has(Number(c.id))) conns.add(Number(c.id));
           [s, t].forEach(function (id) {
-            if (!blocks.has(id)) {
-              blocks.add(id);
-              queue.push(id);
-            }
+            if (blocks.has(id)) return;
+            blocks.add(id);
+            order.push({ blockId: id, depth: item.depth + 1, viaConnId: Number(c.id) });
+            queue.push({ blockId: id, depth: item.depth + 1 });
           });
         });
       }
-      return { conns: conns, blocks: blocks };
+      return { order: order, conns: conns, blocks: blocks };
+    }
+
+    // Set form of the same walk, for the emphasis pass.
+    function sceConnectionThread(blockId) {
+      var chain = sceBlockChain(blockId);
+      return { conns: chain.conns, blocks: chain.blocks };
     }
 
     // Called after every render and every selection change. Dim every line,
