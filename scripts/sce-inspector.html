@@ -244,14 +244,16 @@
       html += "<textarea id='sceBlockNotes' class='sce-inspector-textarea' rows='2'>" + escapeHtml(block.notes || "") + "</textarea>";
       html += "</div>";
 
-      // Connections list
-      var blockConns = _sceState.connections.filter(function (c) {
-        return Number(c.source_block_id) === Number(block.id) || Number(c.target_block_id) === Number(block.id);
-      });
+      // Chain list. This walks the whole thread the selected block belongs to,
+      // not just its direct links, so a long run of setups and payoffs can be
+      // read in one place. The selected block is listed as its own row so you
+      // can see where you are sitting in the chain.
+      var chain = sceBlockChain(block.id);
+      var linkedCount = chain.order.length - 1;
       html += "<div class='sce-inspector-section'>";
       html += "<div class='sce-conn-header'>";
-      html += "<label class='sce-inspector-label'>Connections (" + blockConns.length + ")</label>";
-      if (blockConns.length) {
+      html += "<label class='sce-inspector-label'>Chain (" + chain.order.length + ")</label>";
+      if (linkedCount) {
         html += "<label class='sce-conn-jump' title='Selecting a linked block also scrolls the timeline to it'>";
         html += "<input type='checkbox' id='sceJumpToBlock'" + (sceJumpToBlockEnabled() ? " checked" : "") + ">";
         html += "<span>Jump to block</span>";
@@ -259,25 +261,50 @@
       }
       html += "</div>";
       html += "<div id='sceBlockConnections' class='sce-conn-list'>";
-      if (blockConns.length) {
-        blockConns.forEach(function (c) {
-          var isSource = Number(c.source_block_id) === Number(block.id);
-          var otherId = isSource ? Number(c.target_block_id) : Number(c.source_block_id);
+      if (chain.order.length) {
+        chain.order.forEach(function (entry) {
+          var isSelf = entry.depth === 0;
+          var otherId = Number(entry.blockId);
           var otherBlock = _sceState.blocks.find(function (b) { return Number(b.id) === otherId; });
-          var arrow = isSource ? "\u2192" : "\u2190";
-          var color = (typeof SCE_CONNECTION_COLORS !== "undefined") ? (SCE_CONNECTION_COLORS[c.connection_type] || "#888") : "#888";
-          var ref = otherBlock ? sceBlockSceneRef(otherId) : null;
-          var title = otherBlock ? (otherBlock.short_title || "Untitled") : "?";
+          var ref = sceBlockSceneRef(otherId);
+          var title = otherBlock ? (otherBlock.short_title || "Untitled") : "Untitled";
+
+          // The link that joined this block to the chain, which is the one the
+          // row is coloured by. The selected block has none, so it gets no dot
+          // and no arrow.
+          var viaConn = null;
+          if (entry.viaConnId !== null) {
+            viaConn = _sceState.connections.find(function (c) { return Number(c.id) === entry.viaConnId; });
+          }
+          var parentId = null;
+          if (viaConn) {
+            parentId = Number(viaConn.source_block_id) === otherId
+              ? Number(viaConn.target_block_id)
+              : Number(viaConn.source_block_id);
+          }
+          var color = (viaConn && typeof SCE_CONNECTION_COLORS !== "undefined")
+            ? (SCE_CONNECTION_COLORS[viaConn.connection_type] || "#888")
+            : "transparent";
+          var arrow = viaConn
+            ? (Number(viaConn.source_block_id) === parentId ? "\u2192" : "\u2190")
+            : "";
 
           // data-conn-block-id, not data-block-id: several places resolve a
           // block with a bare document.querySelector('[data-block-id=...]'),
           // and reusing the attribute here would depend on DOM order.
-          html += "<div class='sce-conn-row' data-conn-block-id='" + otherId + "' role='button' tabindex='0'";
+          var classes = "sce-conn-row" + (isSelf ? " is-self" : "");
+          var attrs = isSelf
+            ? " aria-current='true'"
+            : " role='button' tabindex='0' data-conn-block-id='" + otherId + "'";
+          html += "<div class='" + classes + "'" + attrs;
           html += " title='" + escapeHtml(sceBlockRefTitle(ref)) + "'>";
           html += "<div class='sce-conn-row-main'>";
           html += "<span class='sce-conn-dot' style='background:" + color + "'></span>";
           html += "<span class='sce-conn-arrow'>" + arrow + "</span>";
           html += "<span class='sce-conn-title'>" + escapeHtml(title) + "</span>";
+          if (isSelf) {
+            html += "<span class='sce-conn-self-tag'>This block</span>";
+          }
           html += "</div>";
           html += "<div class='sce-conn-ref'>" + escapeHtml(sceBlockRefText(ref)) + "</div>";
           html += "</div>";
