@@ -423,17 +423,51 @@
       var saveBtn = document.getElementById("sceBlockSaveBtn");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
+          var newLayerId = Number(document.getElementById("sceBlockLayer").value);
+          var nextSceneId = sceneSelect && sceneSelect.value ? Number(sceneSelect.value) : null;
+          var prevSceneId = block.scene_id ? Number(block.scene_id) : null;
+          var layerChanged = newLayerId !== Number(block.layer_id);
+          var placementChanged = nextSceneId !== prevSceneId || layerChanged;
+
+          // Check for a scene removal before touching anything, so declining
+          // leaves the block and the form exactly as they were. Reading the
+          // title off the block rather than the input keeps the message honest
+          // about what is currently saved.
+          if (prevSceneId !== null && nextSceneId === null) {
+            // Leaving a scene is easy to do by accident and it is not obvious
+            // what it costs: the block drops out of its scene slot into the
+            // unscoped band, which is a different place in the grid than where
+            // the reader expects to find it. Warn only on the way out, so
+            // moving between scenes, or saving a block that is already
+            // unscoped, both stay quiet.
+            var linked = _sceState.connections.filter(function (c) {
+              return Number(c.source_block_id) === Number(block.id) ||
+                Number(c.target_block_id) === Number(block.id);
+            }).length;
+            var label = (block.short_title || "Untitled").trim();
+            var msg = "Remove '" + label + "' from its scene?\n\n" +
+              "It will move to the unscoped area at the bottom of its row, " +
+              "and its chapter and scene will be cleared.";
+            if (linked) {
+              msg += "\n\nIts " + linked + " connection" + (linked === 1 ? "" : "s") +
+                " will be kept.";
+            }
+            if (!confirm(msg)) {
+              // Redraw so the selects snap back to the saved placement instead
+              // of leaving a stale "None" in the form.
+              renderSCEInspector();
+              return;
+            }
+          }
+
+          // Only reached once the save is going ahead, so an abandoned edit
+          // never leaves the in-memory block out of step with the database.
           block.short_title = document.getElementById("sceBlockTitle").value;
           block.description = document.getElementById("sceBlockDesc").value;
           block.what_happens = document.getElementById("sceBlockWhat").value;
           block.notes = document.getElementById("sceBlockNotes").value;
 
-          var newLayerId = Number(document.getElementById("sceBlockLayer").value);
-          var nextSceneId = sceneSelect && sceneSelect.value ? Number(sceneSelect.value) : null;
-          var prevSceneId = block.scene_id ? Number(block.scene_id) : null;
-          var layerChanged = newLayerId !== Number(block.layer_id);
-
-          if (nextSceneId !== prevSceneId || layerChanged) {
+          if (placementChanged) {
             // Placement changed, so go through the move path. That keeps it
             // undoable like a drag, and derives the row from the scene's
             // chapter instead of trusting a state number on the block.
