@@ -1436,7 +1436,14 @@
         is_detached: !!parsed.is_detached,
         is_parked: !!parsed.is_parked,
         is_later_book: !!parsed.is_later_book,
-        precomp_composition_id: parsed.precomp_composition_id ? Number(parsed.precomp_composition_id) : null
+        precomp_composition_id: parsed.precomp_composition_id ? Number(parsed.precomp_composition_id) : null,
+        // Catalogue provenance is a snapshot, so it is always rewritten from the
+        // in-memory block. saveSCEBlock() and sceReanchorBlocks() both replay a
+        // whole block object on every move and undo; without these keys the
+        // whitelist would strip them and the type would be lost on first drag.
+        source_catalogue_id: parsed.source_catalogue_id ? Number(parsed.source_catalogue_id) : null,
+        source_catalogue_name: parsed.source_catalogue_name ? String(parsed.source_catalogue_name).trim() : null,
+        source_category: parsed.source_category ? String(parsed.source_category).trim() : null
       };
       if (blockId) payload.id = blockId;
       var op = blockId ? sbClient.from('sce_blocks').update(payload).eq('id', blockId).select().single()
@@ -1622,6 +1629,28 @@
               });
           });
         });
+    });
+
+    // The catalogue is deliberately not scoped to a series: it is a shared bank
+    // of prompts available to every suitable project, unlike sce_assets which is
+    // the author's own series-scoped idea bank.
+    _sbDefine('sceGetCatalogue', function () {
+      return sbClient.from('sce_catalogue_entries').select('*').eq('active', true)
+        .order('category', { ascending: true })
+        .order('name', { ascending: true })
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, catalogue: res.data || [] }); });
+    });
+
+    // Favourite is the only catalogue field the app writes. The brief keeps
+    // catalogue authoring out of scope, so there is no upsert here: mutating the
+    // catalogue itself stays a migration concern.
+    _sbDefine('sceSetCatalogueFavourite', function (entryId, isFavourite) {
+      var safeId = Number(entryId || 0);
+      if (!safeId) throw new Error('Catalogue entry id is required.');
+      return sbClient.from('sce_catalogue_entries')
+        .update({ is_favourite: !!isFavourite, updated_at: new Date().toISOString() })
+        .eq('id', safeId).select().single()
+        .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
     });
 
     _sbDefine('saveCodexEntityFieldValue', function (valueJson) {

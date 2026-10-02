@@ -3103,6 +3103,13 @@
         _sceState.layers = [];
         _sceState.blocks = [];
         _sceState.assets = [];
+        // Panel view and Story Mix highlight belong to a book's blocks, so they
+        // reset with them. The catalogue is global and survives the switch.
+        _sceState.panelView = "ideas";
+        _sceState.catalogueQuery = "";
+        _sceState.catalogueCategory = "";
+        _sceState.mixGrouping = "book";
+        _sceState.mixHighlight = null;
         if (typeof populateSCEProjectInfo === "function") populateSCEProjectInfo(project);
         if (typeof initSCE === "function") initSCE();
       }
@@ -10459,6 +10466,7 @@
     <?!= include('scripts/sce-timeline'); ?>
     <?!= include('scripts/sce-layers'); ?>
     <?!= include('scripts/sce-asset-bin'); ?>
+    <?!= include('scripts/sce-catalogue'); ?>
     <?!= include('scripts/sce-blocks'); ?>
     <?!= include('scripts/sce-connections'); ?>
     <?!= include('scripts/sce-inspector'); ?>

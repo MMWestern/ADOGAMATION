@@ -74,13 +74,18 @@
         data = JSON.parse(e.dataTransfer.getData("text/plain"));
       } catch (err) { return; }
 
+      // Both drag sources land in the same cell, so the target resolution is shared.
+      var layerId = Number(cell.getAttribute("data-layer-id"));
+      var state = cell.getAttribute("data-state");
+      if (state === "parking" || state === "later") return;
+      var statePosition = Number(state);
+      var sceneId = cell.getAttribute("data-scene-id") || null;
+      var anchorSceneId = sceneId ? Number(sceneId) : null;
+
       if (data.type === "asset") {
-        var layerId = Number(cell.getAttribute("data-layer-id"));
-        var state = cell.getAttribute("data-state");
-        if (state === "parking" || state === "later") return;
-        var statePosition = Number(state);
-        var sceneId = cell.getAttribute("data-scene-id") || null;
-        createSCEBlockFromAsset(data.assetId, layerId, statePosition, sceneId ? Number(sceneId) : null);
+        createSCEBlockFromAsset(data.assetId, layerId, statePosition, anchorSceneId);
+      } else if (data.type === "catalogue") {
+        createSCEBlockFromCatalogue(data.catalogueId, layerId, statePosition, anchorSceneId);
       }
     }
 

@@ -1,0 +1,745 @@
+// ============================================================
+    // Story Composition Editor — Sidebar Panel (Ideas / Catalogue / Story Mix)
+    // ============================================================
+    //
+    // Story Ideas keeps today's behaviour exactly: _sceState.assets rendered by
+    // renderSCEAssetBin(). This module adds the view switcher, the reusable
+    // catalogue, and the Story Mix tally as siblings of that list rather than
+    // replacing it, so the existing asset drag-and-drop workflow is untouched.
+    //
+    // The catalogue never places anything in the outline by itself. Creating a
+    // block copies the entry's type onto the block as a snapshot; the entry is
+    // then free to change or be retired without rewriting existing blocks.
+
+    var SCE_PANEL_VIEWS = ["ideas", "catalogue", "mix"];
+
+    // Categories in brief order rather than alphabetical, so the list reads the
+    // way the document does. Any category not listed falls to the end.
+    var SCE_CATALOGUE_CATEGORY_ORDER = [
+      "LitRPG",
+      "Story Rhythm and Tempo",
+      "Set-Piece",
+      "Character",
+      "Relationship",
+      "Mystery and Payoff",
+      "World and Social",
+      "Horror and Dark-Fiction"
+    ];
+
+    function scePanelView() {
+      return SCE_PANEL_VIEWS.indexOf(_sceState.panelView) >= 0 ? _sceState.panelView : "ideas";
+    }
+
+    function setSCEPanelView(view, seriesId) {
+      if (SCE_PANEL_VIEWS.indexOf(view) < 0) view = "ideas";
+      _sceState.panelView = view;
+      renderSCEPanel(seriesId || (getSelectedProject() ? Number(getSelectedProject().series_id || 0) : 0));
+      wireSCEToolbar(seriesId);
+    }
+
+    function renderSCEPanel(seriesId) {
+      var view = scePanelView();
+
+      var show = { ideas: view === "ideas", catalogue: view === "catalogue", mix: view === "mix" };
+      var ideasEl = document.getElementById("scePanelIdeasView");
+      var catalogueEl = document.getElementById("scePanelCatalogueView");
+      var mixEl = document.getElementById("scePanelMixView");
+      if (ideasEl) ideasEl.hidden = !show.ideas;
+      if (catalogueEl) catalogueEl.hidden = !show.catalogue;
+      if (mixEl) mixEl.hidden = !show.mix;
+
+      document.querySelectorAll(".sce-panel-view-tab").forEach(function (tab) {
+        tab.classList.toggle("is-active", tab.getAttribute("data-sce-view") === view);
+      });
+
+      if (show.ideas) renderSCEAssetBin(seriesId);
+      if (show.catalogue) renderSCECatalogue(seriesId);
+      if (show.mix) renderSCEMix();
+    }
+
+    // ============================================================
+    // Catalogue
+    // ============================================================
+
+    // Favourites float to the top of the list, then categories and names order
+    // as the brief does. The query matches name, category and purpose so
+    // "loot" finds Loot box or reward chest without a separate field.
+    function sceFilteredCatalogue() {
+      var q = String(_sceState.catalogueQuery || "").toLowerCase().trim();
+      var category = _sceState.catalogueCategory || "";
+
+      var entries = (_sceState.catalogue || []).filter(function (entry) {
+        if (category && entry.category !== category) return false;
+        if (!q) return true;
+        return [entry.name, entry.category, entry.purpose]
+          .join(" ")
+          .toLowerCase()
+          .indexOf(q) !== -1;
+      });
+
+      // Sorted here rather than in the renderer so the order is defined once and
+      // is testable without a DOM.
+      entries.sort(sceCatalogueCompare);
+      return entries;
+    }
+
+    function sceCatalogueCategoryRank(category) {
+      var i = SCE_CATALOGUE_CATEGORY_ORDER.indexOf(category);
+      return i >= 0 ? i : SCE_CATALOGUE_CATEGORY_ORDER.length;
+    }
+
+    function sceCatalogueCompare(a, b) {
+      var fav = (b.is_favourite ? 1 : 0) - (a.is_favourite ? 1 : 0);
+      if (fav) return fav;
+      var rank = sceCatalogueCategoryRank(a.category) - sceCatalogueCategoryRank(b.category);
+      if (rank) return rank;
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    }
+
+    function renderSCECatalogue(seriesId) {
+      renderSCECatalogueCategories();
+      renderSCECatalogueList();
+    }
+
+    // The filter is rebuilt rather than diffed because the category list comes
+    // from whatever the server returned; a diff would need to preserve the
+    // author's current selection across reloads.
+    function renderSCECatalogueCategories() {
+      var select = document.getElementById("sceCatalogueCategoryFilter");
+      if (!select) return;
+
+      var seen = {};
+      (_sceState.catalogue || []).forEach(function (e) { seen[e.category] = true; });
+      var categories = Object.keys(seen).sort(function (a, b) {
+        return sceCatalogueCategoryRank(a) - sceCatalogueCategoryRank(b) || a.localeCompare(b);
+      });
+
+      var current = select.value;
+      var html = "<option value=''>All categories</option>";
+      categories.forEach(function (c) {
+        html += "<option value='" + escapeHtml(c) + "'>" + escapeHtml(c) + "</option>";
+      });
+      select.innerHTML = html;
+      // Reset to All when the previous selection is no longer offered.
+      select.value = categories.indexOf(current) >= 0 ? current : "";
+      _sceState.catalogueCategory = select.value;
+    }
+
+    function renderSCECatalogueList() {
+      var list = document.getElementById("sceCatalogueList");
+      if (!list) return;
+      var entries = sceFilteredCatalogue();
+
+      var countEl = document.getElementById("sceCatalogueCount");
+      if (countEl) {
+        countEl.textContent = entries.length === (_sceState.catalogue || []).length
+          ? entries.length + " entries"
+          : entries.length + " of " + (_sceState.catalogue || []).length;
+      }
+
+      if (!(_sceState.catalogue || []).length) {
+        list.innerHTML = "<div class='sce-asset-empty'>The catalogue has not loaded yet. If it stays empty, the Story Block Catalogue migration still needs to be applied.</div>";
+        return;
+      }
+      if (!entries.length) {
+        list.innerHTML = "<div class='sce-asset-empty'>No entries match that search.</div>";
+        return;
+      }
+
+      var html = "";
+      entries.forEach(function (entry) {
+        var id = Number(entry.id);
+        html += "<div class='sce-cat-item" + (entry.is_favourite ? " is-favourite" : "") + "' data-catalogue-id='" + id + "' draggable='true'>";
+        html += "<div class='sce-cat-head'>";
+        if (entry.default_color) {
+          html += "<span class='sce-cat-dot' style='background:" + escapeHtml(entry.default_color) + ";'></span>";
+        }
+        html += "<span class='sce-cat-name'>" + escapeHtml(entry.name || "Untitled") + "</span>";
+        html += "<button type='button' class='sce-cat-star' data-catalogue-favourite='" + id + "' title='"
+          + (entry.is_favourite ? "Remove favourite" : "Add favourite") + "' aria-pressed='"
+          + (entry.is_favourite ? "true" : "false") + "'>"
+          + (entry.is_favourite ? "★" : "☆") + "</button>";
+        html += "</div>";
+        if (entry.category) {
+          html += "<div class='sce-cat-category'>" + escapeHtml(entry.category) + "</div>";
+        }
+        if (entry.purpose) {
+          html += "<div class='sce-cat-purpose'>" + escapeHtml(entry.purpose) + "</div>";
+        }
+        html += "<div class='sce-cat-actions'>";
+        html += "<button type='button' class='sce-cat-add' data-catalogue-add='" + id + "'>Add Block</button>";
+        html += "<span class='sce-cat-drag-hint'>drag into outline</span>";
+        html += "</div>";
+        html += "</div>";
+      });
+      list.innerHTML = html;
+
+      // Clicks and drags are wired per render because the list is rebuilt
+      // wholesale, matching how renderSCEAssetBin handles its items.
+      list.querySelectorAll(".sce-cat-item").forEach(function (item) {
+        item.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", JSON.stringify({
+            type: "catalogue",
+            catalogueId: item.getAttribute("data-catalogue-id")
+          }));
+          e.dataTransfer.effectAllowed = "copy";
+        });
+
+        item.addEventListener("click", function (e) {
+          if (e.target.closest("button")) return;
+          addSCEBlockFromCatalogue(item.getAttribute("data-catalogue-id"));
+        });
+      });
+
+      list.querySelectorAll("[data-catalogue-add]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          addSCEBlockFromCatalogue(btn.getAttribute("data-catalogue-add"));
+        });
+      });
+
+      list.querySelectorAll("[data-catalogue-favourite]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          toggleSCECatalogueFavourite(Number(btn.getAttribute("data-catalogue-favourite")));
+        });
+      });
+    }
+
+    function toggleSCECatalogueFavourite(entryId) {
+      var entry = (_sceState.catalogue || []).find(function (e) { return Number(e.id) === entryId; });
+      if (!entry) return;
+
+      var next = !entry.is_favourite;
+      // Optimistic: the star responds immediately and reverts if the write fails.
+      entry.is_favourite = next;
+      renderSCECatalogueList();
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result && result.entry) {
+            entry.is_favourite = !!result.entry.is_favourite;
+            renderSCECatalogueList();
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to update favourite:", err);
+          entry.is_favourite = !next;
+          renderSCECatalogueList();
+        })
+        .sceSetCatalogueFavourite(entryId, next);
+    }
+
+    // ============================================================
+    // Block creation
+    // ============================================================
+
+    function sceFindCatalogueEntry(catalogueId) {
+      return (_sceState.catalogue || []).find(function (e) {
+        return Number(e.id) === Number(catalogueId);
+      }) || null;
+    }
+
+    // Add Block with no drop target. The brief's flow assigns a state first and
+    // a chapter and scene later, so the block lands unscoped in the top visible
+    // layer's unscoped band and is selected, leaving the author to place it.
+    function addSCEBlockFromCatalogue(catalogueId) {
+      var layerId = sceDefaultTargetLayerId();
+      var statePosition = sceDefaultTargetState();
+      if (!layerId || !statePosition) return;
+      createSCEBlockFromCatalogue(catalogueId, layerId, statePosition, null);
+    }
+
+    // The first layer that is neither hidden nor solo, so a new block is not
+    // dropped into a column the author has deliberately taken out of play.
+    function sceDefaultTargetLayerId() {
+      var layers = _sceState.layers || [];
+      var visible = layers.filter(function (l) { return !l.is_hidden && !l.is_solo; });
+      var pool = visible.length ? visible : layers;
+      if (!pool.length) return 0;
+      return Number(pool[0].id);
+    }
+
+    // The row the canvas would put the next block in: the selected block's own row
+    // when there is a selection, otherwise the first state. A scene-anchored
+    // block follows its chapter's row, because that is the row it renders in and
+    // its own start_state can be stale after a chapter move.
+    function sceDefaultTargetState() {
+      var selected = (_sceState.blocks || []).find(function (b) {
+        return Number(b.id) === Number(_sceState.selectedBlockId);
+      });
+      if (selected) {
+        if (selected.scene_id && typeof sceSceneStartState === "function") {
+          var sceneState = sceSceneStartState(selected.scene_id);
+          if (sceneState) return Number(sceneState);
+        }
+        if (Number(selected.start_state)) return Number(selected.start_state);
+      }
+
+      var states = (_sceState.states || []);
+      if (states.length) return Number(states[0].position || 1);
+      return 1;
+    }
+
+    function createSCEBlockFromCatalogue(catalogueId, layerId, statePosition, sceneId) {
+      if (sceMutationBlocked("add block")) return;
+      var entry = sceFindCatalogueEntry(catalogueId);
+      if (!entry) return;
+
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) return;
+
+      // The entry becomes a starting point, not a template: the title is the
+      // entry's name and the prompting questions seed the block's notes, which
+      // the author is expected to rewrite.
+      var questions = String(entry.prompt_questions || "").trim();
+
+      var payload = {
+        composition_id: compositionId,
+        asset_id: null,
+        layer_id: layerId,
+        start_state: statePosition,
+        end_state: statePosition,
+        scene_id: sceneId ? Number(sceneId) : null,
+        short_title: entry.name || "Untitled",
+        description: entry.purpose || "",
+        notes: questions,
+        source_catalogue_id: entry.id,
+        source_catalogue_name: entry.name,
+        source_category: entry.category
+      };
+
+      var created = null;
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result.block) {
+            created = result.block;
+            _sceState.blocks.push(result.block);
+
+            // Undo deletes the row rather than rewriting the old values, because
+            // there is no prior version of a block that did not exist.
+            scePushUndo({
+              type: "create_block_from_catalogue",
+              blockId: Number(result.block.id),
+              undo: function (done) {
+                var id = Number(result.block.id);
+                _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.id) !== id; });
+                if (Number(_sceState.selectedBlockId) === id) _sceState.selectedBlockId = null;
+                supabaseRunner
+                  .withSuccessHandler(function () {
+                    renderSCETimeline();
+                    applySCEMixHighlight();
+                    if (done) done();
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error("[SCE] Failed to undo block creation:", err);
+                    if (done) done(true);
+                  })
+                  .sceDeleteBlock(id);
+              },
+              redo: function (done) {
+                // Re-inserting uses a fresh row so the id does not collide with
+                // the soft-deleted original; the block keeps its catalogue type
+                // because that lives in the payload, not in the id.
+                var block = Object.assign({}, created);
+                delete block.id;
+                supabaseRunner
+                  .withSuccessHandler(function (json) {
+                    var result = typeof json === 'string' ? JSON.parse(json) : json;
+                    if (result && result.block) {
+                      _sceState.blocks.push(result.block);
+                      created = result.block;
+                      renderSCETimeline();
+                      applySCEMixHighlight();
+                      if (done) done();
+                    } else if (done) {
+                      done(true);
+                    }
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error("[SCE] Failed to redo block creation:", err);
+                    if (done) done(true);
+                  })
+                  .sceSaveBlock(JSON.stringify(block));
+              }
+            });
+
+            renderSCEBlocks();
+            applySCEMixHighlight();
+            renderSCEMix();
+            selectSCEBlock(result.block.id);
+          }
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to create block from catalogue:", err);
+        })
+        .sceSaveBlock(JSON.stringify(payload));
+    }
+
+    // ============================================================
+    // Story Mix
+    // ============================================================
+    //
+    // A tally of retained catalogue types, never a judgement. The brief is
+    // explicit that this must not impose required quantities or claim a story is
+    // unbalanced, so nothing here emits a warning or an error state: it counts
+    // and describes, and the author decides.
+
+    function sceMixableBlocks() {
+      return (_sceState.blocks || []).filter(function (b) {
+        return !b.is_parked && !b.is_later_book && b.source_catalogue_id;
+      });
+    }
+
+    // A block's scope under the current grouping. State uses the same row the
+    // canvas draws it in, so a scene-anchored block counts against its
+    // chapter's state rather than its own stale start_state.
+    function sceMixScopeKey(block) {
+      if (_sceState.mixGrouping === "chapter") {
+        var chapterId = sceSceneChapterId(block.scene_id);
+        return chapterId === null ? null : Number(chapterId);
+      }
+      if (_sceState.mixGrouping === "state") {
+        if (typeof sceSceneStartState === "function" && block.scene_id) {
+          var sceneState = sceSceneStartState(block.scene_id);
+          if (sceneState) return Number(sceneState);
+        }
+        return Number(block.start_state || 0);
+      }
+      return null;
+    }
+
+    // The scopes available for the current grouping, in canvas order.
+    function sceMixScopes() {
+      if (_sceState.mixGrouping === "chapter") {
+        return (_sceState.chapters || []).slice().sort(function (a, b) {
+          return Number(a.start_state || 0) - Number(b.start_state || 0)
+            || Number(a.sort_order || 0) - Number(b.sort_order || 0);
+        });
+      }
+      if (_sceState.mixGrouping === "state") {
+        return (_sceState.states || []).slice().sort(function (a, b) {
+          return Number(a.position || 0) - Number(b.position || 0);
+        });
+      }
+      return [];
+    }
+
+    function sceMixScopeId(scope) {
+      if (!scope) return null;
+      return _sceState.mixGrouping === "chapter" ? Number(scope.id) : Number(scope.position || scope.id);
+    }
+
+    function sceMixScopeLabel(scope) {
+      if (!scope) return "Whole book";
+      if (_sceState.mixGrouping === "chapter") return scope.title || "Untitled Chapter";
+      return scope.name || "Untitled";
+    }
+
+    // The blocks in scope, and the per-entry totals across them. Returns the
+    // shape the renderer needs so the tally logic stays testable on its own.
+    function sceStoryMixTally() {
+      var blocks = sceMixableBlocks();
+      var grouping = _sceState.mixGrouping;
+
+      if (grouping === "book") {
+        return { blocks: blocks, totals: sceMixTotalsFor(blocks) };
+      }
+
+      var scoped = [];
+      sceMixScopes().forEach(function (scope) {
+        var id = sceMixScopeId(scope);
+        var inScope = blocks.filter(function (b) { return sceMixScopeKey(b) === id; });
+        if (!inScope.length) return;
+        scoped.push({
+          id: id,
+          label: sceMixScopeLabel(scope),
+          blocks: inScope,
+          totals: sceMixTotalsFor(inScope)
+        });
+      });
+      return { blocks: blocks, scopes: scoped };
+    }
+
+    // Totals per catalogue entry, then a rollup per category. Favourites are not
+    // used here: Story Mix counts what the story actually contains.
+    function sceMixTotalsFor(blocks) {
+      var byEntry = {};
+      var entryOrder = [];
+
+      blocks.forEach(function (block) {
+        var key = String(block.source_catalogue_name || "Untitled");
+        if (!byEntry[key]) {
+          byEntry[key] = {
+            name: key,
+            category: block.source_category || "Uncategorised",
+            colour: sceCatalogueColourFor(block),
+            count: 0,
+            blockIds: []
+          };
+          entryOrder.push(key);
+        }
+        byEntry[key].count++;
+        byEntry[key].blockIds.push(Number(block.id));
+      });
+
+      var entries = entryOrder.map(function (k) { return byEntry[k]; });
+      entries.sort(function (a, b) {
+        return sceCatalogueCategoryRank(a.category) - sceCatalogueCategoryRank(b.category)
+          || b.count - a.count
+          || a.name.localeCompare(b.name);
+      });
+
+      // Each category keeps its own entry list so the renderer can show the
+      // category header followed by the types it contains.
+      var byCategory = {};
+      entries.forEach(function (e) {
+        if (!byCategory[e.category]) {
+          byCategory[e.category] = { name: e.category, count: 0, entries: [], blockIds: [] };
+        }
+        byCategory[e.category].count += e.count;
+        byCategory[e.category].entries.push(e);
+        e.blockIds.forEach(function (id) { byCategory[e.category].blockIds.push(id); });
+      });
+
+      var categories = Object.keys(byCategory)
+        .map(function (k) { return byCategory[k]; })
+        .sort(function (a, b) {
+          return sceCatalogueCategoryRank(a.name) - sceCatalogueCategoryRank(b.name);
+        });
+
+      return { entries: entries, categories: categories, total: blocks.length };
+    }
+
+    // Blocks carry only the catalogue name and category, so the colour is
+    // resolved from the catalogue when it is still loaded and falls back to the
+    // block's own layer colour otherwise.
+    function sceCatalogueColourFor(block) {
+      var entry = sceFindCatalogueEntry(block.source_catalogue_id);
+      if (entry && entry.default_color) return entry.default_color;
+      var layer = (_sceState.layers || []).find(function (l) {
+        return Number(l.id) === Number(block.layer_id);
+      });
+      return layer && layer.color ? layer.color : "#64748b";
+    }
+
+    function renderSCEMix() {
+      var body = document.getElementById("sceMixBody");
+      if (!body) return;
+
+      document.querySelectorAll(".sce-mix-grouping").forEach(function (btn) {
+        btn.classList.toggle("is-active", btn.getAttribute("data-sce-mix") === _sceState.mixGrouping);
+        if (btn._wired) return;
+        btn._wired = true;
+        btn.addEventListener("click", function () {
+          if (_sceState.mixGrouping === btn.getAttribute("data-sce-mix")) return;
+          _sceState.mixGrouping = btn.getAttribute("data-sce-mix");
+          _sceState.mixHighlight = null;
+          renderSCEMix();
+          applySCEMixHighlight();
+        });
+      });
+
+      renderSCEMixScopeSelect();
+
+      var tally = sceStoryMixTally();
+      if (!tally.blocks.length) {
+        body.innerHTML = "<div class='sce-asset-empty'>No blocks from the catalogue yet. Add one from the Catalogue view and it will be counted here.</div>";
+        return;
+      }
+
+      var html = "";
+      if (tally.scopes) {
+        tally.scopes.forEach(function (scope) {
+          html += renderSCEMixScope(scope);
+        });
+      } else {
+        html += renderSCEMixScope({ label: "Whole book", blocks: tally.blocks, totals: tally.totals });
+      }
+      body.innerHTML = html;
+
+      wireSCEMixRows();
+    }
+
+    function renderSCEMixScopeSelect() {
+      var select = document.getElementById("sceMixScopeSelect");
+      if (!select) return;
+      var grouping = _sceState.mixGrouping;
+      // Only meaningful for state and chapter, where the same type can appear in
+      // more than one scope.
+      select.hidden = grouping === "book";
+      if (grouping === "book") return;
+
+      var current = select.value;
+      var scopes = sceMixScopes();
+      var html = "";
+      scopes.forEach(function (scope) {
+        var id = sceMixScopeId(scope);
+        var label = _sceState.mixGrouping === "chapter"
+          ? (Number(scope.sort_order || 0) + 1) + ". " + sceMixScopeLabel(scope)
+          : sceMixScopeLabel(scope);
+        html += "<option value='" + id + "'>" + escapeHtml(label) + "</option>";
+      });
+      select.innerHTML = html;
+      if (scopes.some(function (s) { return String(sceMixScopeId(s)) === current; })) {
+        select.value = current;
+      }
+    }
+
+    function renderSCEMixScope(scope) {
+      var html = "<div class='sce-mix-scope-block' data-scope-id='" + (scope.id === null || scope.id === undefined ? "book" : escapeHtml(String(scope.id))) + "'>";
+      if (_sceState.mixGrouping !== "book") {
+        html += "<div class='sce-mix-scope-title'>" + escapeHtml(scope.label) + "</div>";
+      }
+
+      html += "<div class='sce-mix-summary'>" + scope.totals.total + " catalogue block"
+        + (scope.totals.total === 1 ? "" : "s") + " from "
+        + scope.totals.categories.length + " categor"
+        + (scope.totals.categories.length === 1 ? "y" : "ies") + "</div>";
+
+      // Categories act as headers with their own count, then the individual
+      // types beneath. Category totals are clickable too, so a category can be
+      // highlighted as a whole.
+      scope.totals.categories.forEach(function (category) {
+        html += "<div class='sce-mix-category'>";
+        html += "<button type='button' class='sce-mix-category-row' data-mix-category-row='"
+          + escapeHtml(category.name) + "'>";
+        html += "<span class='sce-mix-category-name'>" + escapeHtml(category.name) + "</span>";
+        html += "<span class='sce-mix-count'>" + category.count + "</span>";
+        html += "</button>";
+        html += "<div class='sce-mix-entry-list'>";
+        category.entries.forEach(function (entry) { html += renderSCEMixEntry(entry); });
+        html += "</div></div>";
+      });
+
+      return html;
+    }
+
+    function renderSCEMixEntry(entry) {
+      var active = _sceState.mixHighlight
+        && _sceState.mixHighlight.name === entry.name
+        && _sceState.mixHighlight.category === entry.category;
+      var html = "<button type='button' class='sce-mix-entry" + (active ? " is-active" : "") + "'"
+        + " data-mix-name='" + escapeHtml(entry.name) + "'"
+        + " data-mix-category='" + escapeHtml(entry.category) + "'"
+        + " data-mix-colour='" + escapeHtml(entry.colour) + "'"
+        + " aria-pressed='" + (active ? "true" : "false") + "'>";
+      if (entry.colour) {
+        html += "<span class='sce-mix-dot' style='background:" + escapeHtml(entry.colour) + ";'></span>";
+      }
+      html += "<span class='sce-mix-entry-name'>" + escapeHtml(entry.name) + "</span>";
+      html += "<span class='sce-mix-count'>" + entry.count + "</span>";
+      html += "</button>";
+      return html;
+    }
+
+    function wireSCEMixRows() {
+      document.querySelectorAll(".sce-mix-entry").forEach(function (row) {
+        if (row._wired) return;
+        row._wired = true;
+        row.addEventListener("click", function () {
+          var name = row.getAttribute("data-mix-name");
+          var category = row.getAttribute("data-mix-category");
+          var current = _sceState.mixHighlight;
+          // Clicking the active row clears the highlight.
+          if (current && current.name === name && current.category === category) {
+            _sceState.mixHighlight = null;
+          } else {
+            _sceState.mixHighlight = {
+              name: name,
+              category: category,
+              colour: row.getAttribute("data-mix-colour")
+            };
+          }
+          renderSCEMix();
+          applySCEMixHighlight();
+        });
+      });
+
+      // Category headers highlight every block in that category.
+      document.querySelectorAll("[data-mix-category-row]").forEach(function (row) {
+        if (row._wired) return;
+        row._wired = true;
+        row.addEventListener("click", function () {
+          var category = row.getAttribute("data-mix-category-row");
+          var current = _sceState.mixHighlight;
+          _sceState.mixHighlight = (current && current.categoryOnly === category)
+            ? null
+            : { categoryOnly: category, name: null, category: category };
+          renderSCEMix();
+          applySCEMixHighlight();
+        });
+      });
+
+      // Under State and Chapter groupings the select scrolls the chosen scope
+      // into view instead of filtering the tally, so the whole book stays
+      // readable and the author can compare rhythms.
+      var select = document.getElementById("sceMixScopeSelect");
+      if (select && !select._wired) {
+        select._wired = true;
+        select.addEventListener("change", function () {
+          var wanted = select.value;
+          var panels = document.querySelectorAll(".sce-mix-scope-block");
+          panels.forEach(function (p) {
+            p.classList.toggle("is-focused", p.getAttribute("data-scope-id") === wanted);
+          });
+          var target = document.querySelector(".sce-mix-scope-block.is-focused");
+          if (target && target.scrollIntoView) target.scrollIntoView({ block: "start" });
+        });
+      }
+    }
+
+    // Dim everything that is not the highlighted type and outline the matches.
+    // Applied as classes on the live DOM rather than re-rendering the timeline,
+    // so the canvas never has to be rebuilt to show a tally.
+    function applySCEMixHighlight() {
+      document.querySelectorAll(".sce-block").forEach(function (el) {
+        el.classList.remove("is-mix-match", "is-mix-dimmed");
+      });
+
+      var highlight = _sceState.mixHighlight;
+      if (!highlight) return;
+
+      var matched = 0;
+      document.querySelectorAll(".sce-block").forEach(function (el) {
+        var block = (_sceState.blocks || []).find(function (b) {
+          return Number(b.id) === Number(el.getAttribute("data-block-id"));
+        });
+        if (!block) return;
+
+        var isMatch;
+        if (highlight.categoryOnly) {
+          isMatch = (block.source_category || "") === highlight.categoryOnly;
+        } else {
+          // Both fields are compared because a name can repeat across
+          // categories, and the author can rename the block freely.
+          isMatch = block.source_catalogue_name === highlight.name
+            && (block.source_category || "") === (highlight.category || "");
+        }
+
+        if (isMatch) {
+          el.classList.add("is-mix-match");
+          matched++;
+        } else {
+          el.classList.add("is-mix-dimmed");
+        }
+      });
+
+      var body = document.getElementById("sceMixBody");
+      if (body && matched === 0) {
+        // A type can vanish from the current scope even though it exists in the
+        // book, so say so rather than showing an empty highlight.
+        var note = body.querySelector(".sce-mix-nomatch");
+        if (!note) {
+          note = document.createElement("div");
+          note.className = "sce-mix-nomatch";
+          note.textContent = "No blocks of this type are in view. Try Whole book, or another State or Chapter.";
+          body.appendChild(note);
+        }
+      } else if (body) {
+        var stale = body.querySelector(".sce-mix-nomatch");
+        if (stale) stale.remove();
+      }
+    }
