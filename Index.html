@@ -341,14 +341,44 @@
               <button id="sceSeriesButton" class="writing-codex-series-btn" type="button" title="Switch series book">SERIES</button>
             </div>
           </div>
-          <div class="writing-codex-search-row">
-            <input id="sceAssetSearchInput" type="text" placeholder="Search story ideas..." />
+          <div class="sce-panel-views" role="tablist" aria-label="Sidebar views">
+            <button type="button" class="sce-panel-view-tab is-active" data-sce-view="ideas" role="tab">Ideas</button>
+            <button type="button" class="sce-panel-view-tab" data-sce-view="catalogue" role="tab">Catalogue</button>
+            <button type="button" class="sce-panel-view-tab" data-sce-view="mix" role="tab">Story Mix</button>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
-            <span style="font-size:11px;font-weight:600;color:var(--muted);">Story Ideas</span>
-            <button id="sceAddAssetBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
+          <div id="scePanelIdeasView">
+            <div class="writing-codex-search-row">
+              <input id="sceAssetSearchInput" type="text" placeholder="Search story ideas..." />
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
+              <span style="font-size:11px;font-weight:600;color:var(--muted);">Story Ideas</span>
+              <button id="sceAddAssetBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
+            </div>
+            <div id="sceAssetBinList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
           </div>
-          <div id="sceAssetBinList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
+          <div id="scePanelCatalogueView" hidden>
+            <div class="writing-codex-search-row">
+              <input id="sceCatalogueSearchInput" type="text" placeholder="Search the catalogue..." />
+            </div>
+            <div class="sce-catalogue-filters">
+              <select id="sceCatalogueCategoryFilter" class="sce-catalogue-category" aria-label="Category filter">
+                <option value="">All categories</option>
+              </select>
+              <span id="sceCatalogueCount" class="sce-catalogue-count"></span>
+            </div>
+            <div id="sceCatalogueList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
+          </div>
+          <div id="scePanelMixView" hidden style="display:flex;flex-direction:column;flex:1;min-height:0;">
+            <div class="sce-mix-groupings">
+              <button type="button" class="sce-mix-grouping is-active" data-sce-mix="book">Book</button>
+              <button type="button" class="sce-mix-grouping" data-sce-mix="state">State</button>
+              <button type="button" class="sce-mix-grouping" data-sce-mix="chapter">Chapter</button>
+            </div>
+            <div class="sce-mix-scope">
+              <select id="sceMixScopeSelect" class="sce-mix-scope-select" aria-label="Scope"></select>
+            </div>
+            <div id="sceMixBody" class="sce-mix-body"></div>
+          </div>
           <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
               <span style="font-size:11px;font-weight:600;color:var(--muted);">Layers</span>

@@ -11,6 +11,12 @@
       connections: [],
       chapters: [],
       sceneCache: {},
+      catalogue: [],
+      panelView: "ideas",
+      catalogueQuery: "",
+      catalogueCategory: "",
+      mixGrouping: "book",
+      mixHighlight: null,
       selectedBlockId: null,
       selectedConnectionId: null,
       selectedAssetId: null,
@@ -216,7 +222,7 @@
 
     function loadSCECompositionData(compositionId, seriesId) {
       var loaded = 0;
-      var total = 6;
+      var total = 7;
 
       function checkDone() {
         loaded++;
@@ -282,6 +288,18 @@
         .withFailureHandler(checkDone)
         .sceGetConnections(compositionId);
 
+      // Load the shared catalogue. Not composition-scoped, but loaded here so
+      // the panel has it in hand by the first render, like every other source.
+      // A failure leaves the panel empty rather than blocking the editor.
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          _sceState.catalogue = result.catalogue || [];
+          checkDone();
+        })
+        .withFailureHandler(checkDone)
+        .sceGetCatalogue();
+
       // Load chapters and scenes
       loadSCEChaptersAndScenes(checkDone);
     }
@@ -335,13 +353,15 @@
 
     function renderSCE(seriesId) {
       renderSCEStats();
-      renderSCEAssetBin(seriesId);
+      renderSCEPanel(seriesId);
       renderSCELayerControls();
       renderSCETimeline();
       renderSCEInspector();
       wireSCEToolbar(seriesId);
       wireSCEBlockInteractions();
       wireSCEConnectNodes();
+      // Blocks have been redrawn, so re-apply any active Story Mix highlight.
+      applySCEMixHighlight();
     }
 
     var SCE_AVG_WORDS_DEFAULT = 2500;
@@ -392,6 +412,35 @@
         searchInput._wired = true;
         searchInput.addEventListener("input", function () {
           filterSCEAssets(searchInput.value);
+        });
+      }
+
+      // Panel view switcher — Ideas / Catalogue / Story Mix
+      document.querySelectorAll(".sce-panel-view-tab").forEach(function (tab) {
+        if (tab._wired) return;
+        tab._wired = true;
+        tab.addEventListener("click", function () {
+          setSCEPanelView(tab.getAttribute("data-sce-view"), seriesId);
+        });
+      });
+
+      // Catalogue search
+      var catSearch = document.getElementById("sceCatalogueSearchInput");
+      if (catSearch && !catSearch._wired) {
+        catSearch._wired = true;
+        catSearch.addEventListener("input", function () {
+          _sceState.catalogueQuery = catSearch.value;
+          renderSCECatalogueList();
+        });
+      }
+
+      // Catalogue category filter
+      var catFilter = document.getElementById("sceCatalogueCategoryFilter");
+      if (catFilter && !catFilter._wired) {
+        catFilter._wired = true;
+        catFilter.addEventListener("change", function () {
+          _sceState.catalogueCategory = catFilter.value;
+          renderSCECatalogueList();
         });
       }
 
@@ -804,7 +853,11 @@
       var seriesId = Number(project && project.series_id || 0);
       if (!seriesId) return;
 
-      // Save parent state
+      // Save parent state. chapters and sceneCache must be included: entering a
+      // precomp reloads them from the sub-composition, so leaving them out meant
+      // the parent's timeline came back holding the precomp's chapter tree.
+      // catalogue is reloaded by the same loader but is global, so restoring it
+      // just avoids a flash of an empty panel.
       _sceParentState = {
         composition: _sceState.composition,
         states: _sceState.states,
@@ -812,6 +865,9 @@
         blocks: _sceState.blocks,
         assets: _sceState.assets,
         connections: _sceState.connections,
+        chapters: _sceState.chapters,
+        sceneCache: sceSceneCache(),
+        catalogue: _sceState.catalogue,
         blockTitle: block.short_title || "Precomp"
       };
 
@@ -845,9 +901,15 @@
       _sceState.blocks = _sceParentState.blocks;
       _sceState.assets = _sceParentState.assets;
       _sceState.connections = _sceParentState.connections;
+      _sceState.chapters = _sceParentState.chapters;
+      _sceState.sceneCache = _sceParentState.sceneCache;
+      _sceState.catalogue = _sceParentState.catalogue;
       _sceState.selectedBlockId = null;
       _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
+      // The blocks just restored are the parent's, so any Story Mix highlight
+      // computed against the precomp's blocks is now meaningless.
+      _sceState.mixHighlight = null;
       _sceParentState = null;
 
       // Remove back button

@@ -115,11 +115,50 @@
         what_happens: asset.what_changes || ""
       };
 
+      // Blocks created from an asset have no catalogue type, so they stay out of
+      // Story Mix. Provenance is only ever set by the catalogue path.
+      payload.source_catalogue_id = null;
+      payload.source_catalogue_name = null;
+      payload.source_category = null;
+
       supabaseRunner
         .withSuccessHandler(function (json) {
           var result = typeof json === 'string' ? JSON.parse(json) : json;
           if (result.block) {
             _sceState.blocks.push(result.block);
+            scePushUndo({
+              type: "create_block_from_asset",
+              blockId: Number(result.block.id),
+              undo: function (done) {
+                var id = Number(result.block.id);
+                _sceState.blocks = _sceState.blocks.filter(function (b) { return Number(b.id) !== id; });
+                if (Number(_sceState.selectedBlockId) === id) _sceState.selectedBlockId = null;
+                supabaseRunner
+                  .withSuccessHandler(function () {
+                    renderSCETimeline();
+                    if (done) done();
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error("[SCE] Failed to undo block creation:", err);
+                    if (done) done(true);
+                  })
+                  .sceDeleteBlock(id);
+              },
+              redo: function (done) {
+                var block = Object.assign({}, result.block);
+                delete block.id;
+                supabaseRunner
+                  .withSuccessHandler(function () {
+                    renderSCETimeline();
+                    if (done) done();
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error("[SCE] Failed to redo block creation:", err);
+                    if (done) done(true);
+                  })
+                  .sceSaveBlock(JSON.stringify(block));
+              }
+            });
             renderSCEBlocks();
             selectSCEBlock(result.block.id);
           }
