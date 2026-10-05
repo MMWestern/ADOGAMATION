@@ -354,6 +354,16 @@
               <span style="font-size:11px;font-weight:600;color:var(--muted);">Story Ideas</span>
               <button id="sceAddAssetBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
             </div>
+            <div class="sce-catalogue-filters">
+              <select id="sceAssetBookFilter" class="sce-catalogue-category" aria-label="Filter ideas by book">
+                <option value="book">This book</option>
+              </select>
+              <span id="sceAssetCount" class="sce-catalogue-count"></span>
+            </div>
+            <div id="sceAssetScopeNotice" class="sce-scope-notice" hidden>
+              Book tagging is unavailable. Run
+              <code>migrations/20261002_add_asset_book_scope.sql</code>, then reload.
+            </div>
             <div id="sceAssetBinList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
           </div>
           <div id="scePanelCatalogueView" hidden>
@@ -365,10 +375,54 @@
                 <option value="">All categories</option>
               </select>
               <span id="sceCatalogueCount" class="sce-catalogue-count"></span>
+              <button id="sceAddCatalogueEntryBtn" type="button" class="writing-codex-filter" style="font-size:10px;margin-left:auto;">+ Entry</button>
+            </div>
+            <div class="sce-catalogue-filters sce-catalogue-origin">
+              <button id="sceCatalogueFavouritesChip" type="button" class="sce-cat-chip" aria-pressed="false" title="Show only starred entries">Starred</button>
+              <button id="sceCatalogueMineChip" type="button" class="sce-cat-chip" aria-pressed="false" title="Show only entries you created">My entries</button>
+            </div>
+            <div id="sceCatalogueEditor" class="sce-cat-editor" hidden>
+              <div class="sce-cat-editor-head">
+                <span id="sceCatEditHeading" class="sce-cat-editor-title">New catalogue entry</span>
+                <button id="sceCatEditCloseBtn" type="button" class="sce-cat-editor-close" title="Close editor" aria-label="Close editor">&times;</button>
+              </div>
+              <p id="sceCatEditOwnerNote" class="sce-cat-editor-note"></p>
+              <label class="sce-cat-editor-field">
+                <span>Name</span>
+                <input id="sceCatEditName" type="text" autocomplete="off" />
+              </label>
+              <label class="sce-cat-editor-field">
+                <span>Category</span>
+                <input id="sceCatEditCategory" type="text" list="sceCatEditCategoryList" autocomplete="off" />
+                <datalist id="sceCatEditCategoryList"></datalist>
+              </label>
+              <label class="sce-cat-editor-field">
+                <span>Purpose</span>
+                <textarea id="sceCatEditPurpose" rows="2"></textarea>
+              </label>
+              <label class="sce-cat-editor-field">
+                <span>Prompt questions</span>
+                <textarea id="sceCatEditQuestions" rows="3"></textarea>
+              </label>
+              <div class="sce-cat-editor-inline">
+                <label class="sce-cat-editor-check">
+                  <input id="sceCatEditColor" type="color" />
+                  <span>Colour</span>
+                </label>
+                <label class="sce-cat-editor-check">
+                  <input id="sceCatEditActive" type="checkbox" checked />
+                  <span>Active</span>
+                </label>
+              </div>
+              <div id="sceCatEditStatus" class="sce-cat-editor-status" role="status"></div>
+              <div class="sce-cat-editor-actions">
+                <button id="sceCatEditSaveBtn" type="button" class="sce-cat-editor-save">Save entry</button>
+                <button id="sceCatEditDeleteBtn" type="button" class="sce-cat-editor-delete" hidden>Delete</button>
+              </div>
             </div>
             <div id="sceCatalogueList" class="writing-codex-list" style="flex:1;overflow-y:auto;"></div>
           </div>
-          <div id="scePanelMixView" hidden style="display:flex;flex-direction:column;flex:1;min-height:0;">
+          <div id="scePanelMixView" hidden>
             <div class="sce-mix-groupings">
               <button type="button" class="sce-mix-grouping is-active" data-sce-mix="book">Book</button>
               <button type="button" class="sce-mix-grouping" data-sce-mix="state">State</button>
@@ -379,9 +433,9 @@
             </div>
             <div id="sceMixBody" class="sce-mix-body"></div>
           </div>
-          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;">
-              <span style="font-size:11px;font-weight:600;color:var(--muted);">Layers</span>
+          <div class="sce-layers-footer">
+            <div class="sce-layers-head">
+              <span class="sce-layers-title">Layers</span>
               <button id="sceAddLayerBtn" type="button" class="writing-codex-filter" style="font-size:10px;">+ Add</button>
             </div>
             <div id="sceLayerControls" style="overflow-y:auto;max-height:200px;"></div>
@@ -1323,14 +1377,32 @@
         </div>
       </div>
 
-      <div id="hubContentInbox" class="hub-tab-content" hidden></div>
+      <div id="hubContentInbox" class="hub-tab-content" hidden>
+    <div class="idea-notes-panel">
+      <div class="idea-notes-header">
+        <h3>Idea Notes</h3>
+        <input id="ideaNotesSearch" class="idea-notes-search" type="search" placeholder="Search notes…" />
+      </div>
+      <div class="idea-notes-filters" id="ideaNotesFilters">
+        <select id="ideaNotesSeriesFilter" class="idea-notes-select"><option value="">All series</option></select>
+        <select id="ideaNotesProjectFilter" class="idea-notes-select"><option value="">All projects</option></select>
+        <button class="idea-notes-chip is-active" data-filter="all">All</button>
+        <button class="idea-notes-chip" data-filter="inbox">Inbox</button>
+        <button class="idea-notes-chip" data-filter="character">Character</button>
+        <button class="idea-notes-chip" data-filter="story">Story</button>
+        <button class="idea-notes-chip" data-filter="world">World</button>
+        <button class="idea-notes-chip" data-filter="general_idea">General</button>
+      </div>
+      <div id="ideaNotesList" class="idea-notes-list"></div>
+    </div>
+    </div>
 
       <div id="hubContentSettings" class="hub-tab-content" hidden></div>
 
     </main>
 
       <section class="panel details" id="detailsPanel">
-        <div class="panel-resize-handle" id="detailsResizeHandle" style="left:-4px;right:auto;"></div>
+        <div class="panel-resize-handle" id="detailsResizeHandle" style="right:auto;left:-3px;"></div>
         <div id="planGenreGuidePanel" class="plan-genre-guide-panel" hidden>
           <div class="plan-genre-guide-header">
             <div class="plan-genre-guide-title">
@@ -1859,7 +1931,19 @@
         </div>
 
         <!-- SCE Inspector panel -->
-        <div id="sceInspectorPanel" class="resource-inspector-panel" hidden>
+        <!-- State colour picker modal -->
+  <div id="sceColorModal" class="sce-color-modal-overlay" hidden>
+    <div class="sce-color-modal">
+      <div class="sce-color-modal-title">Set state colour</div>
+      <input type="color" id="sceColorPicker" class="sce-color-modal-input" />
+      <div class="sce-color-modal-actions">
+        <button type="button" class="sce-color-modal-btn sce-color-cancel" id="sceColorCancel">Cancel</button>
+        <button type="button" class="sce-color-modal-btn sce-color-save" id="sceColorSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sceInspectorPanel" class="resource-inspector-panel" hidden>
           <div class="resource-inspector-header">
             <div>
               <div class="muted">Story Composition</div>

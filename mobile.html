@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0d0f12" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Idea Capture</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f12;
+      --surface: #15181d;
+      --surface2: #1c2027;
+      --border: #2a2e37;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59, 130, 246, 0.15);
+      --danger: #ef4444;
+      --success: #22c55e;
+      --radius: 10px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Auth overlay ── */
+    #authScreen {
+      position: fixed; inset: 0; z-index: 1000;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 16px;
+    }
+    #authScreen[hidden] { display: none; }
+    .auth-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .auth-sub { color: var(--muted); text-align: center; margin-bottom: 24px; font-size: 14px; }
+    .auth-input {
+      width: 100%; padding: 14px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-size: 16px; /* prevents iOS zoom on focus */
+    }
+    .auth-input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+    .auth-btn {
+      width: 100%; padding: 14px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-size: 16px; font-weight: 600; cursor: pointer;
+    }
+    .auth-btn:active { opacity: 0.85; }
+    .auth-error { color: var(--danger); text-align: center; font-size: 13px; min-height: 18px; }
+
+    /* ── Header ── */
+    .app-header {
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .app-brand {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .app-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    .app-title { font-size: 18px; font-weight: 700; }
+
+    /* ── Artwork info card ── */
+    .artwork-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+    .artwork-banner[hidden] { display: none; }
+    .artwork-thumbs {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .artwork-thumb {
+      width: 120px;
+      aspect-ratio: 2 / 3;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--surface2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .artwork-thumb[hidden] { display: none; }
+    .artwork-details {
+      flex: 1;
+      min-width: 0;
+    }
+    .artwork-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .artwork-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .artwork-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .artwork-tag {
+      display: inline-block;
+      align-self: flex-start;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .artwork-tag.tag-author { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+    .artwork-tag.tag-genre { background: rgba(59, 130, 246, 0.18); color: #60a5fa; }
+    .artwork-tag.tag-format { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+    .sign-out-btn {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); padding: 6px 12px;
+      border-radius: 6px; font-size: 12px; cursor: pointer;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex; border-top: 1px solid var(--border);
+      background: var(--surface);
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 50;
+      padding-bottom: var(--safe-bottom);
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 10px 0 8px; background: none; border: none;
+      color: var(--muted); font-size: 11px; font-weight: 600;
+      cursor: pointer; gap: 2px; min-height: 56px;
+    }
+    .tab-btn .tab-icon { font-size: 22px; line-height: 1; }
+    .tab-btn.is-active { color: var(--accent); }
+
+    /* ── Screen containers ── */
+    .screen {
+      flex: 1; overflow-y: auto;
+      padding: 16px 16px calc(80px + var(--safe-bottom));
+      -webkit-overflow-scrolling: touch;
+    }
+    .screen[hidden] { display: none; }
+
+    /* ── Form controls ── */
+    .field-group { margin-bottom: 16px; }
+    .field-label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--muted); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .field-select, .field-input, .field-textarea {
+      width: 100%; padding: 12px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-size: 16px; font-family: inherit;
+    }
+    .field-select { appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px;
+    }
+    .field-textarea {
+      min-height: 35vh; resize: vertical;
+      line-height: 1.5;
+    }
+    .field-select:focus, .field-input:focus, .field-textarea:focus {
+      outline: 2px solid var(--accent); border-color: var(--accent);
+    }
+
+    /* ── Category segmented control ── */
+    .category-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .category-btn {
+      padding: 12px 8px; background: var(--surface);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      color: var(--text); font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+      min-height: 48px;
+    }
+    .category-btn.is-active {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ── Save button ── */
+    .save-btn {
+      width: 100%; padding: 16px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-size: 17px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      min-height: 56px;
+    }
+    .save-btn:active { transform: scale(0.98); }
+    .save-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+    .save-btn.is-success { background: var(--success); }
+    .save-btn.is-error { background: var(--danger); }
+
+    /* ── Saved notes list ── */
+    .search-bar {
+      width: 100%; padding: 12px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text);
+      font-size: 16px; margin-bottom: 12px;
+    }
+    .filter-row {
+      display: flex; gap: 8px; margin-bottom: 16px;
+      overflow-x: auto; padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-chip {
+      flex-shrink: 0; padding: 8px 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--muted);
+      font-size: 13px; cursor: pointer; white-space: nowrap;
+    }
+    .filter-chip.is-active {
+      background: var(--accent-dim); border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .note-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+      margin-bottom: 10px; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .note-card:active { border-color: var(--accent); }
+    .note-card-title {
+      font-size: 15px; font-weight: 600; margin-bottom: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .note-card-title.is-empty {
+      color: var(--muted); font-style: italic; font-weight: 400;
+    }
+    .note-card-meta {
+      font-size: 12px; color: var(--muted);
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .note-card-badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 10px; font-size: 11px; font-weight: 600;
+    }
+    .badge-character { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+    .badge-story { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .badge-world { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .badge-general_idea { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .badge-inbox { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .note-card-preview {
+      font-size: 13px; color: var(--muted); margin-top: 6px;
+      line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* ── Edit modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal-sheet {
+      width: 100%; max-height: 90vh;
+      background: var(--surface);
+      border-radius: 16px 16px 0 0;
+      padding: 20px 16px calc(20px + var(--safe-bottom));
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; }
+    .modal-close {
+      background: none; border: none; color: var(--muted);
+      font-size: 28px; cursor: pointer; padding: 4px 8px;
+      line-height: 1;
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-btn {
+      flex: 1; padding: 14px; border-radius: var(--radius);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      border: none; min-height: 48px;
+    }
+    .modal-btn-primary { background: var(--accent); color: #fff; }
+    .modal-btn-danger { background: var(--danger); color: #fff; }
+    .modal-btn-secondary {
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 48px 24px;
+      color: var(--muted); font-size: 14px;
+    }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      padding: 10px 16px; font-size: 13px;
+      text-align: center; border-radius: 8px;
+      margin-bottom: 12px; display: none;
+    }
+    .status-bar.is-success { display: block; background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .status-bar.is-error { display: block; background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <!-- Auth screen -->
+  <div id="authScreen">
+    <img src="icons/icon-192.png" alt="" style="width:72px;height:72px;border-radius:16px;align-self:center;margin-bottom:8px;" />
+    <div class="auth-title">Idea Capture</div>
+    <div class="auth-sub">Sign in to start capturing ideas</div>
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email" />
+    <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
+    <button class="auth-btn" id="authSignIn">Sign In</button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" hidden style="display:none;flex:1;flex-direction:column;min-height:100dvh;">
+    <header class="app-header">
+      <div class="app-brand">
+        <img class="app-icon" src="icons/icon-192.png" alt="" />
+        <div class="app-title">Idea Capture</div>
+      </div>
+      <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+    </header>
+
+    <!-- Capture screen -->
+    <div class="screen" id="captureScreen">
+      <div class="status-bar" id="saveStatus"></div>
+
+      <div class="artwork-banner" id="artworkBanner" hidden>
+        <div class="artwork-thumbs">
+          <img class="artwork-thumb" id="artworkSeries" alt="Series" hidden />
+          <img class="artwork-thumb" id="artworkProject" alt="Project" hidden />
+        </div>
+        <div class="artwork-details">
+          <div class="artwork-title" id="artworkTitle"></div>
+          <div class="artwork-subtitle" id="artworkSubtitle"></div>
+          <div class="artwork-meta" id="artworkMeta"></div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Series</label>
+        <select class="field-select" id="selSeries">
+          <option value="">Select series…</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Project</label>
+        <select class="field-select" id="selProject">
+          <option value="">Select project…</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Category</label>
+        <div class="category-grid" id="categoryGrid">
+          <button type="button" class="category-btn is-active" data-cat="general_idea">General Idea</button>
+          <button type="button" class="category-btn" data-cat="story">Story</button>
+          <button type="button" class="category-btn" data-cat="character">Character</button>
+          <button type="button" class="category-btn" data-cat="world">World</button>
+        </div>
+      </div>
+
+      <div class="field-group" id="characterGroup" hidden>
+        <label class="field-label">Character</label>
+        <select class="field-select" id="selCharacter">
+          <option value="">Select character…</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Title (optional)</label>
+        <input class="field-input" id="noteTitle" type="text" placeholder="Give this idea a name…" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Note</label>
+        <textarea class="field-textarea" id="noteContent" placeholder="Type or paste your idea here…"></textarea>
+      </div>
+
+      <button class="save-btn" id="saveBtn">Save Note</button>
+    </div>
+
+    <!-- Saved screen -->
+    <div class="screen" id="savedScreen" hidden>
+      <input class="search-bar" id="searchInput" type="search" placeholder="Search notes…" />
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select class="field-select" id="filterSeries" style="flex:1;padding:8px 12px;font-size:14px;">
+          <option value="">All series</option>
+        </select>
+        <select class="field-select" id="filterProject" style="flex:1;padding:8px 12px;font-size:14px;">
+          <option value="">All projects</option>
+        </select>
+      </div>
+      <div class="filter-row" id="filterRow">
+        <button class="filter-chip is-active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="inbox">Inbox</button>
+        <button class="filter-chip" data-filter="character">Character</button>
+        <button class="filter-chip" data-filter="story">Story</button>
+        <button class="filter-chip" data-filter="world">World</button>
+        <button class="filter-chip" data-filter="general_idea">General</button>
+      </div>
+      <div id="notesList"></div>
+    </div>
+
+    <!-- Tab bar -->
+    <nav class="tab-bar">
+      <button class="tab-btn is-active" data-tab="capture">
+        <span class="tab-icon">✏️</span>
+        <span>Capture</span>
+      </button>
+      <button class="tab-btn" data-tab="saved">
+        <span class="tab-icon">📋</span>
+        <span>Saved</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Edit modal -->
+  <div class="modal-overlay" id="editModal" hidden>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">Edit Note</div>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Title</label>
+        <input class="field-input" id="editTitle" type="text" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">Category</label>
+        <select class="field-select" id="editCategory">
+          <option value="general_idea">General Idea</option>
+          <option value="story">Story</option>
+          <option value="character">Character</option>
+          <option value="world">World</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Content</label>
+        <textarea class="field-textarea" id="editContent" style="min-height:30vh;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-danger" id="editDelete">Delete</button>
+        <button class="modal-btn modal-btn-secondary" id="editCancel">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="editSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="env.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    // ── Supabase client ──
+    var SUPABASE_URL = window.__SUPABASE_URL__ || '';
+    var SUPABASE_KEY = window.__SUPABASE_ANON_KEY__ || '';
+    var sb = (SUPABASE_URL && SUPABASE_KEY && window.supabase)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
+    // ── State ──
+    var authUser = null;
+    var isSaving = false;
+    var currentCategory = 'general_idea';
+    var editingNoteId = null;
+    var seriesList = [];
+    var projectList = [];
+    var _allProjects = [];
+    var characterList = [];
+    var notesList = [];
+    var activeFilter = 'all';
+
+    // ── DOM refs ──
+    var $ = function (id) { return document.getElementById(id); };
+
+    // ── Draft persistence ──
+    var DRAFT_KEY = 'idea_capture_draft';
+    var DEST_KEY = 'idea_capture_last_dest';
+
+    function saveDraft() {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          seriesId: $('selSeries').value,
+          projectId: $('selProject').value,
+          characterId: $('selCharacter').value,
+          category: currentCategory,
+          title: $('noteTitle').value,
+          content: $('noteContent').value
+        }));
+      } catch (e) {}
+    }
+
+    function restoreDraft() {
+      try {
+        var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+        if (!d) return;
+        if (d.seriesId) $('selSeries').value = d.seriesId;
+        if (d.projectId) $('selProject').value = d.projectId;
+        if (d.category) setCategory(d.category);
+        if (d.title) $('noteTitle').value = d.title;
+        if (d.content) $('noteContent').value = d.content;
+        // Character depends on series being loaded first.
+        if (d.characterId) setTimeout(function () { $('selCharacter').value = d.characterId; }, 300);
+      } catch (e) {}
+    }
+
+    function clearDraft() {
+      try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    }
+
+    function saveDest() {
+      try {
+        localStorage.setItem(DEST_KEY, JSON.stringify({
+          seriesId: $('selSeries').value,
+          projectId: $('selProject').value,
+          category: currentCategory,
+          characterId: $('selCharacter').value
+        }));
+      } catch (e) {}
+    }
+
+    function restoreDest() {
+      try {
+        var d = JSON.parse(localStorage.getItem(DEST_KEY) || 'null');
+        if (!d) return;
+        if (d.seriesId) $('selSeries').value = d.seriesId;
+        if (d.projectId) $('selProject').value = d.projectId;
+        if (d.category) setCategory(d.category);
+        if (d.characterId) setTimeout(function () { $('selCharacter').value = d.characterId; }, 300);
+      } catch (e) {}
+    }
+
+    // ── Auth ──
+    function showApp() {
+      $('authScreen').hidden = true;
+      $('app').hidden = false;
+      $('app').style.display = 'flex';
+      loadSeries();
+    }
+
+    function showAuth() {
+      $('authScreen').hidden = false;
+      $('app').hidden = true;
+      $('app').style.display = 'none';
+    }
+
+    function handleSignIn() {
+      var email = $('authEmail').value.trim();
+      var password = $('authPassword').value;
+      if (!email || !password) {
+        $('authError').textContent = 'Enter email and password.';
+        return;
+      }
+      $('authError').textContent = '';
+      $('authSignIn').textContent = 'Signing in…';
+      $('authSignIn').disabled = true;
+      sb.auth.signInWithPassword({ email: email, password: password })
+        .then(function (res) {
+          $('authSignIn').textContent = 'Sign In';
+          $('authSignIn').disabled = false;
+          if (res.error) {
+            $('authError').textContent = res.error.message;
+          } else {
+            authUser = res.data.user;
+            showApp();
+          }
+        })
+        .catch(function (err) {
+          $('authSignIn').textContent = 'Sign In';
+          $('authSignIn').disabled = false;
+          $('authError').textContent = err.message || 'Sign in failed.';
+        });
+    }
+
+    function handleSignOut() {
+      sb.auth.signOut().then(function () {
+        authUser = null;
+        showAuth();
+      });
+    }
+
+    // ── Data loading ──
+    function loadSeries() {
+      sb.from('series').select('id, name, series_image_url, genre, pen_name, format').order('name').limit(200)
+        .then(function (res) {
+          if (res.error) return;
+          seriesList = res.data || [];
+          var sel = $('selSeries');
+          var current = sel.value;
+          sel.innerHTML = '<option value="">Select series…</option>';
+          seriesList.forEach(function (s) {
+            sel.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + '</option>';
+          });
+          if (current) sel.value = current;
+          // Restore saved selections BEFORE loading projects so the series
+          // filter is already in place — otherwise loadProjects sees an empty
+          // selector and loads every book regardless of series.
+          restoreDraft();
+          restoreDest();
+          loadProjects().then(function () {
+            ensureProjectSelected();
+            loadCharacters();
+            updateArtworkBanner();
+            populateFilterDropdowns();
+          });
+        });
+    }
+
+    function loadProjects() {
+      var seriesId = $('selSeries').value;
+      console.log('[Projects] loadProjects seriesId:', seriesId);
+      var q = sb.from('projects').select('id, title, series_id, project_image_url, genre, pen_name, format, book_number').order('title').limit(200);
+      if (seriesId) q = q.eq('series_id', Number(seriesId));
+      return q.then(function (res) {
+        if (res.error) return;
+        projectList = (res.data || []).sort(function (a, b) {
+          // book_number is TEXT in the schema, so sort it as a number to get
+          // Book 2 before Book 10 rather than the other way round.
+          var na = parseInt(a.book_number, 10);
+          var nb = parseInt(b.book_number, 10);
+          if (!isNaN(na) && !isNaN(nb)) return na - nb;
+          return (a.title || '').localeCompare(b.title || '');
+        });
+        var sel = $('selProject');
+        var current = sel.value;
+        sel.innerHTML = '<option value="">Inbox (no project)</option>';
+        projectList.forEach(function (p) {
+          var label = p.book_number ? 'Book ' + p.book_number + ' – ' + p.title : p.title;
+          sel.innerHTML += '<option value="' + p.id + '">' + escHtml(label) + '</option>';
+        });
+        if (current) sel.value = current;
+      });
+    }
+
+    // Always leave the project selector on a real project: the last one the
+    // author used, or the first book in the series when they have never been
+    // here. Inbox stays reachable explicitly but is never the default.
+    function ensureProjectSelected() {
+      var sel = $('selProject');
+      if (sel.value) return;
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem(DEST_KEY) || 'null'); } catch (e) {}
+      if (saved && saved.projectId) {
+        var match = projectList.find(function (p) { return String(p.id) === String(saved.projectId); });
+        if (match) { sel.value = match.id; return; }
+      }
+      if (projectList.length) sel.value = projectList[0].id;
+    }
+
+    function loadCharacters() {
+      var seriesId = $('selSeries').value;
+      if (!seriesId) {
+        characterList = [];
+        $('selCharacter').innerHTML = '<option value="">Select character…</option>';
+        return;
+      }
+      sb.from('codex_entity_types').select('id').eq('key', 'character').single()
+        .then(function (typeRes) {
+          if (typeRes.error || !typeRes.data) return;
+          return sb.from('codex_entities')
+            .select('id, name')
+            .eq('series_id', seriesId)
+            .eq('entity_type_id', typeRes.data.id)
+            .is('deleted_at', null)
+            .order('name')
+            .limit(200);
+        })
+        .then(function (res) {
+          if (!res || res.error) return;
+          characterList = res.data || [];
+          var sel = $('selCharacter');
+          var current = sel.value;
+          sel.innerHTML = '<option value="">Select character…</option>';
+          characterList.forEach(function (c) {
+            sel.innerHTML += '<option value="' + c.id + '">' + escHtml(c.name) + '</option>';
+          });
+          if (current) sel.value = current;
+        });
+    }
+
+    function populateFilterDropdowns() {
+      var fs = $('filterSeries');
+      var curS = fs.value;
+      fs.innerHTML = '<option value="">All series</option>';
+      seriesList.forEach(function (s) {
+        fs.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + '</option>';
+      });
+      fs.value = curS;
+
+      // Fetch ALL projects once and cache them so the project dropdown can
+      // filter locally when the series changes, without re-querying.
+      sb.from('projects').select('id, title, series_id, book_number').order('title').limit(500)
+        .then(function (res) {
+          if (res.error) return;
+          _allProjects = (res.data || []).sort(function (a, b) {
+            var na = parseInt(a.book_number, 10);
+            var nb = parseInt(b.book_number, 10);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return (a.title || '').localeCompare(b.title || '');
+          });
+          updateFilterProjectDropdown();
+        });
+    }
+
+    // Rebuild the project filter dropdown for the currently selected series.
+    // Called on load and every time the series filter changes.
+    function updateFilterProjectDropdown() {
+      var fp = $('filterProject');
+      var curP = fp.value;
+      var fsId = $('filterSeries').value;
+      var list = fsId
+        ? _allProjects.filter(function (p) { return String(p.series_id) === String(fsId); })
+        : _allProjects;
+      fp.innerHTML = '<option value="">All projects</option>';
+      list.forEach(function (p) {
+        var label = p.book_number ? 'Book ' + p.book_number + ' – ' + p.title : p.title;
+        fp.innerHTML += '<option value="' + p.id + '">' + escHtml(label) + '</option>';
+      });
+      // Keep the current selection if it is still in the filtered list.
+      if (list.some(function (p) { return String(p.id) === String(curP); })) {
+        fp.value = curP;
+      }
+    }
+
+    function loadNotes() {
+      var q = sb.from('idea_notes')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(100);
+      var fsId = $('filterSeries').value;
+      var fpId = $('filterProject').value;
+      if (fsId) q = q.eq('series_id', fsId);
+      if (fpId) q = q.eq('project_id', fpId);
+      if (activeFilter === 'inbox') {
+        q = q.is('project_id', null);
+      } else if (activeFilter !== 'all') {
+        q = q.eq('category', activeFilter);
+      }
+      var search = $('searchInput').value.trim();
+      if (search) {
+        q = q.or('title.ilike.%' + search + '%,content.ilike.%' + search + '%');
+      }
+      q.then(function (res) {
+        if (res.error) return;
+        notesList = res.data || [];
+        renderNotesList();
+      });
+    }
+
+    // ── Rendering ──
+    function renderNotesList() {
+      var el = $('notesList');
+      if (!notesList.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div>No notes yet.<br>Tap Capture to add your first idea.</div>';
+        return;
+      }
+      var html = '';
+      notesList.forEach(function (note) {
+        var cat = note.category || 'general_idea';
+        var catLabel = cat === 'general_idea' ? 'General' : cat.charAt(0).toUpperCase() + cat.slice(1);
+        var badgeClass = 'badge-' + cat;
+        var title = note.title || '';
+        var preview = (note.content || '').slice(0, 120);
+        var date = timeAgo(note.updated_at);
+var location = '';
+      if (note.series_id) {
+        var s = seriesList.find(function (x) { return String(x.id) === String(note.series_id); });
+        if (s) location = s.name;
+      }
+      if (note.project_id) {
+        var p = projectList.find(function (x) { return String(x.id) === String(note.project_id); });
+        if (p) location += (location ? ' → ' : '') + (p.book_number ? 'Book ' + p.book_number : p.title);
+      }
+      if (!location) location = '<span class="note-card-badge badge-inbox">Inbox</span>';
+
+        html += '<div class="note-card" data-note-id="' + note.id + '">';
+        html += '<div class="note-card-title' + (title ? '' : ' is-empty') + '">' + escHtml(title || 'Untitled note') + '</div>';
+        html += '<div class="note-card-meta">';
+        html += '<span class="note-card-badge ' + badgeClass + '">' + escHtml(catLabel) + '</span>';
+        html += '<span>' + location + '</span>';
+        html += '<span>' + date + '</span>';
+        html += '</div>';
+        if (preview) {
+          html += '<div class="note-card-preview">' + escHtml(preview) + '</div>';
+        }
+        html += '</div>';
+      });
+      el.innerHTML = html;
+
+      el.querySelectorAll('.note-card').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var id = Number(card.getAttribute('data-note-id'));
+          openEditModal(id);
+        });
+      });
+    }
+
+    // ── Category ──
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.category-btn').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-cat') === cat);
+      });
+      $('characterGroup').hidden = (cat !== 'character');
+      if (cat === 'character') loadCharacters();
+    }
+
+    // ── Save ──
+    function handleSave() {
+      if (isSaving) return;
+      var content = $('noteContent').value.trim();
+      if (!content) {
+        showStatus('error', 'Note content is required.');
+        return;
+      }
+      isSaving = true;
+      var btn = $('saveBtn');
+      btn.textContent = 'Saving…';
+      btn.disabled = true;
+      btn.className = 'save-btn';
+
+      var note = {
+        series_id: $('selSeries').value ? Number($('selSeries').value) : null,
+        project_id: $('selProject').value ? Number($('selProject').value) : null,
+        character_id: ($('selCharacter').value && currentCategory === 'character') ? Number($('selCharacter').value) : null,
+        category: currentCategory,
+        title: $('noteTitle').value.trim() || null,
+        content: content
+      };
+
+      sb.from('idea_notes').insert({
+        series_id: note.series_id,
+        project_id: note.project_id,
+        character_id: note.character_id,
+        category: note.category,
+        title: note.title,
+        original_content: note.content,
+        content: note.content
+      }).select('id').single()
+        .then(function (res) {
+          isSaving = false;
+          if (res.error) {
+            btn.textContent = 'Retry Save';
+            btn.disabled = false;
+            btn.className = 'save-btn is-error';
+            showStatus('error', 'Save failed. Your note is safe — tap Retry.');
+            return;
+          }
+          btn.textContent = 'Saved ✓';
+          btn.className = 'save-btn is-success';
+          showStatus('success', 'Note saved successfully.');
+          clearDraft();
+          saveDest();
+          $('noteTitle').value = '';
+          $('noteContent').value = '';
+          setTimeout(function () {
+            btn.textContent = 'Save Note';
+            btn.className = 'save-btn';
+            btn.disabled = false;
+          }, 1500);
+        });
+    }
+
+    function showStatus(type, msg) {
+      var el = $('saveStatus');
+      el.textContent = msg;
+      el.className = 'status-bar is-' + type;
+      if (type === 'success') {
+        setTimeout(function () { el.className = 'status-bar'; }, 3000);
+      }
+    }
+
+    // ── Edit modal ──
+    function openEditModal(noteId) {
+      var note = notesList.find(function (n) { return n.id === noteId; });
+      if (!note) return;
+      editingNoteId = noteId;
+      $('editTitle').value = note.title || '';
+      $('editCategory').value = note.category || 'general_idea';
+      $('editContent').value = note.content || '';
+      $('editModal').hidden = false;
+    }
+
+    function closeEditModal() {
+      $('editModal').hidden = true;
+      editingNoteId = null;
+    }
+
+    function handleEditSave() {
+      if (!editingNoteId) return;
+      var updates = {
+        title: $('editTitle').value.trim() || null,
+        category: $('editCategory').value,
+        content: $('editContent').value.trim()
+      };
+      if (!updates.content) return;
+      sb.from('idea_notes').update(updates).eq('id', editingNoteId)
+        .then(function (res) {
+          if (res.error) return;
+          closeEditModal();
+          loadNotes();
+        });
+    }
+
+    function handleEditDelete() {
+      if (!editingNoteId) return;
+      if (!confirm('Delete this note?')) return;
+      sb.from('idea_notes').delete().eq('id', editingNoteId)
+        .then(function (res) {
+          if (res.error) return;
+          closeEditModal();
+          loadNotes();
+        });
+    }
+
+    // ── Tab switching ──
+    function switchTab(tab) {
+      $('captureScreen').hidden = (tab !== 'capture');
+      $('savedScreen').hidden = (tab !== 'saved');
+      document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-tab') === tab);
+      });
+      if (tab === 'saved') loadNotes();
+    }
+
+    // ── Utilities ──
+    function escHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function updateArtworkBanner() {
+      var seriesId = $('selSeries').value;
+      var projectId = $('selProject').value;
+      var series = seriesId ? seriesList.find(function (s) { return String(s.id) === String(seriesId); }) : null;
+      var project = projectId ? projectList.find(function (p) { return String(p.id) === String(projectId); }) : null;
+
+      // Both artworks, side by side. Series first, then project.
+      var seriesImg = $('artworkSeries');
+      var projectImg = $('artworkProject');
+      seriesImg.hidden = !(series && series.series_image_url);
+      if (!seriesImg.hidden) seriesImg.src = series.series_image_url;
+      projectImg.hidden = !(project && project.project_image_url);
+      if (!projectImg.hidden) projectImg.src = project.project_image_url;
+
+      // Details: project title takes priority, then series name.
+      var title = $('artworkTitle');
+var subtitle = $('artworkSubtitle');
+    var meta = $('artworkMeta');
+    if (project) {
+      title.textContent = project.title || 'Untitled';
+      // Series name + book number as plain text under the title.
+      var sub = series ? series.name : '';
+      if (project.book_number) sub += (sub ? ' · ' : '') + 'Book ' + project.book_number;
+      subtitle.textContent = sub;
+    } else if (series) {
+      title.textContent = series.name;
+      subtitle.textContent = '';
+    } else {
+      title.textContent = '';
+      subtitle.textContent = '';
+    }
+
+    // Tags: author, genre, format.
+var tags = [];
+    var author = project ? (project.pen_name || '') : (series ? (series.pen_name || '') : '');
+    if (author) tags.push({ text: author, cls: 'tag-author' });
+    var genre = project ? (project.genre || '') : (series ? (series.genre || '') : '');
+    if (genre) tags.push({ text: genre, cls: 'tag-genre' });
+    var format = project ? (project.format || '') : (series ? (series.format || '') : '');
+    if (format) tags.push({ text: format, cls: 'tag-format' });
+
+    meta.innerHTML = tags.map(function (t) {
+      return '<span class="artwork-tag ' + t.cls + '">' + escHtml(t.text) + '</span>';
+    }).join('');
+
+      // Show the card if there's anything to show.
+      var hasContent = !seriesImg.hidden || !projectImg.hidden || title.textContent || tags.length;
+      $('artworkBanner').hidden = !hasContent;
+    }
+
+    function timeAgo(dateStr) {
+      if (!dateStr) return '';
+      var diff = Date.now() - new Date(dateStr).getTime();
+      var mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      var days = Math.floor(hrs / 24);
+      if (days < 7) return days + 'd ago';
+      return new Date(dateStr).toLocaleDateString();
+    }
+
+    // ── Event wiring ──
+    $('authSignIn').addEventListener('click', handleSignIn);
+    $('authPassword').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') handleSignIn();
+    });
+    $('signOutBtn').addEventListener('click', handleSignOut);
+    $('saveBtn').addEventListener('click', handleSave);
+
+    $('selSeries').addEventListener('change', function () {
+      loadProjects().then(function () {
+        ensureProjectSelected();
+        loadCharacters();
+        saveDest();
+        updateArtworkBanner();
+      });
+    });
+    $('selProject').addEventListener('change', function () {
+      saveDest();
+      updateArtworkBanner();
+    });
+
+    document.querySelectorAll('.category-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setCategory(btn.getAttribute('data-cat'));
+        saveDest();
+      });
+    });
+
+    // Draft saving on input (debounced).
+    var draftTimer = null;
+    ['noteTitle', 'noteContent'].forEach(function (id) {
+      $(id).addEventListener('input', function () {
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraft, 500);
+      });
+    });
+
+    // Tab bar.
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        switchTab(btn.getAttribute('data-tab'));
+      });
+    });
+
+    // Saved screen filters and search.
+    document.querySelectorAll('.filter-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        activeFilter = chip.getAttribute('data-filter');
+        document.querySelectorAll('.filter-chip').forEach(function (c) {
+          c.classList.toggle('is-active', c === chip);
+        });
+        loadNotes();
+      });
+    });
+
+    var searchTimer = null;
+    $('searchInput').addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadNotes, 300);
+    });
+    $('filterSeries').addEventListener('change', function () {
+      updateFilterProjectDropdown();
+      loadNotes();
+    });
+    $('filterProject').addEventListener('change', loadNotes);
+
+    // Edit modal.
+    $('modalClose').addEventListener('click', closeEditModal);
+    $('editCancel').addEventListener('click', closeEditModal);
+    $('editSave').addEventListener('click', handleEditSave);
+    $('editDelete').addEventListener('click', handleEditDelete);
+
+    // ── Boot ──
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    }
+
+    if (!sb) {
+      $('authError').textContent = 'Supabase is not configured.';
+      return;
+    }
+
+    // Check for existing session.
+    sb.auth.getSession().then(function (res) {
+      if (res.data && res.data.session) {
+        authUser = res.data.session.user;
+        showApp();
+      } else {
+        showAuth();
+      }
+    });
+
+    sb.auth.onAuthStateChange(function (event, session) {
+      if (event === 'SIGNED_IN' && session) {
+        authUser = session.user;
+        showApp();
+      } else if (event === 'SIGNED_OUT') {
+        authUser = null;
+        showAuth();
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>

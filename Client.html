@@ -3097,19 +3097,7 @@
       }
       // SCE tab: reload composition data when project changes
       if (activeMainTab === "sce" && !isSameProject) {
-        _sceState.initialized = false;
-        _sceState.composition = null;
-        _sceState.states = [];
-        _sceState.layers = [];
-        _sceState.blocks = [];
-        _sceState.assets = [];
-        // Panel view and Story Mix highlight belong to a book's blocks, so they
-        // reset with them. The catalogue is global and survives the switch.
-        _sceState.panelView = "ideas";
-        _sceState.catalogueQuery = "";
-        _sceState.catalogueCategory = "";
-        _sceState.mixGrouping = "book";
-        _sceState.mixHighlight = null;
+        resetSCEForProject();
         if (typeof populateSCEProjectInfo === "function") populateSCEProjectInfo(project);
         if (typeof initSCE === "function") initSCE();
       }
@@ -7759,6 +7747,98 @@
       }
     }
 
+    function renderIdeaNotes() {
+    var listEl = document.getElementById("ideaNotesList");
+    if (!listEl) return;
+
+    // Populate the series/project filter dropdowns from the already-loaded lists.
+    var selS = document.getElementById("ideaNotesSeriesFilter");
+    var selP = document.getElementById("ideaNotesProjectFilter");
+
+    // Always rebuild from the current appState — the data may not have been
+    // loaded when the INBOX tab was first opened, and re-populating is cheap.
+    if (selS) {
+      var seriesById = (typeof appState !== "undefined" && appState.seriesMetaById) ? appState.seriesMetaById : {};
+      var seriesArr = Object.keys(seriesById).map(function (k) { return seriesById[k]; });
+      var curS = selS.value;
+      selS.innerHTML = '<option value="">All series</option>';
+      seriesArr.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      seriesArr.forEach(function (s) {
+        selS.innerHTML += '<option value="' + s.id + '">' + escapeHtml(s.name || '') + '</option>';
+      });
+      selS.value = curS;
+    }
+    if (selP) {
+      var projArr = (typeof appState !== "undefined" && appState.projects) ? appState.projects : [];
+      var curP = selP.value;
+      selP.innerHTML = '<option value="">All projects</option>';
+      projArr.forEach(function (p) {
+        var label = p.book_number ? 'Book ' + p.book_number + ' – ' + p.title : p.title;
+        selP.innerHTML += '<option value="' + p.id + '">' + escapeHtml(label) + '</option>';
+      });
+      selP.value = curP;
+    }
+
+    var filter = (document.querySelector(".idea-notes-chip.is-active") || {}).getAttribute
+      ? document.querySelector(".idea-notes-chip.is-active").getAttribute("data-filter") : "all";
+    var search = (document.getElementById("ideaNotesSearch") || {}).value || "";
+    var filters = { limit: 100 };
+    if (selS && selS.value) filters.series_id = selS.value;
+    if (selP && selP.value) filters.project_id = selP.value;
+    if (filter === "inbox") filters.project_id = null;
+    else if (filter !== "all") filters.category = filter;
+    if (search.trim()) filters.search = search.trim();
+    supabaseRunner
+      .withSuccessHandler(function (json) {
+        var result = typeof json === "string" ? JSON.parse(json) : json;
+        console.log("[IdeaNotes] response:", result);
+        if (!result || !result.ok) {
+          console.warn("[IdeaNotes] load failed:", result);
+          listEl.innerHTML = "<div class='empty-state'>Could not load notes.</div>";
+          return;
+        }
+        var notes = result.notes || [];
+        if (!notes.length) {
+          listEl.innerHTML = "<div class='empty-state'>No notes yet. Capture ideas from the mobile app.</div>";
+          return;
+        }
+        var html = "";
+        notes.forEach(function (note) {
+          var cat = note.category || "general_idea";
+          var catLabel = cat === "general_idea" ? "General" : cat.charAt(0).toUpperCase() + cat.slice(1);
+          var title = note.title || "";
+          var preview = (note.content || "").slice(0, 140);
+var loc = "";
+    // Joins were removed from the query (PostgREST can't always resolve them),
+    // so look up names from the already-loaded lists.
+    if (note.series_id && typeof appState !== "undefined" && appState.series) {
+      var s = appState.series.find(function (x) { return Number(x.id) === Number(note.series_id); });
+      if (s) loc = s.name || "";
+    }
+    if (note.project_id && typeof appState !== "undefined" && appState.projects) {
+      var p = appState.projects.find(function (x) { return Number(x.id) === Number(note.project_id); });
+      if (p) loc += (loc ? " \u2192 " : "") + (p.title || "");
+    }
+    if (!loc && note.series_id) loc = "Series #" + note.series_id;
+          if (!loc) loc = "<span class='idea-note-badge' style='background:rgba(239,68,68,0.2);color:#f87171;'>Inbox</span>";
+          html += "<div class='idea-note-item' data-note-id='" + note.id + "'>";
+          html += "<div class='idea-note-title" + (title ? "" : " is-empty") + "'>" + escapeHtml(title || "Untitled note") + "</div>";
+          html += "<div class='idea-note-meta'>";
+          html += "<span class='idea-note-badge' style='background:rgba(59,130,246,0.2);color:#60a5fa;'>" + escapeHtml(catLabel) + "</span>";
+          html += "<span>" + loc + "</span>";
+          html += "</div>";
+          if (preview) html += "<div class='idea-note-preview'>" + escapeHtml(preview) + "</div>";
+          html += "</div>";
+        });
+        listEl.innerHTML = html;
+      })
+      .withFailureHandler(function (err) {
+        console.warn("[IdeaNotes] query error:", err);
+        listEl.innerHTML = "<div class='empty-state'>Could not load notes.</div>";
+      })
+      .listIdeaNotes(JSON.stringify(filters));
+    }
+
     function renderHandbook() {
       hDeptsExpanded = {};
       hActiveDept = "";
@@ -7792,11 +7872,11 @@
         c.hidden = id !== "hubContent" + safeTab.charAt(0).toUpperCase() + safeTab.slice(1);
       });
 
-      ["searchPanelContent", "resourceTreePanel", "writingCodexPanel", "planInfoPanelSidebar", "chatSidebarPanel", "codexTreePanel"].forEach(function (id) {
-        var p = document.getElementById(id);
-        if (!p) return;
-        if (safeTab !== "studio") p.hidden = true;
-      });
+["searchPanelContent", "resourceTreePanel", "writingCodexPanel", "planInfoPanelSidebar", "chatSidebarPanel", "codexTreePanel", "sceAssetPanel", "sceInspectorPanel"].forEach(function (id) {
+    var p = document.getElementById(id);
+    if (!p) return;
+    if (safeTab !== "studio") p.hidden = true;
+    });
 
       if (el.hubHomeSidebar) el.hubHomeSidebar.hidden = (safeTab !== "home");
       if (el.hubHandbookSidebar) el.hubHandbookSidebar.hidden = (safeTab !== "handbook");
@@ -7822,10 +7902,14 @@
         renderHomeDashboard();
       }
 
-      if (safeTab === "handbook") {
-        if (typeof renderHandbook === "function") renderHandbook();
-        if (typeof initHandbookEvents === "function") initHandbookEvents();
-      }
+if (safeTab === "handbook") {
+    if (typeof renderHandbook === "function") renderHandbook();
+    if (typeof initHandbookEvents === "function") initHandbookEvents();
+    }
+
+    if (safeTab === "inbox" && typeof renderIdeaNotes === "function") {
+    renderIdeaNotes();
+    }
 
       appState.activeHubTab = safeTab;
       try { localStorage.setItem("adogamation_activeHubTab", safeTab); } catch (e) {}

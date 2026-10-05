@@ -52,9 +52,13 @@
         tab.classList.toggle("is-active", tab.getAttribute("data-sce-view") === view);
       });
 
-      if (show.ideas) renderSCEAssetBin(seriesId);
+      if (show.ideas) renderSCEAssetBin();
       if (show.catalogue) renderSCECatalogue(seriesId);
       if (show.mix) renderSCEMix();
+
+      // Leaving the Catalogue closes a half-finished edit rather than leaving it
+      // waiting behind another tab.
+      if (!show.catalogue) closeSCECatalogueEditor();
     }
 
     // ============================================================
@@ -67,9 +71,15 @@
     function sceFilteredCatalogue() {
       var q = String(_sceState.catalogueQuery || "").toLowerCase().trim();
       var category = _sceState.catalogueCategory || "";
+      // Origin filters are independent toggles and AND with category and search,
+      // so "starred entries I created" is just both chips on.
+      var favouritesOnly = !!_sceState.catalogueFavouritesOnly;
+      var mineOnly = !!_sceState.catalogueMineOnly;
 
       var entries = (_sceState.catalogue || []).filter(function (entry) {
         if (category && entry.category !== category) return false;
+        if (favouritesOnly && !entry.is_favourite) return false;
+        if (mineOnly && !sceCatalogueEntryOwned(entry)) return false;
         if (!q) return true;
         return [entry.name, entry.category, entry.purpose]
           .join(" ")
@@ -81,6 +91,28 @@
       // is testable without a DOM.
       entries.sort(sceCatalogueCompare);
       return entries;
+    }
+
+    // Reflects the origin toggles onto the chips. Kept separate from the list
+    // render so the chips can update without rebuilding the list markup.
+    function renderSCECatalogueOriginChips() {
+      var pairs = [
+        ["sceCatalogueFavouritesChip", !!_sceState.catalogueFavouritesOnly],
+        ["sceCatalogueMineChip", !!_sceState.catalogueMineOnly]
+      ];
+      pairs.forEach(function (pair) {
+        var el = document.getElementById(pair[0]);
+        if (!el) return;
+        el.setAttribute("aria-pressed", pair[1] ? "true" : "false");
+        el.classList.toggle("is-active", pair[1]);
+      });
+    }
+
+    function sceCatalogueHasActiveFilters() {
+      return !!_sceState.catalogueFavouritesOnly
+        || !!_sceState.catalogueMineOnly
+        || !!_sceState.catalogueCategory
+        || !!String(_sceState.catalogueQuery || "").trim();
     }
 
     function sceCatalogueCategoryRank(category) {
@@ -98,6 +130,7 @@
 
     function renderSCECatalogue(seriesId) {
       renderSCECatalogueCategories();
+      renderSCECatalogueOriginChips();
       renderSCECatalogueList();
     }
 
@@ -123,6 +156,223 @@
       // Reset to All when the previous selection is no longer offered.
       select.value = categories.indexOf(current) >= 0 ? current : "";
       _sceState.catalogueCategory = select.value;
+
+      // Same list feeds the editor's category datalist, so a new category can be
+      // reused without retyping and typos stay visible to the author.
+      var datalist = document.getElementById("sceCatEditCategoryList");
+      if (datalist) {
+        datalist.innerHTML = categories.map(function (c) {
+          return "<option value='" + escapeHtml(c) + "'></option>";
+        }).join("");
+      }
+    }
+
+    // --- Catalogue authoring -------------------------------------------------
+    //
+    // Ownership model: entries carrying a created_by are the signed-in author's
+    // and are editable. Entries without one are the shared seeded bank, which is
+    // read-only and can only be duplicated into an owned copy. The database
+    // enforces this (see 20261002_add_catalogue_editability.sql); these helpers
+    // only decide which affordances to offer, so the UI never presents an edit
+    // that would be rejected.
+
+    function sceCatalogueCurrentUserId() {
+      try {
+        if (typeof _authUser !== 'undefined' && _authUser && _authUser.id) return _authUser.id;
+      } catch (e) { /* auth may not have resolved yet */ }
+      return null;
+    }
+
+    function sceCatalogueEntryOwned(entry) {
+      if (!entry || !entry.created_by) return false;
+      var me = sceCatalogueCurrentUserId();
+      // Without a resolved session, treat it as not-yet-known rather than
+      // guessing: the save path will report the real reason if it is wrong.
+      return !!me && String(entry.created_by) === String(me);
+    }
+
+    function sceCatalogueFindEntry(entryId) {
+      var id = Number(entryId || 0);
+      if (!id) return null;
+      var list = _sceState.catalogue || [];
+      for (var i = 0; i < list.length; i++) {
+        if (Number(list[i].id) === id) return list[i];
+      }
+      return null;
+    }
+
+    function sceCatalogueEditStatus(message, isError) {
+      var el = document.getElementById("sceCatEditStatus");
+      if (!el) return;
+      el.textContent = message || "";
+      el.className = "sce-cat-editor-status" + (message ? (isError ? " is-error" : " is-ok") : "");
+    }
+
+    function closeSCECatalogueEditor() {
+      var editor = document.getElementById("sceCatalogueEditor");
+      if (editor) editor.hidden = true;
+      _sceState.catalogueEditId = 0;
+      sceCatalogueEditStatus("");
+    }
+
+    // Opens the editor on an existing entry, or blank for a new one. Shared
+    // entries are never opened for editing: duplicateSCECatalogueEntry is the
+    // route to an editable copy.
+    function openSCECatalogueEditor(entryId) {
+      var editor = document.getElementById("sceCatalogueEditor");
+      if (!editor) return;
+
+      var entry = sceCatalogueFindEntry(entryId);
+      var isNew = !entry;
+      if (entry && !sceCatalogueEntryOwned(entry)) {
+        duplicateSCECatalogueEntry(entry.id);
+        return;
+      }
+
+      _sceState.catalogueEditId = isNew ? 0 : Number(entry.id);
+      editor.hidden = false;
+
+      var heading = document.getElementById("sceCatEditHeading");
+      if (heading) heading.textContent = isNew ? "New catalogue entry" : "Edit catalogue entry";
+
+      var note = document.getElementById("sceCatEditOwnerNote");
+      if (note) {
+        note.textContent = isNew
+          ? "Saved as your own entry. Everyone can still read it."
+          : "Your entry. Renaming it will not change blocks already placed from it.";
+        note.hidden = false;
+      }
+
+      var setVal = function (id, value) {
+        var el = document.getElementById(id);
+        if (el) el.value = value == null ? "" : value;
+      };
+      setVal("sceCatEditName", entry ? entry.name : "");
+      setVal("sceCatEditCategory", entry ? entry.category : "");
+      setVal("sceCatEditPurpose", entry ? entry.purpose : "");
+      setVal("sceCatEditQuestions", entry ? entry.prompt_questions : "");
+      setVal("sceCatEditColor", entry && entry.default_color ? entry.default_color : "#3b82f6");
+
+      var active = document.getElementById("sceCatEditActive");
+      if (active) active.checked = entry ? entry.active !== false : true;
+
+      var del = document.getElementById("sceCatEditDeleteBtn");
+      if (del) del.hidden = isNew;
+
+      sceCatalogueEditStatus("");
+      var nameEl = document.getElementById("sceCatEditName");
+      if (nameEl) nameEl.focus();
+    }
+
+    function saveSCECatalogueEditor() {
+      var editor = document.getElementById("sceCatalogueEditor");
+      if (!editor) return;
+
+      var getVal = function (id) {
+        var el = document.getElementById(id);
+        return el ? String(el.value == null ? "" : el.value).trim() : "";
+      };
+      var activeEl = document.getElementById("sceCatEditActive");
+      var colorEl = document.getElementById("sceCatEditColor");
+
+      var name = getVal("sceCatEditName");
+      if (!name) { sceCatalogueEditStatus("Give the entry a name.", true); return; }
+      var category = getVal("sceCatEditCategory");
+      if (!category) { sceCatalogueEditStatus("Give the entry a category.", true); return; }
+
+      var saveBtn = document.getElementById("sceCatEditSaveBtn");
+      if (saveBtn) { saveBtn.disabled = true; }
+      sceCatalogueEditStatus("Saving...");
+
+      var payload = {
+        id: _sceState.catalogueEditId || 0,
+        name: name,
+        category: category,
+        purpose: getVal("sceCatEditPurpose"),
+        prompt_questions: getVal("sceCatEditQuestions"),
+        default_color: colorEl ? colorEl.value : "#3b82f6",
+        active: activeEl ? activeEl.checked : true
+      };
+
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          if (saveBtn) { saveBtn.disabled = false; }
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          // Adopt the server row rather than the form values, so the list shows
+          // exactly what was stored.
+          if (result && result.entry) {
+            var saved = result.entry;
+            var list = _sceState.catalogue || [];
+            var replaced = false;
+            for (var i = 0; i < list.length; i++) {
+              if (Number(list[i].id) === Number(saved.id)) { list[i] = saved; replaced = true; break; }
+            }
+            if (!replaced) list.push(saved);
+            _sceState.selectedCatalogueId = Number(saved.id);
+            _sceState.catalogueEditId = Number(saved.id);
+          }
+          renderSCECatalogue();
+          // Saving ends the interaction: close so the list is visible again and
+          // a stray second click cannot resubmit the same entry. The failure
+          // handler below deliberately leaves the editor open with the message,
+          // so nothing typed is lost on error.
+          closeSCECatalogueEditor();
+        })
+        .withFailureHandler(function (err) {
+          if (saveBtn) { saveBtn.disabled = false; }
+          sceCatalogueEditStatus((err && err.message) || "Could not save that entry.", true);
+        })
+        .sceSaveCatalogueEntry(JSON.stringify(payload));
+    }
+
+    function duplicateSCECatalogueEntry(entryId) {
+      sceCatalogueEditStatus("Making an editable copy...");
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (result && result.entry) {
+            var copy = result.entry;
+            var list = _sceState.catalogue || [];
+            list.push(copy);
+            _sceState.selectedCatalogueId = Number(copy.id);
+            _sceState.catalogueEditId = Number(copy.id);
+            renderSCECatalogue();
+            openSCECatalogueEditor(copy.id);
+            sceCatalogueEditStatus("Copied. This one is yours to edit.");
+          }
+        })
+        .withFailureHandler(function (err) {
+          sceCatalogueEditStatus((err && err.message) || "Could not copy that entry.", true);
+        })
+        .sceDuplicateCatalogueEntry(entryId);
+    }
+
+    function deleteSCECatalogueEditorEntry() {
+      var entryId = _sceState.catalogueEditId || 0;
+      if (!entryId) return;
+      var entry = sceCatalogueFindEntry(entryId);
+      var label = entry && entry.name ? '"' + entry.name + '"' : "this entry";
+
+      // Blocks keep the name they were placed with, so deleting is safe for
+      // existing work; say so rather than implying data loss.
+      if (!window.confirm("Delete " + label + "?\n\nBlocks already created from it will keep their original wording.")) return;
+
+      supabaseRunner
+        .withSuccessHandler(function () {
+          var list = _sceState.catalogue || [];
+          for (var i = 0; i < list.length; i++) {
+            if (Number(list[i].id) === Number(entryId)) { list.splice(i, 1); break; }
+          }
+          if (Number(_sceState.selectedCatalogueId || 0) === Number(entryId)) {
+            _sceState.selectedCatalogueId = 0;
+          }
+          closeSCECatalogueEditor();
+          renderSCECatalogue();
+        })
+        .withFailureHandler(function (err) {
+          sceCatalogueEditStatus((err && err.message) || "Could not delete that entry.", true);
+        })
+        .sceDeleteCatalogueEntry(entryId);
     }
 
     function renderSCECatalogueList() {
@@ -142,14 +392,19 @@
         return;
       }
       if (!entries.length) {
-        list.innerHTML = "<div class='sce-asset-empty'>No entries match that search.</div>";
+        list.innerHTML = "<div class='sce-asset-empty'>"
+          + (sceCatalogueHasActiveFilters()
+            ? "No entries match the current filters."
+            : "No entries match that search.")
+          + "</div>";
         return;
       }
 
       var html = "";
       entries.forEach(function (entry) {
         var id = Number(entry.id);
-        html += "<div class='sce-cat-item" + (entry.is_favourite ? " is-favourite" : "") + "' data-catalogue-id='" + id + "' draggable='true'>";
+        var selected = Number(_sceState.selectedCatalogueId || 0) === id;
+        html += "<div class='sce-cat-item" + (entry.is_favourite ? " is-favourite" : "") + (selected ? " is-selected" : "") + "' data-catalogue-id='" + id + "' draggable='true'>";
         html += "<div class='sce-cat-head'>";
         if (entry.default_color) {
           html += "<span class='sce-cat-dot' style='background:" + escapeHtml(entry.default_color) + ";'></span>";
@@ -168,6 +423,14 @@
         }
         html += "<div class='sce-cat-actions'>";
         html += "<button type='button' class='sce-cat-add' data-catalogue-add='" + id + "'>Add Block</button>";
+        // One affordance per entry: your own entries open the editor, shared
+        // seeded entries offer a copy, since editing them in place would rewrite
+        // them for every user.
+        if (sceCatalogueEntryOwned(entry)) {
+          html += "<button type='button' class='sce-cat-edit' data-catalogue-edit='" + id + "'>Edit</button>";
+        } else {
+          html += "<button type='button' class='sce-cat-edit is-shared' data-catalogue-duplicate='" + id + "'>Duplicate</button>";
+        }
         html += "<span class='sce-cat-drag-hint'>drag into outline</span>";
         html += "</div>";
         html += "</div>";
@@ -180,14 +443,20 @@
         item.addEventListener("dragstart", function (e) {
           e.dataTransfer.setData("text/plain", JSON.stringify({
             type: "catalogue",
-            catalogueId: item.getAttribute("data-catalogue-id")
+            catalogueId: item.getAttribute("data-catalogue-id"),
+            // Also carried under "id" so drop targets read one key for both
+            // payload kinds instead of branching on which one is present.
+            id: Number(item.getAttribute("data-catalogue-id"))
           }));
           e.dataTransfer.effectAllowed = "copy";
         });
 
+        // Selecting a catalogue entry must never create a block. Dragging the
+        // row or using Add Block are the two explicit ways to make one, so an
+        // exploratory click on the list is safe.
         item.addEventListener("click", function (e) {
           if (e.target.closest("button")) return;
-          addSCEBlockFromCatalogue(item.getAttribute("data-catalogue-id"));
+          selectSCECatalogueEntry(item.getAttribute("data-catalogue-id"), list);
         });
       });
 
@@ -202,6 +471,20 @@
         btn.addEventListener("click", function (e) {
           e.stopPropagation();
           toggleSCECatalogueFavourite(Number(btn.getAttribute("data-catalogue-favourite")));
+        });
+      });
+
+      list.querySelectorAll("[data-catalogue-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          openSCECatalogueEditor(btn.getAttribute("data-catalogue-edit"));
+        });
+      });
+
+      list.querySelectorAll("[data-catalogue-duplicate]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          duplicateSCECatalogueEntry(btn.getAttribute("data-catalogue-duplicate"));
         });
       });
     }
@@ -229,6 +512,19 @@
           renderSCECatalogueList();
         })
         .sceSetCatalogueFavourite(entryId, next);
+    }
+
+    // Which catalogue entry the author has highlighted in the list. Purely a
+    // read-only selection: it drives no writes and creates no blocks. The list
+    // element is passed in because it is a local of the renderer, not a global.
+    function selectSCECatalogueEntry(catalogueId, listEl) {
+      _sceState.selectedCatalogueId = Number(catalogueId || 0) || null;
+      var container = listEl || document.getElementById("sceCatalogueList");
+      if (!container) return;
+      container.querySelectorAll(".sce-cat-item").forEach(function (el) {
+        el.classList.toggle("is-selected",
+          Number(el.getAttribute("data-catalogue-id")) === _sceState.selectedCatalogueId);
+      });
     }
 
     // ============================================================
@@ -302,6 +598,9 @@
         start_state: statePosition,
         end_state: statePosition,
         scene_id: sceneId ? Number(sceneId) : null,
+        // Lands at the end of the cell it is dropped into, so a new block never
+        // jumps above one the author already placed there.
+        vertical_pos: sceNextVerticalPos(layerId, statePosition, sceneId),
         short_title: entry.name || "Untitled",
         description: entry.purpose || "",
         notes: questions,
@@ -427,6 +726,26 @@
       return [];
     }
 
+    // Blocks that match no scope under the current grouping. A block whose scene or
+// state row cannot be resolved still exists in the book, so it is reported here
+// rather than being dropped from the tally.
+function sceMixLooseBlocks() {
+      // Book grouping has no scopes at all, so every block would look loose.
+      if (_sceState.mixGrouping === "book") return [];
+      var blocks = sceMixableBlocks();
+      var placed = {};
+      sceMixScopes().forEach(function (scope) {
+        var id = sceMixScopeId(scope);
+        if (blocks.some(function (b) { return sceMixScopeKey(b) === id; })) {
+          placed[String(id)] = true;
+        }
+      });
+      return blocks.filter(function (b) {
+        var key = sceMixScopeKey(b);
+        return key === null || !placed[String(key)];
+      });
+    }
+
     function sceMixScopeId(scope) {
       if (!scope) return null;
       return _sceState.mixGrouping === "chapter" ? Number(scope.id) : Number(scope.position || scope.id);
@@ -460,6 +779,20 @@
           totals: sceMixTotalsFor(inScope)
         });
       });
+
+      // A block whose scene or state row cannot be resolved belongs to no scope,
+      // so it would otherwise vanish from State and Chapter and leave the panel
+      // looking broken. Surface those under one trailing scope instead.
+      var loose = sceMixLooseBlocks();
+      if (loose.length) {
+        scoped.push({
+          id: null,
+          loose: true,
+          label: grouping === "chapter" ? "Not in a chapter" : "No state row",
+          blocks: loose,
+          totals: sceMixTotalsFor(loose)
+        });
+      }
       return { blocks: blocks, scopes: scoped };
     }
 
@@ -551,14 +884,14 @@
       }
 
       var html = "";
-      if (tally.scopes) {
+      if (tally.scopes && tally.scopes.length) {
         tally.scopes.forEach(function (scope) {
           html += renderSCEMixScope(scope);
         });
       } else {
         html += renderSCEMixScope({ label: "Whole book", blocks: tally.blocks, totals: tally.totals });
       }
-      body.innerHTML = html;
+      body.innerHTML = html || "<div class='sce-asset-empty'>Nothing to group under this view yet.</div>";
 
       wireSCEMixRows();
     }
@@ -568,20 +901,35 @@
       if (!select) return;
       var grouping = _sceState.mixGrouping;
       // Only meaningful for state and chapter, where the same type can appear in
-      // more than one scope.
+      // more than one scope. Book has no scopes, so the control is removed rather
+      // than merely hidden, and its options are dropped so a previous State or
+      // Chapter list can never be left sitting under the Book button.
+      var wrap = select.parentNode;
+      if (wrap) wrap.hidden = grouping === "book";
       select.hidden = grouping === "book";
-      if (grouping === "book") return;
+      if (grouping === "book") {
+        select.innerHTML = "";
+        return;
+      }
 
       var current = select.value;
       var scopes = sceMixScopes();
       var html = "";
-      scopes.forEach(function (scope) {
+      scopes.forEach(function (scope, index) {
         var id = sceMixScopeId(scope);
+        // Number chapters by their position in the canvas-ordered list, not by
+        // sort_order. sort_order is 1-based and restarts within each state row,
+        // so it both double-counted and repeated across the series.
         var label = _sceState.mixGrouping === "chapter"
-          ? (Number(scope.sort_order || 0) + 1) + ". " + sceMixScopeLabel(scope)
+          ? (index + 1) + ". " + sceMixScopeLabel(scope)
           : sceMixScopeLabel(scope);
         html += "<option value='" + id + "'>" + escapeHtml(label) + "</option>";
       });
+      // Offer the catch-all group so blocks with no resolvable scope are still
+      // reachable instead of only being visible by scrolling.
+      if (sceMixLooseBlocks().length) {
+        html += "<option value='loose'>" + escapeHtml(grouping === "chapter" ? "Not in a chapter" : "No state row") + "</option>";
+      }
       select.innerHTML = html;
       if (scopes.some(function (s) { return String(sceMixScopeId(s)) === current; })) {
         select.value = current;
@@ -589,7 +937,8 @@
     }
 
     function renderSCEMixScope(scope) {
-      var html = "<div class='sce-mix-scope-block' data-scope-id='" + (scope.id === null || scope.id === undefined ? "book" : escapeHtml(String(scope.id))) + "'>";
+      var scopeId = scope.loose ? "loose" : ((scope.id === null || scope.id === undefined) ? "book" : String(scope.id));
+      var html = "<div class='sce-mix-scope-block' data-scope-id='" + escapeHtml(scopeId) + "'>";
       if (_sceState.mixGrouping !== "book") {
         html += "<div class='sce-mix-scope-title'>" + escapeHtml(scope.label) + "</div>";
       }

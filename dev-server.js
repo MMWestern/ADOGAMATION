@@ -76,6 +76,7 @@ const NO_CACHE_HEADERS = {
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/Index.html";
+  if (urlPath === "/mobile") urlPath = "/mobile.html";
   if (urlPath === "/env.js") {
     res.writeHead(200, Object.assign({ "Content-Type": "application/javascript; charset=utf-8" }, NO_CACHE_HEADERS));
     res.end(ENV_JS_CONTENT);

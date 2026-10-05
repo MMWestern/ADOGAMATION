@@ -42,7 +42,8 @@ function processIncludes(content) {
 const HTML_FILES = [
   { src: "Index.html", dest: "index.html" },
   { src: "Client.html", dest: "Client.html" },
-  { src: "Styles.html", dest: "Styles.html" }
+  { src: "Styles.html", dest: "Styles.html" },
+  { src: "mobile.html", dest: "mobile.html" }
 ];
 const STATIC_EXTS = new Set([".css", ".js", ".json", ".png", ".jpg", ".svg", ".ico", ".woff", ".woff2"]);
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", "api", "migrations", ".env"]);

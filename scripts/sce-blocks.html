@@ -7,12 +7,158 @@
     // duplicate listeners and fires one drop handler N times.
     var sceBlockDropCell = null;
     var sceBlockDragWired = false;
+    // A block drag says where it will land before it is released: a divider bar
+    // on the block it would be inserted against, or on the cell when the cell is
+    // empty.
+    var sceBlockDropIndicator = null;
 
     function clearSCEBlockDropTarget() {
       if (sceBlockDropCell) {
         sceBlockDropCell.classList.remove("sce-drop-target");
         sceBlockDropCell = null;
       }
+    }
+
+    function clearSCEBlockDropIndicator() {
+      if (sceBlockDropIndicator) {
+        sceBlockDropIndicator.remove();
+        sceBlockDropIndicator = null;
+      }
+    }
+
+    // Which grid cell an element belongs to, read from the same data attributes
+    // renderSCEBlocks() matches on. Returns null for anything that is not a
+    // complete cell, which happens on the spine column before its layer exists.
+    function sceBlockCellFromElement(el) {
+      if (!el) return null;
+      var layerId = Number(el.getAttribute("data-layer-id") || 0);
+      var state = el.getAttribute("data-state");
+      if (!layerId || state === null) return null;
+      return {
+        layerId: layerId,
+        state: Number(state),
+        sceneId: Number(el.getAttribute("data-scene-id") || 0) || null
+      };
+    }
+
+    // The position a drop on another block produces: that block's index, or the
+    // one after it. The dragged block is excluded first so the index is measured
+    // against the list the drop will actually produce, exactly as the chapter
+    // reorder does before calling moveChapterToStateAt().
+    function sceBlockInsertIndex(blockId, layerId, statePos, sceneId, overBlockId, before) {
+      var list = sceBlocksInCell(layerId, statePos, sceneId).filter(function (b) {
+        return Number(b.id) !== Number(blockId);
+      });
+      for (var i = 0; i < list.length; i++) {
+        if (Number(list[i].id) === Number(overBlockId)) return before ? i : i + 1;
+      }
+      return null;
+    }
+
+// The blocks of a cell in the order they stack, minus the one being dragged.
+    // renderSCEBlocks() appends them in vertical_pos order, so DOM order is the
+    // reading order.
+    function sceBlockElsInCell(cellEl, blockEl) {
+      return Array.prototype.slice.call(cellEl.querySelectorAll(".sce-block")).filter(function (el) {
+        return el !== blockEl;
+      });
+    }
+
+    // The boundary a pointer's Y lands on inside a cell: what the line is drawn
+    // on, and which side of it.
+    //
+    // This works the answer out of the cell's geometry rather than asking what is
+    // under the cursor. Mid-drag that question is unreliable: the ghost follows
+    // the pointer, the block being dragged is still sitting in the layout at its
+    // old spot, and the connect node is layered over the block. Measuring the
+    // cell directly is what makes the line appear at all. It also draws a line
+    // in the gap between two blocks, instead of silently appending to the end.
+    function sceBlockDropLineInCell(cellEl, clientY, blockEl) {
+      var list = sceBlockElsInCell(cellEl, blockEl);
+      for (var i = 0; i < list.length; i++) {
+        var r = list[i].getBoundingClientRect();
+        // Over a block: the chapter gesture, the bar on the half being aimed at.
+        if (clientY >= r.top && clientY < r.top + r.height) {
+          return { lineEl: list[i], atTop: (clientY - r.top) < r.height / 2 };
+        }
+        // Still above this block, so the pointer is in the gap after the previous
+        // one and the boundary it names is the top of this block.
+        if (clientY < r.top) {
+          return { lineEl: list[i], atTop: true };
+        }
+      }
+      // Below the last block, so the drop appends to the end of the cell.
+      return list.length ? { lineEl: list[list.length - 1], atTop: false } : null;
+    }
+
+    // Resolves one drag position to the move it would perform: which cell, and
+    // which index inside it. The indicator and the drop both go through this, so
+    // the line the author is shown is exactly the move they get.
+    function sceResolveBlockDrop(clientX, clientY, blockId, blockEl) {
+      var under = document.elementFromPoint(clientX, clientY);
+
+      // Dropping on a state moves the block to that state's spine, at the end.
+      var label = under && under.closest ? under.closest(".sce-state-label") : null;
+      if (label) {
+        var spine = sceFindSpineLayer();
+        if (!spine) return null;
+        return {
+          cell: { layerId: spine.id, state: Number(label.getAttribute("data-state")), sceneId: null },
+          cellEl: null, index: null, lineEl: null, atTop: false
+        };
+      }
+
+      var cellEl = sceResolveDropCell(under, clientX, clientY);
+      if (!cellEl) return null;
+      var rawState = cellEl.getAttribute("data-state");
+      if (rawState === null || rawState === "parking" || rawState === "later") return null;
+      var cell = sceBlockCellFromElement(cellEl);
+      if (!cell) return null;
+
+      var hit = sceBlockDropLineInCell(cellEl, clientY, blockEl);
+      var index = null;
+      if (hit) {
+        index = sceBlockInsertIndex(blockId, cell.layerId, cell.state, cell.sceneId, hit.lineEl.getAttribute("data-block-id"), hit.atTop);
+      }
+      return {
+        cell: cell,
+        cellEl: cellEl,
+        // No blocks to measure against means the cell is empty, so this appends.
+        index: index,
+        lineEl: hit ? hit.lineEl : null,
+        atTop: hit ? hit.atTop : true
+      };
+    }
+
+    function sceUpdateBlockDropIndicator(clientX, clientY, dragState) {
+      clearSCEBlockDropIndicator();
+      var drop = sceResolveBlockDrop(clientX, clientY, dragState.blockId, dragState.blockEl);
+      if (!drop) return;
+
+      // An empty cell has nothing to aim at, so the bar goes across the cell
+      // itself rather than being skipped.
+      var edge = drop.lineEl ? drop.lineEl.getBoundingClientRect() : null;
+      // The cell, never the block: .sce-block has overflow:hidden and a 4px
+      // radius, so a bar drawn at the block's very edge gets eaten.
+      var host = drop.lineEl ? drop.lineEl.parentElement : drop.cellEl;
+      if (!host) return;
+
+      // Measured from the host's own top, so the bar sits on the boundary no
+      // matter where the cell is scrolled to.
+      var hostRect = host.getBoundingClientRect();
+      var y = edge ? (drop.atTop ? edge.top : edge.bottom) - hostRect.top : 0;
+
+      var line = document.createElement("div");
+      line.className = "sce-block-drop-line";
+      line.style.top = (y - 1.5) + "px";
+      host.appendChild(line);
+      sceBlockDropIndicator = line;
+    }
+
+    function sceHandleBlockDrop(blockId, blockEl, clientX, clientY) {
+      var drop = sceResolveBlockDrop(clientX, clientY, blockId, blockEl);
+      if (!drop) return;
+      moveSCEBlockToIndex(blockId, drop.cell.layerId, drop.cell.state, drop.cell.sceneId, drop.index);
     }
 
     function sceDropCellFrom(el) {
@@ -24,6 +170,11 @@
     // an element's hit-test area. Without this, dropping into the gutter finds
     // no cell and the move is silently ignored.
     function sceResolveDropCell(el, clientX, clientY) {
+      // The state label runs its own drop handler (chapters move states, ideas
+      // land on the spine layer). Returning null here stops this handler from
+      // also firing off the bubbled event and creating a second, duplicate block
+      // in whichever layer column sits nearest the pointer.
+      if (el && el.closest(".sce-state-label")) return null;
       var direct = sceDropCellFrom(el);
       if (direct) return direct;
       var row = el ? el.closest(".sce-state-row") : null;
@@ -89,14 +240,23 @@
       }
     }
 
-    function onSCEBlockClick(e) {
+function onSCEBlockClick(e) {
       if (e.target.closest(".sce-block")) return;
+      // The state label handles its own click to select the state, and this
+      // handler runs afterwards as the event bubbles up to the timeline body.
+      // Without this guard it cleared selectedStateId a moment after the label
+      // had set it, so the inspector flashed and went blank.
+      if (e.target.closest(".sce-state-label")) return;
       _sceState.selectedBlockId = null;
       _sceState.selectedAssetId = null;
-      document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
-        el.classList.remove("is-selected");
-      });
-      renderSCEInspector();
+      _sceState.selectedStateId = null;
+        document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
+          el.classList.remove("is-selected");
+        });
+        document.querySelectorAll(".sce-state-label.is-selected").forEach(function (el) {
+          el.classList.remove("is-selected");
+        });
+        renderSCEInspector();
     }
 
     function onSCEBlockDblClick(e) {
@@ -120,7 +280,10 @@
       timelineBody.addEventListener("click", onSCEBlockClick);
       timelineBody.addEventListener("dblclick", onSCEBlockDblClick);
       // A drag cancelled with Escape fires no drop, so clear on dragend.
-      document.addEventListener("dragend", clearSCEBlockDropTarget);
+      document.addEventListener("dragend", function () {
+        clearSCEBlockDropTarget();
+        clearSCEBlockDropIndicator();
+      });
 
       // Wire block drag (for moving blocks)
       wireSCEBlockDrag();
@@ -139,7 +302,10 @@
       timelineBody.addEventListener("mousedown", function (e) {
         var block = e.target.closest(".sce-block");
         if (!block) return;
-        if (e.target.closest(".sce-block-connect-node")) return;
+        // A drag that starts on the connect node, the expand button or a field
+        // of the inline editor would swallow the click and make the text fields
+        // impossible to select into.
+        if (e.target.closest(".sce-block-connect-node, .sce-block-expand, input, textarea, button")) return;
 
         var blockId = Number(block.getAttribute("data-block-id"));
         var blockData = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
@@ -182,18 +348,37 @@
           dragState.ghost.style.left = (e.clientX - dragState.startX + dragState.blockRect.left) + "px";
           dragState.ghost.style.top = (e.clientY - dragState.startY + dragState.blockRect.top) + "px";
         }
-        // Auto-scroll timeline when near edges
+        // Auto-scroll timeline when near edges — both horizontally and vertically so
+        // a block can be dragged to the far side of the sheet without the pointer
+        // leaving the panel. Speed scales with how deep into the edge zone the
+        // pointer is, so a slow nudge scrolls slowly and a hard push accelerates.
         var timeline = document.getElementById("sceTimeline");
         if (timeline) {
           var wrapRect = timeline.getBoundingClientRect();
-          var edgeZone = 40;
-          var scrollSpeed = 15;
-          if (e.clientX < wrapRect.left + edgeZone) {
-            timeline.scrollLeft -= scrollSpeed;
-          } else if (e.clientX > wrapRect.right - edgeZone) {
-            timeline.scrollLeft += scrollSpeed;
+          var edgeZone = 50;
+          var scrollSpeed = 18;
+
+          function edgeFactor(pos, start, end) {
+            // 0 at the inner boundary of the zone, 1 at the outer edge.
+            if (pos < start + edgeZone) return Math.min(1, (start + edgeZone - pos) / edgeZone);
+            if (pos > end - edgeZone) return Math.min(1, (pos - (end - edgeZone)) / edgeZone);
+            return 0;
+          }
+
+          var fx = edgeFactor(e.clientX, wrapRect.left, wrapRect.right);
+          if (fx > 0) {
+            timeline.scrollLeft += (e.clientX < wrapRect.left + edgeZone ? -1 : 1) * scrollSpeed * fx;
+          }
+
+          var fy = edgeFactor(e.clientY, wrapRect.top, wrapRect.bottom);
+          if (fy > 0) {
+            timeline.scrollTop += (e.clientY < wrapRect.top + edgeZone ? -1 : 1) * scrollSpeed * fy;
           }
         }
+        // After the scroll, not before: scrolling moves every cell under the
+        // pointer, so resolving first would paint the divider where the boundary
+        // used to be.
+        sceUpdateBlockDropIndicator(e.clientX, e.clientY, dragState);
       });
 
       document.addEventListener("mouseup", function (e) {
@@ -204,78 +389,67 @@
           dragState.ghost.remove();
         }
         dragState.blockEl.style.opacity = "";
+        clearSCEBlockDropIndicator();
 
         if (dragState.moved) {
-          // Find drop target
-          var under = document.elementFromPoint(e.clientX, e.clientY);
-          var cell = sceResolveDropCell(under, e.clientX, e.clientY);
-          if (cell) {
-            var newLayerId = Number(cell.getAttribute("data-layer-id"));
-            var newState = cell.getAttribute("data-state");
-            if (newState !== "parking" && newState !== "later") {
-              var newPosition = Number(newState);
-              var newSceneId = cell.getAttribute("data-scene-id") || null;
-              moveSCEBlock(dragState.blockId, newLayerId, newPosition, newSceneId ? Number(newSceneId) : null);
-            }
-          }
+          sceHandleBlockDrop(dragState.blockId, dragState.blockEl, e.clientX, e.clientY);
         }
 
         dragState = null;
       });
     }
 
-    function moveSCEBlock(blockId, newLayerId, newPosition, newSceneId) {
+// insertIdx === null appends to the end of the destination cell, which is
+    // what a drop on empty space or on a state label means.
+    function moveSCEBlockToIndex(blockId, newLayerId, newPosition, newSceneId, insertIdx) {
       if (sceMutationBlocked("block move")) return;
-      var block = _sceState.blocks.find(function (b) { return Number(b.id) === blockId; });
+      var block = _sceState.blocks.find(function (b) { return Number(b.id) === Number(blockId); });
       if (!block) return;
+      if (!newLayerId) return;
 
       var oldLayerId = block.layer_id;
       var oldStart = block.start_state;
-      var oldEnd = block.end_state;
       var oldSceneId = block.scene_id || null;
-      var span = oldEnd - oldStart;
-      var anchorScene = newSceneId ? newSceneId : null;
+      var span = block.end_state - block.start_state;
+
+      // Both cells involved, collected before the block is moved: afterwards it
+      // no longer reports where it came from, and undo would lose the ordering
+      // of the cell it left.
+      var touched = sceBlockOrderTouched(blockId, newLayerId, newPosition, newSceneId);
+      var before = sceBlockOrderSnapshot(touched);
 
       block.layer_id = newLayerId;
-      block.scene_id = anchorScene;
+      block.scene_id = newSceneId ? Number(newSceneId) : null;
       block.start_state = newPosition;
-      block.end_state = anchorScene ? newPosition : newPosition + span;
+      block.end_state = block.scene_id ? newPosition : newPosition + span;
 
-      // Push undo
-      scePushUndo({
-        type: "move_block",
-        blockId: blockId,
-        undo: function (done) {
-          var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
-          if (b) {
-            b.layer_id = oldLayerId;
-            b.start_state = oldStart;
-            b.end_state = oldEnd;
-            b.scene_id = oldSceneId;
-            saveSCEBlock(b, function (failed) {
-              renderSCETimeline();
-              if (done) done(failed);
-            });
-          } else if (done) done();
-        },
-        redo: function (done) {
-          var b = _sceState.blocks.find(function (bb) { return Number(bb.id) === blockId; });
-          if (b) {
-            b.layer_id = newLayerId;
-            b.start_state = newPosition;
-            b.end_state = anchorScene ? newPosition : newPosition + span;
-            b.scene_id = anchorScene;
-            saveSCEBlock(b, function (failed) {
-              renderSCETimeline();
-              if (done) done(failed);
-            });
-          } else if (done) done();
-        }
+      // Renumber the destination from 1 with the block spliced in, so no gaps or
+      // duplicate positions are left behind.
+      var destList = sceBlocksInCell(newLayerId, newPosition, newSceneId).filter(function (b) {
+        return Number(b.id) !== Number(blockId);
       });
+      var at = (insertIdx === null || insertIdx === undefined)
+        ? destList.length
+        : Math.max(0, Math.min(insertIdx, destList.length));
+      destList.splice(at, 0, block);
+      destList.forEach(function (b, idx) { b.vertical_pos = idx + 1; });
 
-      saveSCEBlock(block);
+      // Closing the gap left behind only applies when the block actually changed
+      // cell; staying put already renumbered the whole list above.
+      if (sceBlockSceneKey(oldSceneId) !== sceBlockSceneKey(block.scene_id)
+          || Number(oldLayerId) !== Number(newLayerId)
+          || Number(oldStart) !== Number(newPosition)) {
+        sceBlocksInCell(oldLayerId, oldStart, oldSceneId).forEach(function (b, idx) {
+          b.vertical_pos = idx + 1;
+        });
+      }
+
+      sceCommitBlockOrder(before, sceBlockOrderSnapshot(touched));
       renderSCETimeline();
-      renderSCEConnections();
+    }
+
+function moveSCEBlock(blockId, newLayerId, newPosition, newSceneId) {
+      moveSCEBlockToIndex(blockId, newLayerId, newPosition, newSceneId, null);
     }
 
     function saveSCEBlock(block, done) {
@@ -286,4 +460,24 @@
           if (done) done(true);
         })
         .sceSaveBlock(JSON.stringify(block));
+    }
+
+    // Not undo-tracked: state edits are metadata, not timeline structure, so
+    // there is nothing to restore on undo and no replay to intercept.
+    function saveSCEState(state, done) {
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          // The server drops notes rather than the whole edit when the
+          // notes column has not been migrated yet.
+          if (result && result.notesFailed) {
+            console.warn("[SCE] State saved without notes. Run migrations/20261002_add_state_notes.sql. " + (result.notesError || ""));
+          }
+          if (done) done();
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to save state:", err);
+          if (done) done(true);
+        })
+        .sceSaveState(JSON.stringify(state));
     }

@@ -2,6 +2,152 @@
     // Generic CRUD for the new codex_entities system.
     // Registered through _sbDefine() to follow the existing supabaseRunner pattern.
 
+    // ---- Idea Notes (registered first so a runtime error later in this file
+    // can never leave the mobile PWA's API methods undefined) ----
+
+    _sbDefine('listIdeaNotes', function (filtersJson) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      var f = {};
+      try { f = JSON.parse(filtersJson || "{}"); } catch (e) {}
+      // No PostgREST joins — the series/projects tables were created manually
+      // and the FK relationships are not always visible to PostgREST's schema
+      // introspection, so a joined query silently returns empty. Fetch the rows
+      // plain and let the UI look up names from the already-loaded lists.
+      var q = sbClient.from('idea_notes')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(f.limit || 50);
+      if (f.series_id) q = q.eq('series_id', f.series_id);
+      if (f.project_id === null) q = q.is('project_id', null);
+      else if (f.project_id) q = q.eq('project_id', f.project_id);
+      if (f.category) q = q.eq('category', f.category);
+      if (f.search) {
+        q = q.or('title.ilike.%' + f.search + '%,content.ilike.%' + f.search + '%');
+      }
+      return q.then(function (res) {
+        if (res.error) throw res.error;
+        return JSON.stringify({ ok: true, notes: res.data || [] });
+      });
+    });
+
+    _sbDefine('getIdeaNote', function (noteId) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      return sbClient.from('idea_notes')
+        .select('*')
+        .eq('id', noteId)
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, note: res.data });
+        });
+    });
+
+    _sbDefine('saveIdeaNote', function (noteJson) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      var note;
+      try { note = JSON.parse(noteJson); } catch (e) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: "Invalid note JSON" }));
+      }
+      if (!note.content || !String(note.content).trim()) {
+        return Promise.resolve(JSON.stringify({ ok: false, error: "Note content is required" }));
+      }
+      if (note.id) {
+        var updates = {
+          series_id: note.series_id || null,
+          project_id: note.project_id || null,
+          character_id: note.character_id || null,
+          category: note.category || 'general_idea',
+          title: note.title || null,
+          content: note.content
+        };
+        return sbClient.from('idea_notes')
+          .update(updates)
+          .eq('id', note.id)
+          .select('*')
+          .single()
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return JSON.stringify({ ok: true, note: res.data });
+          });
+      }
+      var insert = {
+        series_id: note.series_id || null,
+        project_id: note.project_id || null,
+        character_id: note.character_id || null,
+        category: note.category || 'general_idea',
+        title: note.title || null,
+        original_content: note.content,
+        content: note.content
+      };
+      return sbClient.from('idea_notes')
+        .insert(insert)
+        .select('*')
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, note: res.data });
+        });
+    });
+
+    _sbDefine('deleteIdeaNote', function (noteId) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      return sbClient.from('idea_notes')
+        .delete()
+        .eq('id', noteId)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true });
+        });
+    });
+
+    _sbDefine('listIdeaNoteSeries', function () {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      return sbClient.from('series')
+        .select('id, name')
+        .order('name')
+        .limit(200)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, series: res.data || [] });
+        });
+    });
+
+    _sbDefine('listIdeaNoteProjects', function (seriesId) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      var q = sbClient.from('projects')
+        .select('id, title, series_id')
+        .order('title')
+        .limit(200);
+      if (seriesId) q = q.eq('series_id', seriesId);
+      return q.then(function (res) {
+        if (res.error) throw res.error;
+        return JSON.stringify({ ok: true, projects: res.data || [] });
+      });
+    });
+
+    _sbDefine('listIdeaNoteCharacters', function (seriesId) {
+      if (!sbClient) return Promise.resolve(JSON.stringify({ ok: false, error: "Supabase not configured" }));
+      if (!seriesId) return Promise.resolve(JSON.stringify({ ok: true, characters: [] }));
+      return sbClient.from('codex_entity_types')
+        .select('id')
+        .eq('key', 'character')
+        .single()
+        .then(function (typeRes) {
+          if (typeRes.error) throw typeRes.error;
+          return sbClient.from('codex_entities')
+            .select('id, name')
+            .eq('series_id', seriesId)
+            .eq('entity_type_id', typeRes.data.id)
+            .is('deleted_at', null)
+            .order('name')
+            .limit(200)
+            .then(function (res) {
+              if (res.error) throw res.error;
+              return JSON.stringify({ ok: true, characters: res.data || [] });
+            });
+        });
+    });
+
     // ---- Entity Types ----
 
     _sbDefine('listCodexEntityTypes', function () {
@@ -1327,9 +1473,43 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, states: res.data || [] }); });
     });
 
+    // sce_states.notes arrives with 20261002_add_state_notes.sql. Unlike the
+    // text columns above it is genuinely optional, so it is probed instead of
+    // sent blindly: composition creation inserts states without notes, and a
+    // hard reference to the new column would break creating compositions
+    // outright on any database that has not run the migration yet.
+    var _sceStateNotesColumn = null;
+
+    function sceHasStateNotesColumn() {
+      // Always hand back a promise. Callers chain .then, and the cached value is
+      // a plain boolean.
+      if (_sceStateNotesColumn !== null) return Promise.resolve(_sceStateNotesColumn);
+      return sbClient.from('sce_states').select('notes').limit(1)
+        .then(function (res) {
+          if (res.error) {
+            if (!_sceStateNotesColumnWarned) {
+              _sceStateNotesColumnWarned = true;
+              console.warn("[SCE] sce_states.notes is missing. Run migrations/20261002_add_state_notes.sql to add a notes section to the state inspector. States save without notes until then.");
+            }
+            _sceStateNotesColumn = false;
+          } else {
+            _sceStateNotesColumn = true;
+          }
+          return _sceStateNotesColumn;
+        });
+    }
+    var _sceStateNotesColumnWarned = false;
+
+    _sbDefine('sceStateNotesScopeReady', function () {
+      return sceHasStateNotesColumn().then(function (ready) {
+        return JSON.stringify({ ok: true, ready: ready });
+      });
+    });
+
     _sbDefine('sceSaveState', function (stateJson) {
       var parsed = typeof stateJson === 'string' ? JSON.parse(stateJson) : (stateJson || {});
       var stateId = Number(parsed.id || 0);
+      var notesText = parsed.notes ? String(parsed.notes).trim() : null;
       var payload = {
         composition_id: Number(parsed.composition_id || 0),
         position: Number(parsed.position || 0),
@@ -1339,9 +1519,37 @@
         after_text: parsed.after_text ? String(parsed.after_text).trim() : null
       };
       if (stateId) payload.id = stateId;
-      var op = stateId ? sbClient.from('sce_states').update(payload).eq('id', stateId).select().single()
-        : sbClient.from('sce_states').insert([payload]).select().single();
-      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, state: res.data }); });
+      function write(fields) {
+        var body = Object.assign({}, fields);
+        delete body.id;
+        var op = stateId ? sbClient.from('sce_states').update(body).eq('id', stateId).select().single()
+          : sbClient.from('sce_states').insert([body]).select().single();
+        return op.then(function (res) { if (res.error) throw res.error; return res.data; });
+      }
+      return sceHasStateNotesColumn().then(function (hasColumn) {
+        var withNotes = Object.assign({}, payload);
+        if (hasColumn) withNotes.notes = notesText;
+        return write(withNotes).catch(function (err) {
+          // Fall through rather than lose the whole state edit if the column
+          // turns out to be missing after the probe succeeded.
+          if (!hasColumn) throw err;
+          var err2 = new Error(err.message || String(err));
+          err2.code = err.code;
+          err2.notesFailed = true;
+          return write(payload).then(function (row) {
+            return { saved: row, degraded: err2 };
+          });
+        }).then(function (out) {
+          if (out && out.degraded) {
+            console.error("[SCE] sce_states.notes rejected, saved the state without notes:", out.degraded.message);
+            return JSON.stringify({
+              ok: true, state: out.saved, notesFailed: true,
+              notesError: out.degraded.code ? out.degraded.code + ": " + out.degraded.message : out.degraded.message
+            });
+          }
+          return JSON.stringify({ ok: true, state: out });
+        });
+      });
     });
 
     _sbDefine('sceGetLayers', function (compositionId) {
@@ -1377,6 +1585,38 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true }); });
     });
 
+    // sce_assets.book_id arrives with 20261002_add_asset_book_scope. Until that
+// migration is applied the column is absent and any insert mentioning it is
+// rejected, so probe once and cache. Ideas stay shared until it exists.
+    var _sceAssetBookColumn = null;
+
+    function sceHasAssetBookColumn() {
+      // Must always hand back a promise: callers chain .then, and the cached
+      // value is a plain boolean. Returning it raw made every save after the
+      // first throw "then is not a function".
+      if (_sceAssetBookColumn !== null) return Promise.resolve(_sceAssetBookColumn);
+      return sbClient.from('sce_assets').select('book_id').limit(1)
+        .then(function (res) {
+          if (res.error) {
+            if (!_sceAssetBookColumnWarned) {
+              _sceAssetBookColumnWarned = true;
+              console.warn("[SCE] sce_assets.book_id is missing. Run migrations/20261002_add_asset_book_scope.sql to tag ideas to a book. Ideas will be treated as shared.");
+            }
+            _sceAssetBookColumn = false;
+          } else {
+            _sceAssetBookColumn = true;
+          }
+          return _sceAssetBookColumn;
+        });
+    }
+    var _sceAssetBookColumnWarned = false;
+
+    _sbDefine('sceAssetBookScopeReady', function () {
+      return sceHasAssetBookColumn().then(function (ready) {
+        return JSON.stringify({ ok: true, ready: ready });
+      });
+    });
+
     _sbDefine('sceGetAssets', function (seriesId) {
       var safeId = Number(seriesId || 0);
       if (!safeId) throw new Error('Series id is required.');
@@ -1395,10 +1635,38 @@
         what_produces: parsed.what_produces ? String(parsed.what_produces).trim() : null,
         notes: parsed.notes ? String(parsed.notes).trim() : null
       };
-      if (assetId) payload.id = assetId;
-      var op = assetId ? sbClient.from('sce_assets').update(payload).eq('id', assetId).select().single()
-        : sbClient.from('sce_assets').insert([payload]).select().single();
-      return op.then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, asset: res.data }); });
+      // Absent or 0 means shared across the series.
+      var bookId = Number(parsed.book_id || 0) || null;
+      function write(fields) {
+        var op = assetId ? sbClient.from('sce_assets').update(fields).eq('id', assetId).select().single()
+          : sbClient.from('sce_assets').insert([fields]).select().single();
+        return op.then(function (res) { if (res.error) throw res.error; return res.data; });
+      }
+      return sceHasAssetBookColumn().then(function (hasColumn) {
+        var withBook = Object.assign({}, payload);
+        if (hasColumn) withBook.book_id = bookId;
+        return write(withBook).catch(function (err) {
+          // The book tag points at a foreign key, so a stale or unknown book id
+          // rejects the whole row and would lose the text edits too. Retry once
+          // without it so the rest of the save lands and the cause is reported.
+          if (!hasColumn || bookId === null) throw err;
+          var err2 = new Error(err.message || String(err));
+          err2.code = err.code;
+          err2.bookTagFailed = true;
+          return write(payload).then(function (row) {
+            return { saved: row, degraded: err2 };
+          });
+        }).then(function (out) {
+          if (out && out.degraded) {
+            console.error("[SCE] book_id rejected, saved without the book tag:", out.degraded.message);
+            return JSON.stringify({
+              ok: true, asset: out.saved, bookTagFailed: true,
+              bookTagError: out.degraded.code ? out.degraded.code + ": " + out.degraded.message : out.degraded.message
+            });
+          }
+          return JSON.stringify({ ok: true, asset: out });
+        });
+      });
     });
 
     _sbDefine('sceDeleteAsset', function (assetId) {
@@ -1411,7 +1679,10 @@
     _sbDefine('sceGetBlocks', function (compositionId) {
       var safeId = Number(compositionId || 0);
       if (!safeId) throw new Error('Composition id is required.');
+      // vertical_pos orders blocks inside their cell, id breaks the ties left by
+      // rows written before ordering existed.
       return sbClient.from('sce_blocks').select('*').eq('composition_id', safeId)
+        .order('vertical_pos', { ascending: true }).order('id', { ascending: true })
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, blocks: res.data || [] }); });
     });
 
@@ -1653,6 +1924,133 @@
         .then(function (res) { if (res.error) throw res.error; return JSON.stringify({ ok: true, entry: res.data }); });
     });
 
+    // Catalogue authoring.
+    //
+    // The seeded bank (created_by IS NULL) is shared reference material and stays
+    // read-only, so an edit in place would rewrite it for every user. The app
+    // checks ownership for a friendly message, but the real enforcement is the
+    // RLS split plus trg_sce_catalogue_guard_shared in
+    // 20261002_add_catalogue_editability.sql: created_by is stamped from the JWT
+    // by trigger, so a caller cannot claim authorship by sending it.
+    function _sbCatalogueFields(entry) {
+      return {
+        name: String(entry.name == null ? '' : entry.name).trim(),
+        category: String(entry.category == null ? '' : entry.category).trim(),
+        purpose: String(entry.purpose == null ? '' : entry.purpose).trim(),
+        prompt_questions: String(entry.prompt_questions == null ? '' : entry.prompt_questions).trim(),
+        default_color: String(entry.default_color == null ? '' : entry.default_color).trim() || '#3b82f6',
+        active: entry.active !== false
+      };
+    }
+
+    function _sbCatalogueDuplicateError(name, category) {
+      return new Error('"' + name + '" already exists in ' + category +
+        '. Rename it, or pick a different category.');
+    }
+
+    // Returns the signed-in user id, or null when auth has not resolved yet. The
+    // caller uses it only for pre-flight messaging; the database is the authority.
+    function _sbCurrentUserId() {
+      try {
+        if (typeof _authUser !== 'undefined' && _authUser && _authUser.id) return _authUser.id;
+      } catch (e) { /* _authUser is defined in auth.html; ignore in odd load orders */ }
+      return null;
+    }
+
+    _sbDefine('sceSaveCatalogueEntry', function (entryJson) {
+      var entry = typeof entryJson === 'string' ? JSON.parse(entryJson) : (entryJson || {});
+      var fields = _sbCatalogueFields(entry);
+      if (!fields.name) throw new Error('Catalogue entries need a name.');
+      if (!fields.category) throw new Error('Catalogue entries need a category.');
+
+      var id = Number(entry.id || 0);
+      var me = _sbCurrentUserId();
+
+      if (id) {
+        // Pre-flight ownership check for a readable error. RLS would reject the
+        // update anyway; this just avoids a silent no-op.
+        return sbClient.from('sce_catalogue_entries')
+          .select('id,created_by').eq('id', id).maybeSingle()
+          .then(function (existing) {
+            if (existing.error) throw existing.error;
+            if (!existing.data) throw new Error('That catalogue entry no longer exists. Reload the catalogue.');
+            if (!existing.data.created_by) {
+              throw new Error('This catalogue entry is shared and read-only. Duplicate it to make an editable copy.');
+            }
+            if (me && existing.data.created_by !== me) {
+              throw new Error('You can only edit catalogue entries you created.');
+            }
+            return sbClient.from('sce_catalogue_entries').update(fields).eq('id', id).select().single();
+          })
+          .then(function (res) {
+            if (res.error) {
+              if (res.error.code === '23505') throw _sbCatalogueDuplicateError(fields.name, fields.category);
+              throw res.error;
+            }
+            // Renames never touch sce_blocks: blocks keep the name they were
+            // placed with, so Story Mix tallies reflect placement, not the catalogue.
+            return JSON.stringify({ ok: true, entry: res.data });
+          });
+      }
+
+      return sbClient.from('sce_catalogue_entries').insert(fields).select().single()
+        .then(function (res) {
+          if (res.error) {
+            if (res.error.code === '23505') throw _sbCatalogueDuplicateError(fields.name, fields.category);
+            throw res.error;
+          }
+          return JSON.stringify({ ok: true, entry: res.data });
+        });
+    });
+
+    // Copies a shared or own entry into a new one owned by the caller. This is
+    // the only route to an editable version of the seeded bank.
+    _sbDefine('sceDuplicateCatalogueEntry', function (entryId) {
+      var id = Number(entryId || 0);
+      if (!id) throw new Error('Catalogue entry id is required.');
+      return sbClient.from('sce_catalogue_entries').select('*').eq('id', id).maybeSingle()
+        .then(function (existing) {
+          if (existing.error) throw existing.error;
+          if (!existing.data) throw new Error('That catalogue entry no longer exists. Reload the catalogue.');
+          var src = existing.data;
+          var copy = _sbCatalogueFields(src);
+          copy.name = copy.name + ' (my version)';
+          return sbClient.from('sce_catalogue_entries').insert(copy).select().single();
+        })
+        .then(function (res) {
+          if (res.error) {
+            if (res.error.code === '23505') throw _sbCatalogueDuplicateError(res.error.details || 'That copy', 'this category');
+            throw res.error;
+          }
+          return JSON.stringify({ ok: true, entry: res.data });
+        });
+    });
+
+    // Only owned entries are deletable; sce_blocks.source_catalogue_id is
+    // ON DELETE SET NULL and keeps its name/category snapshot, so blocks already
+    // placed from this entry survive with their original wording.
+    _sbDefine('sceDeleteCatalogueEntry', function (entryId) {
+      var id = Number(entryId || 0);
+      if (!id) throw new Error('Catalogue entry id is required.');
+      var me = _sbCurrentUserId();
+      return sbClient.from('sce_catalogue_entries').select('id,created_by').eq('id', id).maybeSingle()
+        .then(function (existing) {
+          if (existing.error) throw existing.error;
+          if (!existing.data) return JSON.stringify({ ok: true, removed: 0 });
+          if (!existing.data.created_by) {
+            throw new Error('This catalogue entry is shared and cannot be deleted.');
+          }
+          if (me && existing.data.created_by !== me) {
+            throw new Error('You can only delete catalogue entries you created.');
+          }
+          return sbClient.from('sce_catalogue_entries').delete().eq('id', id).select('id');
+        })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return JSON.stringify({ ok: true, removed: (res.data || []).length });
+        });
+    });
+
     _sbDefine('saveCodexEntityFieldValue', function (valueJson) {
       var parsed = typeof valueJson === 'string' ? JSON.parse(valueJson) : (valueJson || {});
       var valueId = Number(parsed.id || 0);
@@ -1833,9 +2231,10 @@
           query = query.is('parent_location_id', null);
         }
         return query.order('name').then(function (res) {
-          if (res.error) throw res.error;
-          return JSON.stringify({ ok: true, locations: res.data || [] });
-        });
+if (res.error) throw res.error;
+              return JSON.stringify({ ok: true, locations: res.data || [] });
+            });
+          });
       });
     });
 
@@ -1937,5 +2336,4 @@
             return JSON.stringify({ ok: true, locations: res.data || [] });
           });
         });
-    });
     });

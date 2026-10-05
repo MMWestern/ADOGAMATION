@@ -2,7 +2,58 @@
     // Story Composition Editor — Timeline Rendering
     // ============================================================
 
-    function renderSCETimeline() {
+    // ── State colour picker modal (top level so wirePortraitInteractions can call it) ──
+var _sceColorTargetBtn = null;
+
+function sceOpenColorModal(btn) {
+  _sceColorTargetBtn = btn;
+  var overlay = document.getElementById("sceColorModal");
+  var picker = document.getElementById("sceColorPicker");
+  if (!overlay || !picker) return;
+  picker.value = btn.style.background ? sceRgbToHex(btn.style.background) : (btn.dataset.currentColor || "#3b82f6");
+  overlay.hidden = false;
+}
+
+function sceCloseColorModal() {
+  var overlay = document.getElementById("sceColorModal");
+  if (overlay) overlay.hidden = true;
+  _sceColorTargetBtn = null;
+}
+
+function sceApplyColorModal() {
+  if (!_sceColorTargetBtn) { sceCloseColorModal(); return; }
+  var picker = document.getElementById("sceColorPicker");
+  var newColor = picker ? picker.value : "#3b82f6";
+  var statePos = Number(_sceColorTargetBtn.getAttribute("data-state-pos"));
+  _sceState.chapters.forEach(function (c) {
+    if (Number(c.start_state) !== statePos) return;
+    c.color = newColor;
+    saveSCEChapter(JSON.stringify(c));
+  });
+  sceCloseColorModal();
+  renderSCETimeline();
+}
+
+function sceRgbToHex(rgb) {
+  var m = rgb.match(/\d+/g);
+  if (!m || m.length < 3) return "#3b82f6";
+  return "#" + m.slice(0, 3).map(function (n) {
+    return ("0" + parseInt(n, 10).toString(16)).slice(-2);
+  }).join("");
+}
+
+(function () {
+  var saveBtn = document.getElementById("sceColorSave");
+  var cancelBtn = document.getElementById("sceColorCancel");
+  var overlay = document.getElementById("sceColorModal");
+  if (saveBtn) saveBtn.addEventListener("click", sceApplyColorModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", sceCloseColorModal);
+  if (overlay) overlay.addEventListener("click", function (e) {
+    if (e.target === overlay) sceCloseColorModal();
+  });
+})();
+
+function renderSCETimeline() {
       var header = document.getElementById("sceTimelineHeader");
       var body = document.getElementById("sceTimelineBody");
       if (!header || !body) return;
@@ -28,6 +79,11 @@
         if (hasSolo) return l.is_solo;
         return !l.is_hidden;
       });
+
+      // The spine column is rendered between the states and chapters, so it is
+      // pulled out of the switchable layer stack rather than repeated there.
+      var spineLayer = sceFindSpineLayer();
+      var layerColumns = visibleLayers.filter(function (l) { return !sceIsSpineLayer(l); });
 
       // Slot model: each scene is one vertical slot. A chapter with no scenes
       // still occupies a single slot so both columns stay aligned.
@@ -60,27 +116,36 @@
         // Reserve height for the unscoped bucket. It is a plain flex stack
         // outside the slot model, so without this the layer cell grows past the
         // row and spills over the state below it.
-        var unscopedMax = 0;
-        visibleLayers.forEach(function (layer) {
-          var n = 0;
-          _sceState.blocks.forEach(function (b) {
-            if (b.is_parked || b.is_later_book) return;
-            if (Number(b.layer_id) !== Number(layer.id)) return;
-            if (Number(b.start_state) !== Number(state.position)) return;
-            if (!b.scene_id || !liveSceneIds[b.scene_id]) n++;
-          });
-          if (n > unscopedMax) unscopedMax = n;
+        //
+        // Two different columns reserve differently, so they are tracked apart.
+        // A layer cell's unscoped blocks sit BELOW its scene slots, so they add
+        // to that column's height. The spine cell has no scene slots at all: its
+        // blocks ARE the column. Adding them together would reserve a row tall
+        // enough for both stacked, which shows up as an empty gap under the
+        // chapters that grows with every spine block added.
+        // The spine column renders whether or not the layer is toggled visible,
+        // so its blocks always need room reserved. Taking a max makes including
+        // it twice harmless.
+        visibleLayers.concat(spineLayer ? [spineLayer] : []).forEach(function (layer) {
+          // Nothing to reserve — the row sizes to its tallest cell via flexbox.
         });
 
-        stateSlots[state.position] = { entries: entries, total: total, count: entries.length, unscoped: unscopedMax };
+        stateSlots[state.position] = {
+          entries: entries, total: total, count: entries.length
+        };
       });
 
       // Render header (layer columns)
       var headerHtml = "<div class='sce-layer-header-row'>";
       headerHtml += "<div class='sce-state-header-spacer'>States<div class='sce-col-resizer' data-col-key='state'></div></div>";
-      headerHtml += "<div class='sce-layer-header' data-layer='chapters' style='width:var(--sce-col-chapters);min-width:var(--sce-col-chapters);'>Chapters<div class='sce-col-resizer' data-col-key='chapters'></div></div>";
-      headerHtml += "<div class='sce-layer-header' data-layer='scenes' style='width:var(--sce-col-scenes);min-width:var(--sce-col-scenes);'>Scenes<div class='sce-col-resizer' data-col-key='scenes'></div></div>";
-      visibleLayers.forEach(function (layer) {
+      // The spine sits immediately right of the states and before chapters:
+      // blocks dropped on a state are beats of that state, not a parallel
+      // storyline. It is a real layer row (sce_blocks.layer_id requires one) but
+      // it renders as a pinned column rather than one of the switchable layers.
+      headerHtml += "<div class='sce-layer-header sce-spine-header'" + (spineLayer ? " data-layer-id='" + spineLayer.id + "'" : "") + " style='width:var(--sce-col-spine,200px);min-width:var(--sce-col-spine,200px);'>" + escapeHtml(spineLayer ? spineLayer.name : "Story spine") + "<div class='sce-col-resizer' data-col-key='spine'></div></div>";
+if (!sceGetColHidden("chapters")) headerHtml += "<div class='sce-layer-header' data-layer='chapters' style='width:var(--sce-col-chapters);min-width:var(--sce-col-chapters);'>Chapters<div class='sce-col-resizer' data-col-key='chapters'></div></div>";
+    if (!sceGetColHidden("scenes")) headerHtml += "<div class='sce-layer-header' data-layer='scenes' style='width:var(--sce-col-scenes);min-width:var(--sce-col-scenes);'>Scenes<div class='sce-col-resizer' data-col-key='scenes'></div></div>";
+      layerColumns.forEach(function (layer) {
         headerHtml += "<div class='sce-layer-header' data-layer-id='" + layer.id + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'>" + escapeHtml(layer.name) + "<div class='sce-col-resizer' data-col-key='layer-" + layer.id + "'></div></div>";
       });
       headerHtml += "</div>";
@@ -92,38 +157,76 @@
       // State rows
       states.forEach(function (state) {
         var model = stateSlots[state.position];
-        var rowH = model.total * SLOT_H + model.count * (ADD_H + GAP) + 10 + (ADD_H + GAP) + model.unscoped * 30;
+        // model.unscoped is already in px: idea cards are taller than beat cards, so a
+        // per-block multiplier would under-reserve the rows that hold them.
+        // The chapters, scenes and layer columns share the slot-based height: their
+        // unscoped blocks stack under those slots. The spine column has no slots,
+        // so its blocks stand alone. The row has to be tall enough for whichever
+        // column is taller — not both, which would leave the surplus as an empty
+        // band under the chapters.
+        // The row height is no longer computed from a character-count guess — idea
+        // cards are height:auto, so the browser knows the real height and flexbox
+        // sizes the row to the tallest cell. Only the state label needs a floor,
+        // because its purpose line must never spill over the row below.
+        var rowH = 40 + (state.purpose ? 34 : 0);
 
         bodyHtml += "<div class='sce-state-row' data-state='" + state.position + "' style='min-height:" + rowH + "px;'>";
 
-        // State label (sticky left)
-        bodyHtml += "<div class='sce-state-label'>";
+        // State label (sticky left). Selectable, and accepts story idea and
+        // catalogue drops, which land on the shared spine layer. id is used so
+        // the column can be found again after a re-render without walking the
+        // DOM from an ancestor.
+        var labelSel = Number(_sceState.selectedStateId) === Number(state.id) ? " is-selected" : "";
+        bodyHtml += "<div class='sce-state-label" + labelSel + "' data-state-id='" + state.id + "' data-state-pos='" + state.position + "' role='button' tabindex='0' aria-pressed='" + (labelSel ? "true" : "false") + "'>";
         bodyHtml += "<div class='sce-state-number'>" + state.position + "</div>";
-        bodyHtml += "<div class='sce-state-name' contenteditable='true' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
+        // Colour picker for the state. Sets the colour on every chapter and
+        // scene in this state so they read as one block of the arc.
+        var stateColor = sceStateColor(state);
+        bodyHtml += "<button type='button' class='sce-state-color' data-state-id='" + state.id + "' data-state-pos='" + state.position + "' title='Set colour for chapters and scenes in this state' style='background:" + stateColor + ";'></button>";
+        bodyHtml += "<div class='sce-state-name' data-state-id='" + state.id + "'>" + escapeHtml(state.name) + "</div>";
+        if (state.purpose) {
+          bodyHtml += "<div class='sce-state-purpose'>" + escapeHtml(state.purpose) + "</div>";
+        }
+        bodyHtml += "<div class='sce-state-drop-hint'>Drop idea here</div>";
+        bodyHtml += "</div>";
+
+        // Spine cell: the state-level beats dropped on the state row. Always
+        // rendered so the column exists before the first drop creates the layer.
+        bodyHtml += "<div class='sce-layer-cell sce-spine-cell' data-layer-id='" + (spineLayer ? spineLayer.id : "") + "' data-state='" + state.position + "' style='width:var(--sce-col-spine,200px);min-width:var(--sce-col-spine,200px);'>";
+        bodyHtml += "<div class='sce-layer-unscoped' data-layer-id='" + (spineLayer ? spineLayer.id : "") + "' data-state='" + state.position + "'></div>";
         bodyHtml += "</div>";
 
         // Chapter cell
+        if (!sceGetColHidden("chapters")) {
         bodyHtml += "<div class='sce-state-cell sce-state-cell-chapters' data-state='" + state.position + "'>";
         model.entries.forEach(function (entry) {
           var chapter = entry.chapter;
-          var chColor = chapter.color || "#3b82f6";
+          var chColor = sceStateColor(state);
           var chNum = getChapterNumber(chapter.id);
           var chH = entry.slots * SLOT_H + ADD_H;
-          bodyHtml += "<div class='sce-chapter-block' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + chH + "px;background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;padding:4px 8px;cursor:grab;'>";
-          bodyHtml += "<div style='font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled") + "</div>";
-          bodyHtml += "</div>";
-        });
-        bodyHtml += "<button type='button' class='sce-chapter-add sce-chapter-drop-zone' data-state-pos='" + state.position + "' title='Add chapter to state " + state.position + "'>+</button>";
+bodyHtml += "<div class='sce-chapter-block' data-chapter-id='" + chapter.id + "' draggable='true' style='background:" + chColor + "22;border:1px solid " + chColor + "55;border-radius:4px;padding:4px 8px;cursor:grab;'>";
+        bodyHtml += "<div class='sce-chapter-title'><span style='color:" + chColor + "'>Ch" + chNum + "</span> - " + escapeHtml(chapter.title || "Untitled") + "</div>";
+        // Notes on the card face, the same way an idea card shows its
+        // description. Empty chapters say nothing rather than showing a
+        // placeholder that would just be noise.
+        if (String(chapter.notes || "").trim()) {
+          bodyHtml += "<div class='sce-block-desc'>" + escapeHtml(chapter.notes) + "</div>";
+        }
         bodyHtml += "</div>";
+        });
+bodyHtml += "<button type='button' class='sce-chapter-add sce-chapter-drop-zone' data-state-pos='" + state.position + "' title='Add chapter to state " + state.position + "'>+</button>";
+        bodyHtml += "</div>";
+        }
 
         // Scene cell — one dedicated group per chapter, aligned to its chapter cell
+        if (!sceGetColHidden("scenes")) {
         bodyHtml += "<div class='sce-state-cell sce-state-cell-scenes' data-state='" + state.position + "'>";
         model.entries.forEach(function (entry) {
           var chapter = entry.chapter;
           var scenes = entry.scenes;
-          var chColor = chapter.color || "#10b981";
+          var chColor = sceStateColor(state);
           var groupH = entry.slots * SLOT_H + ADD_H;
-          bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='height:" + groupH + "px;border-left:2px solid " + chColor + "55;background:" + chColor + "13;'>";
+          bodyHtml += "<div class='sce-scene-group' data-chapter-id='" + chapter.id + "' style='min-height:" + groupH + "px;border-left:2px solid " + chColor + "55;background:" + chColor + "13;'>";
           if (!scenes.length) {
             bodyHtml += "<div class='sce-scene-empty' data-chapter-id='" + chapter.id + "'></div>";
           } else {
@@ -131,17 +234,18 @@
               bodyHtml += "<div class='sce-scene-block' data-scene-id='" + scene.id + "' data-chapter-id='" + chapter.id + "' draggable='true' style='height:" + (SLOT_H - GAP) + "px;background:" + chColor + "2e;border:1px solid " + chColor + "88;border-radius:4px;padding:4px 8px;cursor:grab;font-size:10px;font-weight:600;color:" + chColor + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'><span style='color:#fff;opacity:0.85'>Sc" + (si + 1) + "</span> <span style='opacity:0.9'>" + escapeHtml(scene.title || "Scene") + "</span></div>";
             });
           }
-          bodyHtml += "<button type='button' class='sce-scene-add' data-chapter-id='" + chapter.id + "' title='Add scene to " + escapeHtml(chapter.title || "chapter") + "'>+</button>";
-          bodyHtml += "</div>";
+bodyHtml += "<button type='button' class='sce-scene-add' data-chapter-id='" + chapter.id + "' title='Add scene to " + escapeHtml(chapter.title || "chapter") + "'>+</button>";
+        bodyHtml += "</div>";
         });
         bodyHtml += "</div>";
+        }
 
         // Layer cells — subdivided into the same scene slots as the scene column
-        visibleLayers.forEach(function (layer) {
+        layerColumns.forEach(function (layer) {
           bodyHtml += "<div class='sce-layer-cell' data-layer-id='" + layer.id + "' data-state='" + state.position + "' style='width:var(--sce-col-layer,200px);min-width:var(--sce-col-layer,200px);'>";
           model.entries.forEach(function (entry) {
             var chapter = entry.chapter;
-            var entryColor = chapter.color || "#10b981";
+            var entryColor = sceStateColor(state);
             bodyHtml += "<div class='sce-slot-group' data-chapter-id='" + chapter.id + "' style='background:" + entryColor + "13;'>";
             for (var si = 0; si < entry.slots; si++) {
               var scene = entry.scenes[si];
@@ -164,6 +268,28 @@
 
       // Place blocks on the timeline
       renderSCEBlocks();
+
+    // Chapter blocks are height:auto so their notes text can wrap, and scene
+    // groups hold multiple scene cards. They live in separate columns so they
+    // cannot share height naturally — force both to the taller of the two so
+    // each chapter lines up with its scenes.
+    function sceSyncSceneGroupHeights() {
+      document.querySelectorAll(".sce-state-row").forEach(function (row) {
+        var chapters = row.querySelectorAll(".sce-chapter-block");
+        var groups = row.querySelectorAll(".sce-scene-group");
+        for (var i = 0; i < chapters.length && i < groups.length; i++) {
+          // Reset to natural size first so the measurement is accurate.
+          chapters[i].style.minHeight = "";
+          groups[i].style.minHeight = "";
+          var chH = chapters[i].getBoundingClientRect().height;
+          var grH = groups[i].getBoundingClientRect().height;
+          var target = Math.max(chH, grH);
+          chapters[i].style.minHeight = target + "px";
+          groups[i].style.minHeight = target + "px";
+        }
+      });
+    }
+    sceSyncSceneGroupHeights();
 
       // Render diagnostic for tracking down layout drift. Off by default;
       // set window.SCE_DEBUG = true in the console to enable.
@@ -191,7 +317,7 @@
       if (typeof renderSCEConnections === "function") renderSCEConnections();
     }
 
-    var SCE_COL_DEFAULTS = { state: 120, chapters: 150, scenes: 150 };
+    var SCE_COL_DEFAULTS = { state: 120, spine: 200, chapters: 150, scenes: 150 };
     var SCE_COL_LAYER_DEFAULT = 200;
     var SCE_COL_MIN = 70;
 
@@ -205,10 +331,48 @@
       }
     }
 
-    function sceSaveColWidth(key, px) {
-      var widths = sceGetColWidths();
-      widths[key] = Math.max(SCE_COL_MIN, Math.round(px));
-      try { localStorage.setItem("sce_col_widths", JSON.stringify(widths)); } catch (e) {}
+function sceSaveColWidth(key, px) {
+    var widths = sceGetColWidths();
+    widths[key] = Math.max(SCE_COL_MIN, Math.round(px));
+    try { localStorage.setItem("sce_col_widths", JSON.stringify(widths)); } catch (e) {}
+    }
+
+    // Structural column visibility (chapters, scenes). Not database layers —
+    // their visibility is stored locally alongside the column widths so they
+    // persist across refreshes without a schema change.
+    // The colour for a state's chapters and scenes. Taken from the first chapter
+    // in the state so the picker and the rendered blocks always agree.
+    function sceStateColor(state) {
+      var chs = _sceState.chapters.filter(function (c) { return Number(c.start_state) === Number(state.position); });
+      return (chs.length && chs[0].color) ? chs[0].color : "#3b82f6";
+    }
+
+    function sceGetColHidden(key) {
+      try { return localStorage.getItem("sce_col_hidden_" + key) === "1"; } catch (e) { return false; }
+    }
+    function sceSetColHidden(key, hidden) {
+      try {
+        if (hidden) localStorage.setItem("sce_col_hidden_" + key, "1");
+        else localStorage.removeItem("sce_col_hidden_" + key);
+      } catch (e) {}
+    }
+    function sceGetColSolo(key) {
+      try { return localStorage.getItem("sce_col_solo_" + key) === "1"; } catch (e) { return false; }
+    }
+    function sceSetColSolo(key, solo) {
+      try {
+        if (solo) localStorage.setItem("sce_col_solo_" + key, "1");
+        else localStorage.removeItem("sce_col_solo_" + key);
+      } catch (e) {}
+    }
+    function sceGetColLocked(key) {
+      try { return localStorage.getItem("sce_col_locked_" + key) === "1"; } catch (e) { return false; }
+    }
+    function sceSetColLocked(key, locked) {
+      try {
+        if (locked) localStorage.setItem("sce_col_locked_" + key, "1");
+        else localStorage.removeItem("sce_col_locked_" + key);
+      } catch (e) {}
     }
 
     function sceApplyColWidths() {
@@ -216,6 +380,7 @@
       if (!tl) return;
       var widths = sceGetColWidths();
       tl.style.setProperty("--sce-col-state", (widths.state || SCE_COL_DEFAULTS.state) + "px");
+      tl.style.setProperty("--sce-col-spine", (widths.spine || SCE_COL_DEFAULTS.spine) + "px");
       tl.style.setProperty("--sce-col-chapters", (widths.chapters || SCE_COL_DEFAULTS.chapters) + "px");
       tl.style.setProperty("--sce-col-scenes", (widths.scenes || SCE_COL_DEFAULTS.scenes) + "px");
       tl.querySelectorAll(".sce-layer-cell, .sce-layer-header[data-layer-id]").forEach(function (el) {
@@ -418,40 +583,96 @@
       document.querySelectorAll(".sce-state-label").forEach(function (label) {
         label.addEventListener("dragover", function (e) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
+          // Deliberately not setting dataTransfer.dropEffect here. Ideas and
+          // catalogue entries start their drag with effectAllowed = "copy", and
+          // assigning dropEffect = "move" is outside that allowed set: the
+          // browser treats the whole drag as invalid, shows the no-drop cursor
+          // and suppresses the drop event entirely. Leaving it unset lets the
+          // browser derive the effect from effectAllowed, which also keeps
+          // chapter drags working.
           if (!e.dataTransfer.types || e.dataTransfer.types.indexOf("text/plain") === -1) return;
-          label.style.background = "rgba(59,130,246,0.2)";
+          label.classList.add("is-drop-target");
         });
 
         label.addEventListener("dragleave", function () {
-          label.style.background = "";
+          label.classList.remove("is-drop-target");
         });
 
         label.addEventListener("drop", function (e) {
           e.preventDefault();
-          label.style.background = "";
+          label.classList.remove("is-drop-target");
 
           var data = e.dataTransfer.getData("text/plain");
-          if (!data.startsWith("chapter:")) return;
-          var draggedId = Number(data.split(":")[1]);
           var stateRow = label.closest(".sce-state-row");
           if (!stateRow) return;
           var statePos = Number(stateRow.getAttribute("data-state"));
 
-          var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
-          if (!dragged) return;
+          // Chapters move between states as before.
+          if (data.startsWith("chapter:")) {
+            var draggedId = Number(data.split(":")[1]);
+            var dragged = _sceState.chapters.find(function (c) { return Number(c.id) === draggedId; });
+            if (!dragged) return;
+            var targetChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
+            moveChapterToStateAt(draggedId, statePos, targetChapters.length);
+            return;
+          }
 
-          var targetChapters = _sceState.chapters.filter(function (c) { return c.start_state === statePos; });
-          moveChapterToStateAt(draggedId, statePos, targetChapters.length);
+          // Ideas and catalogue entries become blocks on the spine layer,
+          // anchored to this state. sce_blocks.layer_id is NOT NULL, so the
+          // layer has to exist before the insert.
+          var payload = null;
+          try {
+            payload = JSON.parse(data);
+          } catch (err) {
+            return;
+          }
+          if (!payload) return;
+
+          if (payload.type === "asset") {
+            dropAssetOnState(Number(payload.assetId), statePos);
+            return;
+          }
+          if (payload.type === "catalogue") {
+            dropCatalogueOnState(Number(payload.catalogueId || payload.id), statePos);
+          }
         });
+
+        // Select the state. The name is deliberately no longer contenteditable:
+        // it looked editable but had no save handler, so edits were silently
+        // discarded on the next render. The inspector is the only editor now.
+        label.addEventListener("click", function () {
+          var stateId = Number(label.getAttribute("data-state-id"));
+          if (!stateId) return;
+          selectSCEState(stateId);
+        });
+
+label.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      var stateId = Number(label.getAttribute("data-state-id"));
+      if (stateId) selectSCEState(stateId);
+    });
+
+    // Colour picker: sets the colour on every chapter in this state so chapters
+    // and scenes read as one block of the arc. The picker lives on the label so
+    // the author sets the colour where they see the state, not in a menu.
+var colorBtn = label.querySelector(".sce-state-color");
+    if (colorBtn) {
+      colorBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        sceOpenColorModal(colorBtn);
       });
+    }
+    });
     }
 
     function renderSCEBlocks() {
       // Clear existing blocks
       document.querySelectorAll(".sce-block").forEach(function (el) { el.remove(); });
 
-      _sceState.blocks.forEach(function (block) {
+      // Blocks are appended to their cell in this order, which is what makes a
+      // cell read top to bottom the way the author arranged it.
+      _sceState.blocks.slice().sort(sceBlockCellOrder).forEach(function (block) {
         if (block.is_parked || block.is_later_book) return;
 
         var target = null;
@@ -461,24 +682,63 @@
         if (!target) {
           target = document.querySelector('.sce-layer-unscoped[data-state="' + block.start_state + '"][data-layer-id="' + block.layer_id + '"]');
         }
-        if (!target) return;
+        if (!target) {
+          // Blocks are placed by DOM lookup, so a missing target means the block
+          // has no column to sit in. Say so instead of dropping it quietly: this
+          // used to fail silently whenever a layer had not been rendered yet.
+          console.warn("[SCE] block " + block.id + " has no cell to render in (layer " +
+            block.layer_id + ", state " + block.start_state + ", scene " + (block.scene_id || "none") + ")");
+          return;
+        }
 
         var blockEl = document.createElement("div");
-        blockEl.className = "sce-block" + (block.id === _sceState.selectedBlockId ? " is-selected" : "");
+        var isIdea = sceIsIdeaBlock(block);
+        blockEl.className = "sce-block" + (isIdea ? " is-idea" : "") +
+          (block.id === _sceState.selectedBlockId ? " is-selected" : "");
         blockEl.setAttribute("data-block-id", block.id);
         blockEl.setAttribute("data-start", block.start_state);
         blockEl.setAttribute("data-end", block.end_state);
         blockEl.setAttribute("data-scene-id", block.scene_id || "");
         blockEl.style.position = "relative";
         blockEl.style.left = "auto";
+        var isIdea = sceIsIdeaBlock(block);
         blockEl.style.width = "100%";
-        blockEl.style.height = block.scene_id ? "100%" : "28px";
-        blockEl.style.marginBottom = block.scene_id ? "0" : "2px";
+        if (block.scene_id) {
+          blockEl.style.height = "100%";
+          blockEl.style.marginBottom = "0";
+        } else if (isIdea) {
+          // Auto height: the card grows with its description text. The row
+          // min-height is only a floor — the browser does the rest.
+          blockEl.style.height = "auto";
+          blockEl.style.marginBottom = "2px";
+        } else {
+          blockEl.style.height = sceBlockCardHeight(block) + "px";
+          blockEl.style.marginBottom = "2px";
+        }
 
         var title = block.short_title || "Untitled";
         var precompIcon = block.precomp_composition_id ? "<span class='sce-block-precomp-icon' title='Has internal timeline'>■</span>" : "";
+        // An idea card carries its description on its face and is edited in the
+        // inspector, so it needs no caret. A beat still opens in place.
+        var hasMore = !isIdea && sceBlockHasTextBeyondTitle(block);
+        // Connections are a chapter-to-chapter concern. Spine blocks are story
+        // ideas, so they get no connect node at all.
+        var connectNode = isIdea
+          ? ""
+          : "<div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>";
+
+        var descHtml = isIdea
+          ? "<div class='sce-block-desc'>" + (String(block.description || "").trim()
+            ? escapeHtml(block.description)
+            : "<span class='sce-block-desc-empty'>No description yet</span>") + "</div>"
+          : "";
+
         blockEl.innerHTML = "<div class='sce-block-title'>" + precompIcon + escapeHtml(title) + "</div>" +
-          "<div class='sce-block-connect-node' data-block-id='" + block.id + "' title='Drag to connect'></div>";
+          descHtml +
+          (hasMore ? "<button type='button' class='sce-block-expand' title='Edit this block in place' aria-expanded='false' aria-label='Expand block'>▾</button>" : "") +
+          connectNode;
+
+        if (isIdea) blockEl.title = "Click to edit in the inspector";
 
         // Click to select
         blockEl.addEventListener("click", function (e) {
@@ -487,14 +747,156 @@
           selectSCEBlock(block.id);
         });
 
+        var expandBtn = blockEl.querySelector(".sce-block-expand");
+        if (expandBtn) {
+          expandBtn.addEventListener("click", function (e) {
+            // Expanding must not select: the fields are the point, and a
+            // selection redraw would tear the open editor out from under them.
+            e.stopPropagation();
+            e.preventDefault();
+            toggleSCEBlockExpand(blockEl, block);
+          });
+        }
+
         target.appendChild(blockEl);
       });
     }
 
+// The seven text fields a block carries, in the order they read as a beat.
+    var SCE_BLOCK_TEXT_FIELDS = [
+      { key: "short_title", label: "Title", rows: 1 },
+      { key: "description", label: "Description", rows: 2 },
+      { key: "before_text", label: "Before", rows: 2 },
+      { key: "what_happens", label: "What Happens", rows: 2 },
+      { key: "after_text", label: "After", rows: 2 },
+      { key: "next_text", label: "Next", rows: 2 },
+      { key: "notes", label: "Notes", rows: 2 }
+    ];
+
+    // A spine block is a story idea, not a beat, so the Before / What Happens /
+    // After / Next beat structure has nothing to say about it. It also already
+    // shows its title on the collapsed card, so repeating it in the editor just
+    // means typing it twice. Description is the one field it gets.
+    var SCE_IDEA_BLOCK_TEXT_FIELDS = [
+      {
+        key: "description",
+        label: "Description",
+        rows: 2,
+        hint: "e.g. The stranger offers a deal that solves the protagonist's immediate problem, at a price they cannot yet see."
+      }
+    ];
+
+    // An idea card shows its description, so its height depends on how much text
+    // there is. Rough estimate: 11px font at 1.25 line-height = ~14px per line,
+    // ~30 chars per line at the default 200px column width. Title + padding
+    // take the remaining space.
+    var SCE_IDEA_CARD_BASE_H = 28;
+    var SCE_IDEA_CARD_LINE_H = 14;
+    var SCE_BEAT_CARD_H = 30;
+
+    function sceBlockCardHeight(block) {
+      if (!sceIsIdeaBlock(block)) return SCE_BEAT_CARD_H;
+      var desc = String(block.description || "").trim();
+      var lines = desc ? Math.max(1, Math.ceil(desc.length / 30)) : 1;
+      return SCE_IDEA_CARD_BASE_H + lines * SCE_IDEA_CARD_LINE_H;
+    }
+
+    function sceIsIdeaBlock(block) {
+      var spine = sceFindSpineLayer();
+      return !!spine && Number(block.layer_id) === Number(spine.id);
+    }
+
+    function sceBlockTextFields(block) {
+      return sceIsIdeaBlock(block) ? SCE_IDEA_BLOCK_TEXT_FIELDS : SCE_BLOCK_TEXT_FIELDS;
+    }
+
+    function sceBlockHasTextBeyondTitle(block) {
+      return sceBlockTextFields(block).some(function (f) {
+        return f.key !== "short_title" && String(block[f.key] || "").trim();
+      });
+    }
+
+    function sceRenderBlockEditor(block) {
+      var html = "";
+      sceBlockTextFields(block).forEach(function (f) {
+        var id = "sceInlineBlock_" + f.key;
+        var value = escapeHtml(block[f.key] || "");
+        // A hint, not a placeholder: a placeholder disappears as soon as the
+        // field has content, which is exactly when the example is still wanted.
+        // Rendered as its own line so it can never be mistaken for saved text.
+        if (f.hint) {
+          html += "<p class='sce-block-field-hint'>" + escapeHtml(f.hint) + "</p>";
+        }
+        if (f.rows <= 1) {
+          html += "<label class='sce-block-field-label' for='" + id + "'>" + escapeHtml(f.label) + "</label>";
+          html += "<input id='" + id + "' type='text' class='sce-block-field' data-block-field='" + f.key + "' value='" + value + "' />";
+        } else {
+          html += "<label class='sce-block-field-label' for='" + id + "'>" + escapeHtml(f.label) + "</label>";
+          html += "<textarea id='" + id + "' class='sce-block-field' data-block-field='" + f.key + "' rows='" + f.rows + "'>" + value + "</textarea>";
+        }
+      });
+      return html;
+    }
+
+    function toggleSCEBlockExpand(blockEl, block) {
+      var open = blockEl.classList.contains("is-expanded");
+
+      if (!open) {
+        var panel = document.createElement("div");
+        panel.className = "sce-block-editor";
+        panel.innerHTML = sceRenderBlockEditor(block);
+
+        // Height was pinned to 28px/100% for the collapsed card. Expanded, it
+        // has to grow with the fields, which means leaving the row's slot model
+        // alone and letting this one card overflow its own box.
+        blockEl.style.height = "auto";
+        blockEl.style.zIndex = "6";
+        blockEl.classList.add("is-expanded");
+        blockEl.appendChild(panel);
+
+        panel.addEventListener("click", function (e) { e.stopPropagation(); });
+
+        panel.querySelectorAll("[data-block-field]").forEach(function (input) {
+          var key = input.getAttribute("data-block-field");
+          // Save on blur rather than on every keystroke: each save replays the
+          // whole block row, so typing would fire a request per character.
+          input.addEventListener("blur", function () {
+            if (input.value === String(block[key] || "")) return;
+            block[key] = input.value;
+            saveSCEBlock(JSON.stringify(block));
+            if (key === "short_title") {
+              var titleEl = blockEl.querySelector(".sce-block-title");
+              if (titleEl) titleEl.textContent = input.value || "Untitled";
+            }
+          });
+        });
+
+        var first = panel.querySelector("input, textarea");
+        if (first) first.focus();
+      } else {
+        var existing = blockEl.querySelector(".sce-block-editor");
+        if (existing) existing.remove();
+        blockEl.classList.remove("is-expanded");
+        blockEl.style.zIndex = "";
+        blockEl.style.height = block.scene_id ? "100%" : (sceIsIdeaBlock(block) ? "auto" : sceBlockCardHeight(block) + "px");
+      }
+
+      var btn = blockEl.querySelector(".sce-block-expand");
+      if (btn) {
+        var nowOpen = blockEl.classList.contains("is-expanded");
+        btn.setAttribute("aria-expanded", nowOpen ? "true" : "false");
+        btn.textContent = nowOpen ? "▴" : "▾";
+      }
+    }
+
     function selectSCEBlock(blockId) {
-      _sceState.selectedBlockId = blockId;
-      _sceState.selectedConnectionId = null;
-      _sceState.selectedAssetId = null;
+        _sceState.selectedBlockId = blockId;
+        _sceState.selectedConnectionId = null;
+        _sceState.selectedAssetId = null;
+        _sceState.selectedStateId = null;
+        document.querySelectorAll(".sce-state-label.is-selected").forEach(function (el) {
+          el.classList.remove("is-selected");
+        });
       
       // Update visual selection
       document.querySelectorAll(".sce-block").forEach(function (el) {
@@ -511,10 +913,50 @@
       }
     }
     
+    function selectSCEState(stateId) {
+      _sceState.selectedStateId = stateId;
+      _sceState.selectedBlockId = null;
+      _sceState.selectedConnectionId = null;
+      _sceState.selectedAssetId = null;
+      document.querySelectorAll(".sce-block.is-selected").forEach(function (el) {
+        el.classList.remove("is-selected");
+      });
+      document.querySelectorAll(".sce-state-label").forEach(function (el) {
+        var on = Number(el.getAttribute("data-state-id")) === Number(stateId);
+        el.classList.toggle("is-selected", on);
+        el.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      renderSCEInspector();
+    }
+
+    function dropAssetOnState(assetId, statePos) {
+      if (sceMutationBlocked("add idea to state")) return;
+      if (!assetId) return;
+      sceEnsureSpineLayer(function (layer) {
+        createSCEBlockFromAsset(assetId, layer.id, statePos, null);
+      }, function (err) {
+        alert("Could not add that idea: " + (err && err.message ? err.message : "unknown error"));
+      });
+    }
+
+    function dropCatalogueOnState(entryId, statePos) {
+      if (sceMutationBlocked("add block to state")) return;
+      if (!entryId) return;
+      sceEnsureSpineLayer(function (layer) {
+        // Reuses the existing creator rather than rebuilding the payload here, so
+        // catalogue drops onto a state behave exactly like cell drops: same
+        // prompt-question seeding, same undo entry, same provenance snapshot.
+        createSCEBlockFromCatalogue(entryId, layer.id, statePos, null);
+      }, function (err) {
+        alert("Could not add that block: " + (err && err.message ? err.message : "unknown error"));
+      });
+    }
+
     function selectSCEChapter(chapterId) {
       _sceState.selectedBlockId = null;
       _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
+      _sceState.selectedStateId = null;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (chapter) {
         renderSCEInspectorChapter(chapter);
@@ -524,6 +966,7 @@
     function selectSCEScene(sceneId, chapterId) {
       _sceState.selectedBlockId = null;
       _sceState.selectedAssetId = null;
+      _sceState.selectedStateId = null;
       var chapter = _sceState.chapters.find(function (c) { return Number(c.id) === chapterId; });
       if (!chapter) return;
       var scenes = sceSceneCache()[chapterId] || [];

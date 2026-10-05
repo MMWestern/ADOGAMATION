@@ -2,36 +2,98 @@
     // Story Composition Editor — Layer Controls
     // ============================================================
 
-    function renderSCELayerControls() {
-      var container = document.getElementById("sceLayerControls");
-      if (!container) return;
+function renderSCELayerControls() {
+    var container = document.getElementById("sceLayerControls");
+    if (!container) return;
 
-      var layers = _sceState.layers;
-      var html = "";
+    var layers = _sceState.layers;
+    var html = "";
 
-      layers.forEach(function (layer) {
-        html += "<div class='sce-layer-control' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
-        html += "<div class='sce-layer-color-dot' style='background:" + (layer.color || '#3b82f6') + ";'></div>";
-        html += "<span class='sce-layer-name'>" + escapeHtml(layer.name) + "</span>";
-        html += "<div class='sce-layer-actions'>";
-        html += "<button type='button' class='sce-layer-btn sce-layer-hide-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_hidden ? "Show" : "Hide") + "'>" + (layer.is_hidden ? "👁‍🗨" : "👁") + "</button>";
-        html += "<button type='button' class='sce-layer-btn sce-layer-solo-btn' data-layer-id='" + layer.id + "' title='Solo' style='" + (layer.is_solo ? "color:#f59e0b;" : "") + "'>S</button>";
-        html += "<button type='button' class='sce-layer-btn sce-layer-lock-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_locked ? "Unlock" : "Lock") + "'>" + (layer.is_locked ? "🔒" : "🔓") + "</button>";
-        html += "<button type='button' class='sce-layer-btn sce-layer-delete-btn' data-layer-id='" + layer.id + "' title='Delete layer'>&times;</button>";
-        html += "</div>";
-        html += "</div>";
-      });
+    // Structural columns that can be hidden like layers. They are not database
+    // layers — their visibility is stored locally — but they belong in the same
+    // panel so the author can hide a whole column without hunting for a setting.
+    var structuralCols = [
+      { key: "chapters", label: "Chapters", color: "#3b82f6" },
+      { key: "scenes", label: "Scenes", color: "#10b981" }
+    ];
+    structuralCols.forEach(function (col) {
+      var hidden = sceGetColHidden(col.key);
+      html += "<div class='sce-layer-control' data-col-key='" + col.key + "' style='--layer-color:" + col.color + ";'>";
+      html += "<div class='sce-layer-color-dot' style='background:" + col.color + ";'></div>";
+      html += "<span class='sce-layer-name'>" + escapeHtml(col.label) + "</span>";
+      html += "<div class='sce-layer-actions'>";
+      html += "<button type='button' class='sce-layer-btn sce-col-hide-btn" + (hidden ? " is-off" : "") + "' data-col-key='" + col.key + "' title='" + (hidden ? "Show" : "Hide") + "'>&#128065;</button>";
+      html += "<button type='button' class='sce-layer-btn sce-col-solo-btn' data-col-key='" + col.key + "' title='Solo'>&#9679;</button>";
+      html += "<button type='button' class='sce-layer-btn sce-col-lock-btn' data-col-key='" + col.key + "' title='Lock'>&#128274;</button>";
+      html += "</div>";
+      html += "</div>";
+    });
 
-      html += "<button type='button' class='sce-layer-add-btn' id='sceAddLayerBtn'>+ Add Layer</button>";
+    layers.forEach(function (layer) {
+    // The spine is pinned beside the states in the timeline, so it is not
+    // offered here. Listing it would read as a second story layer to toggle.
+    if (sceIsSpineLayer(layer)) return;
+    html += "<div class='sce-layer-control' data-layer-id='" + layer.id + "' style='--layer-color:" + (layer.color || '#3b82f6') + ";'>";
+    html += "<div class='sce-layer-color-dot' style='background:" + (layer.color || '#3b82f6') + ";'></div>";
+    html += "<span class='sce-layer-name'>" + escapeHtml(layer.name) + "</span>";
+    html += "<div class='sce-layer-actions'>";
+    html += "<button type='button' class='sce-layer-btn sce-layer-hide-btn" + (layer.is_hidden ? " is-off" : "") + "' data-layer-id='" + layer.id + "' title='" + (layer.is_hidden ? "Show" : "Hide") + "'>&#128065;</button>";
+    html += "<button type='button' class='sce-layer-btn sce-layer-solo-btn' data-layer-id='" + layer.id + "' title='Solo' style='" + (layer.is_solo ? "color:#f59e0b;" : "") + "'>&#9679;</button>";
+    html += "<button type='button' class='sce-layer-btn sce-layer-lock-btn' data-layer-id='" + layer.id + "' title='" + (layer.is_locked ? "Unlock" : "Lock") + "'>" + (layer.is_locked ? "&#128275;" : "&#128274;") + "</button>";
+    html += "<button type='button' class='sce-layer-btn sce-layer-delete-btn' data-layer-id='" + layer.id + "' title='Delete layer'>&times;</button>";
+    html += "</div>";
+    html += "</div>";
+    });
 
-      container.innerHTML = html;
+    html += "<button type='button' class='sce-layer-add-btn' id='sceAddLayerBtn'>+ Add Layer</button>";
 
-      // Wire layer controls
-      wireSCELayerControls();
+    container.innerHTML = html;
+
+    // Wire layer controls
+    wireSCELayerControls();
     }
 
-    function wireSCELayerControls() {
-      // Hide buttons
+function wireSCELayerControls() {
+    // Structural column hide/show (chapters, scenes)
+    document.querySelectorAll(".sce-col-hide-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var colKey = btn.getAttribute("data-col-key");
+        sceSetColHidden(colKey, !sceGetColHidden(colKey));
+        renderSCETimeline();
+        renderSCELayerControls();
+      });
+    });
+
+    // Structural column solo — hides everything else
+    document.querySelectorAll(".sce-col-solo-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var colKey = btn.getAttribute("data-col-key");
+        var soloing = !sceGetColSolo(colKey);
+        // Solo this column: hide all other structural cols and all story layers.
+        ["chapters", "scenes"].forEach(function (k) {
+          if (k !== colKey) sceSetColHidden(k, soloing);
+        });
+        _sceState.layers.forEach(function (l) {
+          if (sceIsSpineLayer(l)) return;
+          l.is_hidden = soloing;
+          saveSCELayer(l);
+        });
+        sceSetColSolo(colKey, soloing);
+        renderSCETimeline();
+        renderSCELayerControls();
+      });
+    });
+
+    // Structural column lock
+    document.querySelectorAll(".sce-col-lock-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var colKey = btn.getAttribute("data-col-key");
+        sceSetColLocked(colKey, !sceGetColLocked(colKey));
+        renderSCELayerControls();
+      });
+    });
+
+    // Hide buttons
       document.querySelectorAll(".sce-layer-hide-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var layerId = Number(btn.getAttribute("data-layer-id"));

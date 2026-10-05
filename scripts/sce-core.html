@@ -1,5 +1,5 @@
     // ============================================================
-    // Story Composition Editor (SCE) — Core Module
+    // Story Composition Editor (SCE) â€” Core Module
     // ============================================================
 
     var _sceState = {
@@ -13,6 +13,8 @@
       sceneCache: {},
       catalogue: [],
       panelView: "ideas",
+      assetScope: "book",
+      assetQuery: "",
       catalogueQuery: "",
       catalogueCategory: "",
       mixGrouping: "book",
@@ -20,12 +22,54 @@
       selectedBlockId: null,
       selectedConnectionId: null,
       selectedAssetId: null,
+      selectedStateId: null,
+      selectedCatalogueId: null,
+      catalogueEditId: 0,
+      catalogueFavouritesOnly: false,
+      catalogueMineOnly: false,
       undoStack: [],
       redoStack: [],
       replayBusy: false,
       dirty: false,
-      initialized: false
+      initialized: false,
+      seriesId: 0,
+      bookId: 0
     };
+
+    // Drops every book-scoped value so the next initSCE() loads clean data.
+    // The catalogue is global and survives. Panel view and Story Mix highlight
+    // belong to a book's blocks, so they reset with them.
+    function resetSCEForProject() {
+      _sceState.initialized = false;
+      _sceState.composition = null;
+      _sceState.states = [];
+      _sceState.layers = [];
+      _sceState.blocks = [];
+      _sceState.assets = [];
+      _sceState.connections = [];
+      _sceState.chapters = [];
+      _sceState.sceneCache = {};
+      _sceState.panelView = "ideas";
+      _sceState.assetScope = "book";
+      _sceState.assetQuery = "";
+      _sceState.catalogueQuery = "";
+      _sceState.catalogueCategory = "";
+      _sceState.mixGrouping = "book";
+      _sceState.mixHighlight = null;
+      _sceState.selectedBlockId = null;
+      _sceState.selectedConnectionId = null;
+      _sceState.selectedAssetId = null;
+      _sceState.selectedStateId = null;
+      _sceState.selectedCatalogueId = null;
+      _sceState.catalogueEditId = 0;
+      _sceState.catalogueFavouritesOnly = false;
+      _sceState.catalogueMineOnly = false;
+      _sceState.undoStack = [];
+      _sceState.redoStack = [];
+      _sceState.dirty = false;
+      _sceState.seriesId = 0;
+      _sceState.bookId = 0;
+    }
 
     // Scene lists live in their own slot on _sceState, keyed by chapter id.
     // Never stash them on _sceState.chapters: that array gets reassigned by
@@ -38,25 +82,192 @@
       return _sceState.sceneCache;
     }
 
+    // Each purpose states the question a writer has to answer for that state, so
+// the state column reads as a checklist of what the beat must actually do.
+// The name is the heading and the purpose the explanation under it: the two are
+// edited independently from the state inspector.
     var SCE_DEFAULT_STATES = [
-      { position: 1, name: "Before", purpose: "The starting situation before anything changes" },
-      { position: 2, name: "Something Changes", purpose: "An event or discovery that disrupts the status quo" },
-      { position: 3, name: "Immediate Reaction", purpose: "How the character responds to the change" },
-      { position: 4, name: "A Choice Is Made", purpose: "The character decides on a course of action" },
-      { position: 5, name: "New Situation", purpose: "The consequences of the choice create a new normal" },
-      { position: 6, name: "First Attempts", purpose: "Early efforts to deal with the new situation" },
-      { position: 7, name: "Things Get Harder", purpose: "Complications and obstacles increase" },
-      { position: 8, name: "Big Change", purpose: "A major shift that changes everything" },
-      { position: 9, name: "Consequences", purpose: "The fallout from the big change" },
-      { position: 10, name: "Trouble Closes In", purpose: "Problems converge and pressure mounts" },
-      { position: 11, name: "Major Loss", purpose: "Something important is lost or sacrificed" },
-      { position: 12, name: "Lowest Point", purpose: "The darkest moment, all seems lost" },
-      { position: 13, name: "New Understanding", purpose: "A revelation or insight that changes perspective" },
-      { position: 14, name: "Final Action", purpose: "The decisive move based on new understanding" },
-      { position: 15, name: "After and Next", purpose: "The new normal and seeds of what comes next" }
+      { position: 1, name: "Before", purpose: "What is the starting situation, and who is the character before anything changes?" },
+      { position: 2, name: "Something Changes", purpose: "What is the event or discovery that disrupts the status quo?" },
+      { position: 3, name: "Immediate Reaction", purpose: "How does the character respond to the change in the moment?" },
+      { position: 4, name: "A Choice Is Made", purpose: "What does the character decide, and what are they committing to?" },
+      { position: 5, name: "New Situation", purpose: "What new normal has the choice created, and what is different now?" },
+      { position: 6, name: "First Attempts", purpose: "What early efforts are made to deal with the new situation, and do they work?" },
+      { position: 7, name: "Things Get Harder", purpose: "What complication or obstacle raises the difficulty?" },
+      { position: 8, name: "Big Change", purpose: "What major shift happens that changes everything?" },
+      { position: 9, name: "Consequences", purpose: "What is the fallout from the big change, good and bad?" },
+      { position: 10, name: "Trouble Closes In", purpose: "How do the problems converge and squeeze the character further?" },
+      { position: 11, name: "Major Loss", purpose: "What important thing is lost or sacrificed to keep going?" },
+      { position: 12, name: "Lowest Point", purpose: "What is the darkest moment, where all seems lost?" },
+      { position: 13, name: "New Understanding", purpose: "What is revealed that changes how the character sees the problem?" },
+      { position: 14, name: "Final Action", purpose: "What decisive action is taken on the back of the new understanding?" },
+      { position: 15, name: "After and Next", purpose: "What is the new normal, and what seeds of what comes next?" }
     ];
 
-    var SCE_DEFAULT_LAYERS = [
+    // Story spine: the blocks dropped straight onto a state row. They are a real
+    // layer because sce_blocks.layer_id is NOT NULL and points at sce_layers,
+    // but the timeline renders it as a pinned column beside the states rather
+    // than as one of the switchable story layers, since these beats belong with
+    // the arc rather than running parallel to it.
+    var SCE_SPINE_LAYER_NAME = "Story spine";
+
+    function sceFindSpineLayer() {
+      var layers = _sceState.layers || [];
+      for (var i = 0; i < layers.length; i++) {
+        if (String(layers[i].name || "").trim().toLowerCase() === SCE_SPINE_LAYER_NAME.toLowerCase()) {
+          return layers[i];
+        }
+      }
+      return null;
+    }
+
+    function sceIsSpineLayer(layer) {
+      return !!layer && String(layer.name || "").trim().toLowerCase() === SCE_SPINE_LAYER_NAME.toLowerCase();
+    }
+
+    // Reuses the existing spine layer, or creates it at the end of the stack.
+    // Resolves with the layer either way, or null if the composition is missing.
+    function sceEnsureSpineLayer(done, failed) {
+      var compositionId = _sceState.composition ? _sceState.composition.id : 0;
+      if (!compositionId) {
+        if (failed) failed(new Error("No composition loaded."));
+        return;
+      }
+      var existing = sceFindSpineLayer();
+      if (existing) {
+        done(existing);
+        return;
+      }
+      var maxPos = (_sceState.layers || []).reduce(function (acc, l) {
+        return Math.max(acc, Number(l.position || 0));
+      }, 0);
+      supabaseRunner
+        .withSuccessHandler(function (json) {
+          var result = typeof json === 'string' ? JSON.parse(json) : json;
+          if (!result || !result.layer) {
+            if (failed) failed(new Error("Spine layer was not created."));
+            return;
+          }
+          _sceState.layers.push(result.layer);
+          // Render before handing the layer back. Blocks are placed by querying
+          // the DOM for .sce-layer-unscoped[data-layer-id], so the new column
+          // has to exist first, otherwise the block that is about to be created
+          // lands with no target and is silently skipped.
+          renderSCETimeline();
+          if (typeof renderSCELayerControls === "function") renderSCELayerControls();
+          done(result.layer);
+        })
+        .withFailureHandler(function (err) {
+          console.error("[SCE] Failed to create the spine layer:", err);
+          if (failed) failed(err);
+        })
+        .sceSaveLayer({
+          composition_id: compositionId,
+          name: SCE_SPINE_LAYER_NAME,
+          color: "#6366f1",
+          position: maxPos + 1,
+          is_hidden: false,
+          is_solo: false,
+          is_locked: false
+        });
+    }
+
+    // ----------------------------------------------------------- block ordering
+    //
+    // Blocks stack in the order they appear in their cell, the same way chapters
+    // order inside a state. sce_blocks has no sort_order column, so vertical_pos
+    // carries the position within a cell; it existed in the schema and was never
+    // written or read before. Positions are 1-based, which leaves 0 free to mean
+    // "never positioned" on rows that predate this.
+
+    function sceBlockSceneKey(sceneId) {
+  return Number(sceneId || 0) || 0;
+    }
+
+    // A cell is one slot in the grid: a layer column, a state row inside it, and
+    // optionally a scene slot inside that row. renderSCEBlocks() resolves a block
+    // to its cell with exactly these three values, so anything that works out a cell
+    // independently has to agree with them.
+    function sceBlockIsInCell(block, layerId, statePos, sceneId) {
+  return Number(block.layer_id) === Number(layerId)
+    && Number(block.start_state) === Number(statePos)
+    && sceBlockSceneKey(block.scene_id) === sceBlockSceneKey(sceneId);
+    }
+
+    // Ties fall back to id so blocks written before ordering existed (all
+    // vertical_pos 0) keep a stable order across reloads instead of shuffling.
+    function sceBlockCellOrder(a, b) {
+  return (Number(a.vertical_pos || 0) - Number(b.vertical_pos || 0))
+    || (Number(a.id) - Number(b.id));
+    }
+
+    // Parked and later-book blocks are excluded because renderSCEBlocks() skips
+    // them. Letting them hold positions would push the on-screen blocks around
+    // without any of them being visible to explain it.
+    function sceBlocksInCell(layerId, statePos, sceneId) {
+  return _sceState.blocks.filter(function (b) {
+    if (b.is_parked || b.is_later_book) return false;
+    return sceBlockIsInCell(b, layerId, statePos, sceneId);
+  }).sort(sceBlockCellOrder);
+    }
+
+    // New blocks land at the end of the cell they are dropped into.
+    function sceNextVerticalPos(layerId, statePos, sceneId) {
+  var list = sceBlocksInCell(layerId, statePos, sceneId);
+  return list.length ? Number(list[list.length - 1].vertical_pos || 0) + 1 : 1;
+    }
+
+    // Every block a move can renumber: the destination cell, the cell it leaves,
+    // and the block itself. Collected before the move, because afterwards the
+    // dragged block no longer reports the cell it came from.
+    function sceBlockOrderTouched(blockId, layerId, statePos, sceneId) {
+  var dragged = _sceState.blocks.find(function (b) { return Number(b.id) === Number(blockId); });
+  var ids = {};
+  function add(b) { ids[Number(b.id)] = true; }
+  sceBlocksInCell(layerId, statePos, sceneId).forEach(add);
+  if (dragged) {
+    sceBlocksInCell(dragged.layer_id, dragged.start_state, dragged.scene_id).forEach(add);
+    add(dragged);
+  }
+  return _sceState.blocks.filter(function (b) { return ids[Number(b.id)]; });
+    }
+
+    // sceSaveBlock() rewrites a whole row through a whitelist, so writing an order
+    // has to send the entire block. A payload of just {id, vertical_pos} would pass
+    // every other field through its "missing" default and blank out the layer,
+    // state and text columns.
+    function sceBlockOrderSnapshot(blocks) {
+  return blocks.map(function (b) {
+    return Object.assign({}, b, { vertical_pos: Number(b.vertical_pos || 0) });
+  });
+    }
+
+    function sceWriteBlockOrderRows(rows, cb) {
+  var i = 0;
+  var failed = false;
+  (function next() {
+    if (i >= rows.length) { if (cb) cb(failed); return; }
+    saveSCEBlock(rows[i++], function (bad) { failed = failed || !!bad; next(); });
+  })();
+    }
+
+    function sceCommitBlockOrder(before, after) {
+      // sceReloadAndRender() repaints the timeline and inspector but not the
+      // connection lanes, which are measured off the newly placed blocks.
+      function reload() {
+        sceReloadAndRender(function () {
+          if (typeof renderSCEConnections === "function") renderSCEConnections();
+        });
+      }
+      scePushUndo({
+        type: "reorder_block",
+        undo: function (done) { sceWriteBlockOrderRows(before, function (failed) { reload(function () { done(failed); }); }); },
+        redo: function (done) { sceWriteBlockOrderRows(after, function (failed) { reload(function () { done(failed); }); }); }
+      });
+      sceWriteBlockOrderRows(after, reload);
+    }
+
+var SCE_DEFAULT_LAYERS = [
       { name: "Main Story", color: "#3b82f6", position: 0 },
       { name: "Set Pieces", color: "#ef4444", position: 1 },
       { name: "LitRPG Progression", color: "#22c55e", position: 2 },
@@ -81,10 +292,15 @@
     ];
 
     function initSCE() {
-      if (_sceState.initialized) return;
       var project = getSelectedProject();
       var seriesId = Number(project && project.series_id || 0);
       var bookId = Number(project && (project.project_id || project.id) || 0);
+      // Switching project from another tab leaves the initialized flag set, so
+      // compare the bound ids rather than trusting the flag alone.
+      if (_sceState.initialized && (Number(_sceState.seriesId || 0) !== seriesId || Number(_sceState.bookId || 0) !== bookId)) {
+        resetSCEForProject();
+      }
+      if (_sceState.initialized) return;
       console.log("[SCE] initSCE - project:", project ? project.title : "null", "seriesId:", seriesId, "bookId:", bookId, "initialized:", _sceState.initialized);
       if (!seriesId || !bookId) {
         var root = document.getElementById("sceRoot");
@@ -92,6 +308,8 @@
         return;
       }
       _sceState.initialized = true;
+      _sceState.seriesId = seriesId;
+      _sceState.bookId = bookId;
       populateSCEProjectInfo(project);
       loadSCEData(seriesId, bookId);
     }
@@ -193,13 +411,11 @@
     }
 
     function createDefaultStatesForComposition(compositionId, seriesId, callback) {
-      var defaultStates = [
-        { position: 1, name: "Setup", purpose: "Setting the scene" },
-        { position: 2, name: "Action", purpose: "The main event" },
-        { position: 3, name: "Turning Point", purpose: "Something changes" },
-        { position: 4, name: "Climax", purpose: "Peak moment" },
-        { position: 5, name: "Resolution", purpose: "Aftermath and consequences" }
-      ];
+      // Uses the same 15-state arc as composition creation. This used to invent
+      // a different 5-state Setup/Action/Turning Point/Climax/Resolution set,
+      // so an old precomp with no states came back with a timeline shape that
+      // did not match every other composition.
+      var defaultStates = SCE_DEFAULT_STATES;
       var done = 0;
       var total = defaultStates.length;
       defaultStates.forEach(function (s) {
@@ -395,7 +611,7 @@
     }
 
     function wireSCEToolbar(seriesId) {
-      // Add asset button — always use current project
+      // Add asset button â€” always use current project
       var addBtn = document.getElementById("sceAddAssetBtn");
       if (addBtn && !addBtn._wired) {
         addBtn._wired = true;
@@ -406,16 +622,26 @@
         });
       }
 
-      // Asset search
+      // Asset search and book filter share one render pass.
       var searchInput = document.getElementById("sceAssetSearchInput");
       if (searchInput && !searchInput._wired) {
         searchInput._wired = true;
         searchInput.addEventListener("input", function () {
-          filterSCEAssets(searchInput.value);
+          _sceState.assetQuery = searchInput.value;
+          renderSCEAssetBin();
         });
       }
 
-      // Panel view switcher — Ideas / Catalogue / Story Mix
+      var bookFilter = document.getElementById("sceAssetBookFilter");
+      if (bookFilter && !bookFilter._wired) {
+        bookFilter._wired = true;
+        bookFilter.addEventListener("change", function () {
+          _sceState.assetScope = bookFilter.value || "book";
+          renderSCEAssetBin();
+        });
+      }
+
+      // Panel view switcher â€” Ideas / Catalogue / Story Mix
       document.querySelectorAll(".sce-panel-view-tab").forEach(function (tab) {
         if (tab._wired) return;
         tab._wired = true;
@@ -443,6 +669,31 @@
           renderSCECatalogueList();
         });
       }
+
+      // Catalogue editor: static controls, so wired once and re-run cheaply on
+      // every panel init. Guarded by _wired because this init path repeats.
+      var wireOnce = function (id, event, fn) {
+        var el = document.getElementById(id);
+        if (!el || el._wired) return;
+        el._wired = true;
+        el.addEventListener(event, fn);
+      };
+      wireOnce("sceAddCatalogueEntryBtn", "click", function () { openSCECatalogueEditor(0); });
+      wireOnce("sceCatEditSaveBtn", "click", function () { saveSCECatalogueEditor(); });
+      wireOnce("sceCatEditCloseBtn", "click", function () { closeSCECatalogueEditor(); });
+      wireOnce("sceCatEditDeleteBtn", "click", function () { deleteSCECatalogueEditorEntry(); });
+
+      // Origin filters: starred and user-defined are independent toggles.
+      wireOnce("sceCatalogueFavouritesChip", "click", function () {
+        _sceState.catalogueFavouritesOnly = !_sceState.catalogueFavouritesOnly;
+        renderSCECatalogueOriginChips();
+        renderSCECatalogueList();
+      });
+      wireOnce("sceCatalogueMineChip", "click", function () {
+        _sceState.catalogueMineOnly = !_sceState.catalogueMineOnly;
+        renderSCECatalogueOriginChips();
+        renderSCECatalogueList();
+      });
 
       // Toggle connections visibility
       var toggleBtn = document.getElementById("sceToggleConnections");
@@ -564,7 +815,7 @@
           var at = to.lastIndexOf(action);
           if (at !== -1) to.splice(at, 1);
           from.push(action);
-          sceFlash("Undo/redo did not complete — record kept so you can retry.");
+          sceFlash("Undo/redo did not complete â€” record kept so you can retry.");
         }
         updateSCEUndoRedoButtons();
       };
@@ -611,7 +862,7 @@
     function sceMutationBlocked(actionName) {
       if (!_sceState.replayBusy) return false;
       console.warn("[SCE] Ignored " + (actionName || "change") + ": an undo/redo is still in progress.");
-      sceFlash("Finishing undo/redo…");
+      sceFlash("Finishing undo/redoâ€¦");
       return true;
     }
 
@@ -907,6 +1158,7 @@
       _sceState.selectedBlockId = null;
       _sceState.selectedConnectionId = null;
       _sceState.selectedAssetId = null;
+      _sceState.selectedStateId = null;
       // The blocks just restored are the parent's, so any Story Mix highlight
       // computed against the precomp's blocks is now meaningless.
       _sceState.mixHighlight = null;

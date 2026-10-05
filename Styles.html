@@ -88,40 +88,49 @@
       height: calc(100vh - 100px);
     }
 
-    .panel-resize-handle {
-      position: absolute;
-      top: 0;
-      right: -3px;
-      width: 6px;
-      height: 100%;
-      cursor: col-resize;
-      z-index: 50;
-      background: transparent;
-      transition: background 0.15s;
+.panel-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 50;
+    background: transparent;
+    transition: background 0.15s;
     }
     .panel-resize-handle::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 2px;
-      height: 32px;
-      background: var(--border);
-      border-radius: 1px;
-      opacity: 0.4;
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 32px;
+    background: var(--border);
+    border-radius: 1px;
+    opacity: 0.4;
     }
     .panel-resize-handle:hover {
-      background: rgba(59,130,246,0.15);
+    background: rgba(59,130,246,0.15);
     }
     .panel-resize-handle:hover::before {
-      background: #3b82f6;
-      opacity: 1;
+    background: #3b82f6;
+    opacity: 1;
     }
     .panel-resize-handle:active {
-      background: rgba(59,130,246,0.3);
+    background: rgba(59,130,246,0.3);
     }
-    .sidebar {
+    /* The details panel's generic child rule (.details > :not(...)) applies
+       padding:16px to every child including the handle. Override with higher
+       specificity so the right grab bar matches the left. */
+    section.panel.details > .panel-resize-handle,
+    .details > .panel-resize-handle {
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+    }
+.sidebar {
       position: relative;
     }
     .panel.details {
@@ -180,9 +189,10 @@
       overflow: hidden;
     }
 
-    section.panel.details {
-      display: flex;
-      flex-direction: column;
+section.panel.details {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
     }
 
     main.panel {
@@ -18639,8 +18649,54 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     }
     .sce-asset-item:hover { background: var(--hover); }
     .sce-asset-item.is-selected { background: rgba(59,130,246,0.2); }
-    .sce-asset-name { font-weight: 600; color: var(--text); }
+    .sce-asset-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sce-asset-name {
+      font-weight: 600;
+      color: var(--text);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .sce-asset-desc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .sce-asset-book {
+      display: inline-block;
+      flex: 0 0 auto;
+      max-width: 55%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.28);
+    }
+    .sce-asset-book.is-shared {
+      background: transparent;
+      border-color: var(--border);
+      opacity: 0.75;
+    }
+    .sce-scope-notice {
+      margin: 0 6px 4px;
+      padding: 6px 8px;
+      font-size: 10px;
+      line-height: 1.4;
+      color: #fcd34d;
+      background: rgba(250, 204, 21, 0.08);
+      border: 1px solid rgba(250, 204, 21, 0.3);
+      border-radius: 4px;
+    }
+    .sce-scope-notice code {
+      font-size: 9px;
+      color: inherit;
+      word-break: break-all;
+    }
     .sce-asset-empty { padding: 20px 10px; text-align: center; color: var(--muted); font-size: 12px; }
 
     /* Sidebar panel views — Story Ideas / Catalogue / Story Mix */
@@ -18696,6 +18752,7 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       border: 1px solid transparent;
     }
     .sce-cat-item:hover { background: var(--hover); }
+    .sce-cat-item.is-selected { background: rgba(59,130,246,0.2); border-color: rgba(59,130,246,0.45); }
     .sce-cat-item.is-favourite { border-color: rgba(250,204,21,0.4); }
     .sce-cat-head { display: flex; align-items: center; gap: 5px; }
     .sce-cat-dot {
@@ -18716,13 +18773,21 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-cat-star {
       background: transparent;
       border: none;
+      /* Muted when off, gold when on. The colour is keyed off aria-pressed so it
+         can never drift from the real state, which is also what the button
+         already reports to assistive tech. */
       color: var(--muted);
       cursor: pointer;
-      font-size: 12px;
+      font-size: 16px;
       line-height: 1;
-      padding: 1px 2px;
+      padding: 0 3px;
+      /* .sce-cat-name is flex:1 with ellipsis, so the star must not be the
+         element that gives way when the name is long. */
+      flex-shrink: 0;
     }
-    .sce-cat-star:hover { color: #facc15; }
+    .sce-cat-star:hover { color: #a1a1aa; }
+    .sce-cat-star[aria-pressed="true"] { color: #facc15; }
+    .sce-cat-star[aria-pressed="true"]:hover { color: #fde047; }
     .sce-cat-category { font-size: 9px; color: var(--muted); margin-top: 1px; }
     .sce-cat-purpose { font-size: 10px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
     .sce-cat-actions {
@@ -18764,7 +18829,195 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       border-color: rgba(59,130,246,0.5);
       color: var(--text);
     }
+    /* The three sidebar views share one column with the Layers block pinned below
+   them. Each view must be a flex item that fills the remaining height and
+   clips, otherwise its list grows to full content height and pushes Layers out
+   of the panel, which is overflow:hidden.
+   Inline display:flex would beat the hidden attribute used to swap views, so the
+   layout lives here and hidden is honoured explicitly. */
+    #scePanelIdeasView,
+    #scePanelCatalogueView,
+    #scePanelMixView {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    #scePanelIdeasView[hidden],
+    #scePanelCatalogueView[hidden],
+    #scePanelMixView[hidden] { display: none; }
+    #scePanelIdeasView .writing-codex-list,
+    #scePanelCatalogueView .writing-codex-list { min-height: 0; }
+    /* --- Editable catalogue entries -------------------------------------------
+   The editor sits above the list. It must be allowed to shrink and scroll: with
+   flex:0 0 auto its textareas could exceed the panel, and since
+   .writing-codex-panel is overflow:hidden that pushed Save/Delete past the
+   bottom edge where they could not be clicked. max-height keeps the list
+   visible underneath, and the action bar is sticky so saving stays reachable
+   however long the prompt text gets. */
+    .sce-cat-editor {
+      flex: 0 1 auto;
+      min-height: 0;
+      max-height: 60%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel-2, #17171b);
+    }
+    .sce-cat-editor[hidden] { display: none; }
+    .sce-cat-editor-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sce-cat-editor-title { font-size: 12px; font-weight: 600; }
+    .sce-cat-editor-close {
+      background: none;
+      border: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .sce-cat-editor-note {
+      margin: 0;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .sce-cat-editor-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .sce-cat-editor-field input,
+    .sce-cat-editor-field textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 4px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      color: var(--text, #f2f2f4);
+      background: var(--panel, #0e0e11);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      resize: vertical;
+    }
+    .sce-cat-editor-field input:focus,
+    .sce-cat-editor-field textarea:focus {
+      outline: 1px solid var(--accent, #3b82f6);
+      outline-offset: -1px;
+    }
+    .sce-cat-editor-inline {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .sce-cat-editor-check {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .sce-cat-editor-status {
+      font-size: 10px;
+      min-height: 12px;
+      line-height: 1.2;
+    }
+    .sce-cat-editor-status.is-ok { color: #34d399; }
+    .sce-cat-editor-status.is-error { color: #f87171; }
+    .sce-cat-editor-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      position: sticky;
+      bottom: -8px;
+      /* Opaque, because content scrolls underneath the sticky bar. */
+      background: var(--panel-2, #17171b);
+      border-top: 1px solid var(--border);
+      margin: 0 -8px -8px;
+      padding: 6px 8px;
+    }
+    .sce-cat-editor-save,
+    .sce-cat-editor-delete {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .sce-cat-editor-save {
+      background: var(--accent, #3b82f6);
+      border-color: var(--accent, #3b82f6);
+      color: #fff;
+    }
+    .sce-cat-editor-save:disabled { opacity: 0.6; cursor: default; }
+    .sce-cat-editor-delete {
+      background: none;
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.4);
+    }
+    .sce-cat-editor-delete[hidden] { display: none; }
+    .sce-cat-edit {
+      padding: 2px 8px;
+      font-size: 10px;
+      font-family: inherit;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .sce-cat-edit:hover { color: var(--text, #f2f2f4); }
+    .sce-cat-edit.is-shared { border-style: dashed; }
+    /* Origin filters. Chips rather than a select because starred and
+       user-defined are independent, and both combine with category and search. */
+    .sce-catalogue-origin { padding-top: 0; }
+    .sce-cat-chip {
+      padding: 3px 9px;
+      font-size: 10px;
+      font-family: inherit;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .sce-cat-chip:hover { color: var(--text, #f2f2f4); }
+    .sce-cat-chip[aria-pressed="true"] {
+      background: var(--accent, #3b82f6);
+      border-color: var(--accent, #3b82f6);
+      color: #fff;
+    }
+    .sce-layers-footer {
+      flex: 0 0 auto;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+      padding-top: 4px;
+    }
+    .sce-layers-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 6px;
+    }
+    .sce-layers-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
     .sce-mix-scope { padding: 0 4px 4px; }
+    .sce-mix-scope[hidden] { display: none; }
     .sce-mix-scope-select {
       width: 100%;
       font-size: 11px;
@@ -18906,6 +19159,9 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       border-radius: 3px;
     }
     .sce-layer-btn:hover { background: var(--hover); }
+    /* The hide eye dims when the target is already hidden, so the button
+       reads as a state indicator and not just an action. */
+    .sce-layer-btn.is-off { opacity: 0.35; }
     .sce-layer-add-btn {
       font-size: 11px;
       padding: 6px;
@@ -18965,18 +19221,130 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       box-sizing: border-box;
       user-select: none;
     }
-    .sce-col-resizer {
-      position: absolute;
-      top: 0;
-      right: -3px;
-      width: 7px;
-      height: 100%;
-      cursor: col-resize;
-      z-index: 7;
+.sce-col-resizer {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    right: -3px;
+    width: 7px;
+    cursor: col-resize;
+    z-index: 7;
+    border-radius: 2px;
     }
-    .sce-col-resizer:hover,
+.sce-col-resizer:hover,
     .sce-col-resizer.is-active {
-      background: rgba(59,130,246,0.4);
+    background: rgba(59,130,246,0.4);
+    }
+
+    /* ── Idea Notes viewer (INBOX tab) ── */
+    .idea-notes-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      overflow-y: auto;
+    }
+    .idea-notes-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .idea-notes-header h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .idea-notes-search {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--surface, #15181d);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .idea-notes-filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .idea-notes-select {
+      padding: 5px 8px;
+      background: var(--surface, #15181d);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+    }
+    .idea-notes-chip {
+      padding: 5px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .idea-notes-chip.is-active {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.4);
+      color: var(--accent, #3b82f6);
+    }
+    .idea-notes-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .idea-note-item {
+      padding: 10px 12px;
+      background: var(--surface, #15181d);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .idea-note-item:hover {
+      border-color: rgba(59,130,246,0.4);
+    }
+    .idea-note-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .idea-note-title.is-empty {
+      color: var(--muted);
+      font-style: italic;
+      font-weight: 400;
+    }
+    .idea-note-meta {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .idea-note-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .idea-note-preview {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .sce-state-row {
       display: flex;
@@ -18994,6 +19362,99 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       left: 0;
       background: var(--bg);
       z-index: 4;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    .sce-state-label:hover {
+      background: var(--bg-hover, rgba(59,130,246,0.06));
+    }
+    .sce-state-label.is-selected {
+      background: rgba(59,130,246,0.14);
+      box-shadow: inset 3px 0 0 var(--accent, #3b82f6);
+    }
+.sce-state-label:focus-visible {
+    outline: 2px solid var(--accent, #3b82f6);
+    outline-offset: -2px;
+    }
+    .sce-state-color {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+    cursor: pointer;
+    }
+    .sce-color-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+    }
+    .sce-color-modal-overlay[hidden] { display: none; }
+    .sce-color-modal {
+    background: var(--panel, #15181d);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 14px;
+    min-width: 220px;
+    }
+    .sce-color-modal-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    }
+    .sce-color-modal-input {
+    width: 100%; height: 44px;
+    border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; padding: 2px;
+    }
+    .sce-color-modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+    }
+    .sce-color-modal-btn {
+    padding: 8px 18px; border-radius: 6px;
+    border: 1px solid var(--border); cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    }
+    .sce-color-cancel {
+    background: transparent; color: var(--muted);
+    }
+    .sce-color-save {
+    background: var(--accent, #3b82f6); color: #fff; border-color: var(--accent, #3b82f6);
+    }
+    /* Drop affordance replaces the hint on hover so the resting row stays quiet. */
+    .sce-state-label.is-drop-target {
+      background: rgba(59,130,246,0.2);
+      box-shadow: inset 0 0 0 2px var(--accent, #3b82f6);
+    }
+    .sce-state-drop-hint {
+      display: none;
+      margin-top: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--accent, #3b82f6);
+      opacity: 0.85;
+    }
+    .sce-state-label:hover .sce-state-drop-hint,
+    .sce-state-label.is-drop-target .sce-state-drop-hint {
+      display: block;
+    }
+    /* Clamped to two lines so a long purpose can never grow the row: the row
+       height is reserved separately, and this keeps the label inside it. */
+    .sce-state-purpose {
+      margin-top: 3px;
+      font-size: 10px;
+      line-height: 1.25;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
     }
     .sce-state-cell {
       display: flex;
@@ -19012,26 +19473,55 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       width: var(--sce-col-scenes);
       min-width: var(--sce-col-scenes);
     }
+/* The drop divider a block drag shows where it will land. An element of its
+       own rather than an inset shadow on the block: the block is 28px tall with
+       overflow:hidden and a 4px radius, and is-linked / is-thread-anchor already
+       compete for its box-shadow. Absolutely positioned so it never reflows the
+       cell, and pointer-events:none so it cannot swallow the mousemove that
+       moves it. */
+    .sce-block-drop-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #3b82f6;
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+      z-index: 8;
+      pointer-events: none;
+    }
     .sce-layer-cell {
-      width: var(--sce-col-layer, 200px);
-      min-width: var(--sce-col-layer, 200px);
-      min-height: 32px;
-      border-right: 1px solid var(--border);
-      flex-shrink: 0;
-      box-sizing: border-box;
-      padding: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    width: var(--sce-col-layer, 200px);
+    min-width: var(--sce-col-layer, 200px);
+    min-height: 32px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+    }
+    /* Pinned spine column: the beats belonging to each state, rendered right of
+   the states and before chapters. Tinted so it reads as part of the arc rather
+   than as another switchable story layer. */
+    .sce-spine-header {
+      border-left: 1px solid rgba(99, 102, 241, 0.45);
+    }
+    .sce-spine-cell {
+      background: rgba(99, 102, 241, 0.05);
+      border-left: 1px solid rgba(99, 102, 241, 0.28);
     }
     /* Extra gutter between layer columns so the connection lane has somewhere
        to sit. The sticky header takes the same margin, otherwise the header
        boundaries drift out of line with the body columns. Scoped to
        [data-layer-id] because the chapters and scenes headers share this
        class and must stay flush against their neighbours. */
-    .sce-layer-cell:not(:last-child),
-    .sce-layer-header[data-layer-id]:not(:last-child) {
-      margin-right: var(--sce-col-gap);
+.sce-layer-cell:not(:last-child):not(.sce-spine-cell),
+    .sce-layer-header[data-layer-id]:not(:last-child):not(.sce-spine-header),
+    .sce-spine-cell + .sce-state-cell-chapters {
+    margin-right: var(--sce-col-gap);
     }
     .sce-slot-group {
       box-sizing: border-box;
@@ -19044,17 +19534,18 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
     .sce-slot-pad {
       flex-shrink: 0;
     }
-    .sce-scene-slot {
-      box-sizing: border-box;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: row;
-      align-items: stretch;
-      gap: 2px;
-      padding: 2px;
-      border: 1px dashed transparent;
-      border-radius: 4px;
-      transition: background 0.12s, border-color 0.12s;
+.sce-scene-slot {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 2px;
+    padding: 2px;
+    border: 1px dashed transparent;
+    border-radius: 4px;
+    position: relative;
+    transition: background 0.12s, border-color 0.12s;
     }
     .sce-scene-slot:hover {
       border-color: rgba(59,130,246,0.6);
@@ -19064,11 +19555,12 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       flex: 1 1 0;
       min-width: 0;
     }
-    .sce-layer-unscoped {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      flex-shrink: 0;
+.sce-layer-unscoped {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+    position: relative;
     }
     /* Drop target shared by the asset drag path in wireSCEBlockInteractions().
        closest() resolves to the innermost match, so every container it can
@@ -19122,9 +19614,108 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       box-sizing: border-box;
       min-width: 0;
     }
-    .sce-block:hover {
-      filter: brightness(1.1);
+.sce-block:hover {
+        filter: brightness(1.1);
+      }
+      /* Expanded in place, the block hosts its own editors, so it stops being a
+         single-line card: it wraps, grows to fit the fields, and is allowed to
+         overflow its slot (hidden would clip every field below the fold). */
+      /* An idea card is a tab, not a one-line chip: its description sits on the face
+       so the spine reads without opening anything. Two lines, clamped, so a long
+       description cannot grow the row out from under its neighbours. */
+    .sce-block.is-idea {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 0;
+      padding: 5px 8px;
+      cursor: pointer;
     }
+    .sce-block.is-idea .sce-block-title {
+      flex: 0 0 auto;
+      line-height: 1.2;
+      color: #fff;
+    }
+    .sce-block-desc {
+      font-size: 11px;
+      line-height: 1.25;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.7);
+      overflow-wrap: anywhere;
+    }
+    .sce-block-desc-empty {
+      font-style: italic;
+      color: rgba(255, 255, 255, 0.55);
+    }
+    .sce-block.is-expanded {
+        height: auto;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        overflow: visible;
+        cursor: default;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        z-index: 6;
+      }
+      .sce-block.is-expanded .sce-block-title {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .sce-block-expand {
+        margin-left: auto;
+        flex: 0 0 auto;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #fff;
+        border-radius: 3px;
+        font-size: 10px;
+        line-height: 1;
+        padding: 2px 5px;
+        cursor: pointer;
+      }
+      .sce-block-expand:hover {
+        background: rgba(0, 0, 0, 0.55);
+      }
+      .sce-block-editor {
+        flex: 1 0 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.25);
+      }
+      .sce-block-field-label {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.85);
+      }
+/* Example text for a field. Muted and italic so it reads as guidance sitting
+       above the input rather than as content inside it. */
+    .sce-block-field-hint {
+      margin: -2px 0 3px;
+      font-size: 10px;
+      line-height: 1.35;
+      font-style: italic;
+      color: var(--muted, #6b7280);
+    }
+    .sce-block-field {
+    width: 100%;
+    box-sizing: border-box;
+        font-size: 11px;
+        font-family: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 4px 6px;
+        resize: vertical;
+      }
+      .sce-block-field:focus {
+        outline: 2px solid var(--accent, #3b82f6);
+        outline-offset: -1px;
+      }
     .sce-block.is-selected {
       outline: 2px solid #fff;
       outline-offset: -1px;
@@ -19163,27 +19754,30 @@ body.dark-mode .lifecycle-draft-textarea { background: #1f2937; border-color: #4
       margin-right: 3px;
       vertical-align: middle;
     }
-    .sce-chapter-block {
-      position: static;
-      top: auto;
-      left: auto;
-      height: auto;
-      min-height: 22px;
-      box-sizing: border-box;
-      flex-shrink: 0;
-      box-shadow: 0 1px 0 var(--border);
-      overflow: hidden;
-      background: #3b82f6;
-      border-radius: 3px;
-      padding: 2px 6px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      z-index: 2;
-      display: block;
+.sce-chapter-block {
+    position: static;
+    top: auto;
+    left: auto;
+    height: auto;
+    min-height: 22px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 0 var(--border);
+    background: #3b82f6;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    z-index: 2;
+    }
+    .sce-chapter-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
     }
     .sce-chapter-block:hover {
       filter: brightness(1.15);

@@ -2378,3 +2378,33 @@
         if (detailsHandle) detailsHandle.addEventListener("mousedown", function (e) { onStartResize(detailsHandle, e); });
       }
     }
+
+    // ── Idea Notes (INBOX tab) ──
+    (function () {
+      var searchTimer = null;
+      var searchInput = document.getElementById("ideaNotesSearch");
+      if (searchInput) {
+        bindUiOnce(searchInput, "idea-notes-search", "input", function () {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(function () {
+            if (typeof renderIdeaNotes === "function") renderIdeaNotes();
+          }, 300);
+        });
+      }
+      var selS = document.getElementById("ideaNotesSeriesFilter");
+      if (selS) bindUiOnce(selS, "idea-notes-series-filter", "change", function () {
+        if (typeof renderIdeaNotes === "function") renderIdeaNotes();
+      });
+      var selP = document.getElementById("ideaNotesProjectFilter");
+      if (selP) bindUiOnce(selP, "idea-notes-project-filter", "change", function () {
+        if (typeof renderIdeaNotes === "function") renderIdeaNotes();
+      });
+      document.querySelectorAll(".idea-notes-chip").forEach(function (chip) {
+        bindUiOnce(chip, "idea-notes-chip-" + chip.getAttribute("data-filter"), "click", function () {
+          document.querySelectorAll(".idea-notes-chip").forEach(function (c) {
+            c.classList.toggle("is-active", c === chip);
+          });
+          if (typeof renderIdeaNotes === "function") renderIdeaNotes();
+        });
+      });
+    })();

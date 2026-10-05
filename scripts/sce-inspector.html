@@ -197,6 +197,14 @@
         }
       }
 
+      if (_sceState.selectedStateId) {
+        var state = _sceState.states.find(function (s) { return Number(s.id) === _sceState.selectedStateId; });
+        if (state) {
+          renderSCEInspectorState(state);
+          return;
+        }
+      }
+
       if (_sceState.selectedAssetId) {
         var asset = _sceState.assets.find(function (a) { return Number(a.id) === _sceState.selectedAssetId; });
         if (asset) {
@@ -205,7 +213,84 @@
         }
       }
 
-      content.innerHTML = "<div class='sce-inspector-empty'>Select a block or asset to edit</div>";
+      content.innerHTML = "<div class='sce-inspector-empty'>Select a state, block or asset to edit</div>";
+    }
+
+    // The spine layer helpers (sceFindSpineLayer / sceEnsureSpineLayer) and the
+    // spine layer name live in sce-core.html now: the spine renders as a pinned
+    // timeline column, so it is layout infrastructure rather than inspector
+    // state.
+
+    function sceStateBlocks(state) {
+      return (_sceState.blocks || []).filter(function (b) {
+        return Number(b.start_state) === Number(state.position);
+      });
+    }
+
+    function renderSCEInspectorState(state) {
+      var content = document.getElementById("sceInspectorContent");
+      if (!content) return;
+
+      var placed = sceStateBlocks(state);
+
+      var html = "";
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>State Name</label>";
+      html += "<input id='sceStateName' type='text' class='sce-inspector-input' value='" + escapeHtml(state.name || "") + "' placeholder='State name...' />";
+      html += "</div>";
+
+      // Purpose carries the expanded explanation for this state, which is also
+      // condensed into the state row itself.
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Purpose</label>";
+      html += "<textarea id='sceStatePurpose' class='sce-inspector-textarea' rows='4' placeholder='What is this state for, and what must it achieve?'>" + escapeHtml(state.purpose || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Before</label>";
+      html += "<textarea id='sceStateBefore' class='sce-inspector-textarea' rows='3' placeholder='What is true before this state?'>" + escapeHtml(state.before_text || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>After</label>";
+      html += "<textarea id='sceStateAfter' class='sce-inspector-textarea' rows='3' placeholder='What has changed by the end?'>" + escapeHtml(state.after_text || "") + "</textarea>";
+      html += "</div>";
+
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Notes</label>";
+      html += "<textarea id='sceStateNotes' class='sce-inspector-textarea' rows='3' placeholder='Notes for this state...'>" + escapeHtml(state.notes || "") + "</textarea>";
+      html += "</div>";
+
+      // Read-only placement summary. Blocks anchor to a chapter or scene now,
+      // so this counts what lands in the row by state position.
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Blocks In This State</label>";
+      if (!placed.length) {
+        html += "<div style='font-size:11px;color:var(--muted);'>No blocks placed in this state.</div>";
+      } else {
+        html += "<div style='font-size:11px;color:var(--muted);'>" + placed.length + " block" + (placed.length === 1 ? "" : "s") + " start in this state.</div>";
+      }
+      html += "</div>";
+
+      html += "<div class='sce-inspector-actions'>";
+      html += "<button id='sceStateSave' type='button' class='sce-inspector-btn primary'>Save</button>";
+      html += "</div>";
+
+      content.innerHTML = html;
+
+      var saveBtn = document.getElementById("sceStateSave");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          if (sceMutationBlocked("save state")) return;
+          state.name = document.getElementById("sceStateName").value;
+          state.purpose = document.getElementById("sceStatePurpose").value;
+          state.before_text = document.getElementById("sceStateBefore").value;
+          state.after_text = document.getElementById("sceStateAfter").value;
+          state.notes = document.getElementById("sceStateNotes").value;
+          saveSCEState(state);
+          renderSCETimeline();
+        });
+      }
     }
 
     function renderSCEInspectorBlock(block) {
@@ -558,8 +643,31 @@
 
       var html = "";
       html += "<div class='sce-inspector-section'>";
-      html += "<label class='sce-inspector-label'>Asset Name</label>";
+      html += "<label class='sce-inspector-label'>Idea Name</label>";
       html += "<input id='sceAssetName' type='text' class='sce-inspector-input' value='" + escapeHtml(asset.name || "") + "' />";
+      html += "</div>";
+
+      // Reassignment. Uses the same book list as the panel filter so the two
+      // cannot drift. "shared" clears book_id.
+      var bookOptions = sceAssetBookOptions();
+      html += "<div class='sce-inspector-section'>";
+      html += "<label class='sce-inspector-label'>Book</label>";
+      html += "<select id='sceAssetBookSelect' class='sce-inspector-input'>";
+      bookOptions.books.forEach(function (book) {
+        var bookId = sceBookId(book);
+        if (!bookId) return;
+        var markCurrent = bookId === bookOptions.currentBookId;
+        html += "<option value='" + bookId + "'" + (Number(asset.book_id || 0) === bookId ? " selected" : "") + ">" + escapeHtml(sceBookLabel(book, markCurrent ? bookOptions.currentBookId : 0)) + "</option>";
+      });
+      // An idea can point at a book outside the loaded series list, so keep it
+      // selectable instead of silently reading as shared.
+      var assetBookId = Number(asset.book_id || 0);
+      var listedIds = bookOptions.books.map(sceBookId);
+      if (assetBookId && listedIds.indexOf(assetBookId) === -1) {
+        html += "<option value='" + assetBookId + "' selected>Book " + assetBookId + " (other series)</option>";
+      }
+      html += "<option value='shared'" + (assetBookId ? "" : " selected") + ">Shared across the series</option>";
+      html += "</select>";
       html += "</div>";
 
       html += "<div class='sce-inspector-section'>";
@@ -593,22 +701,78 @@
       var saveBtn = document.getElementById("sceAssetSaveBtn");
       if (saveBtn) {
         saveBtn.addEventListener("click", function () {
-          if (sceMutationBlocked("save asset")) return;
+          if (sceMutationBlocked("save idea")) return;
           asset.name = document.getElementById("sceAssetName").value;
           asset.description = document.getElementById("sceAssetDesc").value;
           asset.what_changes = document.getElementById("sceAssetChanges").value;
           asset.what_produces = document.getElementById("sceAssetProduces").value;
           asset.notes = document.getElementById("sceAssetNotes").value;
 
-          var project = getSelectedProject();
-          var seriesId = Number(project && project.series_id || 0);
+          var bookSelect = document.getElementById("sceAssetBookSelect");
+          var bookValue = bookSelect ? String(bookSelect.value || "") : "";
+          var nextBookId = bookValue === "shared" ? null : Number(bookValue || 0) || null;
+          var previousBookId = asset.book_id === null || asset.book_id === undefined ? null : Number(asset.book_id || 0) || null;
+          asset.book_id = nextBookId;
 
           supabaseRunner
-            .withSuccessHandler(function () {
-              renderSCEAssetBin(seriesId);
+            .withSuccessHandler(function (json) {
+              var result = typeof json === 'string' ? JSON.parse(json) : json;
+              if (result && result.bookTagFailed && typeof setStatus === "function") {
+                setStatus("Text saved, but the book tag was rejected: " + (result.bookTagError || "unknown"), "warn");
+              }
+              // The stored row is authoritative. Without this the panel keeps
+              // showing the optimistic value, which silently disagrees with the
+              // database and reverts on the next load.
+              if (result && result.asset) {
+                var idx = _sceState.assets.findIndex(function (a) { return Number(a.id) === Number(result.asset.id); });
+                if (idx >= 0) _sceState.assets[idx] = result.asset;
+              }
+              renderSCEAssetBin();
+              var stored = _sceState.assets.filter(function (a) { return Number(a.id) === Number(asset.id); })[0];
+              var storedBookId = stored && (stored.book_id === null || stored.book_id === undefined)
+                ? null : Number(stored && stored.book_id || 0) || null;
+              if (previousBookId !== storedBookId && typeof setStatus === "function") {
+                setStatus(
+                  storedBookId === null
+                    ? "That idea was saved as shared. Tagging by book needs the 20261002_add_asset_book_scope migration."
+                    : "That idea was saved but is still tagged to a different book.",
+                  "warn"
+                );
+              }
+              // Reassigning to another book removes the idea from the current
+              // book's filter. Leaving the filter alone makes a successful save
+              // look like a failed one, so widen the filter to keep the idea
+              // visible and confirm where it went.
+              if (stored && previousBookId !== storedBookId) {
+                var scope = String(_sceState.assetScope || "book");
+                if (!sceAssetMatchesScope(stored, scope)) {
+                  _sceState.assetScope = "all";
+                  renderSCEAssetBookFilter();
+                }
+                if (typeof setStatus === "function") {
+                  var opts = sceAssetBookOptions();
+                  var targetBook = storedBookId
+                    ? sceBookTitle(opts.books.filter(function (b) { return sceBookId(b) === storedBookId; })[0])
+                    : "shared across the series";
+                  setStatus("Idea moved to " + targetBook + ". Showing all books in the series.", "ok");
+                }
+              }
+              if (stored && !sceAssetMatchesScope(stored, String(_sceState.assetScope || "book"))) {
+                _sceState.selectedAssetId = null;
+                renderSCEInspector();
+              } else if (stored) {
+                renderSCEAssetBin();
+                renderSCEInspectorAsset(stored);
+              }
             })
             .withFailureHandler(function (err) {
-              console.error("[SCE] Failed to save asset:", err);
+              var message = (err && (err.message || err.error_description || err.hint)) || String(err || "unknown error");
+              var code = (err && err.code) || "";
+              console.error("[SCE] Failed to save idea:", err);
+              console.error("[SCE] save payload:", JSON.stringify({ id: asset.id, series_id: asset.series_id, book_id: asset.book_id }));
+              if (typeof setStatus === "function") {
+                setStatus("Could not save this idea" + (code ? " (" + code + ")" : "") + ": " + message, "warn");
+              }
             })
             .sceSaveAsset(JSON.stringify(asset));
         });
@@ -618,15 +782,13 @@
       var deleteBtn = document.getElementById("sceAssetDeleteBtn");
       if (deleteBtn) {
         deleteBtn.addEventListener("click", function () {
-          if (sceMutationBlocked("delete asset")) return;
-          if (!confirm("Delete this asset?")) return;
+          if (sceMutationBlocked("delete idea")) return;
+          if (!confirm("Delete this idea?")) return;
           supabaseRunner
             .withSuccessHandler(function () {
               _sceState.assets = _sceState.assets.filter(function (a) { return Number(a.id) !== Number(asset.id); });
               _sceState.selectedAssetId = null;
-              var project = getSelectedProject();
-              var seriesId = Number(project && project.series_id || 0);
-              renderSCEAssetBin(seriesId);
+              renderSCEAssetBin();
               renderSCEInspector();
             })
             .withFailureHandler(function (err) {
