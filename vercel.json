@@ -1,6 +1,7 @@
 {
   "buildCommand": "node build.js",
   "outputDirectory": "build",
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/mobile", "destination": "/mobile.html" }
   ]
